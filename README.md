@@ -60,6 +60,12 @@ happened to be open. That is why the type decides placement and not the reverse:
 has to be re-derived every time a new tool appears, and a content-first one absorbs the new tool as
 another column.
 
+![The four content types held twice — shared and individual — on the human side, loaded automatically into the session loop on the AI side, and promoted back out by a human. Tracking runs on its own axis.](docs/images/context-taxonomy.svg)
+
+*The whole model on one page: context types on the left, colour-keyed wherever the same thing is held
+twice; tracking on its own axis in the middle; the session loop on the right, loaded automatically and
+promoted from with a human in the loop.*
+
 Note what the fourth type buys you. An agent role definition, a review checklist and a decisions-log
 skeleton have nothing in common as documents, and everything in common as *things you deploy when a
 category of work starts*. Naming that category stops each one being reinvented per project.
@@ -259,8 +265,12 @@ The shape of the pass:
 4. **Verify before recording.** Check each technical claim against the current state of the code or
    file. A behaviour that changed during the session is not a finding.
 5. **Reconcile tracking separately**, after promotion, and report it separately.
-6. **Report**: what was promoted and at which tier, what is proposed and waiting, which files were
-   touched.
+6. **Who needs to know** — optional, and only when the project names more than one person. For each
+   item, name a teammate only where their work is affected, point at where the learning now lives, and
+   send nothing: a message to a colleague goes out in a person's own voice. "Nobody in particular" is
+   a common answer; "everybody" is a sign the item may be a working standard instead.
+7. **Report**: what was promoted and at which tier, what is proposed and waiting, who needs to know,
+   which files were touched.
 
 **The backstop, and its limits.** Some agent harnesses expose session lifecycle hooks, in which case
 an automatic capture can write candidate notes to a draft when the ritual is skipped, and the next

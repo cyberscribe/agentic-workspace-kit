@@ -37,6 +37,14 @@ Where two files could both look authoritative, say plainly which one wins.
 Marking which files are canonical and which are derived is the single most useful thing in a project
 folder. A companion treated as authoritative is the failure this prevents.
 
+## People
+
+Who works on this and what each of them owns, one line per person, pointing at their profile in
+`memory/people/` rather than restating it. When two or more people are named here or there, the
+closeout ritual adds a "who needs to know" step. Delete this section for a one-person project.
+
+- <name> — <what they own here> — `memory/people/<name>.md`
+
 ## Working conventions
 
 The rules that are specific to this project and would otherwise be re-derived or violated:

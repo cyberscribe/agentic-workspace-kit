@@ -72,10 +72,43 @@ Context and tracking are different axes. Promote learnings first, then confirm t
 files reflect reality, and release any locks or claims this session holds. Report the two separately;
 merging them is how the ritual decays into a status update.
 
-### 6. Report
+### 6. Who needs to know — when the project has more than one person
+
+*Optional. It applies when the project names two or more people: profiles in the people directory
+(`memory/people/`), a People or Team section in the project's README or in the local closeout
+conventions, or an explicit team list in the configuration. With one person or none, skip it without
+comment.*
+
+Promotion decides where a learning is kept. This step decides who should hear about it now — because a
+file that changed without anyone knowing reaches nobody until they happen to open it. It is the other
+half of the visibility rule.
+
+For each item promoted or proposed, ask whether a specific person's work is affected: they own the
+area it touches, a decision changes what they are doing, it blocks or unblocks them, or their profile
+says they are the one to go to for it. The output is a short table:
+
+| Who | What they need to know | Why them | Where it is recorded |
+|---|---|---|---|
+| <name> | <one line> | <owns / blocked by / decided by / go-to for> | `<path it was promoted to>` |
+
+- **Name someone only with a reason.** "Nobody in particular" is a common and correct answer; say it
+  in one line.
+- **If everyone needs to know, it may be a working standard** rather than a broadcast. Raise it as a
+  promotion question instead.
+- **Point rather than restate.** The message is the pointer to where the learning now lives, so the
+  record stays single and the note stays short.
+- **Nothing is sent.** A message to a colleague goes out in a person's own voice, from them. Draft one
+  only when asked.
+- **An unknown owner is a finding.** If the right person cannot be named, that is a gap in the people
+  directory worth filling.
+- **The table stays out of the repository.** It is communication, not context or tracking, and it is
+  stale the moment it has been read.
+
+### 7. Report
 
 - What was promoted, and at which tier.
 - What is proposed and waiting for a decision.
+- Who needs to know what, if step 6 applied.
 - Which files were touched, new against modified.
 - Anything left unfinished.
 

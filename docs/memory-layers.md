@@ -31,6 +31,8 @@ The type is a property of the content and travels with it; the store is an accid
 happened to be open. A store-first taxonomy has to be re-derived every time a new tool appears; a
 content-first one absorbs the new tool as another column.
 
+![The four content types held twice — shared and individual — on the human side, loaded automatically into the session loop on the AI side, and promoted back out by a human. Tracking runs on its own axis.](images/context-taxonomy.svg)
+
 ## 3. Where each type lives
 
 > Fill this in for your setup. The columns are the two axes; the rows are the four types. Every store

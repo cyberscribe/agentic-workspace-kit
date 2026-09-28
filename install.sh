@@ -171,6 +171,7 @@ for f in docs/workspace-map.md docs/documentation-register.md rituals/closeout.m
          templates/project-decisions.md templates/project-readme.md templates/person-profile.md; do
     place_rendered "$KIT/$f" "$f"
 done
+place "$KIT/docs/images/context-taxonomy.svg" docs/images/context-taxonomy.svg
 
 # 3 · Empty homes for the canonical files the manifest points at, so every promised path exists.
 printf '# Projects\n\nThe register: one line per project, linking its folder.\n\n## Active\n\n| Project | Folder | One-liner |\n|---|---|---|\n\n## Paused\n\n## Done\n' > "$work/INDEX.md"

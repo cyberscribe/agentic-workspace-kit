@@ -5,6 +5,21 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v1.3 — 2026-09-28
+
+**The taxonomy, drawn.** `docs/images/context-taxonomy.svg` — the four content types held shared and
+individual on the human side, tracking on its own axis, and the session loop loaded automatically and
+promoted from by a human. Shown in the README (§1.2) and `docs/memory-layers.md`, and installed with
+them.
+
+**Closeout: who needs to know.** An optional step, on only when a project names two or more people
+(profiles in `memory/people/`, a People section in the project README, a Team section in the closeout
+conventions). It names who should hear about what, why them, and where the learning is recorded — and
+sends nothing, because a message to a colleague goes out in a person's own voice. "Everybody" is
+treated as a sign the item may be a working standard. Added to `rituals/closeout.md`, the plugin's
+`/closeout` and both hooks (plugin 1.1.0), `templates/project-readme.md` (a People section) and the
+team conventions.
+
 ## v1.2 — 2026-09-28
 
 Makes the kit deployable to a team in one command, for running as a time-boxed pilot.

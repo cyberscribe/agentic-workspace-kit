@@ -23,4 +23,7 @@ copies drift.
   file. A personal memory store is where a team learning goes to be lost.
 - **Project reference lives in `projects/<slug>/`.** A cross-project decision goes in
   `logs/decisions.md`, using the filter in `templates/project-decisions.md`.
+- **Who needs to know** comes from `memory/people/`: with two or more profiles there, the closeout
+  ends with a short table of who should hear about what. It is a suggestion for the person closing
+  out; nothing is sent, and it is not committed.
 - **Leave the commit to the human.** Report the files touched; do not stage with a broad command.

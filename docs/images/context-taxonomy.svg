@@ -1,0 +1,107 @@
+<svg viewBox="0 0 1360 762" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+<title id="t">Executive function across human and AI</title>
+<desc id="d">Human side: shared, individual and working-session tracking, with the context held at shared and individual level. AI side: a session replay loop — one of several that may be running — with sub-agents, tools and API calls beneath it, fed automatically by four context stores, and promoting back out into them with a human in the loop. Six content types are colour-keyed across both sides to show what must be kept in sync. Small arrows mark the promotion cascade from project reference up to general reference up to working standards; templates sits outside it.</desc>
+<defs>
+<marker id="ma" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="7.6499999999999995" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#0F172A"/></marker>
+<marker id="maR" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="1.3499999999999999" refY="4.5" orient="auto"><path d="M9,0 L0,4.5 L9,9 Z" fill="#0F172A"/></marker>
+<marker id="mb" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="6.8" refY="4.0" orient="auto"><path d="M0,0 L8,4.0 L0,8 Z" fill="#64748B"/></marker>
+<marker id="mbR" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1.2" refY="4.0" orient="auto"><path d="M8,0 L0,4.0 L8,8 Z" fill="#64748B"/></marker>
+<marker id="mc" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="6.8" refY="4.0" orient="auto"><path d="M0,0 L8,4.0 L0,8 Z" fill="#475569"/></marker>
+<marker id="mcR" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1.2" refY="4.0" orient="auto"><path d="M8,0 L0,4.0 L8,8 Z" fill="#475569"/></marker>
+</defs>
+<rect x="0" y="0" width="1360" height="762" rx="0" fill="#FFFFFF"/>
+<line x1="640" y1="60" x2="640" y2="694" stroke="#CBD5E1" stroke-width="2.5" stroke-dasharray="9 9"/>
+<text x="600" y="722" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="20" font-weight="800" fill="#CBD5E1" text-anchor="end" letter-spacing="5">HUMAN</text>
+<text x="680" y="722" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="20" font-weight="800" fill="#CBD5E1" letter-spacing="5">AI</text>
+<rect x="48" y="110.0" width="214" height="128" rx="10" fill="#EFF6FF" stroke="#E2E8F0" stroke-width="1.2"/>
+<text x="66" y="138.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F172A">Shared context</text>
+<circle cx="70" cy="158.0" r="4" fill="#1E3A8A"/>
+<text x="82" y="162.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">working standards</text>
+<circle cx="70" cy="177.0" r="4" fill="#2563EB"/>
+<text x="82" y="181.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">general reference</text>
+<circle cx="70" cy="196.0" r="4" fill="#60A5FA"/>
+<text x="82" y="200.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">project reference</text>
+<circle cx="70" cy="215.0" r="4" fill="#B45309"/>
+<text x="82" y="219.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">templates</text>
+<rect x="48" y="290.0" width="214" height="128" rx="10" fill="#EFF6FF" stroke="#E2E8F0" stroke-width="1.2"/>
+<text x="66" y="318.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F172A">Individual context</text>
+<circle cx="70" cy="338.0" r="4" fill="#1E3A8A"/>
+<text x="82" y="342.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">working standards</text>
+<circle cx="70" cy="357.0" r="4" fill="#2563EB"/>
+<text x="82" y="361.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">general reference</text>
+<circle cx="70" cy="376.0" r="4" fill="#60A5FA"/>
+<text x="82" y="380.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">project reference</text>
+<circle cx="70" cy="395.0" r="4" fill="#B45309"/>
+<text x="82" y="399.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">templates</text>
+<rect x="280" y="130" width="330" height="88" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2"/>
+<text x="300" y="162" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#0F172A">Shared tracking</text>
+<circle cx="307" cy="187" r="4.2" fill="#15803D"/>
+<text x="318" y="191" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">projects</text>
+<circle cx="393.8" cy="187" r="4.2" fill="#9333EA"/>
+<text x="404.8" y="191" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">status</text>
+<rect x="280" y="310" width="330" height="88" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2"/>
+<text x="300" y="342" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#0F172A">Individual tracking</text>
+<circle cx="307" cy="367" r="4.2" fill="#15803D"/>
+<text x="318" y="371" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">projects</text>
+<circle cx="393.8" cy="367" r="4.2" fill="#9333EA"/>
+<text x="404.8" y="371" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">status</text>
+<rect x="280" y="490" width="330" height="88" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2"/>
+<text x="300" y="522" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#0F172A">Working session tracking</text>
+<circle cx="307" cy="547" r="4.2" fill="#15803D"/>
+<text x="318" y="551" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">projects</text>
+<circle cx="393.8" cy="547" r="4.2" fill="#9333EA"/>
+<text x="404.8" y="551" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">status</text>
+<line x1="445.0" y1="227" x2="445.0" y2="301" stroke="#0F172A" stroke-width="2.2" marker-start="url(#maR)" marker-end="url(#ma)"/>
+<line x1="445.0" y1="407" x2="445.0" y2="481" stroke="#0F172A" stroke-width="2.2" marker-start="url(#maR)" marker-end="url(#ma)"/>
+<line x1="619" y1="534.0" x2="657" y2="534.0" stroke="#0F172A" stroke-width="2.6" marker-start="url(#maR)" marker-end="url(#ma)"/>
+<rect x="666" y="356" width="214" height="84" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2"/>
+<text x="686" y="388" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Working memory</text>
+<rect x="786.0" y="408" width="74.0" height="19" rx="9.5" fill="#FFFFFF" stroke="#475569" stroke-width="1"/>
+<text x="823.0" y="421.2" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="8.5" font-weight="800" fill="#475569" text-anchor="middle" letter-spacing="0.9">AUTOMATIC</text>
+<line x1="773.0" y1="449" x2="773.0" y2="481" stroke="#0F172A" stroke-width="2.2" marker-start="url(#maR)" marker-end="url(#ma)"/>
+<rect x="684" y="508" width="214" height="96" rx="10" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.4" opacity="0.4"/>
+<rect x="675" y="499" width="214" height="96" rx="10" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.4" opacity="0.62"/>
+<rect x="666" y="490" width="214" height="96" rx="10" fill="#0F172A"/>
+<text x="773.0" y="524" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Session replay loop</text>
+<rect x="679" y="540" width="188" height="32" rx="7" fill="#1E293B" stroke="#334155" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="773.0" y="560" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="10" font-weight="600" fill="#94A3B8" text-anchor="middle">sub-agents · tools · API calls</text>
+<rect x="940" y="130" width="290" height="76" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.2"/>
+<rect x="940" y="140" width="4.5" height="56" rx="2.2" fill="#1E3A8A"/>
+<text x="962" y="173.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Working standards</text>
+<rect x="1154.0" y="158.5" width="56.0" height="19" rx="9.5" fill="#0F172A" stroke="#0F172A" stroke-width="1"/>
+<text x="1182.0" y="171.7" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="8.5" font-weight="800" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.9">ALWAYS</text>
+<rect x="940" y="228" width="290" height="76" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.2"/>
+<rect x="940" y="238" width="4.5" height="56" rx="2.2" fill="#2563EB"/>
+<text x="962" y="271.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">General reference</text>
+<rect x="1136.0" y="256.5" width="74.0" height="19" rx="9.5" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+<text x="1173.0" y="269.7" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="8.5" font-weight="800" fill="#64748B" text-anchor="middle" letter-spacing="0.9">AS-NEEDED</text>
+<rect x="940" y="326" width="290" height="76" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.2"/>
+<rect x="940" y="336" width="4.5" height="56" rx="2.2" fill="#60A5FA"/>
+<text x="962" y="369.0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Project reference</text>
+<rect x="1124.0" y="354.5" width="86.0" height="19" rx="9.5" fill="#FFFFFF" stroke="#475569" stroke-width="1"/>
+<text x="1167.0" y="367.7" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="8.5" font-weight="800" fill="#475569" text-anchor="middle" letter-spacing="0.9">PER PROJECT</text>
+<rect x="940" y="448" width="290" height="76" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.2"/>
+<rect x="940" y="458" width="4.5" height="56" rx="2.2" fill="#B45309"/>
+<text x="962" y="478" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Templates</text>
+<text x="962" y="496" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="10" font-weight="400" fill="#64748B">(including agent role definitions)</text>
+<rect x="1136.0" y="476.5" width="74.0" height="19" rx="9.5" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+<text x="1173.0" y="489.7" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="8.5" font-weight="800" fill="#64748B" text-anchor="middle" letter-spacing="0.9">AS-NEEDED</text>
+<line x1="940" y1="168.0" x2="918" y2="168.0" stroke="#64748B" stroke-width="1.6"/>
+<circle cx="918" cy="168.0" r="3" fill="#64748B"/>
+<line x1="940" y1="266.0" x2="918" y2="266.0" stroke="#64748B" stroke-width="1.6"/>
+<circle cx="918" cy="266.0" r="3" fill="#64748B"/>
+<line x1="940" y1="364.0" x2="918" y2="364.0" stroke="#64748B" stroke-width="1.6"/>
+<circle cx="918" cy="364.0" r="3" fill="#64748B"/>
+<line x1="940" y1="486.0" x2="918" y2="486.0" stroke="#64748B" stroke-width="1.6"/>
+<circle cx="918" cy="486.0" r="3" fill="#64748B"/>
+<path d="M 918 168.0 L 918 512 L 890 512" fill="none" stroke="#64748B" stroke-width="2.2" marker-end="url(#mb)"/>
+<g transform="translate(892,329.0) rotate(-90)"><text x="0" y="0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#64748B" text-anchor="middle" letter-spacing="0.7">loading</text><text x="0" y="14" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="400" fill="#64748B" text-anchor="middle" letter-spacing="0.7">automatic</text></g>
+<path d="M 890 552 L 1256 552 L 1256 168.0" fill="none" stroke="#475569" stroke-width="2.2"/>
+<line x1="1256" y1="168.0" x2="1238" y2="168.0" stroke="#475569" stroke-width="1.8" marker-end="url(#mc)"/>
+<line x1="1256" y1="266.0" x2="1238" y2="266.0" stroke="#475569" stroke-width="1.8" marker-end="url(#mc)"/>
+<line x1="1256" y1="364.0" x2="1238" y2="364.0" stroke="#475569" stroke-width="1.8" marker-end="url(#mc)"/>
+<line x1="1256" y1="486.0" x2="1238" y2="486.0" stroke="#475569" stroke-width="1.8" marker-end="url(#mc)"/>
+<g transform="translate(1280,333.0) rotate(-90)"><text x="0" y="0" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#475569" text-anchor="middle" letter-spacing="0.7">promotion</text><text x="0" y="14" font-family="Inter, Segoe UI, Carlito, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="400" fill="#64748B" text-anchor="middle" letter-spacing="0.7">human-involved</text></g>
+<line x1="986" y1="225" x2="986" y2="209" stroke="#475569" stroke-width="2" marker-end="url(#mc)"/>
+<line x1="986" y1="323" x2="986" y2="307" stroke="#475569" stroke-width="2" marker-end="url(#mc)"/>
+</svg>
