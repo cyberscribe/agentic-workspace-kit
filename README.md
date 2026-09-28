@@ -571,12 +571,18 @@ the step after the pilot shows it is used.
 Every one is a starting point rather than a standard. The system works because the conventions match
 the work, and yours will differ.
 
-**The plugin on its own**, in any Claude Code repository, without the rest of the kit:
+**The plugin on its own**, in any Claude Code repository, without the rest of the kit — it is
+published standalone at `github.com/cyberscribe/closeout-plugin`:
 
 ```
-/plugin marketplace add cyberscribe/agentic-workspace-kit
+/plugin marketplace add cyberscribe/closeout-plugin
 /plugin install closeout@closeout-marketplace
 ```
+
+`plugins/closeout/` is the source of truth; the standalone repository is a mirror of it, published
+with `git subtree push --prefix=plugins/closeout closeout main` (where `closeout` is a remote for
+`closeout-plugin`). Edit here, then push the subtree — an edit made directly in the standalone
+repository has to be pulled back with `git subtree pull` before the next push.
 
 ## Licence
 
