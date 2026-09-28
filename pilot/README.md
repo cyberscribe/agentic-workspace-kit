@@ -1,0 +1,87 @@
+# Pilot protocol
+
+*How to run this repository as a time-boxed pilot of shared standards and documentation — across the
+team, and with the team's agents — so that at the end there is something countable to say about it.*
+
+---
+
+## What the pilot is testing
+
+Whether a team that keeps its working standards, reference and decisions in one shared, versioned
+place — read by every person and every agent surface — ends up with more of that material in use by
+more of its members, rather than held in one person's head or one person's personal memory store.
+
+It is not testing whether the team got faster. Most teams already report that speed is solved. The
+question here is control: shared language, shared verification standards, knowing who to go to, and
+not re-deriving the same decision twice.
+
+## Roles
+
+| Role | Who | What it involves |
+|---|---|---|
+| **Standards owner** | __OWNER__ | Reviews pull requests that touch `AGENTS.md` or `docs/memory-layers.md`. Holds the always-loaded budget. |
+| **Ritual keeper** | <name; can rotate monthly> | Runs the weekly hygiene pass and `pilot/measure.sh`, commits both outputs. |
+| **Everyone** | The whole team | Runs `/closeout` at the end of working sessions; owns their row(s) in `build-list.md` and their own `memory/people/` profile. |
+| **External reviewer** | <optional> | One critique pass at week 4–6: reads what exists, comments, builds nothing. |
+
+## Timeline
+
+| When | What happens | What it leaves behind |
+|---|---|---|
+| **Week 0** — 90 minutes together | Install (below). Fill §1 of `AGENTS.md`. Transfer the team's own list of what to build into `build-list.md`, one owner and one date per row. Each person drafts their profile. Run one `/closeout` together on a real session. | `AGENTS.md` §1, `build-list.md`, first profiles, first closeout, first `metrics.csv` row |
+| **Weeks 1–8** | Normal work. `/closeout` at the end of sessions. Documentation changes by pull request; always-loaded changes reviewed by the standards owner. | Commits, decision entries, promoted drafts |
+| **Weekly** — 15 minutes | Ritual keeper: `rituals/weekly-hygiene.md`, then `pilot/measure.sh`. Commit the report into `audits/` and the updated `metrics.csv`. | A dated trail |
+| **Week 4–6** | External review pass, if there is one. Update `build-list.md` statuses honestly. | Review notes |
+| **Week 8** | Final `measure.sh`. Readout: the numbers below, plus the team's own account of what changed. | The case study |
+
+## Install
+
+From a checkout of the kit, into this repository:
+
+```bash
+./install.sh --target <path-to-this-repo> --team "<team name>" --owner "<owner name>" --owner-handle "@<handle>" --pilot
+```
+
+Then, per person, once:
+
+- **Claude Code**: open the repository, accept the folder trust prompt, and approve the closeout
+  plugin's hooks when asked. Without that approval the hooks never run and only `/closeout` works.
+  Needs `jq` on the machine.
+- **Gemini CLI**: nothing further — `.gemini/settings.json` points it at `AGENTS.md`, and
+  `/closeout` is in `.gemini/commands/`. Gemini has the live ritual only, not the end-of-session
+  backstop.
+
+## What gets measured
+
+Every number is read from git history, so it can be recomputed for any past date and checked by
+anyone with read access. `metrics.csv` contains counts only.
+
+| Column | What it shows | Why it matters |
+|---|---|---|
+| `build_items_named`, `build_items_exist` | The team's own list, and how much of it exists | **The primary measure.** "Of the N things this team said it would build, M exist after eight weeks." |
+| `doc_contributors_7d` | Distinct people who changed documentation that week | Whether this is a team practice or one enthusiast's. The most important secondary number. |
+| `doc_commits_7d` | Documentation commits that week | Activity. Read alongside contributors, never alone. |
+| `decisions_logged` | Entries in the decisions logs | Whether reasoning is being kept, not just outcomes |
+| `people_profiles` | Files in `memory/people/` | The "who to go to" directory |
+| `audit_reports` | Files in `audits/` | Whether the weekly ritual is being run — a ritual with no artefacts is a plan |
+| `always_loaded_bytes` | Size of `AGENTS.md` + `CLAUDE.md` | Should stay roughly flat. Steady growth means the budget rule is not holding. |
+
+If the team already runs a before/after pulse survey, keep it alongside these. The survey measures how
+it feels; these measure what exists. A case study is stronger with both, and honest about which is
+which.
+
+## What the pilot can and cannot claim
+
+It can claim what it counted: how many named items exist, how many people contributed, whether the
+rituals ran. With one team, no comparison group and eight weeks, it cannot claim that the practice
+caused a change in effectiveness, and a write-up that says so will not survive a sceptical reader.
+
+A useful honesty check at week 4: if `audit_reports` has not moved and `doc_contributors_7d` is at one,
+the practice has not taken hold yet. Say so in the review and adjust — that is a finding, not a
+failure.
+
+## Confidentiality
+
+`metrics.csv` is safe to share outside the team: it holds dates and counts. `build-list.md`, the
+profiles and everything else in this repository are the team's own and stay where the team keeps
+them. A case study quotes counts and, with permission, the team's own words.

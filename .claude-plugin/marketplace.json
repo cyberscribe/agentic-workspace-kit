@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "closeout-marketplace",
+  "description": "The closeout plugin, published from the workspace context kit it implements one ritual of.",
+  "owner": {
+    "name": "Robert Peake",
+    "url": "https://github.com/cyberscribe"
+  },
+  "plugins": [
+    {
+      "name": "closeout",
+      "description": "A safety net for the end-of-session documentation ritual: /closeout promotes learnings live, and if you forget, a SessionEnd hook captures them into a draft the next session offers to promote.",
+      "source": "./plugins/closeout",
+      "category": "productivity",
+      "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
+    }
+  ]
+}

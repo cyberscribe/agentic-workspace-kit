@@ -1,0 +1,15 @@
+description = "Promote what this session learned into the team's durable docs, before it ends"
+prompt = """
+Run the closeout ritual for this session.
+
+The procedure follows. The team's own tiers and house rules come after it and take precedence over
+the procedure's defaults.
+
+@{rituals/closeout.md}
+
+@{.claude/closeout.md}
+
+Gemini CLI has no end-of-session capture in this setup, so this command is the whole ritual rather
+than one half of it. When a session has produced a decision or a constraint, offering this pass is
+better than waiting to be asked.
+"""

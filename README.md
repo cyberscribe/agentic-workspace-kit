@@ -271,8 +271,8 @@ stop watching for the thing it was supposed to catch. The compensating moves are
 *offer* the pass rather than wait to be asked, and to leave a draft anywhere a later session will
 look.
 
-*One implementation of the hook-based version exists as an installable plugin for Claude Code:
-`github.com/cyberscribe/closeout-plugin`. The pattern matters more than the tool.*
+*One implementation of the hook-based version ships in this repository as a Claude Code plugin, at
+`plugins/closeout/`. The pattern matters more than the tool.*
 
 ### 4.2 Weekly hygiene — is everything where it belongs?
 
@@ -515,6 +515,41 @@ nothing new every week is not evidence that all is well; it is a reason to look 
 
 ---
 
+## Deploying it to a team
+
+Everything above is written for one person's workspace, and a person can adopt it by copying files.
+A team needs more than that: one always-loaded file that every person *and* every agent surface reads,
+a rule for how the shared layer and each person's own layer are arbitrated, a review path for the
+always-loaded tier, and — for a pilot — a way to show afterwards what changed.
+
+`install.sh` lays all of that down in one command, into the team's shared repository:
+
+```bash
+./install.sh --target ../team-workspace --init \
+  --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
+```
+
+- **`AGENTS.md` is the one manifest.** Claude Code reads it through a one-line `CLAUDE.md` import;
+  Gemini CLI through `.gemini/settings.json`. Tools that look for `AGENTS.md` by convention find it
+  directly. The file is portable even where a filename is not.
+- **§1 becomes a team rather than a person**, with a named standards owner and the arbitration rule:
+  the team layer governs whatever touches someone else's work, the personal layer governs your own
+  sessions, and a personal practice reaches the team by pull request.
+- **The closeout plugin is wired in**, vendored by default so it is pinned, reviewable by a security
+  team, and installed without network access. `.claude/closeout.md` points it at
+  `docs/memory-layers.md`, so there is one taxonomy in the repository rather than the plugin's and
+  the kit's side by side. Gemini CLI gets `/closeout` as a command — the live ritual, without the
+  backstop, which is the honest version of §4.1.
+- **`--pilot` adds `pilot/`**: a protocol, the team's own build list as the primary measure, and a
+  script that reads every other number from git history — counts only, safe to share outside the team.
+
+It never overwrites a file; a differing one gets the kit's version beside it as `.kit-incoming`.
+Settings JSON is merged additively. Running it twice is safe.
+
+What it does not do: install into the team's code repositories. The pilot is one shared workspace
+repository; carrying the practice into code repositories — the plugin alone is one command there — is
+the step after the pilot shows it is used.
+
 ## The files in this kit
 
 | File | What it is |
@@ -527,13 +562,34 @@ nothing new every week is not evidence that all is well; it is a reason to look 
 | `rituals/weekly-hygiene.md` | The weekly placement-and-budget pass |
 | `templates/project-decisions.md` | Per-project decisions log skeleton |
 | `templates/project-readme.md` | Per-project README skeleton |
+| `templates/person-profile.md` | One file per person: what they own, and when to go to them |
+| `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
+| `install.sh` | Deploys the kit into a team repository, with the closeout plugin, surface shims and pilot layer |
+| `team/` | The installer's team overlay — see `team/README.md` |
+| `pilot/` | Pilot protocol, build-list ledger and `measure.sh` |
 
 Every one is a starting point rather than a standard. The system works because the conventions match
 the work, and yours will differ.
 
+**The plugin on its own**, in any Claude Code repository, without the rest of the kit:
+
+```
+/plugin marketplace add cyberscribe/agentic-workspace-kit
+/plugin install closeout@closeout-marketplace
+```
+
+## Licence
+
+Code (the installer, `pilot/measure.sh`, the plugin) is MIT. The writing — this README, `docs/`,
+`rituals/`, `templates/` and the rest of the prose — is CC BY 4.0: use and adapt it freely, including
+commercially, with credit. See `LICENSE`.
+
+Maintained as used: this kit runs the author's own workspace daily, and changes land when that
+workspace teaches something. Issues are read; there is no support commitment.
+
 ---
 
-*Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
+*Version 1.2 — 2026-09-28: team deployment and pilot layer added (see CHANGELOG). Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
 claims: the manifest split needs maintaining (§2.1), a canonical-fact table does not enforce itself
 (§2.2), rituals want checking against the set that already exists (§4.4), audit trails belong in
 version control (§4.2), and a ritual that has produced no artefacts is a plan (Part 7).*

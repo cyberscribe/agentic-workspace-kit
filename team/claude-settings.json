@@ -1,0 +1,22 @@
+{
+  "extraKnownMarketplaces": {
+    "closeout-marketplace": {
+      "source": __MARKETPLACE_SOURCE__
+    }
+  },
+  "enabledPlugins": {
+    "closeout@closeout-marketplace": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(rm *closeout-drafts*)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "allowWrite": [
+        "~/.claude/closeout-drafts"
+      ]
+    }
+  }
+}

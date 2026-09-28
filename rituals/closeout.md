@@ -101,8 +101,8 @@ for the thing it was supposed to catch. The compensating moves:
 - When a promotion cannot be finished, leave a draft wherever a later session will look, and have the
   weekly pass report drafts left waiting.
 
-*A hook-based implementation for one harness exists at `github.com/cyberscribe/closeout-plugin`. The
-pattern matters more than the tool.*
+*A hook-based implementation for Claude Code ships with this kit at `plugins/closeout/`. The pattern
+matters more than the tool.*
 
 ## Whether you are actually running it
 

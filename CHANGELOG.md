@@ -5,6 +5,34 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v1.2 — 2026-09-28
+
+Makes the kit deployable to a team in one command, for running as a time-boxed pilot.
+
+**`install.sh` (new).** Lays the kit into a team's shared repository with `AGENTS.md` as the single
+always-loaded file, a `CLAUDE.md` import shim and a Gemini CLI context setting, so every person and
+every agent surface reads one file. Wires the closeout plugin — vendored by default, pinned, and
+pointed at `docs/memory-layers.md` through `.claude/closeout.md` so the repository carries one
+taxonomy rather than two. Never overwrites; differing files arrive as `.kit-incoming`.
+
+**`team/` (new).** The installer's overlay: §1 of the manifest rewritten for a team with a standards
+owner and a rule arbitrating the team layer against each person's own; §3 of `memory-layers.md`
+pre-filled for Claude Code and Gemini CLI; CODEOWNERS and a pull request template routing the
+always-loaded tier through review.
+
+**`pilot/` (new).** A protocol, the team's own build list as the primary measure, and `measure.sh`,
+which recomputes every other number from git history — so a baseline can be backfilled and any figure
+checked. Counts only; nothing that identifies content or people leaves the script.
+
+**One repository.** The closeout plugin moves in from its own repository to `plugins/closeout/`,
+with this repository's root `.claude-plugin/marketplace.json` publishing it under the same marketplace
+name, so `closeout@closeout-marketplace` keeps working. The kit and the plugin are one practice and now
+version together; the installer vendors the plugin from the local copy with no network needed.
+
+**Open licence.** Code is MIT; the writing is CC BY 4.0. See `LICENSE`.
+
+**`templates/person-profile.md` (new).** The "who to go to for what" directory, one file per person.
+
 ## v1.1 — 2026-09-04
 
 Revised after auditing the workspace this kit was extracted from against the kit's own claims. Every
