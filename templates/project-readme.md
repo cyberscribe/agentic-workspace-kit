@@ -31,30 +31,31 @@ crossed its finish line and moves to done.
 - [ ] <observable criterion — "the sponsor has signed off the plan in writing", not "stakeholders are happy">
 - [ ] <…>
 
-## Now
+## Current state
 
-- **State:** <next · doing · waiting · parked · done>
-- **Next action:** <who does one concrete, visible step — "Priya drafts the rollout email", not "work on comms">
-- **Waiting on:** <who — what — since YYYY-MM-DD>
+- **State:** <ready · doing · blocked · paused · done>
+- **Blocked by:** <what the work cannot move without — since YYYY-MM-DD>
 - **Check-in:** <every 2 weeks — last YYYY-MM-DD>
 - **Updated:** <YYYY-MM-DD>
 
-<YYYY-MM-DD> — <one or two sentences: where it stands, what moved last, what is stuck and on whom.>
+<YYYY-MM-DD> — <one or two sentences: where it stands, what moved last, and what is stuck.>
 
 The tracking block, straight after Done when so it is read second. The labels stay exactly as
-written: the projects board, the session-start line and the metrics read them. Each thing awaited is
-its own line with the label repeated — a second one reads
-`- **Waiting on:** Sam — the signed budget — since 2026-09-14` — and there is no such line when
-nothing is awaited; `Check-in:` is there only if the project has a cadence. A next action or an
-owner written as `none found …` or `not yet named` (or `none`, `n/a`, `-`) is an honest gap, and
-counts as missing wherever the block is read. The dated line underneath is rewritten rather than added to — git keeps the
-history. This block goes stale fastest, so it is the first thing to check when picking the project
-up, and the first thing to fix when it disagrees with reality.
+written: the projects board, the session-start line and the metrics read them, bold or plain.
+`State:` is one of five: **ready** (defined and able to start), **doing** (being worked on now, and
+counted against the in-flight limit), **blocked** (cannot move until something outside it changes),
+**paused** (set aside on purpose, to be picked up later) and **done** (every Done when box ticked).
+`Blocked by:` is there only while the project is blocked — one line, saying what it is blocked by and
+since when, as an absolute date. `Check-in:` is there only if the project has a cadence. A value
+written as `none found …` or `not yet named` (or `none`, `n/a`, `-`) is an honest gap, and counts as
+missing wherever the block is read. The dated line underneath is rewritten rather than added to — git
+keeps the history. This block goes stale fastest, so it is the first thing to check when picking the
+project up, and the first thing to fix when it disagrees with reality.
 
-## Next up *(optional)*
+## Planned *(optional)*
 
-The short ordered list of what comes after the next action. When the next action is done, the top
-line here usually becomes the new one.
+The steps foreseen from here, in order. It is a plan rather than a queue: reorder it, strike a step
+that turns out not to be needed, and add one when the work shows it.
 
 1. <…>
 
@@ -107,13 +108,6 @@ The rules that are specific to this project and would otherwise be re-derived or
 - <what needs a human's approval before it changes>
 - <what is never deleted, and how superseded material is marked instead>
 - <what may not be claimed in public about this work, and where the provenance lives>
-
-## Parked *(optional)*
-
-Ideas deliberately set aside, so they stop being re-proposed and are easy to revive. Looked at in
-the regular review.
-
-- <YYYY-MM-DD> — <the idea, and why it waits>
 
 ## Open questions
 

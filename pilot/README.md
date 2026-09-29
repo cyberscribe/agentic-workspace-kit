@@ -60,21 +60,23 @@ anyone with read access. `metrics.csv` contains counts only.
 | `doc_commits_7d` | Documentation commits that week | Activity. Read alongside contributors, never alone. |
 | `decisions_logged` | Entries in the decisions logs | Whether reasoning is being kept, not just outcomes |
 | `people_profiles` | Files in `memory/people/` | The "who to go to" directory |
-| `audit_reports` | Markdown reports in `audits/` — hygiene, register audit and project review — not its README or a metrics CSV kept there | Whether the weekly ritual is being run — a ritual with no artefacts is a plan |
+| `audit_reports` | Markdown reports in `audits/` — hygiene and register audit — not its README or a metrics CSV kept there | Whether the weekly ritual is being run — a ritual with no artefacts is a plan |
 | `always_loaded_bytes` | Size of `AGENTS.md` + `CLAUDE.md` | Should stay roughly flat. Steady growth means the budget rule is not holding. |
-| `projects_active` | Projects not yet done or parked | The denominator for the next three. |
-| `projects_with_next_action`, `projects_with_done_when` | Active projects with a real next action (a waiting project with a Waiting on line counts), and with a Done when checklist | Whether the tracking is kept, not just started. A project nobody has written a next step for is not moving. |
-| `projects_done` | Projects whose Now block reads `State: done`, or that sit in the done folder | Finish lines crossed — the practice's output, counted. |
-| `waiting_over_14d` | Things awaited for more than 14 days, across active projects | What is stuck on someone else and has not been chased. |
+| `projects_active` | Projects not yet done or paused | The denominator for the project columns below it. |
+| `projects_blocked` | Active projects whose `State:` reads `blocked`, or that carry a `Blocked by:` line | How much of the work in flight cannot move until something outside it changes. |
+| `projects_with_done_when` | Active projects with a Done when checklist | Whether the tracking is kept, not just started. A project without a finish line has no way to end. |
+| `projects_done` | Projects whose Current state block reads `State: done`, or that sit in a done location the conventions name | Finish lines crossed — the practice's output, counted. |
+| `blocked_over_14d` | Blocked projects whose `Blocked by:` line is dated `since` more than 14 days ago | What has been stuck long enough to need someone to act on the block itself. |
 | `max_in_flight_per_person` | The most projects any one person is doing at once | Compare with the in-flight limit in `.claude/projects.md`. Above it, work is started faster than it is finished. |
 | `median_days_to_done` | Median whole days from the commit that created a project's README to the one that set it done | How long finishing takes. Empty until a project finishes; a project that arrived already done is left out. |
 
-The project columns read each project's README as the projects commands write it — the Now block,
-Done when and People — and follow `.claude/projects.md` for where projects live, the entry point,
+The project columns read each project's README as the projects commands write it — the Current state
+block, Done when and People — and follow `.claude/projects.md` for where projects live, the entry point,
 the register, and any section the team calls by another name. They read it by the same rules as the
 board and the session-start line, set out under "How the files are read" in the projects plugin's
-README: an honest gap such as `none found …` or `not yet named` counts as missing, a waiting-on is
-dated only by `since`, and people are counted in flight by the rule under Pace in that file.
+README: an honest gap such as `none found …` or `not yet named` counts as missing, a block is dated
+only by the `since` on its `Blocked by:` line, and people are counted in flight by the rule under Pace
+in that file.
 
 Two options fit the script to a repository laid out differently from a kit install:
 `--out <path>` writes the CSV somewhere other than `pilot/metrics.csv` (with `--backfill` or the
@@ -93,9 +95,9 @@ rituals ran. With one team, no comparison group and eight weeks, it cannot claim
 caused a change in effectiveness, and a write-up that says so will not survive a sceptical reader.
 
 A useful honesty check at week 4: if `audit_reports` has not moved and `doc_contributors_7d` is at one,
-the practice has not taken hold yet. The same goes for a month in which `projects_with_next_action`
-trails `projects_active` and `projects_done` has not moved: the system is a plan, not a practice. Say so in the review and adjust — that is a finding, not a
-failure.
+the practice has not taken hold yet. The same goes for a month in which `projects_blocked` climbs
+towards `projects_active` and `projects_done` has not moved: the system is a plan, not a practice. Say
+so at the week-4 check and adjust — that is a finding, not a failure.
 
 ## Confidentiality
 

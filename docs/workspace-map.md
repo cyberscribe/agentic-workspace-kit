@@ -41,11 +41,10 @@ workspace/
     verification.md        ← what counts as checked, per kind of work (optional)
     <topic>.md             ← one file per subsystem or convention
 
-  inbox.md                 ← captures the team should see, emptied at each review
   projects/
     INDEX.md               ← the register: Active / Paused / Done
     <slug>/                ← one folder per project
-      README.md            ← what, why, done when, the Now block, open questions
+      README.md            ← what, why, done when, the Current state block, open questions
       decisions.md         ← when the project earns one
 
   templates/               ← reusable skeletons, copied into the project that needs one
@@ -64,7 +63,6 @@ workspace/
 | Kind of content | Location |
 |---|---|
 | Per-project working files | `projects/<slug>/` — and a row in `projects/INDEX.md` |
-| Something to decide later, for the team | One line in `inbox.md` |
 | Something reusable the team has built | One line in `docs/catalogue.md` |
 | Per-person or per-organisation notes | `memory/context/<topic>.md` |
 | Long-form drafts | `drafts/<slug>/` |

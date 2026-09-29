@@ -45,7 +45,7 @@ first_day="$(TZ=UTC git log --reverse --format=%cd --date=format-local:%F 2>/dev
 mkdir -p "$(dirname "$out")"
 
 header="date,always_loaded_bytes,decisions_logged,doc_files,people_profiles,audit_reports,build_items_named,build_items_exist,doc_commits_7d,doc_contributors_7d"
-header+=",projects_active,projects_with_next_action,projects_with_done_when,projects_done,waiting_over_14d,max_in_flight_per_person,median_days_to_done"
+header+=",projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done"
 
 # The always-loaded tier. In a kit install CLAUDE.md is a one-line import of AGENTS.md, and both are
 # counted so that growth in either shows up. A repository whose agents load something else says so.
@@ -58,14 +58,16 @@ doc_paths=(AGENTS.md CLAUDE.md docs memory projects logs templates rituals)
 days_ago() { date -u -d "-$1 days" +%F 2>/dev/null || date -u -v-"$1"d +%F; }
 
 # --- Projects -------------------------------------------------------------------------------------
-# The project columns read the Now block, Done when and People sections of each project's entry
-# point, as the projects commands write them (templates/project-readme.md). The rules are the ones
-# under "How the files are read" in the projects plugin's README, so the board and these numbers agree:
+# The project columns read the Current state block, Done when and People sections of each project's
+# entry point, as the projects commands write them (templates/project-readme.md). The rules are the
+# ones under "How the files are read" in the projects plugin's README, so the board and these numbers
+# agree:
 #   - labels are read bold or plain: "- **State:** doing" and "State: doing" are the same line;
+#   - State is one of ready, doing, blocked, paused or done; anything else is unread;
 #   - a value that is empty, "-", "—", "none" or "n/a", or starts "none found", "not yet named" or
 #     "<" (a template stand-in), is missing;
-#   - each "Waiting on:" line is one thing awaited, dated only by the date after "since";
-#   - a waiting project with a Waiting on line has what it needs, as a next action would give it;
+#   - a project is blocked when its State reads blocked or it carries a Blocked by line; the block is
+#     dated only by the date after "since" on that line;
 #   - a heading's name is its text up to the first " — ", " – ", "(" or ":", compared exactly with
 #     Done when, People or an alias the conventions file names; Done when counts checklist lines;
 #   - in flight is the rule under Pace in the conventions: State doing, counted against each person
@@ -111,7 +113,7 @@ names != "" { aliases(names); names = "" }
 END { if (names != "") aliases(names) }'
 
 # One project entry point in, one tab-separated line out:
-#   state  next(0/1)  done_when(0/1)  has_people(0/1)  owners(comma list)  waiting dates(space list)
+#   state  blocked(0/1)  done_when(0/1)  has_people(0/1)  owners(comma list)  blocked since(date)
 # The owners are the people named owns or does, lower-cased; they are compared, never printed.
 readme_awk='
 function clean(v) { gsub(/`|\*\*/, "", v); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
@@ -140,14 +142,13 @@ fence || /^[ \t]*<!--/ { next }
     next
 }
 /^# / { section = "other"; next }
-state == "" && (v = label($0, "state")) != "\001" { state = tolower(v); sub(/^[^a-z]+/, "", state); sub(/[^a-z].*/, "", state); next }
-has_next == "" && (v = label($0, "next action")) != "\001" { has_next = missing(v) ? 0 : 1; next }
-(v = label($0, "waiting on")) != "\001" {
+state == "" && (v = label($0, "state")) != "\001" { if (missing(v)) next; state = tolower(v); sub(/^[^a-z]+/, "", state); sub(/[^a-z].*/, "", state); next }
+by == "" && (v = label($0, "blocked by")) != "\001" {
     if (missing(v)) next
-    # Only "since <date>" dates a line; another date on it (a due date, say) leaves it undated.
-    d = "nodate"; lv = tolower(v)
-    if (match(lv, /since[ \t]+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) d = substr(lv, RSTART + RLENGTH - 10, 10)
-    waits = waits " " d; next
+    # Only "since <date>" dates the block; another date on the line (a due date, say) leaves it undated.
+    by = "nodate"; lv = tolower(v)
+    if (match(lv, /since[ \t]+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) by = substr(lv, RSTART + RLENGTH - 10, 10)
+    next
 }
 section == "done" && /^[ \t]*[-*+][ \t]+\[[ xX]\]/ {
     item = $0; sub(/^[ \t]*[-*+][ \t]+\[[ xX]\][ \t]*/, "", item)
@@ -161,17 +162,17 @@ section == "people" && /^[ \t]*[-*+][ \t]/ {
     if (n >= 2 && !missing(name) && roles ~ /(^|[^a-z])(owns|does)([^a-z]|$)/) owners = owners (owners == "" ? "" : ",") name
 }
 END {
-    if (state !~ /^(next|doing|waiting|parked|done)$/) state = "-"
-    if (state == "waiting" && waits != "") has_next = 1
-    printf "%s\t%d\t%d\t%d\t%s\t%s\n", state, has_next + 0, done_when + 0, people + 0, (owners == "" ? "-" : owners), (waits == "" ? "-" : substr(waits, 2))
+    if (state !~ /^(ready|doing|blocked|paused|done)$/) state = "-"
+    blocked = (state == "blocked" || by != "")
+    printf "%s\t%d\t%d\t%d\t%s\t%s\n", state, blocked, done_when + 0, people + 0, (owners == "" ? "-" : owners), (by == "" ? "-" : by)
 }'
 
 # state_of <rev> <path> <kind>: the State a README had at a revision. Without a State line, a
-# project in a folder kept for done or paused work is read as done or parked.
+# project in a folder kept for done or paused work is read as done or paused.
 state_of() {
     local s
     s="$(git show "$1:$2" 2>/dev/null | awk -v done_names="$done_names" -v people_names="$people_names" "$readme_awk" | cut -f1 || true)"
-    if [[ "$s" == "-" ]]; then case "$3" in done) s=done ;; paused) s=parked ;; esac; fi
+    if [[ "$s" == "-" ]]; then case "$3" in done) s=done ;; paused) s=paused ;; esac; fi
     echo "$s"
 }
 
@@ -226,7 +227,8 @@ projects_row() {
     while IFS= read -r dir; do
         [[ -n "$dir" ]] || continue
         # The entry point is the first of the conventions' entry point, README.md and CLAUDE.md that
-        # carries a Now block, else the first that exists — the order the projects hook reads them in.
+        # carries a readable State, else the first that exists — the order the projects hook reads
+        # them in.
         entry=""
         for f in "$entry_name" README.md CLAUDE.md; do
             git cat-file -e "$rev:$dir/$f" 2>/dev/null || continue
@@ -237,7 +239,7 @@ projects_row() {
         kind="$(kind_of "$dir")"
         rec="$(git show "$rev:$entry" | awk -v done_names="$done_names" -v people_names="$people_names" "$readme_awk")"
         state="${rec%%$'\t'*}"
-        if [[ "$state" == "-" ]]; then case "$kind" in done) state=done ;; paused) state=parked ;; esac; fi
+        if [[ "$state" == "-" ]]; then case "$kind" in done) state=done ;; paused) state=paused ;; esac; fi
         rec="$state"$'\t'"${rec#*$'\t'}"
         # No People section: the register row whose cells name this folder supplies the owner, else
         # a default owner the conventions name (- **Default owner:** `Sam`), as a one-person
@@ -255,22 +257,23 @@ projects_row() {
         [[ "$state" != done ]] || durations+="$(days_to_done "$rev" "$entry")"$'\n'
     done <<< "$dirs"
 
-    # Active is anything not done or parked, including a project whose State cannot be read: it is
-    # still work the team carries, and the missing Now block shows up as a missing next action.
+    # Active is anything not done or paused, including a project whose State cannot be read: it is
+    # still work the team carries. Blocked projects are active; blocked_over_14d counts those whose
+    # block is dated more than 14 days before the row's day.
     printf '%s' "$records" | awk -F'\t' -v day="$day" '
         function jdn(s,   y, m, d, a) { y = substr(s, 1, 4) + 0; m = substr(s, 6, 2) + 0; d = substr(s, 9, 2) + 0
             a = int((14 - m) / 12); y += 4800 - a; m += 12 * a - 3
             return d + int((153 * m + 2) / 5) + 365 * y + int(y / 4) - int(y / 100) + int(y / 400) - 32045 }
         NF < 6 { next }
         $1 == "done" { done++; next }
-        $1 == "parked" { next }
+        $1 == "paused" { next }
         {
-            active++; nxt += $2; dw += $3
-            n = split($6, w, " "); for (i = 1; i <= n; i++) if (w[i] ~ /^[0-9]/ && jdn(day) - jdn(w[i]) > 14) waiting++
+            active++; blk += $2; dw += $3
+            if ($2 && $6 ~ /^[0-9]/ && jdn(day) - jdn($6) > 14) stuck++
             if ($1 == "doing" && $5 != "-") { n = split($5, o, ","); for (i = 1; i <= n; i++) if (!((NR SUBSEP o[i]) in seen)) { seen[NR SUBSEP o[i]] = 1; c[o[i]]++ } }
         }
         END { for (p in c) if (c[p] > max) max = c[p]
-              printf "%d,%d,%d,%d,%d,%d", active, nxt, dw, done, waiting, max }'
+              printf "%d,%d,%d,%d,%d,%d", active, blk, dw, done, stuck, max }'
     # The median of whole days, halves rounded up; empty when nothing has reached done yet, because
     # zero would read as instant.
     printf ',%s\n' "$(printf '%s' "$durations" | grep -E '^[0-9]+$' | sort -n | awk '{ v[NR] = $1 }
@@ -298,8 +301,7 @@ row_for() {
     doc_files="$(git ls-tree -r --name-only "$rev" -- docs memory projects logs templates rituals 2>/dev/null | grep -c '\.md$' || true)"
     # Each folder's README describes the folder and is not one of the things being counted.
     people="$(git ls-tree -r --name-only "$rev" -- memory/people 2>/dev/null | grep '\.md$' | grep -vc '/README\.md$' || true)"
-    # Reports only: the dated markdown the hygiene pass, the register audit and the project review
-    # write. A metrics CSV kept in audits/ is not a report.
+    # Reports only: the dated markdown the hygiene pass and the register audit write. A metrics CSV kept in audits/ is not a report.
     audits="$(git ls-tree -r --name-only "$rev" -- audits 2>/dev/null | grep '\.md$' | grep -vc '/README\.md$' || true)"
 
     # The adoption ledger: rows of the build-list table, and those whose status column says exists.

@@ -17,10 +17,10 @@ Most placement mistakes are one of these two answered wrongly, and the expensive
 
 **Tracking is not context.** Task lists, project status and who is doing what this week get
 reconciled, not promoted. Conflating the two is how an end-of-session knowledge pass turns into a
-status meeting. In a shared repository, tracking has three homes: the **Now** block at the top of each
-project's README (state, next action, what it is waiting on), the project register, and the inbox of
-things captured but not yet decided. Each is kept true by reconciling it against reality; none of it
-is ever promoted into reference.
+status meeting. In a shared repository, tracking has two homes: the **Current state** block near the
+top of each project's README (its state, what blocks it, when it was last updated) and the project
+register. Each is kept true by reconciling it against reality; none of it is ever promoted into
+reference.
 
 ## 2. The four content types
 
@@ -48,7 +48,7 @@ content-first one absorbs the new tool as another column.
 | General reference | `memory/`, `docs/` — including the catalogue of reusable work (`docs/catalogue.md`) and what counts as checked (`docs/verification.md`) — `<tool notes>` | `<per-surface memory>` |
 | Project reference | `projects/<slug>/` — canonical — and the project's own `decisions.md` | `<per-surface memory>`, holding a **pointer** to the project folder |
 | Templates | `templates/`, `skills/`, `<agent role definitions>` | `<user-level agents or commands>` |
-| *Tracking (other axis)* | Each project README's **Now** block, `projects/INDEX.md`, `inbox.md` | `<your task system>` |
+| *Tracking (other axis)* | Each project README's **Current state** block, `projects/INDEX.md` | None; the kit keeps tracking shared |
 
 Two rules make the table usable:
 
@@ -58,10 +58,9 @@ Two rules make the table usable:
 - **A pointer is not a copy.** The right shape is one line: what it is, where the canonical file is,
   and when to read it.
 
-Two placements that are easy to get wrong. **What counts as checked** reads like a working standard,
+One placement that is easy to get wrong. **What counts as checked** reads like a working standard,
 but it is needed only when work is verified — by the closeout's verify step and at a project's close —
-so it is general reference, and costs the always-loaded tier nothing. **The inbox** holds content, but
-it is tracking: each line is decided at the review and removed, never filed as reference.
+so it is general reference, and costs the always-loaded tier nothing.
 
 ## 4. Precedence
 

@@ -10,7 +10,7 @@
 | General reference | `docs/` (including `docs/catalogue.md` and `docs/verification.md` once the team keeps them), `memory/glossary.md`, `memory/people/`, `memory/context/` | Claude Code auto-memory under `~/.claude/projects/`, holding a **pointer** at most |
 | Project reference | `projects/<slug>/` — canonical — and the project's own `decisions.md` | Per-surface memory, holding a **pointer** to the project folder |
 | Templates | `templates/`, `rituals/`, `.claude/agents/`, `.claude/commands/` (and `.gemini/commands/` where Gemini CLI is installed) | `~/.claude/agents/`, `~/.claude/commands/`, the skills folder `install.sh --skills-dir` writes for a desktop assistant |
-| *Tracking (other axis)* | Each project README's **Now** block, `projects/INDEX.md`, `inbox.md`, `pilot/build-list.md` | Your own task system |
+| *Tracking (other axis)* | Each project README's **Current state** block, `projects/INDEX.md`, `pilot/build-list.md` | None; the kit keeps tracking shared |
 
 Closeout drafts written by the plugin's end-of-session hook live in `~/.claude/closeout-drafts/` —
 individual by design. They reach the team only when someone promotes them, by pull request, into a

@@ -30,20 +30,19 @@ person and easy to find for a script.
 - **In-flight limit:** `3` — how many projects one person has in the `doing` state at once. A
   person's own profile can set a different number. Going over it is advice to talk about, not a
   block.
-- **Counting in flight:** a person's count is the active projects whose Now block reads
+- **Counting in flight:** a person's count is the active projects whose Current state block reads
   `State: doing` and whose People section names them as **owns** or **does** — or, where a README
   has no People section, whose register Owner is them. Their profile is the file in the people
   directory matching their name. The projects commands, the board and the metrics all count this
   way.
 - **Default owner:** none — a name here in backticks owns every project that has no People section
   and no register Owner, as a one-person repository might want.
-- **Review cadence:** `weekly` — what the board's stale flag measures against; a project's own
-  `Check-in:` is looked at by the review, not the board.
-- **Review day:** `not set yet`
+- **Staleness:** `1 week` — how old a project's `Updated:` date can get before the board flags it
+  as stale. A project's own `Check-in:` is its own rhythm for looking at it, and the board does not
+  measure against it.
 
 ## Where things go
 
-- **Captures:** `inbox.md` at the repository root — one line each, processed at the review.
 - **Project template:** `templates/project-readme.md`
 - **People:** `memory/people/<name>.md`, from `templates/person-profile.md`; the name is the person's
   full name, lowercase, joined by hyphens — `memory/people/priya-shah.md`
