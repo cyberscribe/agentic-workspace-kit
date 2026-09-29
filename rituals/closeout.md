@@ -79,13 +79,12 @@ from its finish line; when every box is ticked, propose closing the project, whi
 ritual with its own evidence walk. Report the two separately; merging them is how the ritual decays
 into a status update.
 
-Where the README has a **Now** block, bring it up to date: `Updated:` to today's date; the **Next
-action** rewritten if this session did it or the next step moved — one concrete, visible step with
-who takes it, confirmed with the person — or, when nobody can say yet, the honest gap
-`none found — decide at the next review`; a **Waiting on** line added for anything left waiting on
-someone and removed once answered; the **State** changed only when it plainly moved; and the dated
-line under the block rewritten rather than added to. A block still marked as a proposal keeps its
-marker: confirming it is the person's, at their review.
+Where the README has a **Current state** block, bring it up to date: the **State** changed only when
+it plainly moved (`ready`, `doing`, `blocked`, `paused`, `done`), with pausing and finishing left to
+the person; a **Blocked by** line — what, and since which date — set when the work cannot move until
+something outside it happens, and removed once that clears; `Updated:` to today's date; and a dated
+line saying where the work stands, added when the block has none and otherwise rewritten rather than
+added to. A block still marked as a proposal keeps its marker: confirming it is the person's.
 
 ### 6. Who needs to know — when the project has more than one person
 
@@ -96,7 +95,7 @@ comment.*
 
 Where the project README's People section gives roles, the roles do most of the choosing: whoever
 **owns** the outcome and whoever is to be **kept told** hear about progress on it — a criterion
-ticked, the finish line reached or moved, the next action changing hands; whoever is to be **asked
+ticked, the finish line reached or moved, ownership changing, the project now blocked; whoever is to be **asked
 first** hears about decisions not yet taken — a proposal left open, a criterion someone wants to
 change or waive — before the decision rather than after it; and whoever **does** or **helps** hears
 where their own work is affected.
@@ -129,8 +128,9 @@ says they are the one to go to for it. The output is a short table:
 ### 7. Report
 
 - What was promoted, and at which tier.
-- What is proposed and waiting for a decision.
-- Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new next action.
+- What is proposed and still needs a decision.
+- Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new state and
+  any blocker.
 - Who needs to know what, if step 6 applied.
 - Which files were touched, new against modified.
 - Anything left unfinished.
