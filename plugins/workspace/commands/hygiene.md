@@ -1,5 +1,5 @@
 ---
-description: Weekly hygiene — check where context lives against the workspace's own conventions (the always-loaded budget, strays, registers, promised files, promotion candidates, staleness, waiting work), write a dated report to audits/, then work through it with you; type "report" for the scan alone
+description: Weekly hygiene — check where context lives against the workspace's own conventions (the always-loaded budget, strays, registers, promised files, promotion candidates, staleness, pending work, the closeout drafts sweep), write a dated report to audits/, then work through it with you; type "report" for the scan alone
 offer-unprompted: Offer it once a week, or when files have piled up outside the places the workspace map names.
 argument-hint: [report]
 ---
@@ -25,8 +25,8 @@ Before scanning, read what the repository says about itself, and let it set the
 terms of every check:
 
 - `.claude/projects.md` — where active, paused and finished projects live, the
-  register and its section names, each project's entry-point file, where
-  captures go, which folders are not tracked from here.
+  register and its section names, each project's entry-point file, which
+  folders are not tracked from here.
 - `docs/workspace-map.md` — the canonical-fact table, the filesystem layout,
   the conventions for new files, and how file references are written here.
 - `docs/memory-layers.md` — the content types, for classifying anything found
@@ -39,7 +39,7 @@ terms of every check:
 
 Anything these do not say falls back to the kit's layout: `AGENTS.md` imported
 by `CLAUDE.md`, projects in `projects/<slug>/`, the register at
-`projects/INDEX.md`, captures in `inbox.md`.
+`projects/INDEX.md`, closeout drafts in `~/.claude/closeout-drafts/`.
 
 ## What the user asked for
 
@@ -100,10 +100,31 @@ apart.
   Give the stated date and the file's last commit side by side: a commit well
   after the stated date means the date, not the content, may be what is stale.
   A placeholder date in a template is part of the mould, not a date.
-- **Waiting work.** Lines in the captures file, with the oldest date; blocks
-  still marked `proposed by /projects:adopt`; closeout drafts waiting for this
-  repository in `~/.claude/closeout-drafts/<repository folder name>/` (or where
-  the closeout conventions put them); any other queue the conventions name.
+- **Pending work.** Blocks still marked `proposed by /projects:adopt`, with
+  the oldest date; any other queue the conventions name.
+- **Drafts sweep.** Closeout keeps its drafts outside the repository, one
+  folder per folder a session was opened in: `~/.claude/closeout-drafts/<name>/`
+  (or where the closeout conventions put them), where `<name>` is this
+  repository's folder name or a project folder's — active, paused or finished,
+  wherever the conventions keep them. Its retention prunes only top-level
+  `*.md` drafts, and only when a session opens in that folder again, so
+  everything else stays until someone clears it. For each of those folders
+  that exists, list every entry, oldest first by modification time, with its
+  age and size:
+  - `*.md` drafts — say whether each has been surfaced yet (a `.seen.<draft>`
+    marker beside it) and, if so, how many days until retention prunes it
+    (`CLOSEOUT_DRAFT_RETENTION_DAYS`, three by default);
+  - anything else — files of another kind, subdirectories with their total
+    size, `.closeout-ran*` sentinels more than a day old — which retention
+    never touches;
+  - and whole folders for a project no session has opened in for more than
+    two weeks, since nothing there will ever be surfaced.
+
+  For each entry, propose one move: promote it (a session opened in that
+  folder surfaces its drafts, or read it here and promote it by the closeout
+  tiers), clear it, or leave it with a reason. The sweep proposes; it deletes nothing. Clearing is the person's
+  call, given as the command they can run. A folder the sandbox hides is
+  `not run`, with the path.
 - **Version control and mirrors.** Counts of modified and untracked paths, a
   leftover `.git/index.lock`, and any bridge or mirror the repository documents
   keeping in sync, compared file by file.
@@ -157,6 +178,8 @@ How that goes in a conversation:
   Superseded material is marked superseded with a pointer and keeps its name.
 - A promotion candidate is brought back as a proposed general-form rewrite; it
   reaches the cross-project log only on their yes.
+- Walk the drafts sweep one folder at a time. Promotion follows the closeout
+  tiers; clearing is theirs, so give it as the commands they can run.
 - Say the budget line even when it is flat: one sentence on the trend.
 - Record what was decided under `## Judgement pass` in the same report.
 

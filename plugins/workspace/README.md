@@ -5,7 +5,7 @@ commands:
 
 | Command | What it is for |
 |---|---|
-| **`/workspace:quick-start`** | The one door into the kit: set it up for the team and for each person, and wire it into their routines. |
+| **`/workspace:quick-start`** | The one door into the kit: set it up for the team and for each person, and check it is reachable on every surface they use. |
 | **`/workspace:hygiene`** | The weekly tidy of where context lives, with the always-loaded byte count every time. |
 | **`/workspace:register-audit`** | The monthly check of the register guidance files are written in. |
 
@@ -30,8 +30,9 @@ of their own — and offers only the parts that apply:
 And, if the team wants them, a few things that live in their own files so they
 cost the always-loaded budget nothing:
 
-- **How projects run here** — the default in-flight limit and the review day,
-  in `.claude/projects.md`, which the projects plugin reads first.
+- **How projects run here** — the default in-flight limit and the staleness
+  setting (how old a project's `Updated:` date can be before the board flags
+  it), in `.claude/projects.md`, which the projects plugin reads first.
 - **What counts as checked** — a verification standard in `docs/verification.md`,
   one row per kind of work.
 - **The catalogue** — what the team has built and would reuse, in
@@ -46,10 +47,12 @@ cost the always-loaded budget nothing:
   time; and duplicate rituals folded into one each. Nothing existing is moved or
   renamed.
 
-Every run ends by wiring the kit into the routines the person already has, each
-step optional: the commands on every surface they use, the board's next actions
-in their daily review, the projects review inside their weekly one, the
-session-start line, a metrics baseline, and one real next action.
+Every run ends by checking the kit is reachable and running, each step optional:
+the commands on every surface the person uses — for a desktop assistant, each
+generated skill present in the folder it actually scans, with the sync step when
+one is missing and a note that new skills appear from the next session — the
+session-start line in a project folder, a metrics baseline, and the first thing
+to do in one real project.
 
 It finds out where things stand before asking anything, offers what the
 repository already says as suggested answers, shows every change before making
@@ -60,9 +63,12 @@ it, and leaves the commit to you.
 `/workspace:hygiene` is the runnable form of `rituals/weekly-hygiene.md`. It
 checks where context lives against the workspace's own conventions: strays, the
 project register against the folders, promised files, promotion candidates,
-stale guidance and waiting work. It reports the always-loaded byte count on every
-run, and includes the weekly `pilot/measure.sh` run when the repository keeps
-metrics.
+stale guidance, unconfirmed proposals, and a sweep of closeout's drafts for this
+repository and each project folder — oldest first, including the files of other
+kinds and subdirectories that the drafts' retention never touches, each with a
+proposed move and nothing deleted. It reports the always-loaded byte count on
+every run, and includes the weekly `pilot/measure.sh` run when the repository
+keeps metrics.
 
 `/workspace:register-audit` is the runnable form of the scan in
 `docs/documentation-register.md`. It grades agent-facing prose by how strongly it

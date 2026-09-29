@@ -1,5 +1,5 @@
 ---
-description: First-time setup — interview the team (once) and each person (on their first session) to fill in the workspace's standards, people, conventions and first projects, or map a system already in place onto the kit, then wire it into daily and weekly routines
+description: First-time setup — interview the team (once) and each person (on their first session) to fill in the workspace's standards, people, conventions and first projects, or map a system already in place onto the kit, then check it is reachable on every surface and running
 offer-unprompted: Offer it when the always-loaded file still has angle-bracketed stand-ins, or when a person working here has no profile yet.
 ---
 
@@ -13,8 +13,9 @@ kit around it rather than the other way round. You are curious, you listen more
 than you write, and you keep it short: twenty minutes that people enjoy is worth
 more than an hour that fills every box.
 
-A work system that has to be remembered is not used, so you end every run the
-same way: by wiring what was set up into the routines the person already runs.
+A setup nobody can reach is not used, so you end every run the same way: by
+checking that the commands answer on every surface the person works in, and
+that the first session in a project shows where it stands.
 
 Everything here is optional except the few answers that shape every session. Ask
 for those with real interest; let the rest be skipped with a word, and come back
@@ -37,7 +38,7 @@ Before asking anything, look:
   `git config user.name`; confirm it rather than assuming.
 - `projects/INDEX.md`, `memory/glossary.md`, `pilot/build-list.md` if present.
 - `.claude/projects.md` — the team's project conventions: where projects live,
-  the in-flight limit, the review day. The installer lays down a default; a line
+  the in-flight limit, the staleness setting. The installer lays down a default; a line
   still reading "not set yet" is a question for the team part.
 - `docs/verification.md` and `docs/catalogue.md` — whether the team has said what
   counts as checked, and listed what it has built.
@@ -75,19 +76,19 @@ Take the first that fits, in this order:
   wrote) has no stand-ins left, and this person has no profile: the personal
   part only. This is what most people after the first will see; whatever the
   first person mapped or left beside the kit's files is already settled, and so
-  are the team-level lines of the wiring (see there).
+  is the metrics baseline (see the last section).
 - **Existing system** — any of the signs of a system that was here first. The
   kit adopts rather than installs: go to "Fitting the kit to a system already in
   place". If the team part is also unfinished, offer only the questions the
   mapping leaves open.
 - **Fresh** — stand-ins still in the always-loaded file, whatever the register
   holds: the team part, then the personal part. Where an earlier run already
-  answered some of it (projects in the register, a review day set), offer only
+  answered some of it (projects in the register, a staleness setting in place), offer only
   the questions still open.
 - **Nothing left to set up** — filled in, and they have a profile: say so, and
-  offer the daily-use wiring on its own.
+  offer the last section on its own.
 
-Every mode ends with the daily-use wiring.
+Every mode ends with "Reachable and running".
 
 ## The team part — once, ideally with the standards owner
 
@@ -119,8 +120,10 @@ none of it costs the always-loaded budget.
    into `memory/glossary.md`.
 8. *Optional* — **How projects run here**, into `.claude/projects.md`: the
    default **in-flight limit** (how many projects one person has in the `doing`
-   state at once — three, if the team has no view yet) and the **review day**
-   (when the regular pass over every project happens, and how often). Where one
+   state at once — three, if the team has no view yet) and the **staleness**
+   setting, written `` - **Staleness:** `1 week` `` (how long a project's
+   `Updated:` line may go before the board flags it as stale; a project's own
+   `Check-in:` line does not change it). Where one
    person works here, offer a `` - **Default owner:** `<name>` `` line too, so
    projects with no People section are theirs on the board. The
    projects commands read this file first and follow it, so a changed line here
@@ -128,7 +131,7 @@ none of it costs the always-loaded budget.
    it wins: change only the lines the team confirms.
 9. *Optional* — **Active projects.** List the projects worth starting now, each
    with its name and owner. Once this interview closes, they run `/projects:new`
-   for each one; name the first as the closing next action. A register row goes
+   for each one; the close names the first of them as the first thing to do. A register row goes
    in together with its README, when that command writes both, not before it.
 10. *Optional* — **What counts as checked.** Offer to adopt a verification
     standard into `docs/verification.md`: a short table, one row per kind of work
@@ -187,7 +190,7 @@ can read — not a second one beside it. Nothing existing is moved or renamed.
    | `projects/INDEX.md`, sections Live / Done | The project register | Kept; its section names recorded in `.claude/projects.md` |
    | `logs/decisions.md` | The cross-project decisions log | Kept as is |
    | A closeout skill | `/closeout` | Two doing one job: see step 4 |
-   | `CLAUDE.md`, theirs | The always-loaded file | Kept; `.claude/closeout.md` says so, and promotions to it follow their review habit |
+   | `CLAUDE.md`, theirs | The always-loaded file | Kept; `.claude/closeout.md` says so, and names how a change to it is reviewed |
 
    Ask them to confirm or correct each line. Where their convention differs
    from the kit's, theirs wins, and the difference is written down where the
@@ -205,12 +208,15 @@ can read — not a second one beside it. Nothing existing is moved or renamed.
    in only what theirs lacks and the team would miss, a line at a time; the rest
    of that kit file can go. An `AGENTS.md` of their own, such as a router for
    other tools, stays as it is.
-3. **Proposals waiting in their projects.** Find the blocks `/projects:adopt`
+3. **Proposals left in their projects.** Find the blocks `/projects:adopt`
    left marked `proposed by /projects:adopt` in project READMEs, and walk them
-   project by project: for each Done when, Now block and owner's line, confirm
-   (delete the marker), edit, or skip for the next review. The quick path is
-   "confirm all that look right, skip the rest". If active projects have no Now
-   block and no proposals, offer to run `/projects:adopt draft` over them now —
+   project by project: for each Done when, Current state block and owner's
+   line, confirm (delete the marker), edit, or skip for another day. The quick
+   path is "confirm all that look right, skip the rest". A project still
+   carrying a Now block in the older format is reported by `/projects:adopt`,
+   which offers the conversion when run on that folder. If active projects
+   have no Current state block and no proposals, offer to run
+   `/projects:adopt draft` over them now —
    after the `.claude/projects.md` edits from step 1, which it reads — and walk
    what it proposed in this same sitting; or they run `/projects:adopt
    <folder>` one at a time later. Where a project's finish line or outcome is
@@ -218,55 +224,56 @@ can read — not a second one beside it. Nothing existing is moved or renamed.
    commands will not see it: offer a `Done when` checklist or a `Desired
    outcome` heading drawn from that text, inserted after it, the prose left as
    it is.
-4. **Rituals that do the same job.** Name each pair plainly — an existing weekly
-   review and `/projects:review`, an existing closeout skill and `/closeout`, an
-   existing tidy-up and `/workspace:hygiene` — and propose folding each into one:
+4. **Rituals that do the same job.** Name each pair plainly — an existing
+   closeout skill and `/closeout`, an existing tidy-up and `/workspace:hygiene`,
+   an existing status page and `/projects:board` — and propose folding each into one:
    split by kind of work, one producing a dated artefact and the other reading
    it, or one calling the other as a named step.
    Running both is the outcome to avoid, since then neither gets run. Change a
    ritual or skill only on their yes. Where the retired one kept a prose status
-   section current, name it: offer to retire it into the Now block's dated
-   line, or record in `.claude/closeout.md` that closeout refreshes it too.
+   section current, name it: offer to retire it into the Current state block's
+   dated line, or record in `.claude/closeout.md` that closeout refreshes it too.
 5. **What is left over.** List every `.kit-incoming` file, and every kit file a
    confirmed line made redundant — `AGENTS.md` when their own file stays, a
-   kit `inbox.md` when captures go elsewhere, a generated skill folded into
-   their own, `.github/` for one person. Say what each is, and give the list
+   generated skill folded into their own, `.github/` for one person. Say what
+   each is, and give the list
    as commands they can run; deleting is theirs.
 
-## Daily-use wiring — the end of every mode
+## Reachable and running — the end of every mode
 
 Each step is optional, and each is shown before it is done. Offer them in this
 order, and take a "not now" as an answer.
 
 1. **Surface parity.** Confirm the commands are reachable on every surface this
-   person actually works in: the plugins in Claude Code; for a desktop assistant
-   that loads skills from a folder, one thin skill per command (`projects-board`,
-   `closeout`, `workspace-quick-start` and the rest), which the kit's installer
-   writes with `--skills-dir <folder>` — or, in a repository that already has the
-   kit, `--skills-only --skills-dir <folder>`; and the generated wrappers under
-   `.gemini/commands/` where the team installed for Gemini CLI. If a surface is
-   missing them, say so and give the installer line that adds them.
-2. **Daily review.** If they have a daily routine or skill that builds a list for
-   the day, offer to add one step to it: read the board's flags
-   (`/projects:board`) and each active project's next action, and present the
-   actions for the person to accept into whatever personal system they use. The
-   kit feeds their personal system; it does not become a second one. Where no
-   daily routine exists, offer the two-minute version: `/projects:mine` each
-   morning.
-3. **Weekly review.** If they have a weekly review, fold `/projects:review` into
-   it as a named step rather than a separate ritual. If not, offer a day and a
-   time, and offer to set a reminder with whatever scheduler their surface
-   provides — created only on their yes.
+   person actually works in: the plugins in Claude Code; the generated wrappers
+   under `.gemini/commands/` where the team installed for Gemini CLI; and for a
+   desktop assistant that loads skills from a folder, one thin skill per command
+   (`projects-board`, `closeout`, `workspace-quick-start` and the rest), which
+   the kit's installer writes with `--skills-dir <folder>` — or, in a repository
+   that already has the kit, `--skills-only --skills-dir <folder>`.
 
-   Steps 3 and 5 are team-level once settled. When joining, read the review day
-   from `.claude/projects.md` and tell them, offering only a reminder of their
-   own; and where the metrics CSV already exists, skip the baseline.
-4. **Session start.** Ask them to open a new session in one project folder and
+   For the desktop assistant, check where it actually scans, not only where the
+   skills were written. Find the folder it loads skills from — the surface
+   table in the always-loaded file, the repository's own notes on its skills,
+   or the person's answer — and for each generated skill (a `SKILL.md` carrying
+   the `Generated by install.sh` comment) check that a real folder of that name
+   is there, not a link, since some scanners do not follow links, and that its
+   `SKILL.md` matches the generated one. Where the skills were written to one
+   folder and the assistant scans another — a canonical skills folder that the
+   repository mirrors into the scanned one, say — list what is missing and give
+   the step that brings it across: the repository's own sync script where it
+   has one, named by its path; otherwise the installer line with
+   `--skills-only --skills-dir <the scanned folder>`. Then say plainly that the
+   assistant reads its skills when a session starts, so skills added or synced
+   now appear only in the next session, this one included. For any other
+   missing surface, say so and give the installer line that adds it.
+2. **Session start.** Ask them to open a new session in one project folder and
    check that the projects plugin's session-start line appears: the outcome,
-   done-when progress and the next action. On a surface without session hooks,
-   the skills' descriptions carry the same prompt. With no project yet, leave
-   this for the first session after `/projects:new`, and say so in the close.
-5. **Measure yourself.** The script reads committed history, so the baseline
+   done-when progress, and the project's state and owner, with what it is
+   blocked by when that is set. On a surface without session hooks, the skills' descriptions
+   carry the same prompt. With no project yet, leave this for the first session
+   after `/projects:new`, and say so in the close.
+3. **Measure yourself.** The script reads committed history, so the baseline
    comes after the first commit: with nothing committed yet, say "commit first,
    then run it" and leave it. Run `pilot/measure.sh --backfill 8` where the
    repository has it; otherwise use the kit checkout `.claude/plugins/VENDORED`
@@ -274,14 +281,15 @@ order, and take a "not now" as an answer.
    and `MEASURE_ALWAYS_LOADED` naming the files the team's agents load at
    every session. Leave the CSV for them to commit, and add the weekly run to
    the hygiene pass. Say the honesty check
-   plainly: a month with no closeout artefacts and no Now updates means the
-   system is a plan, not a practice.
-6. **First real use.** End on one real next action in one real project, with who
-   takes it, and suggest ending today's session with `/closeout`.
+   plainly: a month with no closeout artefacts and no Current state updates
+   means the system is a plan, not a practice. The baseline is team-level: when
+   joining, and the metrics CSV already exists, skip it.
+4. **First real use.** End on the first thing to do in one real project, with
+   who does it, and suggest ending today's session with `/closeout`.
 
 ## Close
 
 Summarise in a few lines what was set up, what was wired in, and what was
-skipped, so it can be picked up later. Name the one next action from the last
-step. Leave the commit to them: they write the message, and writing it is their
+skipped, so it can be picked up later. Name the first thing to do, from the
+last step. Leave the commit to them: they write the message, and writing it is their
 check that they understand what changed.

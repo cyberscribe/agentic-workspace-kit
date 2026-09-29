@@ -10,7 +10,7 @@
 
 ## Stage 1 — the mechanical pass
 
-Seven checks. Each is deterministic, and each answers a question a person would otherwise have to
+Eight checks. Each is deterministic, and each answers a question a person would otherwise have to
 remember to ask.
 
 | Check | What it looks at |
@@ -21,7 +21,8 @@ remember to ask.
 | **Promised, absent** | Paths the canonical-fact table names that do not exist on disk |
 | **Promotion candidates** | Project decisions carrying a *Generalises as* field that have not reached the cross-project log |
 | **Staleness** | Guidance whose own "last updated" line has gone quiet |
-| **Waiting work** | Drafts or captures the other rituals left unpromoted |
+| **Pending work** | Proposals the other rituals left unconfirmed |
+| **Drafts sweep** | Closeout's drafts for this repository and each project folder, oldest first: drafts not yet promoted, and the files of other kinds and subdirectories that the drafts' retention never touches |
 
 Add version-control state and any bridge or mirror your setup keeps in sync. If the repository keeps
 metrics with `pilot/measure.sh`, its weekly run belongs to this pass, and its row goes in the report.
@@ -29,6 +30,12 @@ Write the report to a dated file, keep it, and **commit it** — the trail is wh
 week from a broken check, and a trail on one machine reaches nobody. Excluding audit output from
 version control is a common reflex because it looks like noise; it is the record of whether the noise
 means anything.
+
+**The drafts sweep proposes; it never deletes.** Closeout prunes a draft only after it has been shown
+in a session opened in the same folder, and only a top-level Markdown draft. A transcript left beside
+the drafts, a research folder, or the drafts of a project nobody opens again stay until a person
+clears them. The sweep lists each with its age and size and proposes promote, clear or leave; the
+clearing is the person's.
 
 **Leave link checking out**, or implement all the reference forms in `docs/workspace-map.md` first. A
 checker that assumes every reference is a relative path reports most of a mature tree as broken.
