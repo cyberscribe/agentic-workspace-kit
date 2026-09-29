@@ -1,7 +1,6 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "closeout-marketplace",
-  "description": "The closeout plugin, published from the workspace context kit it implements one ritual of.",
+  "name": "agentic-workspace",
+  "description": "The workspace context kit's plugins: closeout, the end-of-session promotion ritual; projects, the life of a project from capture to close; and workspace, the first-time setup and the upkeep that follows.",
   "owner": {
     "name": "Robert Peake",
     "url": "https://github.com/cyberscribe"
@@ -9,8 +8,22 @@
   "plugins": [
     {
       "name": "closeout",
-      "description": "A safety net for the end-of-session documentation ritual: /closeout promotes learnings live, and if you forget, a SessionEnd hook captures them into a draft the next session offers to promote.",
+      "description": "A safety net for the end-of-session documentation ritual: /closeout promotes learnings live and brings the project's Now block and Done when list up to date, and if you forget, a SessionEnd hook captures the learnings into a draft the next session offers to promote.",
       "source": "./plugins/closeout",
+      "category": "productivity",
+      "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
+    },
+    {
+      "name": "projects",
+      "description": "The life of a project, kept in its README: /projects:new and /projects:adopt set the finish line and next action; /projects:capture fills the team inbox; /projects:board shows everything in flight with flags; /projects:review is the regular tracking pass; /projects:close finishes a project with evidence and a retrospective; /projects:pickup briefs whoever takes one over; /projects:mine lists one person's actions for their own system. A session-start hook says where the folder's project stands.",
+      "source": "./plugins/projects",
+      "category": "productivity",
+      "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
+    },
+    {
+      "name": "workspace",
+      "description": "Set up and look after a shared agentic workspace: /workspace:quick-start interviews the team and each person and wires the kit into their daily and weekly routines; /workspace:hygiene runs the weekly tidy of where context lives; /workspace:register-audit checks guidance files for the register they are written in.",
+      "source": "./plugins/workspace",
       "category": "productivity",
       "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
     }

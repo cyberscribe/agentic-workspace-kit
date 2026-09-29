@@ -1,0 +1,18 @@
+{
+  "name": "projects",
+  "version": "1.1.0",
+  "description": "The life of a project, kept in its README: /projects:new interviews for the finish line and first next action; /projects:adopt adds only what an existing project is missing; capture, board, review, close, pickup and mine keep the work moving from inbox to done. A session-start line says where the folder's project stands — outcome, done-when progress, next action — and, once a day elsewhere, what is waiting.",
+  "author": {
+    "name": "Robert Peake",
+    "url": "https://github.com/cyberscribe"
+  },
+  "keywords": [
+    "projects",
+    "kickoff",
+    "documentation",
+    "definition-of-done",
+    "hooks"
+  ],
+  "homepage": "https://github.com/cyberscribe/agentic-workspace-kit",
+  "repository": "https://github.com/cyberscribe/agentic-workspace-kit"
+}

@@ -5,6 +5,109 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v2.0.0 — 2026-09-29
+
+**A work system on top of the context system: every project carries its own finish line and next
+action, twelve commands across three plugins keep them true, and the same commands reach assistants
+that load skills rather than plugins.**
+
+**The tracking axis.** `templates/project-readme.md` takes its final order: What this is, Desired
+outcome, **Done when** (a checklist), a **Now** block (State · Next action · Waiting on · Check-in ·
+Updated, then one dated line, rewritten rather than appended), and optional Next up, Success
+criteria, People, Precedents and Parked. People uses five roles: owns, does, helps, ask first, keep
+told. The register gains State and Owner columns; `inbox.md` is the team inbox; the person profile
+gains an optional in-flight limit; `templates/verification-standard.md` (what counts as checked, per
+kind of work) and `templates/catalogue.md` (what the team has built and would reuse) are new. The
+taxonomy names tracking's three homes. README §1.3 and §2.3 describe the axis, and a new
+"Tracking, day to day" section maps each moment to its command.
+
+**projects plugin, 1.1.0 (new).** `/projects:new` and `/projects:adopt` set the outcome, finish line
+and first next action — adopt adds only what an existing project lacks, as small insertions, with a
+`draft` mode that marks every proposal for later confirmation. `/projects:capture` fills the inbox;
+`/projects:board` shows every project with one-line flags; `/projects:review` empties the inbox and
+walks the flagged projects; `/projects:close` ticks each Done-when box against evidence, keeps a
+short retrospective and moves the register row; `/projects:pickup` briefs whoever takes a project
+over; `/projects:mine` lists one person's actions for their own task manager. A session-start hook
+gives the folder's project in three lines, and elsewhere at most one line a day about what is
+waiting. `.claude/projects.md` holds a team's own layout, section names, in-flight limit and review
+cadence, mirroring `.claude/closeout.md`; one reading contract (how labels, gaps, headings and
+owners are read) is written once in the plugin README and followed by every command and script.
+Versioned 1.1.0 because 1.0.0 was installed in test repositories while the plugin had one command;
+neither version was published before this one.
+
+**workspace plugin, 1.0.0 (new).** `/workspace:quick-start` moves here from `team/` and gains three
+modes — fresh, joining, and existing system, where the kit adopts a system that was there first
+through a confirmed mapping rather than installing over it — and a closing pass that wires the kit
+into the daily and weekly routines people already run. `/workspace:hygiene` and
+`/workspace:register-audit` run the two periodic rituals.
+
+**closeout plugin, 1.1.1 → 1.2.0.** 1.1.1, published on its own: drafts are retained from the
+day they are first surfaced (`.seen` markers) rather than from creation; the review hook exits inside
+the capture child; the capture child runs from the draft directory; `/opt/homebrew/bin/claude` is
+probed; the `/closeout` sentinel is keyed off the project root. 1.1.2 was prepared but never released
+on its own, and its changes ship inside 1.2.0: an absolute draft directory, a stale `.seen` marker
+cleared when a resumed session is captured again, and a more careful account of what the
+capture child's `acceptEdits` mode approves. 1.2.0:
+`/closeout` rewritten in the kit's house style with every 1.1.x rule kept; verify points at the
+verification standard; a new tracking step brings the project's Now block up to date and suggests
+`/projects:close` when every box is ticked; who needs to know reads People roles; a personal
+conventions file (`~/.claude/closeout.md`, or `CLOSEOUT_USER_CONVENTIONS`) sits between the project's
+conventions and the plugin defaults; the sentinel is written only where a capture hook runs; the
+prompts both hooks hand the agent are written without capitals for emphasis.
+`rituals/closeout.md` carries the same changes in tool-neutral words.
+
+**Skills.** `install.sh --skills-dir <folder>` writes one thin skill per command — `closeout`,
+`projects-board`, `workspace-quick-start` and the rest — for claude.ai and other assistants that load
+skills. Each points at its command file, carries the procedure beside it for a surface that is
+uploaded without the repository, and says in its description when to offer it unprompted, from a new
+`offer-unprompted:` line in each command's front matter. `--skills-only` writes just the skills into
+a repository that already has the kit.
+
+**Installer.** Defaults to Claude Code only (`--surfaces claude`); other surfaces are generated from
+the same command files by one loop, and the hand-written wrapper in `team/` is retired. Places
+`inbox.md`, `.claude/projects.md` and the two new templates, and vendors all three plugins, with
+`VENDORED` naming each version, the kit commit and checkout, and "+ uncommitted changes" when the kit
+tree was dirty. A repository that keeps its own `CLAUDE.md` is detected before anything is placed:
+the Next message and `.claude/closeout.md` then work with that file rather than asking for it to be
+replaced. Rendered files are 0644 and `measure.sh` 0755. `$schema` is gone from the marketplace
+files.
+
+**Metrics.** `pilot/measure.sh` gains seven columns after the established ten (active projects, with
+a next action, with a Done when, done, waiting over 14 days, most in flight per person, median days
+to done), all recomputed by `--backfill`; `--out` and `MEASURE_ALWAYS_LOADED`; with no commits it
+says so and writes nothing, and backfill skips weeks before the first commit.
+
+**Tests (new).** `bash tests/run.sh`, plain bash with git, jq and python3: installs run twice and
+interactively, every JSON parses, versions and marketplaces agree, the closeout hooks (team
+detection, capture prompt, retention, the personal layer), the session-start line, `measure.sh` over
+a dated fixture history, the twelve commands vendored and as skills from one source each, and three
+rules over the whole kit — no method-brand vocabulary, no AI-vendor attribution in files or history,
+no capitals-for-emphasis in prompts, templates and rituals.
+
+**The commit stays with the person.** The agent stages what it touched, by name, and summarises the
+change; the person committing writes the message, as their check that they understand it. Stated in
+`rituals/closeout.md`, `/closeout`, the team closeout conventions and the quick-start's close.
+
+**What the walkthrough changed.** Before release the kit was run end to end as an agent against two
+scratch repositories: a fresh install for a three-person team (quick-start, both kinds of
+`/projects:new`, capture, board, review, closeout, close), and the quick-start in existing-system mode
+against a one-person system with its own always-loaded file, register, decisions log and skills.
+Twenty-six findings, all fixed, two in part. The quick-start's modes now cover every state (fresh no
+longer needs an empty register); it names the stand-in paragraph to replace or delete, waits for a
+project before checking the session-start line, takes the metrics baseline only after the first
+commit, reads the team's review day instead of asking each joiner, runs adopt in the same sitting
+after the mapping, lists leftover `.kit-incoming` files as commands the person runs, and spares a
+one-person team the pull-request advice. The conventions gain an Entry point line (the conventions'
+file, else `README.md`, else the folder's `CLAUDE.md`) that every command, the hook and the metrics
+now share, a Default owner line, and one profile filename rule. `/projects:close` asks what becomes
+of Parked and open Next up lines; `/projects:new` puts a target date in the Desired outcome;
+`/closeout` holds a Done-when tick to the verification standard; the board's stale flag uses the team
+cadence. The session-start line reports a done project as done and names a missing section rather
+than judging the file. The installer's Next message no longer contradicts existing-system mode.
+`measure.sh` counts decision headings with or without brackets around the date.
+
+---
+
 ## v1.3 — 2026-09-28
 
 **The taxonomy, drawn.** `docs/images/context-taxonomy.svg` — the four content types held shared and

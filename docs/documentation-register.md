@@ -56,7 +56,8 @@ When adding or editing guidance:
 ## Where it applies
 
 Prose that primes an AI session: the always-loaded manifest, project manifests and READMEs, skill and
-role definitions, memory files, prompt templates, and the decisions log. Reference corpora, research
+role definitions, memory files, prompt templates, rituals, the decisions log, and the workspace's own
+reference files that agents load on demand (`docs/`). Reference corpora, research
 notes, transcripts, drafts and human-facing deliverables are out of scope — they are read *by* the
 agent as material, not addressed *to* it as instruction.
 
@@ -66,7 +67,9 @@ does not match its stated scope produces noise indistinguishable from findings.
 ## Catching drift with a scan
 
 Intentions do not survive a year. A monthly regex pass over agent-facing markdown catches drift while
-it is still cheap to fix.
+it is still cheap to fix. The workspace plugin's `/workspace:register-audit` is the runnable form of
+this section: it collects the files named under "Where it applies", scans and grades them as below, and
+writes a dated report to `audits/`.
 
 **Grade by prompt-priming weight, not by writing quality.**
 
@@ -87,7 +90,13 @@ same false positive is not re-litigated every month:
 2. **An exempt-phrase list** for fixed names and model vocabulary containing a flagged word
    incidentally — a discipline label in a code span is a named value, not an instruction.
 3. **In-file comment markers** for prose that catalogues the antipatterns deliberately, as the two
-   tables above do. Markers travel with the text; line-number exclusions rot on the first edit.
+   tables above do. Markers travel with the text; line-number exclusions rot on the first edit. Each
+   marker is an HTML comment on a line of its own, reading `register-audit:` and then `ignore-start`
+   or `ignore-end` around a range, or `ignore-file` anywhere in a file to leave the whole file out —
+   as the source of this file shows.
+
+The first two layers are this team's to write down, in the "Suppressions here" list at the end of
+this file, where the scan reads them.
 
 Two lessons from running this for a year:
 
@@ -103,3 +112,13 @@ nothing at all.
 **Keep the dated reports, and commit them.** The historical trail is the calibration story, and it is
 the only way to tell a clean run from a broken check. A trail held on one machine reaches nobody —
 the same rule that governs any other record worth having.
+
+## Suppressions here
+
+The scan reads this list. Add a line when a false positive turns out to be structural, with the reason,
+so the next run does not argue it again.
+
+- **Directories left out:** `audits/` (reports quote what they found), `drafts/` (not yet addressed
+  to anyone), `.claude/plugins/` (vendored; its register is kept upstream), `.git/`
+- **Exempt phrases:** `` `ALWAYS` `` written as a code span — the load label in
+  `docs/memory-layers.md`, a named value in a model rather than an instruction

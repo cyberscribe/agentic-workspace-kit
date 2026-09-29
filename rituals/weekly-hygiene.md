@@ -3,7 +3,8 @@
 *Is everything where it belongs, and what is the always-loaded tier costing this week?*
 
 > Two stages: a deterministic scan, then a judgement pass. Scriptable in an afternoon; worth doing by
-> hand first, so the script encodes checks you have actually found useful.
+> hand first, so the script encodes checks you have actually found useful. `/workspace:hygiene` runs
+> this ritual with an agent, writing its report to `audits/`.
 
 ---
 
@@ -22,10 +23,12 @@ remember to ask.
 | **Staleness** | Guidance whose own "last updated" line has gone quiet |
 | **Waiting work** | Drafts or captures the other rituals left unpromoted |
 
-Add version-control state and any bridge or mirror your setup keeps in sync. Write the report to a
-dated file, keep it, and **commit it** — the trail is what lets you tell a clean week from a broken
-check, and a trail on one machine reaches nobody. Excluding audit output from version control is a
-common reflex because it looks like noise; it is the record of whether the noise means anything.
+Add version-control state and any bridge or mirror your setup keeps in sync. If the repository keeps
+metrics with `pilot/measure.sh`, its weekly run belongs to this pass, and its row goes in the report.
+Write the report to a dated file, keep it, and **commit it** — the trail is what lets you tell a clean
+week from a broken check, and a trail on one machine reaches nobody. Excluding audit output from
+version control is a common reflex because it looks like noise; it is the record of whether the noise
+means anything.
 
 **Leave link checking out**, or implement all the reference forms in `docs/workspace-map.md` first. A
 checker that assumes every reference is a relative path reports most of a mature tree as broken.

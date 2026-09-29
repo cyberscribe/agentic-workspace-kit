@@ -1,11 +1,13 @@
 {
   "extraKnownMarketplaces": {
-    "closeout-marketplace": {
+    "agentic-workspace": {
       "source": __MARKETPLACE_SOURCE__
     }
   },
   "enabledPlugins": {
-    "closeout@closeout-marketplace": true
+    "closeout@agentic-workspace": true,
+    "projects@agentic-workspace": true,
+    "workspace@agentic-workspace": true
   },
   "permissions": {
     "allow": [

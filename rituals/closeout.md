@@ -55,6 +55,10 @@ is how a wrong fact gets a permanent home.
 
 One summarised page-fetch is not verification either.
 
+Where the team has written down what counts as checked — a verification standard, `docs/verification.md`
+by default — check each item to the row for its kind of work, and say what evidence was kept. Something
+that cannot yet meet that standard is recorded as unverified, with what is missing, or left out.
+
 ### 4. Propose, then apply
 
 Surgical updates: the line that changed, not a rewrite of the file around it.
@@ -69,8 +73,19 @@ a pointer to what replaced it.
 ### 5. Reconcile tracking — separately, and after
 
 Context and tracking are different axes. Promote learnings first, then confirm that task and status
-files reflect reality, and release any locks or claims this session holds. Report the two separately;
-merging them is how the ritual decays into a status update.
+files reflect reality, and release any locks or claims this session holds. Where the project README
+has a **Done when** list, tick what this session completed and say in a line how far the project is
+from its finish line; when every box is ticked, propose closing the project, which is its own
+ritual with its own evidence walk. Report the two separately; merging them is how the ritual decays
+into a status update.
+
+Where the README has a **Now** block, bring it up to date: `Updated:` to today's date; the **Next
+action** rewritten if this session did it or the next step moved — one concrete, visible step with
+who takes it, confirmed with the person — or, when nobody can say yet, the honest gap
+`none found — decide at the next review`; a **Waiting on** line added for anything left waiting on
+someone and removed once answered; the **State** changed only when it plainly moved; and the dated
+line under the block rewritten rather than added to. A block still marked as a proposal keeps its
+marker: confirming it is the person's, at their review.
 
 ### 6. Who needs to know — when the project has more than one person
 
@@ -78,6 +93,13 @@ merging them is how the ritual decays into a status update.
 (`memory/people/`), a People or Team section in the project's README or in the local closeout
 conventions, or an explicit team list in the configuration. With one person or none, skip it without
 comment.*
+
+Where the project README's People section gives roles, the roles do most of the choosing: whoever
+**owns** the outcome and whoever is to be **kept told** hear about progress on it — a criterion
+ticked, the finish line reached or moved, the next action changing hands; whoever is to be **asked
+first** hears about decisions not yet taken — a proposal left open, a criterion someone wants to
+change or waive — before the decision rather than after it; and whoever **does** or **helps** hears
+where their own work is affected.
 
 Promotion decides where a learning is kept. This step decides who should hear about it now — because a
 file that changed without anyone knowing reaches nobody until they happen to open it. It is the other
@@ -89,7 +111,7 @@ says they are the one to go to for it. The output is a short table:
 
 | Who | What they need to know | Why them | Where it is recorded |
 |---|---|---|---|
-| <name> | <one line> | <owns / blocked by / decided by / go-to for> | `<path it was promoted to>` |
+| <name> | <one line> | <owns / keep told / ask first / blocked by / go-to for> | `<path it was promoted to>` |
 
 - **Name someone only with a reason.** "Nobody in particular" is a common and correct answer; say it
   in one line.
@@ -108,11 +130,14 @@ says they are the one to go to for it. The output is a short table:
 
 - What was promoted, and at which tier.
 - What is proposed and waiting for a decision.
+- Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new next action.
 - Who needs to know what, if step 6 applied.
 - Which files were touched, new against modified.
 - Anything left unfinished.
 
-Leave the commit to the human — a broad staging command sweeps unrelated in-flight work into it.
+Leave the commit to the human. The agent's part is to stage what it touched, by name, and summarise
+the change; the person committing writes the message, and writing it is their check that they
+understand what changed. A broad staging command sweeps unrelated in-flight work into it.
 
 ## The backstop
 
@@ -150,3 +175,9 @@ inside the work instead.
 Where a workspace has its own tiers, destinations or house rules, keep them in one file that this
 procedure defers to — and have that file *point at* the taxonomy rather than restating it. Two copies
 of a tier table drift silently, because both look authoritative.
+
+A person can keep a second, personal layer above every repository they work in — an extra destination
+of their own, a house rule, a line they want in every report. It is read after the repository's file,
+and where the two disagree the repository's wins: a team's conventions are not overridden by one
+member's habits. Where the repository's file is silent, the personal one stands over the defaults.
+(The Claude Code plugin reads it from `~/.claude/closeout.md`.)

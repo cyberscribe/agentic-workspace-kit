@@ -15,8 +15,8 @@ ask them rather than the agent.
 ### 1.1 Team layer and personal layer
 
 This file is the team's shared working standards. Each person also keeps a personal layer —
-`~/.claude/CLAUDE.md`, `~/.gemini/GEMINI.md` — for how they like to work. The two overlap, and the
-overlap is arbitrated like this:
+`~/.claude/CLAUDE.md`, or their own tool's equivalent — for how they like to work. The two overlap,
+and the overlap is arbitrated like this:
 
 - **The team layer governs anything that touches someone else's work**: where files go, what "done"
   and "verified" mean, how decisions are recorded, which tools are sanctioned.

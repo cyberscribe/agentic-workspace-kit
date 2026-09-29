@@ -1,7 +1,8 @@
 # A Workspace That Keeps Its Context
 
 *A working system for collaborating with AI agents over long horizons, across many projects at once.
-It is a filesystem layout, four content types, three human-in-the-loop rituals, and two small checks.
+It is a filesystem layout, four content types, a tracking axis kept in each project's README, three
+human-in-the-loop rituals, and two small checks.
 Copy the files in this kit, change the names to yours, and start.*
 
 *Nothing here is theoretical. It was extracted from a working folder shared by several agent surfaces
@@ -72,10 +73,19 @@ category of work starts*. Naming that category stops each one being reinvented p
 
 ### 1.3 Tracking is not context
 
-Task lists, project status, kanban columns, sprint state: these are state, not knowledge. They get
-**reconciled**, not promoted. Keeping the two on separate axes is what stops an end-of-session
-knowledge pass turning into a status meeting, and it is the single most common way these rituals
-decay into theatre.
+Task lists, project status, columns on a board, who is doing what this week: these are state, not
+knowledge. They get **reconciled**, not promoted. Keeping the two on separate axes is what stops an
+end-of-session knowledge pass turning into a status meeting, and it is the single most common way
+these rituals decay into theatre.
+
+Tracking still needs a home, or it leaks into the context files. Here it has three: each project's
+README carries a **Now** block — state, next action, what it is waiting on, when it is next looked
+at, when it was last updated — under a Desired outcome and a **Done when** checklist; the register
+lists every project with its state and owner; and an inbox holds what has been captured but not yet
+sorted. Four moments keep them true: the closeout brings the Now block up to date at the end of a
+session, a board reads every Now block on demand and flags what needs a look, a regular review empties
+the inbox and walks the flagged projects, and a close ticks each Done-when box against evidence before
+a project is marked done. None of the four writes to the context tiers.
 
 ### 1.4 Precedence
 
@@ -161,8 +171,9 @@ agreement.
 its folder. Paused projects move to a section rather than disappearing, because the reason something
 is paused is itself context.
 
-The folder holds a `README.md` saying what, why, current state and open questions. When a project
-starts making decisions worth preserving, it gets a `decisions.md` from the template.
+The folder holds a `README.md` saying what, why, when it is done (the Done when checklist), where it
+stands now (the Now block, §1.3) and what is still open. When a project starts making decisions worth preserving, it gets a `decisions.md` from the
+template.
 
 ### 2.4 Templates as a first-class location
 
@@ -539,17 +550,32 @@ always-loaded tier, and — for a pilot — a way to show afterwards what change
   --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
 ```
 
-- **`AGENTS.md` is the one manifest.** Claude Code reads it through a one-line `CLAUDE.md` import;
-  Gemini CLI through `.gemini/settings.json`. Tools that look for `AGENTS.md` by convention find it
-  directly. The file is portable even where a filename is not.
+- **`AGENTS.md` is the one manifest.** Claude Code reads it through a one-line `CLAUDE.md` import,
+  and tools that look for `AGENTS.md` by convention find it directly. The file is portable even
+  where a filename is not.
+- **Two kinds of surface are supported.** An agent that loads plugins and session hooks — Claude
+  Code, where the three plugins below install — and an assistant that loads skills from a folder,
+  such as claude.ai, which gets the same commands as skills (`--skills-dir`, below). Both run from the
+  same command files.
 - **§1 becomes a team rather than a person**, with a named standards owner and the arbitration rule:
   the team layer governs whatever touches someone else's work, the personal layer governs your own
   sessions, and a personal practice reaches the team by pull request.
-- **The closeout plugin is wired in**, vendored by default so it is pinned, reviewable by a security
-  team, and installed without network access. `.claude/closeout.md` points it at
-  `docs/memory-layers.md`, so there is one taxonomy in the repository rather than the plugin's and
-  the kit's side by side. Gemini CLI gets `/closeout` as a command — the live ritual, without the
-  backstop, which is the honest version of §4.1.
+- **Three plugins, twelve commands, are wired in**, vendored by default so they are pinned, reviewable by a security
+  team, and installed without network access:
+  - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
+    `docs/memory-layers.md`, so there is one taxonomy in the repository rather than the plugin's and
+    the kit's side by side.
+  - **projects** — `/projects:new`, `adopt`, `capture`, `board`, `review`, `close`, `pickup` and
+    `mine`, the life of a project from inbox to done, kept in each project's README, with a
+    session-start line that says where the folder's project stands. `.claude/projects.md` holds the
+    team's own conventions, and `inbox.md` is the team inbox.
+  - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
+    `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check.
+- **`--skills-dir <path>` writes one skill per command** for people who work in an assistant that
+  loads skills rather than plugins, such as claude.ai or Cowork — `projects-board`, `closeout`,
+  `workspace-quick-start` and the rest. Each points at its command file, so every procedure keeps one
+  source, and each description says when to offer it unprompted, since such surfaces run no session
+  hooks. `--skills-only` writes just the skills, for a repository that already has the kit.
 - **`--pilot` adds `pilot/`**: a protocol, the team's own build list as the primary measure, and a
   script that reads every other number from git history — counts only, safe to share outside the team.
 
@@ -559,6 +585,53 @@ Settings JSON is merged additively. Running it twice is safe.
 What it does not do: install into the team's code repositories. The pilot is one shared workspace
 repository; carrying the practice into code repositories — the plugin alone is one command there — is
 the step after the pilot shows it is used.
+
+### The first run: `/workspace:quick-start`
+
+The installer lays files down; the quick-start makes them the team's own. It reads the repository
+before asking anything, decides which of three modes it is in, and says so in two lines:
+
+- **Fresh** — the always-loaded file still has stand-ins. The team part, ideally with the standards
+  owner (the team, its rules, how projects run here, what counts as checked), then the personal part.
+  Where an earlier run already answered something, it asks only what is still open.
+- **Joining** — the team part is done and this person has no profile yet. The personal part only:
+  their profile (what they own, when to come to them), their own in-flight limit, how they like an
+  agent to work with them. The team's review day and metrics are read,
+  not asked again.
+- **Existing system** — a system was here first: its own always-loaded file, a register with other
+  section names, its own closeout or daily-review skill. The kit adopts rather than installs. It
+  proposes a mapping — their file for the kit's, their section names for the kit's — writes it into
+  `.claude/projects.md` and `.claude/closeout.md` only on a yes, runs `/projects:adopt draft` over
+  their projects, and folds their overlapping skills into the kit's commands instead of running two.
+
+When everything is already set up it says so. Every mode ends the same way: wiring the kit into
+routines people already run. The commands on every
+surface they use; the board's next actions offered to their daily list; `/projects:review` as a step
+in their weekly review; the session-start line checked in one project folder; a metrics baseline once
+there is history to read. Each step is offered, shown, and taken or declined. The close names one next
+action and leaves the commit to them.
+
+### Tracking, day to day
+
+The **projects** plugin keeps the §1.3 tracking axis, one command per moment:
+
+| When | Command | What it does |
+|---|---|---|
+| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, Done when and first next action; or, for a project that already exists, only the sections it is missing |
+| Something comes up | `/projects:capture` | One line into `inbox.md`, sorted later |
+| Opening a session | *(session-start line)* | Inside a project folder: outcome, Done-when progress, next action and owner |
+| Any time | `/projects:board` | Every project in flight, with one-line flags: no next action or owner, a stale Now block, a wait over 14 days, someone over their in-flight limit |
+| Each morning | `/projects:mine` | One person's next actions, as plain lines for their own task manager |
+| End of a session | `/closeout` | Learnings promoted; the Now block and Done when brought up to date, reported apart |
+| On the review day | `/projects:review` | The inbox emptied one line at a time, the flagged projects walked, `audits/review-YYYY-MM-DD.md` kept |
+| Handing over | `/projects:pickup` | A cold-start brief for whoever takes the project on |
+| Finishing | `/projects:close` | Each Done-when box checked against the verification standard, a short retrospective, the register row moved to Done |
+
+The **workspace** plugin holds the upkeep: `/workspace:hygiene` weekly and `/workspace:register-audit`
+monthly, each running its ritual from `rituals/`. On a surface without session hooks, each skill's
+description says when to offer it unprompted: the board at the start of a working day, a project's
+own line when a session opens in its folder, the closeout near the end of a session that decided
+something.
 
 ## The files in this kit
 
@@ -573,10 +646,15 @@ the step after the pilot shows it is used.
 | `templates/project-decisions.md` | Per-project decisions log skeleton |
 | `templates/project-readme.md` | Per-project README skeleton |
 | `templates/person-profile.md` | One file per person: what they own, and when to go to them |
+| `templates/verification-standard.md` | What counts as checked, per kind of work |
+| `templates/catalogue.md` | What the team has built and would reuse |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
-| `install.sh` | Deploys the kit into a team repository, with the closeout plugin, surface shims and pilot layer |
+| `plugins/projects/` | Projects from inbox to done — eight commands and a session-start line |
+| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit` |
+| `install.sh` | Deploys the kit into a team repository, with the three plugins, skills for desktop assistants, surface shims and pilot layer |
 | `team/` | The installer's team overlay — see `team/README.md` |
 | `pilot/` | Pilot protocol, build-list ledger and `measure.sh` |
+| `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |
 
 Every one is a starting point rather than a standard. The system works because the conventions match
 the work, and yours will differ.
@@ -596,7 +674,7 @@ repository has to be pulled back with `git subtree pull` before the next push.
 
 ## Licence
 
-Code (the installer, `pilot/measure.sh`, the plugin) is MIT. The writing — this README, `docs/`,
+Code (the installer, `pilot/measure.sh`, the plugins, `tests/`) is MIT. The writing — this README, `docs/`,
 `rituals/`, `templates/` and the rest of the prose — is CC BY 4.0: use and adapt it freely, including
 commercially, with credit. See `LICENSE`.
 
@@ -605,7 +683,8 @@ workspace teaches something. Issues are read; there is no support commitment.
 
 ---
 
-*Version 1.2 — 2026-09-28: team deployment and pilot layer added (see CHANGELOG). Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
+*Version 2.0 — 2026-09-29: the tracking axis, twelve commands across three plugins, skills, and the
+quick-start's three modes (see CHANGELOG). Version 1.2 — 2026-09-28: team deployment and pilot layer added. Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
 claims: the manifest split needs maintaining (§2.1), a canonical-fact table does not enforce itself
 (§2.2), rituals want checking against the set that already exists (§4.4), audit trails belong in
 version control (§4.2), and a ritual that has produced no artefacts is a plan (Part 7).*

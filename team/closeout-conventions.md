@@ -1,7 +1,8 @@
 # Closeout conventions — __TEAM__
 
-Read by the closeout plugin (`/closeout` and its end-of-session capture hook), by the Gemini CLI
-`/closeout` command, and by the Cowork closeout skill, so every surface closes out the same way.
+Read by the closeout plugin (`/closeout` and its end-of-session capture hook) and by the `closeout`
+skill the installer generates for desktop assistants, so every surface closes out the same way. A
+person's own `~/.claude/closeout.md` is read after this file and never wins over it.
 
 ## Promotion tiers
 
@@ -26,4 +27,6 @@ copies drift.
 - **Who needs to know** comes from `memory/people/`: with two or more profiles there, the closeout
   ends with a short table of who should hear about what. It is a suggestion for the person closing
   out; nothing is sent, and it is not committed.
-- **Leave the commit to the human.** Report the files touched; do not stage with a broad command.
+- **Leave the commit to the human.** The agent stages the files it touched, by name, and summarises
+  the change; the person committing writes the message, as their check that they understand it. No
+  broad staging command.
