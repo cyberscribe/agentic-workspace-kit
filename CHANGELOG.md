@@ -5,40 +5,112 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v2.1.0 — 2026-09-29
+
+**Removed the capture, review and personal-list commands and the next-action and waiting-on fields.
+A project's README now carries a Current state block, and nine commands across three plugins keep
+it true.**
+
+**Removed.** `/projects:capture`, `/projects:review` and `/projects:mine`, with the team file of
+unsorted items the first of them wrote to and the installer placed. From the project README: the
+Now block's next-action and waiting-on fields, the Next up and Parked sections, and the three
+states that went with them. From the quick-start's close: the steps that fed the board into a
+person's own list and scheduled the removed review. From the conventions: `Review day`, which only
+the removed review read. From the plugin config: `CAPTURES_FILE`.
+
+**The Current state block** replaces Now in `templates/project-readme.md`: `State:` (ready · doing ·
+blocked · paused · done), an optional one-line `Blocked by:` saying what and since which date, an
+optional `Check-in:`, `Updated:`, and one dated line, rewritten rather than appended. **Planned**
+replaces Next up: an optional ordered list of steps, a plan rather than a queue. Labels are bold in
+the template; every reader accepts them bold or plain.
+
+**projects plugin, 2.0.0.** Five commands — `new`, `adopt`, `board`, `close`, `pickup` — read and
+write the Current state block. `/projects:adopt` proposes it under the same draft marker; a README
+with the older Now block is read as present in the old format, reported, and offered the conversion
+as a diff in interactive mode, and left alone in draft mode. The board's flags are no owner, no Done
+when, a stale `Updated:`, blocked for more than 14 days, over the in-flight limit, register
+mismatch, unconfirmed adopt proposals, and ready to close. Staleness is measured against a new
+`Staleness:` setting in `.claude/projects.md`; the earlier label for it is still read. The
+session-start line gives the outcome, done-when progress, and `State:` with anything blocking it and
+the owner; outside a project folder, its once-a-day line names only projects blocked for more than
+14 days.
+
+**workspace plugin, 1.1.0.** The quick-start ends on "Reachable and running": surface parity, which
+now checks that each generated skill is a real folder (not a link) in the folder the desktop
+assistant actually loads from and gives the step that brings a missing one across; the session-start
+check; the metrics baseline; and one real piece of work in one real project. The close names the
+first thing to do. The staleness setting replaces the review day. `/workspace:hygiene` gains an eighth
+check, a sweep of closeout drafts in this repository's drafts folder and each project folder's,
+oldest first with age and size, proposing promote, clear or leave for each and deleting nothing;
+"Waiting work" becomes "Pending work", covering unconfirmed adopt proposals.
+
+**closeout plugin, 1.2.1.** `/closeout`, the plugin README, `docs/DESIGN.md` and
+`rituals/closeout.md` update the Current state block: Done when ticked, `State:` changed only when
+the session plainly moved it, `Blocked by:` set with its date and removed once cleared, `Updated:`
+set, the dated line written. `paused` and `done` are proposed only; marking a project done stays
+with `/projects:close`. A README still carrying the older Now block is left as it is and pointed at
+`/projects:adopt`. Who needs to know is triggered by ownership changing or the project becoming
+blocked. One line in the review hook changes: a draft's Who needs to know is presented as the
+who / what / why table the command describes.
+
+**Metrics.** `projects_blocked` and `blocked_over_14d` replace `projects_with_next_action` and
+`waiting_over_14d`, and `--backfill` recomputes them. A project counts as blocked when its `State:`
+reads blocked or it has a `Blocked by:` line; only the `since` date dates the block. Backfill reads
+history as it was: a README from before this version has no readable `State:` and counts as active.
+
+**Templates, team and installer.** The conventions, the team overlay, `docs/memory-layers.md`,
+`pilot/` and `install.sh` use the new block and states; the installer no longer places the removed
+file.
+
+**Tests.** The word-list check reads its list from `$AW_BANNED_WORDS_FILE` (default
+`~/.config/agentic-workspace-kit/banned-words.txt`), one extended-regex alternative per line, and
+skips with one line naming the path when the file is absent; the list is kept outside the
+repository. The history check exempts one earlier commit by its full hash, and `AW_SKIP_HISTORY` is
+gone. New checks cover the template's Current state block, the `Staleness:` setting, the
+session-start line's new output and the drafts sweep; the command check counts nine.
+
+**Upgrading from 2.0.** The installer only adds files, so a re-run leaves the removed commands'
+generated skills, Gemini wrappers and vendored command files in place. It now lists each one under
+"Worth knowing" as a file to delete; the team deletes them. The file of unsorted items 2.0 placed at
+the repository root is read by nothing now and can go too.
+
+**This file.** Entries below are reworded where they used terms this version removed from the kit;
+the original wording is in git history. Everything else in them stands as written.
+
+---
+
 ## v2.0.0 — 2026-09-29
 
-**A work system on top of the context system: every project carries its own finish line and next
-action, twelve commands across three plugins keep them true, and the same commands reach assistants
+**A work system on top of the context system: every project carries its own finish line and
+current status, twelve commands across three plugins keep them true, and the same commands reach assistants
 that load skills rather than plugins.**
 
 **The tracking axis.** `templates/project-readme.md` takes its final order: What this is, Desired
-outcome, **Done when** (a checklist), a **Now** block (State · Next action · Waiting on · Check-in ·
-Updated, then one dated line, rewritten rather than appended), and optional Next up, Success
-criteria, People, Precedents and Parked. People uses five roles: owns, does, helps, ask first, keep
-told. The register gains State and Owner columns; `inbox.md` is the team inbox; the person profile
+outcome, **Done when** (a checklist), a **Now** block (replaced in 2.1.0 by the Current state block), and optional
+Success criteria, People and Precedents, with two further optional sections removed in 2.1.0. People uses five roles: owns, does, helps, ask first, keep
+told. The register gains State and Owner columns; the person profile
 gains an optional in-flight limit; `templates/verification-standard.md` (what counts as checked, per
 kind of work) and `templates/catalogue.md` (what the team has built and would reuse) are new. The
 taxonomy names tracking's three homes. README §1.3 and §2.3 describe the axis, and a new
 "Tracking, day to day" section maps each moment to its command.
 
-**projects plugin, 1.1.0 (new).** `/projects:new` and `/projects:adopt` set the outcome, finish line
-and first next action — adopt adds only what an existing project lacks, as small insertions, with a
-`draft` mode that marks every proposal for later confirmation. `/projects:capture` fills the inbox;
-`/projects:board` shows every project with one-line flags; `/projects:review` empties the inbox and
-walks the flagged projects; `/projects:close` ticks each Done-when box against evidence, keeps a
+**projects plugin, 1.1.0 (new).** `/projects:new` and `/projects:adopt` set the outcome and finish
+line — adopt adds only what an existing project lacks, as small insertions, with a
+`draft` mode that marks every proposal for later confirmation. `/projects:board` shows every
+project with one-line flags; `/projects:close` ticks each Done-when box against evidence, keeps a
 short retrospective and moves the register row; `/projects:pickup` briefs whoever takes a project
-over; `/projects:mine` lists one person's actions for their own task manager. A session-start hook
-gives the folder's project in three lines, and elsewhere at most one line a day about what is
-waiting. `.claude/projects.md` holds a team's own layout, section names, in-flight limit and review
-cadence, mirroring `.claude/closeout.md`; one reading contract (how labels, gaps, headings and
+over. Three further commands shipped in this version and were removed in 2.1.0. A session-start hook
+gives the folder's project in three lines, and elsewhere at most one line a day.
+`.claude/projects.md` holds a team's own layout, section names, in-flight limit and staleness
+setting, mirroring `.claude/closeout.md`; one reading contract (how labels, gaps, headings and
 owners are read) is written once in the plugin README and followed by every command and script.
 Versioned 1.1.0 because 1.0.0 was installed in test repositories while the plugin had one command;
 neither version was published before this one.
 
 **workspace plugin, 1.0.0 (new).** `/workspace:quick-start` moves here from `team/` and gains three
 modes — fresh, joining, and existing system, where the kit adopts a system that was there first
-through a confirmed mapping rather than installing over it — and a closing pass that wires the kit
-into the daily and weekly routines people already run. `/workspace:hygiene` and
+through a confirmed mapping rather than installing over it — and a closing pass, replaced in 2.1.0 by
+"Reachable and running". `/workspace:hygiene` and
 `/workspace:register-audit` run the two periodic rituals.
 
 **closeout plugin, 1.1.1 → 1.2.0.** 1.1.1, published on its own: drafts are retained from the
@@ -65,7 +137,7 @@ a repository that already has the kit.
 
 **Installer.** Defaults to Claude Code only (`--surfaces claude`); other surfaces are generated from
 the same command files by one loop, and the hand-written wrapper in `team/` is retired. Places
-`inbox.md`, `.claude/projects.md` and the two new templates, and vendors all three plugins, with
+`.claude/projects.md` and the two new templates, and vendors all three plugins, with
 `VENDORED` naming each version, the kit commit and checkout, and "+ uncommitted changes" when the kit
 tree was dirty. A repository that keeps its own `CLAUDE.md` is detected before anything is placed:
 the Next message and `.claude/closeout.md` then work with that file rather than asking for it to be
@@ -73,15 +145,14 @@ replaced. Rendered files are 0644 and `measure.sh` 0755. `$schema` is gone from 
 files.
 
 **Metrics.** `pilot/measure.sh` gains seven columns after the established ten (active projects, with
-a next action, with a Done when, done, waiting over 14 days, most in flight per person, median days
-to done), all recomputed by `--backfill`; `--out` and `MEASURE_ALWAYS_LOADED`; with no commits it
+a Done when, done, most in flight per person, median days to done, and two replaced in 2.1.0), all recomputed by `--backfill`; `--out` and `MEASURE_ALWAYS_LOADED`; with no commits it
 says so and writes nothing, and backfill skips weeks before the first commit.
 
 **Tests (new).** `bash tests/run.sh`, plain bash with git, jq and python3: installs run twice and
 interactively, every JSON parses, versions and marketplaces agree, the closeout hooks (team
 detection, capture prompt, retention, the personal layer), the session-start line, `measure.sh` over
 a dated fixture history, the twelve commands vendored and as skills from one source each, and three
-rules over the whole kit — no method-brand vocabulary, no AI-vendor attribution in files or history,
+rules over the whole kit — a word-list check, no AI-vendor attribution in files or history,
 no capitals-for-emphasis in prompts, templates and rituals.
 
 **The commit stays with the person.** The agent stages what it touched, by name, and summarises the
@@ -90,19 +161,19 @@ change; the person committing writes the message, as their check that they under
 
 **What the walkthrough changed.** Before release the kit was run end to end as an agent against two
 scratch repositories: a fresh install for a three-person team (quick-start, both kinds of
-`/projects:new`, capture, board, review, closeout, close), and the quick-start in existing-system mode
+`/projects:new`, board, closeout, close, and the commands removed in 2.1.0), and the quick-start in existing-system mode
 against a one-person system with its own always-loaded file, register, decisions log and skills.
 Twenty-six findings, all fixed, two in part. The quick-start's modes now cover every state (fresh no
 longer needs an empty register); it names the stand-in paragraph to replace or delete, waits for a
 project before checking the session-start line, takes the metrics baseline only after the first
-commit, reads the team's review day instead of asking each joiner, runs adopt in the same sitting
+commit, reads the team's settings instead of asking each joiner, runs adopt in the same sitting
 after the mapping, lists leftover `.kit-incoming` files as commands the person runs, and spares a
 one-person team the pull-request advice. The conventions gain an Entry point line (the conventions'
 file, else `README.md`, else the folder's `CLAUDE.md`) that every command, the hook and the metrics
 now share, a Default owner line, and one profile filename rule. `/projects:close` asks what becomes
-of Parked and open Next up lines; `/projects:new` puts a target date in the Desired outcome;
-`/closeout` holds a Done-when tick to the verification standard; the board's stale flag uses the team
-cadence. The session-start line reports a done project as done and names a missing section rather
+of unfinished sections; `/projects:new` puts a target date in the Desired outcome;
+`/closeout` holds a Done-when tick to the verification standard; the board's stale flag uses the team's
+setting. The session-start line reports a done project as done and names a missing section rather
 than judging the file. The installer's Next message no longer contradicts existing-system mode.
 `measure.sh` counts decision headings with or without brackets around the date.
 

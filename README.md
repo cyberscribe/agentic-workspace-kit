@@ -78,14 +78,15 @@ knowledge. They get **reconciled**, not promoted. Keeping the two on separate ax
 end-of-session knowledge pass turning into a status meeting, and it is the single most common way
 these rituals decay into theatre.
 
-Tracking still needs a home, or it leaks into the context files. Here it has three: each project's
-README carries a **Now** block — state, next action, what it is waiting on, when it is next looked
-at, when it was last updated — under a Desired outcome and a **Done when** checklist; the register
-lists every project with its state and owner; and an inbox holds what has been captured but not yet
-sorted. Four moments keep them true: the closeout brings the Now block up to date at the end of a
-session, a board reads every Now block on demand and flags what needs a look, a regular review empties
-the inbox and walks the flagged projects, and a close ticks each Done-when box against evidence before
-a project is marked done. None of the four writes to the context tiers.
+Tracking still needs a home, or it leaks into the context files. Here it has two. Each project's
+README carries a **Current state** block under its Desired outcome and **Done when** checklist: the
+state (ready, doing, blocked, paused or done), what blocks it and since when, how often it is checked
+in on, when it was last updated, and one dated line saying where it stands. An optional **Planned**
+list after it holds the steps foreseen from there, in order. The register lists every project with
+its state and owner. Three moments keep them true: the closeout brings the Current state block up to
+date at the end of a session, a board reads every block on demand and flags what needs a look, and a
+close ticks each Done-when box against evidence before a project is marked done. None of the three
+writes to the context tiers.
 
 ### 1.4 Precedence
 
@@ -172,8 +173,8 @@ its folder. Paused projects move to a section rather than disappearing, because 
 is paused is itself context.
 
 The folder holds a `README.md` saying what, why, when it is done (the Done when checklist), where it
-stands now (the Now block, §1.3) and what is still open. When a project starts making decisions worth preserving, it gets a `decisions.md` from the
-template.
+stands now (the Current state block, §1.3) and what is still open. When a project starts making
+decisions worth preserving, it gets a `decisions.md` from the template.
 
 ### 2.4 Templates as a first-class location
 
@@ -305,7 +306,9 @@ A scan plus a judgement pass. The scan is deterministic and reports:
 - paths the canonical-fact table promises that are absent;
 - decisions inside projects that look like they generalise;
 - guidance whose own "last updated" line has gone quiet;
-- anything the previous rituals left waiting.
+- anything the previous rituals left pending;
+- session drafts the closeout backstop left behind, oldest first, each with a proposal to promote,
+  clear or leave.
 
 Then a person-and-agent pass classifies each finding, applies what is mechanical and uncontested, and
 brings back anything that would change what loads every session.
@@ -328,7 +331,7 @@ a judgement pass. Monthly is enough; the drift is slow.
 
 The set is short and nobody remembers all of it. The workspace this kit came from acquired a duplicate
 weekly pass in a single morning — a new hygiene ritual built without noticing that an existing
-scheduled review already covered part of the same ground. It surfaced two hours later, in an audit.
+scheduled pass already covered part of the same ground. It surfaced two hours later, in an audit.
 
 When two overlap, split them by **kind** of work rather than by subject: one produces a dated artefact
 mechanically, the other reads that artefact and exercises judgement. Two rituals aimed at the same
@@ -560,15 +563,14 @@ always-loaded tier, and — for a pilot — a way to show afterwards what change
 - **§1 becomes a team rather than a person**, with a named standards owner and the arbitration rule:
   the team layer governs whatever touches someone else's work, the personal layer governs your own
   sessions, and a personal practice reaches the team by pull request.
-- **Three plugins, twelve commands, are wired in**, vendored by default so they are pinned, reviewable by a security
-  team, and installed without network access:
+- **Three plugins, nine commands, are wired in**, vendored by default so they are pinned, reviewable
+  by a security team, and installed without network access:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `docs/memory-layers.md`, so there is one taxonomy in the repository rather than the plugin's and
     the kit's side by side.
-  - **projects** — `/projects:new`, `adopt`, `capture`, `board`, `review`, `close`, `pickup` and
-    `mine`, the life of a project from inbox to done, kept in each project's README, with a
-    session-start line that says where the folder's project stands. `.claude/projects.md` holds the
-    team's own conventions, and `inbox.md` is the team inbox.
+  - **projects** — `/projects:new`, `adopt`, `board`, `close` and `pickup`, the life of a project
+    from its first interview to done, kept in each project's README, with a session-start line that
+    says where the folder's project stands. `.claude/projects.md` holds the team's own conventions.
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
     `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check.
 - **`--skills-dir <path>` writes one skill per command** for people who work in an assistant that
@@ -596,20 +598,19 @@ before asking anything, decides which of three modes it is in, and says so in tw
   Where an earlier run already answered something, it asks only what is still open.
 - **Joining** — the team part is done and this person has no profile yet. The personal part only:
   their profile (what they own, when to come to them), their own in-flight limit, how they like an
-  agent to work with them. The team's review day and metrics are read,
-  not asked again.
+  agent to work with them. The team's staleness setting and metrics are read, not asked again.
 - **Existing system** — a system was here first: its own always-loaded file, a register with other
-  section names, its own closeout or daily-review skill. The kit adopts rather than installs. It
+  section names, its own closeout, board or hygiene skill. The kit adopts rather than installs. It
   proposes a mapping — their file for the kit's, their section names for the kit's — writes it into
   `.claude/projects.md` and `.claude/closeout.md` only on a yes, runs `/projects:adopt draft` over
   their projects, and folds their overlapping skills into the kit's commands instead of running two.
 
-When everything is already set up it says so. Every mode ends the same way: wiring the kit into
-routines people already run. The commands on every
-surface they use; the board's next actions offered to their daily list; `/projects:review` as a step
-in their weekly review; the session-start line checked in one project folder; a metrics baseline once
-there is history to read. Each step is offered, shown, and taken or declined. The close names one next
-action and leaves the commit to them.
+When everything is already set up it says so. Every mode ends the same way, by making sure the kit
+is reachable and running: the commands on every surface the person uses, checked in the folder their
+desktop assistant actually loads skills from; the session-start line checked in one project folder;
+a metrics baseline once there is history to read; and one real piece of work in one real project.
+Each step is offered, shown, and taken or declined. The close names the first thing to do and leaves
+the commit to them.
 
 ### Tracking, day to day
 
@@ -617,19 +618,16 @@ The **projects** plugin keeps the §1.3 tracking axis, one command per moment:
 
 | When | Command | What it does |
 |---|---|---|
-| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, Done when and first next action; or, for a project that already exists, only the sections it is missing |
-| Something comes up | `/projects:capture` | One line into `inbox.md`, sorted later |
-| Opening a session | *(session-start line)* | Inside a project folder: outcome, Done-when progress, next action and owner |
-| Any time | `/projects:board` | Every project in flight, with one-line flags: no next action or owner, a stale Now block, a wait over 14 days, someone over their in-flight limit |
-| Each morning | `/projects:mine` | One person's next actions, as plain lines for their own task manager |
-| End of a session | `/closeout` | Learnings promoted; the Now block and Done when brought up to date, reported apart |
-| On the review day | `/projects:review` | The inbox emptied one line at a time, the flagged projects walked, `audits/review-YYYY-MM-DD.md` kept |
+| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, Done when, Current state and People; or, for a project that already exists, only the sections it is missing, with an older status block offered for conversion |
+| Opening a session | *(session-start line)* | Inside a project folder: outcome, Done-when progress, and the state with its owner and anything blocking it |
+| Any time | `/projects:board` | Every project in flight, grouped by state, with one-line flags: no owner, no Done when, a stale `Updated:`, blocked for more than 14 days, someone over their in-flight limit, the register out of step, adopt proposals unconfirmed, a project ready to close |
+| End of a session | `/closeout` | Learnings promoted; Done when and the Current state block brought up to date, reported apart |
 | Handing over | `/projects:pickup` | A cold-start brief for whoever takes the project on |
 | Finishing | `/projects:close` | Each Done-when box checked against the verification standard, a short retrospective, the register row moved to Done |
 
 The **workspace** plugin holds the upkeep: `/workspace:hygiene` weekly and `/workspace:register-audit`
 monthly, each running its ritual from `rituals/`. On a surface without session hooks, each skill's
-description says when to offer it unprompted: the board at the start of a working day, a project's
+description says when to offer it unprompted: the board when someone asks where the work stands, a project's
 own line when a session opens in its folder, the closeout near the end of a session that decided
 something.
 
@@ -649,7 +647,7 @@ something.
 | `templates/verification-standard.md` | What counts as checked, per kind of work |
 | `templates/catalogue.md` | What the team has built and would reuse |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
-| `plugins/projects/` | Projects from inbox to done — eight commands and a session-start line |
+| `plugins/projects/` | Projects from start to done — five commands and a session-start line |
 | `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit` |
 | `install.sh` | Deploys the kit into a team repository, with the three plugins, skills for desktop assistants, surface shims and pilot layer |
 | `team/` | The installer's team overlay — see `team/README.md` |
@@ -683,8 +681,9 @@ workspace teaches something. Issues are read; there is no support commitment.
 
 ---
 
-*Version 2.0 — 2026-09-29: the tracking axis, twelve commands across three plugins, skills, and the
-quick-start's three modes (see CHANGELOG). Version 1.2 — 2026-09-28: team deployment and pilot layer added. Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
+*Version 2.1 — 2026-09-29: the Current state block, Planned and five project states; nine commands
+across three plugins (see CHANGELOG). Version 2.0 — 2026-09-29: the tracking axis, skills, and the
+quick-start's three modes. Version 1.2 — 2026-09-28: team deployment and pilot layer added. Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
 claims: the manifest split needs maintaining (§2.1), a canonical-fact table does not enforce itself
 (§2.2), rituals want checking against the set that already exists (§4.4), audit trails belong in
 version control (§4.2), and a ritual that has produced no artefacts is a plan (Part 7).*
