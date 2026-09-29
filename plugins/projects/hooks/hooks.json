@@ -1,5 +1,5 @@
 {
-  "description": "Projects plugin — SessionStart line: where this folder's project stands, or once a day what is waiting across the repository.",
+  "description": "Projects plugin — SessionStart line: where this folder's project stands, or once a day which projects have been blocked for more than 14 days.",
   "hooks": {
     "SessionStart": [
       {

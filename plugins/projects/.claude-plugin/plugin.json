@@ -1,7 +1,7 @@
 {
   "name": "projects",
-  "version": "1.1.0",
-  "description": "The life of a project, kept in its README: /projects:new interviews for the finish line and first next action; /projects:adopt adds only what an existing project is missing; capture, board, review, close, pickup and mine keep the work moving from inbox to done. A session-start line says where the folder's project stands — outcome, done-when progress, next action — and, once a day elsewhere, what is waiting.",
+  "version": "2.0.0",
+  "description": "The life of a project, kept in its README: /projects:new interviews for the finish line, the people and where the work stands; /projects:adopt adds only what an existing project is missing; board, pickup and close show and finish the work. A session-start line says where the folder's project stands — outcome, done-when progress, state — and, once a day elsewhere, which projects have been blocked for more than 14 days.",
   "author": {
     "name": "Robert Peake",
     "url": "https://github.com/cyberscribe"

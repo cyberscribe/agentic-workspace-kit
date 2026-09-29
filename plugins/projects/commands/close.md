@@ -42,8 +42,8 @@ projects — those whose Done when is fully ticked, or whose state is already
 `done`, first — and ask which one.
 
 Then read the project: its entry point top to bottom, its `decisions.md` if it
-has one, and, where git is available, `git log` for the folder. If its Now block
-already reads `State: done`, say so and offer only the steps that left no trace
+has one, and, where git is available, `git log` for the folder. If its Current
+state block already reads `State: done`, say so and offer only the steps that left no trace
 — a retrospective not yet written, a register row not yet moved — rather than
 running the close twice.
 
@@ -74,11 +74,12 @@ commit `a1b2c3d`" — and ask the person to confirm it.
   not get: `- [x] <criterion> — scoring.csv; not yet re-run by a second person`.
 - **Not met.** The project is not done while this is open, and there are three
   honest ways on, the person's to choose:
-  1. **Keep working.** The item stays unticked and what it still needs goes to
-     the top of Next up, with the Now block's next action pointing at it and
-     `Updated:` set to today. Walk the rest of the list anyway, so the person
-     sees the whole picture; then the close ends, with a line on what is left
-     and the next action, and the project stays in its current state.
+  1. **Keep working.** The item stays unticked; what it still needs goes into
+     Planned, if the project keeps that list, and the Current state block's
+     dated line says what is left, with `Updated:` set to today. Walk the rest
+     of the list anyway, so the person sees the whole picture; then the close
+     ends, with a line on what is left, and the project stays in its current
+     state.
   2. **Change it.** The criterion was the wrong test, and the work met the
      right one. Rewrite the item to what was actually needed, tick it with its
      evidence, and add a line directly under the list:
@@ -159,17 +160,16 @@ the repository has it. One line per thing, only on a yes.
 
 ## 4. Mark it done
 
-- **What is left on the list.** Before the Now block changes, go through the
-  project's Parked lines and any Next up lines still open, one at a time: let
-  it go, move it to another project's Next up or Parked, or send it to the
-  inbox as a capture. A request someone parked here is not retired with the
-  project without being seen. The counts go in the close summary.
-- **The Now block.** `State: done`; `Next action:` `none — done <date>`;
-  `Updated:` today; any `Check-in:` line removed. Ask about each `Waiting on:`
-  line still there: it is resolved and goes, or it is a loose end to hand to
-  someone, named in the summary. Rewrite the dated line underneath to say how it
-  ended — "`<date>` — Done: four of five criteria met, one waived; retrospective
-  below."
+- **What is left on the list.** Before the Current state block changes, go
+  through any Planned steps still open, one at a time: let it go, or move it to
+  another project's Planned. A step someone planned here is not retired with
+  the project without being seen. The counts go in the close summary.
+- **The Current state block.** `State: done`; `Updated:` today; any `Check-in:`
+  line removed. If a `Blocked by:` line is still there, ask about it: it is
+  resolved and goes, or it is a loose end to hand to someone, named in the
+  summary, and the line goes either way. Rewrite the dated line underneath to
+  say how it ended — "`<date>` — Done: four of five criteria met, one waived;
+  retrospective below."
 - **Unconfirmed proposals.** Any other `proposed by /projects:adopt` marker left
   in the README is confirmed or edited now, and its marker removed.
 - **Where it goes.** By default the folder stays where it is, so every link keeps
@@ -211,9 +211,10 @@ without comment.
 ## Close
 
 Summarise in a few lines: the tally (met, changed, waived, left open); what the
-leftover Parked and Next up lines became; what was promoted and where, and what
-was proposed and is waiting on someone; the catalogue line, if any; where the
-project now sits and any move still due; who needs to hear. List the files changed, new against modified.
+leftover Planned steps became; what was promoted and where, and what was
+proposed and still needs someone's yes; the catalogue line, if any; where the
+project now sits and any move still due; who needs to hear. List the files
+changed, new against modified.
 
 Leave the commit to them — they write the message, and writing it is their check
 that they understand what changed. If anything else was learned in this session,
@@ -225,8 +226,8 @@ the session's own `/closeout` still applies to it.
   That is what lets someone who was not there trust the word "done".
 - **The person decides; the README remembers.** Waivers and changed criteria are
   fine, and common. Leaving no trace of them is what this command prevents.
-- **Surgical edits.** Tick, append, move a row, rewrite the Now block and its
-  dated line, add the Retrospective. The rest of the README stays as its authors
+- **Surgical edits.** Tick, append, move a row, rewrite the Current state block
+  and its dated line, add the Retrospective. The rest of the README stays as its authors
   wrote it.
 - **Show, then write.** Each edit to the README, the register and the logs is
   shown before it is made; the quick path batches them, it does not skip them.

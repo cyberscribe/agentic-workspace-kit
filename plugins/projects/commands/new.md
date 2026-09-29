@@ -1,5 +1,5 @@
 ---
-description: Start a new project — a short interview that defines its finish line, first next action, people, success criteria and precedents, then writes its README
+description: Start a new project — a short interview that defines its finish line, where it stands, its people, success criteria and precedents, then writes its README
 offer-unprompted: Offer it when someone describes new work that has no project folder yet.
 argument-hint: [project name]
 ---
@@ -9,13 +9,12 @@ first ten minutes of a kickoff: curious, brief, and quietly insistent on the two
 three things that decide whether the work will ever be finished. You are not
 filling in a form. You are helping them see the project clearly enough that every
 later session — theirs, a teammate's, or an agent's — can pick it up cold and know
-what "done" means and what happens next.
+what "done" means and where the work stands.
 
 Most of what follows is optional, and a light touch is the right default. The
 power is in a few answers given early: a finish line that can be checked, one
-owner per outcome, a first step someone can actually take, and the lessons of the
-last similar attempt. Ask for those with real interest; let everything else be
-skipped with a word.
+owner per outcome, and the lessons of the last similar attempt. Ask for those
+with real interest; let everything else be skipped with a word.
 
 If the user typed a name or description after the command (it follows this
 prompt), start from it.
@@ -30,8 +29,8 @@ Anything it does not mention falls back to the defaults.
 
 ## How to run the interview
 
-- Offer two depths at the start. **Quick** — name, outcome, done-when, who owns
-  it and a first next action; about two minutes. **Full** — everything below.
+- Offer two depths at the start. **Quick** — name, outcome, done-when and who
+  owns it; about two minutes. **Full** — everything below.
   They can stop at any point, and switch depth whenever they like.
 - Ask one thing at a time, or a small batch when the answers are quick. Offer a
   suggested answer where the repository gives you grounds for one — existing
@@ -39,8 +38,8 @@ Anything it does not mention falls back to the defaults.
   compose.
 - Accept "skip", "later" or "don't know" gracefully. An unanswered section is left
   out of the README, not filled with a placeholder.
-- Push back, kindly, on vagueness in the outcome, the done-when list and the next
-  action. Those are the places where "good enough" costs the most later.
+- Push back, kindly, on vagueness in the outcome and the done-when list. Those are
+  the places where "good enough" costs the most later.
 
 ## What to find out
 
@@ -88,37 +87,36 @@ That is the quick path; go straight to the close. The full path continues:
 9. *Optional* — **Timing.** A target date if there is one, and how often the
    project should be checked in on ("every 2 weeks"). The date goes at the end
    of the Desired outcome sentence, as "by <date>"; the cadence becomes the
-   Now block's `Check-in:` line.
-10. *Optional* — **Parked.** Ideas that came up and are deliberately out of scope
-    for now — often the "what it is not" from question 2. Parking them, dated,
-    stops them being re-proposed.
+   Current state block's `Check-in:` line.
+10. *Optional* — **Planned.** The steps they can already see, in the order they
+    expect to take them. It is a plan, not a queue: no one line is singled out,
+    and it is left out when they would rather find the way as they go.
 11. *Optional* — **Open questions** — the things not yet decided, so that no
     session decides them by accident.
 
-## Close with the finish line and the first step
+## Close with the finish line and the state
 
 Before writing anything, read back the outcome and the done-when list in one
-short paragraph. Then ask for the **first next action**: one concrete, visible
-step that moves the first criterion, with who takes it — "Priya drafts the
-rollout email", not "work on comms". If the answer is an intention rather than a
-step, ask what the very first physical move is. On the full path, ask whether
-they already know what comes after it; those lines become **Next up**.
+short paragraph.
 
 If People was skipped, ask in the same breath who owns the outcome — suggesting
 the person running the command, whose name is in `git config user.name`. One
 owner per outcome is the one thing besides the finish line that is always asked.
 
-Then settle the state. A new project starts as `next`. If the owner means to be
-working on it from today, it starts as `doing` — and first count what they
-already have in flight: the active projects whose Now block reads
-`State: doing` and whose People section names them as **owns** or **does** (or,
-where a README has no People section, whose register Owner is them). Their
-limit is the **In-flight limit** in their profile — the file in the people
-directory matching their name — else the team default in `.claude/projects.md`,
-else 3. If starting this one would take them over, say so plainly, with the
-names of the projects they are doing, and offer the choices:
-start it as `next`, park or finish one of the others, or go ahead anyway. It is
-their call; the limit is advice, never a block.
+Then settle the state, one of `ready`, `doing`, `blocked`, `paused` or `done`. A
+new project starts as `ready`. If something outside the team has to happen
+before any work can start, it starts as `blocked`, with a `Blocked by:` line
+saying what, and since today. If the owner means to be working on it from
+today, it starts as `doing` — and first count what they already have in flight:
+the active projects whose Current state block reads `State: doing` and whose
+People section names them as **owns** or **does** (or, where a README has no
+People section, whose register Owner is them). Their limit is the **In-flight
+limit** in their profile — the file in the people directory matching their
+name — else the team default in `.claude/projects.md`, else 3. If starting this
+one would take them over, say so plainly, with the names of the projects they
+are doing, and offer the choices: start it as `ready`, pause or finish one of
+the others, or go ahead anyway. It is their call; the limit is advice, never a
+block.
 
 ## What to write
 
@@ -126,27 +124,27 @@ their call; the limit is advice, never a block.
   projects — from the repository's project template (the one the conventions file
   names, else `templates/project-readme.md`) if it has one, keeping its section
   order and removing its instructions. Without a template, use these sections, in
-  order: What this is · Desired outcome · Done when (a checklist) · Now · Next up ·
-  Success criteria · People · Precedents · Read before acting · Where everything
-  lives · Working conventions · Parked · Open questions.
-- **The Now block**, straight after Done when, with its labels exactly as the
-  template has them:
+  order: What this is · Desired outcome · Done when (a checklist) · Current state ·
+  Planned · Success criteria · People · Precedents · Read before acting · Where
+  everything lives · Working conventions · Open questions.
+- **The Current state block**, straight after Done when, headed
+  `## Current state`, with its labels exactly as the template has them:
 
   ```
-  - **State:** next
-  - **Next action:** <who> <does what>
+  - **State:** ready
   - **Check-in:** every 2 weeks — last <today>
   - **Updated:** <today, YYYY-MM-DD>
 
   <today> — Started.
   ```
 
-  `Check-in:` only if they gave a cadence; no `Waiting on:` line until something
-  is awaited. Dates are absolute.
+  `Check-in:` only if they gave a cadence. `Blocked by:` only when the project
+  starts blocked, as one line — `- **Blocked by:** <what> — since <today>` —
+  placed after `State:`. Dates are absolute.
 - **Only sections with something true in them.** The quick path writes the title,
-  What this is (if they volunteered it), Desired outcome, Done when, Now, and a
-  People section of one line naming the owner — nothing else. The full path
-  adds each section that was answered and leaves out each that was skipped. A
+  What this is (if they volunteered it), Desired outcome, Done when, Current
+  state, and a People section of one line naming the owner — nothing else. The
+  full path adds each section that was answered and leaves out each that was skipped. A
   standard section with nothing to say yet — Read before acting, Where
   everything lives — is left out too; the template's order is where it goes
   once it has content.
@@ -165,6 +163,6 @@ default, and offer to record the answer in `.claude/projects.md` so the next
 command does not have to ask.
 
 Show the README before writing it, and write it only once the user is content.
-End in one line: the next action and who takes it, which is where the next session
-starts. Leave the commit to them — they write the message — and suggest a pull
-request if this repository reviews changes that way.
+End in one line: the state the project starts in and who owns it, which is where
+the next session starts. Leave the commit to them — they write the message — and
+suggest a pull request if this repository reviews changes that way.

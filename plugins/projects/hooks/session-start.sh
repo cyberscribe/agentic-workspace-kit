@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # SessionStart line for the projects plugin.
 #
-# Inside a project folder whose entry point carries a Now block, it gives the
-# session three lines — the desired outcome, Done when progress, and the next
-# action with its owner — so the person and the agent start from where the
-# project stands. Anywhere else it says nothing, except at most once a day per
-# repository: one line when the inbox has items or an active project has no next
-# action. A clean day prints nothing and records nothing.
+# Inside a project folder whose entry point carries a Current state block, it
+# gives the session three lines — the desired outcome, Done when progress, and the
+# state with its owner (and what blocks it, when something does) — so the person
+# and the agent start from where the project stands. Anywhere else it says
+# nothing, except at most once a day per repository: one line when an active
+# project has been blocked for more than 14 days. A clean day prints nothing and
+# records nothing.
 #
 # The lines go out twice: as systemMessage, which the person sees, and as
 # additionalContext, which the agent reads. Only SessionStart accepts the latter.
@@ -63,6 +64,7 @@ parse() {
         -f "$here/lib/readme.awk" "$@"
 }
 
+
 # ---- Inside a project folder -------------------------------------------------
 
 rel=""
@@ -84,19 +86,20 @@ if [[ -n "$project" ]]; then
     done
     [[ ${#files[@]} -gt 0 ]] || exit 0
 
-    # The first entry point with a Now block speaks for the project.
+    # The first entry point with a Current state block speaks for the project.
     record=""
     while IFS= read -r line; do
-        IFS=$'\x1f' read -r _f has_now _rest <<EOF
+        IFS=$'\x1f' read -r _f has_block _rest <<EOF
 $line
 EOF
-        [[ "$has_now" == "1" ]] && { record="$line"; break; }
+        [[ "$has_block" == "1" ]] && { record="$line"; break; }
     done <<EOF
 $(parse "${files[@]}")
 EOF
     [[ -n "$record" ]] || exit 0
 
-    IFS=$'\x1f' read -r file _has state next outcome done_found done_total done_ticked owner proposed title people_found _waiting <<EOF
+    IFS=$'\x1f' read -r file _has state outcome done_found done_total done_ticked owner proposed title people_found \
+        blocked_by _since updated old_format <<EOF
 $record
 EOF
     name="${title:-${project##*/}}"
@@ -115,9 +118,8 @@ EOF
         owner="${owner:-$DEFAULT_OWNER}"
     fi
 
-    status="$state"
-    [[ "$proposed" == "1" ]] && status="${status:+$status, }proposed"
-    line1="Project: $name${status:+ ($status)}"
+    line1="Project: $name"
+    [[ "$proposed" == "1" ]] && line1="$line1 (proposed)"
     if [[ -n "$outcome" ]]; then
         [[ ${#outcome} -gt 200 ]] && outcome="${outcome:0:197}…"
         line1="$line1 — outcome: $outcome"
@@ -136,20 +138,21 @@ EOF
     fi
 
     if [[ "$state" == "done" ]]; then
-        # A finished project has no next action to name; its close is recorded in the file.
-        done_date="$(printf '%s' "$next" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)"
-        line3="Done${done_date:+ $done_date}; how it ended is recorded in ${file##*/}"
+        # A finished project's close is recorded in the file; its Updated: date is when.
+        line3="Done${updated:+ $updated}; how it ended is recorded in ${file##*/}"
     else
-        if [[ -n "$next" ]]; then
-            line3="Next action: $next"
-        else
-            line3="Next action: none named yet"
+        line3="State: ${state:-not set}"
+        if [[ -n "$blocked_by" ]]; then
+            [[ "$state" == "blocked" ]] && line3="$line3 by $blocked_by" || line3="$line3 — blocked by $blocked_by"
         fi
         if [[ -n "$owner" ]]; then
             line3="$line3 — owner $owner"
         else
             [[ "$people_found" == "1" ]] && line3="$line3 — no owner in People" || line3="$line3 — no owner named"
         fi
+        # The block's earlier format (a Now heading) is still read; its states may be ones the
+        # kit no longer uses, so the line says where they came from.
+        [[ "$old_format" == "1" ]] && line3="$line3 — from an older Now block; /projects:adopt converts it"
     fi
 
     lines="$line1
@@ -158,7 +161,7 @@ $line3"
     context="Where this session's project stands, from the projects plugin's session-start line (read from ${file#"$root"/}; the file is canonical, and this is a summary of it):
 $lines"
     [[ "$proposed" == "1" ]] && context="$context
-Sections marked \"proposed\" were drafted by /projects:adopt and are still for the person to confirm or edit; /projects:review walks them."
+Sections marked \"proposed\" were drafted by /projects:adopt and are still for the person to confirm or edit."
     emit "$lines" "$context"
 fi
 
@@ -170,15 +173,6 @@ key="${root//\//-}"
 stamp="$state_dir/${key#-}.last"
 [[ -f "$stamp" && "$(cat "$stamp")" == "$today" ]] && exit 0
 
-parts=()
-
-if [[ -n "$CAPTURES_FILE" && -f "$root/$CAPTURES_FILE" ]]; then
-    items="$(grep -cE '^[[:space:]]*[-*][[:space:]]+[^[:space:]]' "$root/$CAPTURES_FILE" || true)"
-    if [[ "${items:-0}" -gt 0 ]]; then
-        [[ "$items" == "1" ]] && parts+=("1 item in $CAPTURES_FILE") || parts+=("$items items in $CAPTURES_FILE")
-    fi
-fi
-
 # Every active project folder with an entry point, other than one that is its own
 # repository (its tracking travels with that repository, not this one).
 glob="$(printf '%s' "$ACTIVE_PATTERN" | sed 's/<[^>]*>/*/g')"
@@ -189,37 +183,35 @@ for dir in "$root"/$glob; do
         [[ -f "$dir/$f" ]] && files+=("$dir/$f")
     done
 done
+[[ ${#files[@]} -gt 0 ]] || exit 0
 
-if [[ ${#files[@]} -gt 0 ]]; then
-    # A project has a next action when any of its entry points names one, and a
-    # waiting project with a Waiting on line has what it needs. Done and parked
-    # projects are left out: nothing is due from them until revived. Projects are
-    # named by their title, as every command names them; a prefix is not a name.
-    missing="$(parse "${files[@]}" | awk -F '\037' '
-        { d = $1; sub(/\/[^\/]*$/, "", d)
-          if (!(d in seen)) { seen[d] = 1; order[++n] = d }
-          if ($11 != "" && !(d in title)) title[d] = $11
-          if ($4 != "" || ($3 == "waiting" && $13 > 0)) ok[d] = 1
-          if ($3 == "done" || $3 == "parked") quiet[d] = 1 }
-        END { for (i = 1; i <= n; i++) { d = order[i]
-                if (!ok[d] && !quiet[d]) { if (d in title) print title[d]; else { sub(/.*\//, "", d); print d } } } }')"
-    if [[ -n "$missing" ]]; then
-        count="$(printf '%s\n' "$missing" | grep -c .)"
-        names="$(printf '%s\n' "$missing" | head -3 | paste -sd, - | sed 's/,/, /g')"
-        [[ "$count" -gt 3 ]] && names="$names, …"
-        if [[ "$count" == "1" ]]; then
-            parts+=("1 active project with no next action ($names)")
-        else
-            parts+=("$count active projects with no next action ($names)")
-        fi
-    fi
+# A project is read from its first entry point with a Current state block. It is
+# named when its Blocked by line is dated more than 14 days before today and it is
+# neither done nor paused. Projects are named by their title, as every command
+# names them; a prefix is not a name. Day counts use a day number computed in awk,
+# since date(1) arithmetic differs between macOS and Linux.
+blocked="$(parse "${files[@]}" | awk -F '\037' -v today="$today" '
+    function dayno(d,   y, m, a) {
+        y = substr(d, 1, 4) + 0; m = substr(d, 6, 2) + 0
+        a = int((14 - m) / 12); y = y + 4800 - a; m = m + 12 * a - 3
+        return substr(d, 9, 2) + int((153 * m + 2) / 5) + 365 * y + int(y / 4) - int(y / 100) + int(y / 400)
+    }
+    { d = $1; sub(/\/[^\/]*$/, "", d)
+      if ($2 != "1" || (d in seen)) next
+      seen[d] = 1
+      if ($13 == "" || $3 == "done" || $3 == "paused") next
+      if (dayno(today) - dayno($13) <= 14) next
+      if ($10 != "") print $10; else { sub(/.*\//, "", d); print d } }')"
+[[ -n "$blocked" ]] || exit 0
+
+count="$(printf '%s\n' "$blocked" | grep -c .)"
+names="$(printf '%s\n' "$blocked" | head -3 | paste -sd, - | sed 's/,/, /g')"
+[[ "$count" -gt 3 ]] && names="$names, …"
+if [[ "$count" == "1" ]]; then
+    line="Projects: 1 active project blocked for more than 14 days ($names). /projects:board shows it."
+else
+    line="Projects: $count active projects blocked for more than 14 days ($names). /projects:board shows them."
 fi
-
-[[ ${#parts[@]} -gt 0 ]] || exit 0
-
-summary="${parts[0]}"
-[[ ${#parts[@]} -gt 1 ]] && summary="$summary; ${parts[1]}"
-line="Projects: $summary. /projects:review works through them."
 
 mkdir -p "$state_dir" && printf '%s\n' "$today" > "$stamp"
 

@@ -16,12 +16,12 @@ work well:
 The defaults, for comparison: active projects in `projects/<slug>/`; paused and
 finished projects stay where they are and move sections in `projects/INDEX.md`
 (Active / Paused / Done); lowercase hyphenated slugs with no prefix; an in-flight
-limit of 3; a weekly review; captures in `inbox.md` at the root; the README from
-`templates/project-readme.md`.
+limit of 3; a project flagged stale when its `Updated:` date is more than a week
+old; the README from `templates/project-readme.md`.
 
 Everything below the line is the example itself — a team that files work by status
-folder, uses a priority prefix, and reviews every other Friday. The quoted notes
-explain each choice; delete them in your copy.
+folder, uses a priority prefix, and lets a project go two weeks between updates.
+The quoted notes explain each choice; delete them in your copy.
 
 ---
 
@@ -61,8 +61,8 @@ explain each choice; delete them in your copy.
 ## Pace
 
 - **In-flight limit:** `2`
-- **Review cadence:** `every 2 weeks`
-- **Review day:** `Friday`, after the team meeting
+- **Staleness:** `every 2 weeks` — how old a project's `Updated:` date can be
+  before the board flags it.
 
 > The in-flight limit is a team default; a person's profile can carry their own.
 > It is advice the commands raise, never a block. A person's count is the active
@@ -72,7 +72,6 @@ explain each choice; delete them in your copy.
 
 ## Where things go
 
-- **Captures:** `work/inbox.md`
 - **Project template:** `.github/templates/project.md`
 - **People:** `team/<name>.md`
 - **Catalogue of reusable work:** `docs/catalogue.md`
@@ -80,7 +79,7 @@ explain each choice; delete them in your copy.
 
 ## House rules
 
-- Every project names one owner in its People section before it leaves `next`.
+- Every project names one owner in its People section before it leaves `ready`.
 - A project touching customer data links its data-handling note from Read before
   acting.
 

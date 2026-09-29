@@ -1,21 +1,20 @@
 ---
-description: Show the board — every project in flight on one page, grouped by state, each with its owner, next action and how long since its Now block was updated, followed by one-line flags for what needs attention; type "write" to save it as projects/BOARD.md
-offer-unprompted: Offer it at the start of a working day, since no session-start line runs on this surface. When a session opens inside one project folder, give that project's outcome, done-when progress and next action instead, and offer the board only if asked.
+description: Show the board — every project in flight on one page, grouped by state, each with its owner, done-when progress and how long since its Current state block was updated, followed by one-line flags for what needs attention; type "write" to save it as projects/BOARD.md
+offer-unprompted: Offer it when someone asks where the work stands, or when a session opens at the repository root on a surface with no session-start line. When a session opens inside one project folder, give that project's outcome, done-when progress and state instead, and offer the board only if asked.
 argument-hint: [write]
 ---
 
 You are the colleague who keeps the team's wall board honest. Once in a while
 you walk past every project, read what its README says right now, and pin up a
-one-page picture: what is waiting to start, what is being done, what is stuck on
-someone, what has been set aside. You are not the project's manager and you are
-not marking anyone's work. You notice — a project with no next step, one nobody
-owns, a promise someone has been waiting a month on — and you say so in a line,
-plainly and without blame, so the people who own the work can decide what to do
-about it.
+one-page picture: what is ready to start, what is being done, what is blocked,
+what is paused. You are not the project's manager and you are not
+marking anyone's work. You notice — a project nobody owns, one with no finish
+line, one blocked for a month — and you say so in a line, plainly and without
+blame, so the people who own the work can decide what to do about it.
 
 The READMEs are the truth; the board is a view of them. It changes no README and
 no register row. The one file it ever writes is `BOARD.md`, and only when
-asked. A flag is an observation for the next review, not a fix.
+asked. A flag is an observation for the people who own the work, not a fix.
 
 ## Project conventions come first
 
@@ -24,13 +23,13 @@ and follow it over the defaults here: where active and paused projects live, the
 register and its section names and columns, each project's entry-point file,
 whether a folder prefix is part of the name, any **Section names** line saying
 what a Done when or People section is called here, the people directory, the
-in-flight limit and how it is counted, the review cadence, which folders are not
-tracked from this repository, and any house rule that narrows a board (a
-client's day, say). Anything it does not mention falls back to the defaults:
-active projects in `projects/<slug>/` with `README.md` as the entry point (a
-`CLAUDE.md` where a folder has no README), the
-register `projects/INDEX.md` with sections Active, Paused and Done, a limit of 3,
-a weekly review.
+in-flight limit and how it is counted, the staleness setting (an older file may
+call it the review cadence), which folders are not tracked from this
+repository, and any house rule that narrows a board (a client's day, say).
+Anything it does not mention falls back to the defaults: active projects in
+`projects/<slug>/` with `README.md` as the entry point (a `CLAUDE.md` where a
+folder has no README), the register `projects/INDEX.md` with sections Active,
+Paused and Done, a limit of 3, and a project counted stale after 7 days.
 
 ## What the user asked for
 
@@ -54,14 +53,14 @@ The board is everything in flight: the active projects.
   card's name is the README's title, else the register's name, else the slug.
 - A folder that is its own repository (it contains its own `.git`), a submodule,
   or one the conventions file says is not tracked from here, goes on the board
-  only if its entry point is readable and carries a Now block. Otherwise it is
-  named once, in a line under the board — "not read from here: …" — and raises
-  no flags.
+  only if its entry point is readable and carries a Current state block.
+  Otherwise it is named once, in a line under the board —
+  "not read from here: …" — and raises no flags.
 - The README's State decides. A project in the register's Paused section or the
-  paused location whose README reads `next`, `doing` or `waiting` is a card, and
-  raises the register flag (7). Paused projects whose README reads `parked`, or
-  has no State, are not cards: name them in one line under the board, with how
-  many there are. Finished projects are left off entirely — unless an active
+  paused location whose README reads `ready`, `doing` or `blocked` is a card,
+  and raises the register flag (6). Paused projects whose README reads
+  `paused`, or has no State, are not cards: name them in one line under the
+  board, with how many there are. Finished projects are left off entirely — unless an active
   project's README says `State: done`, in which case it is a card in the done
   column and a sign that `/projects:close` is due.
 
@@ -71,19 +70,21 @@ Read the entry point, and from it only what the board needs. These are the same
 reading rules every projects command and the kit's metrics follow, so a README
 reads the same everywhere.
 
-- **The Now block** — lines labelled `State:`, `Next action:`, `Waiting on:`,
+- **The Current state block** — lines labelled `State:`, `Blocked by:`,
   `Check-in:` and `Updated:`, bold or plain: `- **State:** doing`,
   `- State: doing` and `State: doing` all count. A value can run onto indented
-  lines below its label; read it whole. A prose status section
-  ("Current state", "Status") is narrative, not a Now block.
-- **State** is one of `next`, `doing`, `waiting`, `parked`, `done`. A README
+  lines below its label; read it whole. A prose status section with no
+  `State:` line ("Status") is narrative, not the block.
+- **State** is one of `ready`, `doing`, `blocked`, `paused`, `done`. A README
   with no `State:` line, or a value that is none of those, goes in its own
-  column, "no Now block".
+  column, "no Current state block". A block under a `Now` heading is the
+  earlier format: it goes in that column too, named as such, since its states
+  are not these.
 - **Honest gaps count as missing.** A value that is empty, `-`, `—`, `none` or
   `n/a`, or begins `none found`, `not yet named` or `<` (a template stand-in),
-  is missing — as a next action, an owner or a waiting-on.
-- **Waiting on** — each line is one item, the label repeated on each:
-  who — what — since a date. Only the date after `since` dates it.
+  is missing — as an owner or a blocker.
+- **Blocked by** — one line: what, and since a date. Only the date after
+  `since` dates it.
 - **Headings** — a heading's name is its text up to the first dash, bracket or
   colon: `Done when — checklist` and `People (optional)` are `Done when` and
   `People`. It is compared whole, with the kit's name or a name the conventions
@@ -100,28 +101,27 @@ reads the same everywhere.
   not seen, as with Done when.
 - **Unconfirmed proposals** — each
   `<!-- proposed by /projects:adopt YYYY-MM-DD: confirm or edit -->` comment is
-  one section still waiting for a person to confirm it.
+  one section a person has yet to confirm.
 
 Day counts are from today's date to the date given; dates stay absolute.
 
 ## The board
 
-Columns by state, in the order the work flows: **next · doing · waiting ·
-parked · done**, then "no Now block" if any README lacks one. On a page, a
-column is a heading with a count and one line per card; an empty column is left
-out. Each card is one line:
+Columns by state, in the order the work flows: **ready · doing · blocked ·
+paused · done**, then "no Current state block" if any README lacks one. On a
+page, a column is a heading with a count and one line per card; an empty column
+is left out. Each card is one line:
 
 ```
-- **<name>** · <owner> · <next action> · <ticked>/<total> done · updated <n>d ago
+- **<name>** · <owner> · <ticked>/<total> done · updated <n>d ago
 ```
 
-Quote the next action as written. In the waiting column, the card shows what it
-is waiting on in place of the next action if it has none. A card with a gap
-says so in place — `no owner`, `no next action`, `no done-when`, `no Updated
-date` — rather than dropping the field.
+In the blocked column, the card adds what blocks it and for how long, quoted
+as written: `· blocked by <what> (<n>d)`. A card with a gap says so in place —
+`no owner`, `no done-when`, `no Updated date` — rather than dropping the field.
 
-Open the board with one line of counts — "9 active: 2 next · 4 doing · 1
-waiting · 2 parked" — and close it with the paused and not-read-from-here lines.
+Open the board with one line of counts — "9 active: 2 ready · 4 doing · 1
+blocked · 2 paused" — and close it with the paused and not-read-from-here lines.
 
 ## Flags
 
@@ -129,49 +129,46 @@ Under the board, one line per flag, `- <project>: <what>`, grouped in this
 order. Flags are about active projects; a done project raises only the register
 flag.
 
-1. **No Now block, or no next action** — a README with no Now block is
-   flagged as that, once, in place of the stale and next-action flags. Next and
-   doing projects need a next action; a waiting project is flagged only if it
-   has neither a next action nor a waiting-on line. A parked project needs
-   none.
-2. **No owner.**
-3. **No done-when** — no Done when checklist the board can see. If a list under
+1. **No owner.**
+2. **No done-when** — no Done when checklist the board can see. If a list under
    another name is plainly there, say so: recording the name as a **Section
    names** line in `.claude/projects.md` fixes it. The same goes for a people
    list under another name, in the owner flag.
-4. **Stale** — `Updated:` older than the team's review cadence in
+3. **Stale** — `Updated:` older than the staleness setting in
    `.claude/projects.md` (weekly is 7 days, "every 2 weeks" is 14, monthly is
-   31), or no `Updated:` line, for next, doing and waiting projects. A
-   project's own `Check-in:` does not change this; its due check-ins are the
-   review's (step 4 there).
-5. **Waiting too long** — a waiting-on line whose `since` date is more than 14
-   days ago: who, what, and how many days. An undated one is flagged as
-   undated, since its age cannot be told.
-6. **Over the in-flight limit** — per person: the active projects whose Now
-   block reads `State: doing` and whose People section names them as **owns**
-   or **does**, or, where a README has no People section, whose register Owner
-   is them — or however the conventions file says to count. Their limit is the
-   **In-flight limit** in their profile (the file in the people directory
-   matching their name), else the conventions default, else 3. Flag only a
-   count above the limit, naming the projects: "Sam is doing 4, limit 3: a, b,
-   c, d".
-7. **Register disagrees** — the README wins; say what differs: an active folder
+   31), or no `Updated:` line, for ready, doing and blocked projects. A README
+   with no Current state block, or one in the earlier Now format, is flagged as
+   that, once, in place of this flag. A project's own `Check-in:` does not
+   change it.
+4. **Blocked too long** — a `Blocked by:` line dated more than 14 days ago:
+   what, and how many days. An undated one is flagged as undated, since its age
+   cannot be told, and `State: blocked` with no `Blocked by:` line is flagged as
+   not saying on what.
+5. **Over the in-flight limit** — per person: the active projects whose Current
+   state block reads `State: doing` and whose People section names them as
+   **owns** or **does**, or, where a README has no People section, whose
+   register Owner is them — or however the conventions file says to count.
+   Their limit is the **In-flight limit** in their profile (the file in the
+   people directory matching their name), else the conventions default, else 3.
+   Flag only a count above the limit, naming the projects: "Sam is doing 4,
+   limit 3: a, b, c, d".
+6. **Register disagrees** — the README wins; say what differs: an active folder
    with no register row; a row whose folder or entry point does not exist; a
    row linking a file other than the entry point; a State or Owner column that
    differs from the README; a row under Active for a README that says `done` or
-   `parked`, or under Paused — or a folder in the paused location — for one that
-   says `next`, `doing` or `waiting`. Compare only the columns the register has.
-8. **Unconfirmed proposals** — how many `proposed by /projects:adopt` markers
+   `paused`, or under Paused — or a folder in the paused location — for one that
+   says `ready`, `doing` or `blocked`. Compare only the columns the register has.
+7. **Unconfirmed proposals** — how many `proposed by /projects:adopt` markers
    the README carries, and their date.
-9. **Ready to close** — every Done when box ticked while State is not `done`.
+8. **Ready to close** — every Done when box ticked while State is not `done`.
 
 If there are no flags, say "No flags." — a clean board is worth saying plainly.
 
-After the flags, one line naming the commands that would act on them, for the
-person to run when they choose: `/projects:review` for stale Now blocks,
-waiting-ons to chase and proposals to confirm; `/projects:adopt` for missing
-sections; `/projects:close` for a project marked done or ready to close. Then
-stop.
+After the flags, one line naming what would act on them, for the person to do
+when they choose: `/projects:adopt` for missing sections or an older Now block
+to convert; `/projects:close` for a project marked done or ready to close; the
+owner's own edit to the README for a stale block, a blocker to date or a
+proposal to confirm. Then stop.
 
 ## A repository with no projects
 
@@ -202,9 +199,10 @@ commit to them.
 
 ## Practices
 
-- Read-only, apart from `BOARD.md` on request. Fixing a Now block while drawing
-  the board would hide from the team the very thing the board exists to show.
-- Quote, don't compose. The next action on a card is the README's own words.
+- Read-only, apart from `BOARD.md` on request. Fixing a Current state block
+  while drawing the board would hide from the team the very thing the board
+  exists to show.
+- Quote, don't compose. A blocker on a card is the README's own words.
 - One line per card, one line per flag. The board is one page; anything longer
   belongs to `/projects:pickup` for a single project.
-- Gaps are findings. "No next action" is the board working, not failing.
+- Gaps are findings. "No owner" is the board working, not failing.

@@ -30,7 +30,6 @@ projects_root() {
 # projects_config <root>
 #
 # Sets: CONVENTIONS_FILE, ACTIVE_PATTERN, PAUSED_PATTERN, DONE_PATTERN,
-#       CAPTURES_FILE (empty when captures do not go to a file),
 #       ENTRY_POINT, REGISTER_FILE, DEFAULT_OWNER (a backticked **Owner:** or
 #       **Default owner:** — one owner for every project with no People section),
 #       ALIAS_OUTCOME, ALIAS_DONE, ALIAS_PEOPLE
@@ -46,7 +45,6 @@ projects_config() {
     ACTIVE_PATTERN="projects/<slug>"
     PAUSED_PATTERN=""
     DONE_PATTERN=""
-    CAPTURES_FILE="inbox.md"
     ENTRY_POINT="README.md"
     REGISTER_FILE="projects/INDEX.md"
     DEFAULT_OWNER=""
@@ -67,10 +65,6 @@ projects_config() {
             entry\ point) [[ -n "$value" ]] && ENTRY_POINT="$value" ;;
             register)    [[ -n "$value" ]] && REGISTER_FILE="${value#./}" ;;
             owner|default\ owner) [[ -n "$value" ]] && DEFAULT_OWNER="$value" ;;
-            captures)
-                # A path to a markdown file is an inbox; anything else ("potential
-                # captures", "each person's own system") means there is no file to count.
-                case "$value" in *.md) CAPTURES_FILE="$value" ;; *) CAPTURES_FILE="" ;; esac ;;
             alias_outcome) ALIAS_OUTCOME="${ALIAS_OUTCOME:+$ALIAS_OUTCOME|}$value" ;;
             alias_done)    ALIAS_DONE="${ALIAS_DONE:+$ALIAS_DONE|}$value" ;;
             alias_people)  ALIAS_PEOPLE="${ALIAS_PEOPLE:+$ALIAS_PEOPLE|}$value" ;;
