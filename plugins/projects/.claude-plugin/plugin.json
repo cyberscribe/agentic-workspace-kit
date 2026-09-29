@@ -1,6 +1,6 @@
 {
   "name": "projects",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "The life of a project, kept in its README: /projects:new interviews for the finish line, the people and where the work stands; /projects:adopt adds only what an existing project is missing; board, pickup and close show and finish the work. A session-start line says where the folder's project stands — outcome, done-when progress, state — and, once a day elsewhere, which projects have been blocked for more than 14 days.",
   "author": {
     "name": "Robert Peake",

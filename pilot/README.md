@@ -69,6 +69,9 @@ anyone with read access. `metrics.csv` contains counts only.
 | `blocked_over_14d` | Blocked projects whose `Blocked by:` line is dated `since` more than 14 days ago | What has been stuck long enough to need someone to act on the block itself. |
 | `max_in_flight_per_person` | The most projects any one person is doing at once | Compare with the in-flight limit in `.claude/projects.md`. Above it, work is started faster than it is finished. |
 | `median_days_to_done` | Median whole days from the commit that created a project's README to the one that set it done | How long finishing takes. Empty until a project finishes; a project that arrived already done is left out. |
+| `ablations_named` | Ablation files in `pilot/ablations/` | How much of the context the team keeps has a test at all. The denominator for the two columns below it. |
+| `ablations_discriminating` | Of those, the ablations whose latest result is `discriminates` | The number the readout leads with, as a share of `ablations_named`: lines shown to change what the agent does on the task written for them. |
+| `ablations_no_difference` | Of those, the ablations whose latest result is `no difference (both pass)` | Lines not pulling their weight at their tier, on that task; three weeks of it makes a demotion candidate. A lean by one run and a check that fails both arms count in neither column. |
 
 The project columns read each project's README as the projects commands write it — the Current state
 block, Done when and People — and follow `.claude/projects.md` for where projects live, the entry point,
@@ -78,11 +81,114 @@ README: an honest gap such as `none found …` or `not yet named` counts as miss
 only by the `since` on its `Blocked by:` line, and people are counted in flight by the rule under Pace
 in that file.
 
-Two options fit the script to a repository laid out differently from a kit install:
-`--out <path>` writes the CSV somewhere other than `pilot/metrics.csv` (with `--backfill` or the
-daily row), and `MEASURE_ALWAYS_LOADED="CLAUDE.md"` names the files the team's agents actually load
-at every session, where that is not `AGENTS.md` plus `CLAUDE.md`. A CSV written by an earlier version
+Three options fit the script to a repository laid out differently from a kit install:
+`--target <dir>` measures that repository rather than the one the command is run in, so the kit
+checkout's copy can serve a repository that has none; `--out <path>` writes the CSV somewhere other
+than `pilot/metrics.csv` (with `--backfill` or the daily row), relative to where the command was
+typed; and `MEASURE_ALWAYS_LOADED="CLAUDE.md"` names the files the team's agents actually load at
+every session, where that is not `AGENTS.md` plus `CLAUDE.md`. A CSV written by an earlier version
 with fewer columns is recomputed for the same dates the next time a row is added.
+
+## Context ablations
+
+`ablate.sh` tests whether one line of the always-loaded or reference context changes what the
+agent does on the task it was promoted for. It stays in the kit's own `pilot/` and is not copied into
+a team's repository: run the kit checkout's copy with `--target` pointing here,
+`<kit checkout>/pilot/ablate.sh --target <this repository>`, so every team runs the one current
+version. The ablations and their results live in the target: each ablation in
+`<target>/pilot/ablations/<id>.md` names the line, a realistic prompt and a Check; the runner runs the
+prompt headless in a fresh worktree of HEAD with the line (`with`) and without it (`without`), grades
+each run, and appends a row per run to `<target>/pilot/ablation-results.csv`, with
+`pilot/ablation-report.md` beside it. A Check runs in the run's worktree with `AW_ABLATION_ARM` (the
+arm it grades) and `AW_ABLATION_STREAM` (the path of the run's captured stream, for reading its tool
+calls) set. `ablate.sh --help` lists the rest. Each run is a headless
+`claude -p` session on the person's own subscription login, with a usage guard per run: the
+ablation's `max_budget_usd`, a cap on the run's API-equivalent cost.
+
+Three columns need reading with care. `input_tokens` is uncached input plus cache writes: with prompt
+caching on, the always-loaded context lands in the cache-write figure, and that is the load being
+measured; `cache_read_tokens` is separate. `cost_usd` is the run's API-equivalent cost, to six decimal
+places: the CLI's `total_cost_usd`, what the tokens would cost at API prices. A run on a subscription
+login is not charged it, so the report labels it "API-equivalent cost". `api_key_source` is the login
+the run's init event reports; `none` means no API key, which is the subscription login. Rows written
+before that column existed have thirteen fields and read as not recorded.
+
+Runs are not meant to bill an API key. The runner refuses to start, and runs nothing, when the
+environment would give Claude Code one to prefer over the login, or send it to a cloud provider's
+account: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_USE_BEDROCK`, `_VERTEX` or
+`_FOUNDRY` set in the environment or in the `env` block of the user, managed or committed project
+settings, or an `apiKeyHelper` in any of those settings.
+It stops at the first init event that reports any source other than `none`. `AW_ALLOW_API_BILLING=1`
+allows both, for a team that means to pay per token. The `CLAUDE_CODE_OAUTH_TOKEN` path below is a
+subscription login, not API billing.
+
+What an arm loads: repository files come from the worktree, so ablating `CLAUDE.md`, `AGENTS.md` or
+a file under `docs/` is faithful. Plugins resolve through each person's own marketplace registry,
+which points at the kit checkout's working tree, so an ablation of a file inside the kit stops with
+status `error` rather than run a `without` arm that changes nothing. The user-level file
+(`~/.claude/CLAUDE.md`) is present in the `with` and `without` arms, as in a real session.
+
+Two modes follow from the login. By default each arm uses the person's own Claude Code login, which
+cannot follow a copied config directory, so the user-level file cannot be ablated and `file:
+~user/CLAUDE.md` ablations are listed as not run. With `CLAUDE_CODE_OAUTH_TOKEN` set in the
+environment (a token from `claude setup-token`), each run gets a temporary config directory holding
+only `settings.json`, `CLAUDE.md`, the plugin list and the marketplace registry, and a temporary
+`HOME`; both are removed on exit. User-level ablations then run against that copy. The plugin list and
+registry point into the person's own plugin cache, so plugin files are still read from there; the copy
+turns marketplace auto-update off and each run gets `DISABLE_AUTOUPDATER=1`, so nothing is fetched into
+it. The runner passes the token through the environment to each headless run, never to a Check, and
+never writes or prints it.
+
+In either mode, `--no-session-persistence`, `CLOSEOUT_DISABLED` and two temporary state folders keep
+transcripts, closeout drafts and hook state out of the config directory. Checked on the week-0 runs
+(45 real runs without the token): a headless run writes the CLI's global state file `~/.claude.json`
+and its rotating backups under `~/.claude/backups`, and nothing else. With the token, those land in
+the run's temporary config directory and `HOME`.
+
+`--bare` adds a third arm with every always-loaded file emptied (`MEASURE_ALWAYS_LOADED`, default
+`AGENTS.md CLAUDE.md`): the whole tier off. With the token it empties the copy's user-level file too
+and is recorded as `bare`; without it, it is recorded as `bare-repo` and reported as "repository tier
+emptied; user-level tier present".
+
+An ablation with a `## Judge` rubric also gets a blind comparison: run i of `with` and run i of
+`without` go to `claude -p` unlabelled and in random order, with the prompt in `pilot/lib/judge.md`,
+and it answers A, B or tie with one sentence. The unblinded winner goes in the `judge` column of the
+`with` row, and the comparator's own tokens and API-equivalent cost go on a row of arm `judge`. The
+comparator runs from an empty temporary directory with no tools, so no repository `CLAUDE.md` loads; without the
+token, the person's user-level file still does. Which arm was shown as A is recorded in each pair's
+`verdict.json`. `--keep` keeps each run's stream, outputs, Check output and `meta.json`, and the
+verdicts, under `$TMPDIR`; the worktrees go either way. `--judge-kept DIR` judges the pairs an earlier
+`--keep` run left in DIR, without running the arms again, and writes each verdict on the row of that
+run's own date; a pair already judged is left alone.
+
+The report has one row per ablation, from that ablation's own latest date, and its flag column reads
+the whole history. The gap is `with` passes minus `without` passes, in runs, and the first rule that
+applies wins. `stale`: the line no longer matches. `error`: a run failed; for a line inside a plugin
+file the report says why. `without preferred`: the Check failed on most `with` runs and passed on most
+`without` runs, so the line may hurt. `check fails both arms`: it failed on most `with` runs and
+`without` did no better, whatever the gap; that says nothing about the line, so the report asks for the
+check to be revised, with no rerun at a larger k. `discriminates`: it passed on most `with` runs with a
+gap of 2 or more runs, at any k (at k=3: 3/3 or 2/3 against 0/3, or 3/3 against 1/3). `leans with,
+rerun at k=5`: it passed on most `with` runs with a gap of exactly 1 (at k=3: 3/3 against 2/3, or 2/3
+against 1/3); not discriminating and not a step toward demotion, and at k=1 the most a single pair can
+show. `no difference (both pass)`: it passed on most runs of both arms with no gap or with `without`
+ahead (at k=3: 2/3 against 3/3), and no comparator preferred `with`. `check blind, judge prefers with`: the same, but the comparator preferred `with`, so
+the Check cannot see what the line does and needs revising. `inconclusive`: anything else. With no
+Check, the comparator's pairs stand in for runs by the same gap, and `no difference (judge ties)` means
+it called most pairs a tie. `regressed`: `with` passed on most runs at the previous date and does not
+now. `demotion candidate`: `no difference (both pass)`, `no difference (judge ties)` or `without
+preferred` in each of three consecutive ISO weeks, counting the latest date in each week once; a
+failing or blind check, a lean and an inconclusive result never count. The flag proposes; the person
+decides. `--report` prints the table without running anything, and `--report >
+pilot/ablation-report.md` rewrites the report from the CSV, as after a change to the rules.
+
+The weekly hygiene pass offers the run after `measure.sh`, with the number of runs and the
+API-equivalent cost stated first, and the person decides; `measure.sh` then runs again so the week's row counts the new results.
+The three `ablations_` columns come from `ablate.sh --outcomes`, the same rule the report's flags use,
+so the two never disagree. A past row reads the ablation files and results as committed at that
+revision, so backfill works; today's row reads them from the working tree, since the results are
+committed with it. Without the runner (no `ablate.sh` beside `measure.sh` and no kit checkout named in
+`.claude/plugins/VENDORED`), `ablations_named` is still counted and the other two are left empty.
 
 If the team already runs a before/after pulse survey, keep it alongside these. The survey measures how
 it feels; these measure what exists. A case study is stronger with both, and honest about which is
@@ -93,6 +199,9 @@ which.
 It can claim what it counted: how many named items exist, how many people contributed, whether the
 rituals ran. With one team, no comparison group and eight weeks, it cannot claim that the practice
 caused a change in effectiveness, and a write-up that says so will not survive a sceptical reader.
+With ablations it can also say, line by line and at a stated n, which lines of its context changed
+what the agent did on the task written for them. An ablation tests what its author thought the line
+was for, the same limit a unit test has, and the demotion rule only ever proposes.
 
 A useful honesty check at week 4: if `audit_reports` has not moved and `doc_contributors_7d` is at one,
 the practice has not taken hold yet. The same goes for a month in which `projects_blocked` climbs

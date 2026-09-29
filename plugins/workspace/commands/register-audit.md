@@ -71,6 +71,11 @@ markers. An `ignore-start` with no end is itself a finding: say where it opens.
 - **MED** — the table's words written in capitals, as whole words, matched
   exactly: capitals are the signal, so lower-case uses are prose.
 - **LOW** — runs of exclamation marks, and a word in capitals set in bold.
+- **Contact detail** — in the team roster (`team/people.md`, or where
+  `CLOSEOUT_ROSTER` points), an email address or phone number in any cell. The
+  roster holds handles only; report the row and propose moving the detail to the
+  person's profile or address book. It is a finding of its own, outside the
+  severity counts.
 
 Where a line matches at more than one severity ("you" followed by the word in
 capitals, say), count it once, at the highest. Drop a match whose span falls

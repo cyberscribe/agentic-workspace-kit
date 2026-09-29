@@ -5,6 +5,83 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v2.2.0 — 2026-09-29
+
+**Context ablations test whether a line of guidance changes what the agent does. A state check
+reports where a repository stands against the kit. The quick-start and `/closeout` are shorter, and
+the closeout's "who needs to know" step has a setting and a team roster.**
+
+**Ablations.** `pilot/ablate.sh` runs the task a line was promoted for twice over, with the line
+(`with`) and without it (`without`), each run headless in its own git worktree of the target's HEAD,
+and grades each run with the ablation's Check. An ablation is one file in `pilot/ablations/`: the
+line, a realistic prompt, and a Check or a Judge. `--target DIR` names the repository; results go to
+its `pilot/ablation-results.csv` and `pilot/ablation-report.md`, with n and date on every figure. A
+blind comparator (`pilot/lib/judge.md`) picks between paired runs when there is a Judge, and
+`--judge-kept` judges runs kept by an earlier `--keep`. `--bare` adds an arm with every always-loaded
+file emptied. `--report` prints the latest flags without running anything. The flags include
+`discriminates` (the `with` arm passes on a majority of runs and by at least 2 more runs than
+`without`, at any k), `leans with, rerun at k=5` (a gap of 1), `no difference (both pass)`, `check
+fails both arms` (the check needs revision, not the line), `without preferred` (the line may hurt),
+`check blind, judge prefers with` (the Check cannot see what the comparator did), `no difference
+(judge ties)` for an ablation graded by the comparator alone, `inconclusive`, `regressed`, `stale`,
+`error` and `timeout`. Three consecutive ISO weeks of `no difference (both pass)`, `no difference
+(judge ties)` or `without preferred` make a line a demotion candidate; a failing or blind check, a
+lean and an inconclusive result never do. `pilot/lib/strip-lines.py` removes whole lines only. In
+the target the runner writes only its two result files, removes its temporary folders on exit, and never commits. Without a login
+token the CLI itself still updates its global state file `~/.claude.json` and its backups; with the
+token those land in the run's temporary config.
+
+**Cost and billing.** The `cost_usd` column is an API-equivalent cost: what the run's tokens would
+cost at API prices. Runs on a subscription login are not charged it, and `--max-budget-usd` caps it
+per run as a usage guard. Each run's API key source is recorded in a new `api_key_source` column
+(older result files still read). The runner refuses to start when the environment or settings would
+use an API key or a cloud account, and stops at the first run that reports one, unless
+`AW_ALLOW_API_BILLING=1` is set. With `CLAUDE_CODE_OAUTH_TOKEN` set, each run gets a temporary copy
+of the minimum config and a temporary HOME, which allows ablations of the user-level file and a bare
+arm that empties it too; without the token the bare arm is recorded as `bare-repo`.
+
+**workspace plugin, 1.2.0.** `bin/state.sh` is the state check: read-only, one `key=value` per line
+(or `--json`), ending in `mode=` — `fresh`, `joining`, `existing-system` or `nothing-left`. It runs
+under bash 3.2 and reads git only with `--no-optional-locks`. The quick-start runs it in place of its
+own discovery and branches on `mode=`, with a one-line fallback where there is no shell, and offers a
+team roster in the team interview; it is shorter by 15 lines. `/workspace:hygiene` offers the week's
+ablation run after the metrics run, with the number of runs and their API-equivalent cost stated
+first, and lists demotion candidates and checks needing revision under pending work.
+`/workspace:register-audit` reports an email address or phone number in the team roster.
+
+**closeout plugin, 1.3.0.** `/closeout` is lighter, 195 lines from 213, following the weight review.
+Promotion to the top two tiers offers an ablation: what task would go worse without the line? It is
+an offer, not a requirement, and a line nobody can answer that for usually belongs in a cheaper tier.
+A `Who needs to know: auto | ask | off` line in `.claude/closeout.md` (installed as `auto`) sets the step (a project README
+can override it), and a team roster, `templates/team-roster.md` copied to `team/people.md`, seeds it
+with each person's default relationship and channel, by handle only. The hooks count the roster,
+honour the setting, keep any email address or phone number in the roster out of every prompt, and
+name the row instead. Each row of the table offers a draft, a note or nothing; nothing is sent.
+
+**projects plugin, 2.0.1.** The session-start hook stays silent and records nothing in a headless
+run (`AW_HEADLESS_RUN=1`), which is how ablation arms run. `/projects:new` offers to seed People from
+the team roster.
+
+**Metrics.** `pilot/measure.sh` takes `--target` and adds three columns: `ablations_named`,
+`ablations_discriminating` and `ablations_no_difference`, read week by week from the committed
+ablation files and results, so `--backfill` recomputes them.
+
+**Setup.** `setup.sh` and `lib/wizard.sh` are built and tested unattended (section 11); how a team
+installs is left to 3.0. The installer also places `templates/team-roster.md`.
+
+**Docs.** `docs/memory-layers.md` names the ablation as the test of a tier. The closeout ritual,
+`rituals/weekly-hygiene.md`, the conventions and `DESIGN.md` carry the ablation offer, the setting
+and the roster.
+
+**Tests.** Section 3 is a validation gate: `claude plugin validate --strict` on the root marketplace
+and every plugin manifest and hooks file, and the marketplaces must list exactly the plugins in
+`plugins/`. Section 10 tests the ablation runner end to end against a stub `claude`, the flags by
+gap, the demotion rule, the billing guard and the token switch. Section 11 tests the state check in
+one scratch repository per mode, and the setup wizard run unattended. Headless and unattended runs
+share one family of environment flags, listed in `tests/README.md`.
+
+---
+
 ## v2.1.0 — 2026-09-29
 
 **Removed the capture, review and personal-list commands and the next-action and waiting-on fields.

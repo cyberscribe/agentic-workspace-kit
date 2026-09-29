@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # SessionStart line for the projects plugin.
 #
 # Inside a project folder whose entry point carries a Current state block, it
@@ -19,6 +20,7 @@
 #
 # Environment:
 #   PROJECTS_HOOK_DISABLED=1     turn the hook off
+#   AW_HEADLESS_RUN=1            a headless run (an ablation arm): say nothing and record nothing
 #   PROJECTS_HOOK_STATE_DIR      where the once-a-day stamps live
 #                                (default ~/.claude/projects-hook; outside any repo)
 #   PROJECTS_HOOK_TODAY          YYYY-MM-DD to use as today (for tests)
@@ -34,6 +36,8 @@ trap 'exit 0' EXIT
 input="$(cat)"
 
 [[ "${PROJECTS_HOOK_DISABLED:-}" == "1" ]] && exit 0
+# A headless run has no person to tell, and its once-a-day stamp would hide the line from the next real session.
+[[ "${AW_HEADLESS_RUN:-}" == "1" ]] && exit 0
 # The closeout plugin's capture child is itself a session; it has no one to tell.
 [[ -n "${CLOSEOUT_HOOK_CHILD:-}" ]] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0

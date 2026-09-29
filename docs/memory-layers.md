@@ -87,6 +87,14 @@ to be relevant.
 
 Put a number on it and report it weekly. Growth becomes arguable once it is visible.
 
+**An ablation is the test of a tier.** Run the task a line was promoted for with the line and without
+it: if the result is the same, the line is not earning its place at that load rate. A line in the
+always-loaded tier is expected to have an ablation that discriminates; one that shows no difference in
+three consecutive weeks is a demotion candidate, and the person who holds the budget decides. At
+promotion the question is offered rather than required — what task would go worse without it? — and a
+line nobody can answer that for usually belongs in a cheaper tier. The runner and its limits are in the
+kit's `pilot/README.md`.
+
 There is a second, independent argument for keeping the tier small, and it is about the person rather
 than the context window: a store that covers everything removes every occasion to work anything out,
 and unaided retention falls as coverage rises. Looking something up means not reconstructing it, and
@@ -110,9 +118,10 @@ filter the decisions log applies: strip out the specifics and see whether anythi
 always-loaded tier filling with plausible material nobody chose.
 
 **Demotion is real and mostly unattended.** Stores go stale as the world moves. A stale `ALWAYS`
-entry is the expensive case, because it primes every session regardless.
+entry is the expensive case, because it primes every session regardless. An ablation that stops
+discriminating is how that gets noticed (§5).
 
-Four house rules that travel:
+Five house rules that travel:
 
 - Surgical updates. The line that changed, not a wholesale rewrite of the file around it.
 - Absolute dates. A relative one rots the moment the session ends.

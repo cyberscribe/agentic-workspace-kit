@@ -70,6 +70,13 @@ has fenced from agent editing.
 Nothing is deleted. Superseded material is marked superseded, keeps its name and wording, and carries
 a pointer to what replaced it.
 
+When something is promoted, or proposed for promotion, to the always-loaded tier or general reference,
+offer an ablation: ask what task would go worse without the line. It is offered, not required. Where
+the team runs ablations (`pilot/ablations/`), the answer becomes a proposed ablation file — that task as
+the prompt, a check, and the lines exactly as they will read (the format is in the pilot README, or copy
+a file already in `pilot/ablations/`) — committed with the promotion once it is agreed. Where nobody
+can name a task, say so: that is evidence about the tier, and the cheaper tier is usually the answer.
+
 ### 5. Reconcile tracking — separately, and after
 
 Context and tracking are different axes. Promote learnings first, then confirm that task and status
@@ -88,10 +95,17 @@ added to. A block still marked as a proposal keeps its marker: confirming it is 
 
 ### 6. Who needs to know — when the project has more than one person
 
-*Optional. It applies when the project names two or more people: profiles in the people directory
-(`memory/people/`), a People or Team section in the project's README or in the local closeout
-conventions, or an explicit team list in the configuration. With one person or none, skip it without
-comment.*
+*Optional. It applies when two or more people are known for the project: profiles in the people
+directory (`memory/people/`), the team roster (`team/people.md`, from `templates/team-roster.md`), a
+People or Team section in the project's README or in the local closeout conventions, or an explicit
+team list in the configuration. With one person or none, skip it without comment. The line
+`Who needs to know: auto | ask | off` in the local closeout conventions sets it — `ask` offers it in
+one line, `off` leaves it out — and the same line in a project README's People section overrides that
+for the project.*
+
+A project's People section wins over the roster: the role it gives a person stands. The roster adds
+anyone the project does not name whose default relationship matches what changed — a scoped one,
+such as `keep told: anything touching measurement`, only for a change of that kind.
 
 Where the project README's People section gives roles, the roles do most of the choosing: whoever
 **owns** the outcome and whoever is to be **kept told** hear about progress on it — a criterion
@@ -106,11 +120,14 @@ half of the visibility rule.
 
 For each item promoted or proposed, ask whether a specific person's work is affected: they own the
 area it touches, a decision changes what they are doing, it blocks or unblocks them, or their profile
-says they are the one to go to for it. The output is a short table:
+says they are the one to go to for it. The output is a short table. **How** is the person's channel,
+from the roster or the project; **Offer** is `draft` (a short message in the closer's voice, for that
+channel), `note` (a line to raise at the next team meeting or one-to-one) or `none` (recorded only),
+picked per row:
 
-| Who | What they need to know | Why them | Where it is recorded |
-|---|---|---|---|
-| <name> | <one line> | <owns / keep told / ask first / blocked by / go-to for> | `<path it was promoted to>` |
+| Who | What they need to know | Why them | How | Offer | Where it is recorded |
+|---|---|---|---|---|---|
+| <name> | <one line> | <owns / keep told / ask first / blocked by / go-to for> | <channel> | draft · note · none | `<path it was promoted to>` |
 
 - **Name someone only with a reason.** "Nobody in particular" is a common and correct answer; say it
   in one line.
@@ -118,8 +135,9 @@ says they are the one to go to for it. The output is a short table:
   promotion question instead.
 - **Point rather than restate.** The message is the pointer to where the learning now lives, so the
   record stays single and the note stays short.
-- **Nothing is sent.** A message to a colleague goes out in a person's own voice, from them. Draft one
-  only when asked.
+- **Nothing is sent.** A message to a colleague goes out in a person's own voice, from them. A draft
+  is shown inline, never committed; where a mail or chat tool is connected, the most the ritual does
+  is leave a draft there, on an explicit yes.
 - **An unknown owner is a finding.** If the right person cannot be named, that is a gap in the people
   directory worth filling.
 - **The table stays out of the repository.** It is communication, not context or tracking, and it is
@@ -129,6 +147,7 @@ says they are the one to go to for it. The output is a short table:
 
 - What was promoted, and at which tier.
 - What is proposed and still needs a decision.
+- Any ablation offered: drafted, declined, or the tier reconsidered.
 - Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new state and
   any blocker.
 - Who needs to know what, if step 6 applied.

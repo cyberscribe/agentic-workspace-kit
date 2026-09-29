@@ -26,6 +26,11 @@ remember to ask.
 
 Add version-control state and any bridge or mirror your setup keeps in sync. If the repository keeps
 metrics with `pilot/measure.sh`, its weekly run belongs to this pass, and its row goes in the report.
+If it keeps ablations in `pilot/ablations/`, the pass offers to run them after `measure.sh`
+(`pilot/ablate.sh --target <repository>`, from the kit checkout), with the number of runs and their
+API-equivalent cost stated first; the person decides, and `measure.sh` runs again afterwards so the
+week's row counts the new results. Run or not, the report carries each ablation's latest flag, and lists demotion
+candidates and checks that need revision under pending work.
 Write the report to a dated file, keep it, and **commit it** — the trail is what lets you tell a clean
 week from a broken check, and a trail on one machine reaches nobody. Excluding audit output from
 version control is a common reflex because it looks like noise; it is the record of whether the noise
@@ -75,11 +80,16 @@ remove the project, the stack and the stakeholder, and see whether anything surv
 proposed general-form rewrite back to a human. The cross-project log is consulted by every future
 session; entries arriving in it are a person's call.
 
-**8. Check the stores the scan cannot see.** Any per-surface or personal memory the script has no
+**8. Demotion is a proposal; the person applies it.** A demotion candidate is a line whose ablation found no
+difference three weeks running: bring it back with its flag history and the cheaper tier it could
+move to, and let the person decide. A check that needs revision says nothing about its line; the
+proposal is to rework the check, and the line stays where it is.
+
+**9. Check the stores the scan cannot see.** Any per-surface or personal memory the script has no
 access to gets read in the same pass. Project-scoped material held as content rather than as a pointer
 is the drift the taxonomy exists to prevent.
 
-**9. Leave version control alone.** List the files touched, new against modified, and let a human
+**10. Leave version control alone.** List the files touched, new against modified, and let a human
 commit.
 
 ## What this pass does not do

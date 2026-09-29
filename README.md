@@ -277,9 +277,11 @@ The shape of the pass:
 4. **Verify before recording.** Check each technical claim against the current state of the code or
    file. A behaviour that changed during the session is not a finding.
 5. **Reconcile tracking separately**, after promotion, and report it separately.
-6. **Who needs to know** — optional, and only when the project names more than one person. For each
-   item, name a teammate only where their work is affected, point at where the learning now lives, and
-   send nothing: a message to a colleague goes out in a person's own voice. "Nobody in particular" is
+6. **Who needs to know** — optional, and only when the project names more than one person. A
+   `Who needs to know: auto | ask | off` line in `.claude/closeout.md` sets it, and a team roster
+   (`templates/team-roster.md`) seeds it; each row offers a draft, a note or nothing, and nothing is
+   sent. For each item, name a teammate only where their work is affected, point at where the learning
+   now lives, and send nothing: a message to a colleague goes out in a person's own voice. "Nobody in particular" is
    a common answer; "everybody" is a sign the item may be a working standard instead.
 7. **Report**: what was promoted and at which tier, what is proposed and waiting, who needs to know,
    which files were touched.
@@ -646,12 +648,13 @@ something.
 | `templates/person-profile.md` | One file per person: what they own, and when to go to them |
 | `templates/verification-standard.md` | What counts as checked, per kind of work |
 | `templates/catalogue.md` | What the team has built and would reuse |
+| `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
 | `plugins/projects/` | Projects from start to done — five commands and a session-start line |
-| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit` |
+| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, and `bin/state.sh`, the read-only state check |
 | `install.sh` | Deploys the kit into a team repository, with the three plugins, skills for desktop assistants, surface shims and pilot layer |
 | `team/` | The installer's team overlay — see `team/README.md` |
-| `pilot/` | Pilot protocol, build-list ledger and `measure.sh` |
+| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
 | `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |
 
 Every one is a starting point rather than a standard. The system works because the conventions match
@@ -672,7 +675,7 @@ repository has to be pulled back with `git subtree pull` before the next push.
 
 ## Licence
 
-Code (the installer, `pilot/measure.sh`, the plugins, `tests/`) is MIT. The writing — this README, `docs/`,
+Code (the installer, the `pilot/` scripts, the plugins, `tests/`) is MIT. The writing — this README, `docs/`,
 `rituals/`, `templates/` and the rest of the prose — is CC BY 4.0: use and adapt it freely, including
 commercially, with credit. See `LICENSE`.
 
@@ -681,7 +684,9 @@ workspace teaches something. Issues are read; there is no support commitment.
 
 ---
 
-*Version 2.1 — 2026-09-29: the Current state block, Planned and five project states; nine commands
+*Version 2.2 — 2026-09-29: context ablations, the state check, a validation gate, a lighter
+quick-start and closeout, and a who-needs-to-know setting with a team roster (see CHANGELOG).
+Version 2.1 — 2026-09-29: the Current state block, Planned and five project states; nine commands
 across three plugins (see CHANGELOG). Version 2.0 — 2026-09-29: the tracking axis, skills, and the
 quick-start's three modes. Version 1.2 — 2026-09-28: team deployment and pilot layer added. Version 1.1 — 2026-09-04. Revised after auditing the workspace it was extracted from against its own
 claims: the manifest split needs maintaining (§2.1), a canonical-fact table does not enforce itself

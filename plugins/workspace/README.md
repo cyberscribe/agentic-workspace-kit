@@ -82,6 +82,27 @@ either command for the scan alone, as a scheduled run would. If your repository
 already runs its own hygiene or register scanner, the command runs that instead
 of adding a second pass.
 
+## The state check
+
+`bin/state.sh` reads a repository and reports where it stands against the kit, one
+`key=value` per line: the always-loaded file and the stand-ins left in it, the
+person's profile, the project conventions, the register, the decisions log, the
+team's own skills, the plugins registered, and a closing `mode=` line (`fresh`,
+`joining`, `existing-system` or `nothing-left`). It is written for the
+quick-start and the setup wizard to branch on, and the tests assert against it.
+Run it in the repository, or name another folder; `--json` gives the same facts
+as one object:
+
+```
+bash .claude/plugins/workspace/bin/state.sh
+bash .claude/plugins/workspace/bin/state.sh ../other-repo --json
+```
+
+It writes nothing and makes no network call. It reads git only with
+`--no-optional-locks`, so it leaves no `index.lock` behind, even run from a
+desktop assistant's shell on a repository a session has open. It needs bash 3.2
+and git; jq reads the settings file and gives `--json`.
+
 ## Install
 
 Part of the [workspace context kit](https://github.com/cyberscribe/agentic-workspace-kit):

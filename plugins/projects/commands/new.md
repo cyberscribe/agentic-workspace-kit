@@ -72,8 +72,9 @@ That is the quick path; go straight to the close. The full path continues:
    two roles, as in "owns, does". Check the people directory (the conventions
    file's, else `memory/people/`, `docs/people/` or `people/`) and link existing
    profiles; offer to start a profile, from the repository's person template if it
-   has one, for anyone new. Two or more people here switches on the closeout's
-   "who needs to know" step.
+   has one, for anyone new. With a team roster (`team/people.md`), offer to seed
+   this from it, each person's default relationship as the suggested role. Two or
+   more people here switches on the closeout's "who needs to know" step.
 7. *Optional* — **Precedents.** What has been tried before, here or elsewhere,
    and what it taught. Look before you ask: search finished and paused projects
    (where the conventions file keeps them, else `projects/INDEX.md` and any

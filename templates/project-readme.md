@@ -70,8 +70,9 @@ One line per person: name — role — profile. The five roles are **owns** (ans
 one person per outcome), **does** (does the work), **helps** (supports it), **ask first** (consulted
 before a decision is taken) and **keep told** (hears how it went). A person can hold two, as in
 "owns, does". Point at their profile in `memory/people/` rather than restating it. When two or more
-people are named, the closeout ritual adds a "who needs to know" step. A one-person project keeps
-only the owner's line, which is how the board and the register know whose it is.
+people are named, the closeout ritual adds a "who needs to know" step; a line `Who needs to know: ask`
+(or `off`) here overrides the team's setting for this project. A one-person project keeps only the
+owner's line, which is how the board and the register know whose it is.
 
 - <name> — <owns> — `memory/people/<name>.md`
 

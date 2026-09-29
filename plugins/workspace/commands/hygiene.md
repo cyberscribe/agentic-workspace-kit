@@ -135,8 +135,26 @@ apart.
   printed row in the report, and say which file it changed. If it exits with an
   error, the report gives the error as this check's result and names any file
   it left behind. If there is no such script, leave this line out.
+- **Ablations.** If the repository keeps ablations in `pilot/ablations/`, find
+  the runner: `pilot/ablate.sh` beside the metrics script, else in the kit
+  checkout that `.claude/plugins/VENDORED` names or that `.claude/settings.json`
+  registers as a directory marketplace; without one, this check is `not run`,
+  with the reason. After the metrics run, offer the run in one line before
+  anything starts: how many ablations, how many runs (two arms, times each
+  file's `runs:`, three if it gives none), and what they cost — the latest
+  run's cost from `pilot/ablation-results.csv` as the estimate, labelled
+  API-equivalent cost, and each file's `max_budget_usd` as the cap per run. The
+  person decides; with nobody there to answer, as in a scheduled run, it is
+  offered in the report and not run. On a yes, run
+  `bash <runner> --target <repository>`, then the metrics script again, so
+  today's row counts the new results. Either way, `bash <runner> --target
+  <repository> --report` prints the latest flags without running anything:
+  put each ablation's flag in the report with its n and date, and list every
+  `demotion candidate` and every `check needs revision` line under pending work,
+  with `regressed`, `stale` and `without preferred` (the line may hurt) beside them.
 
-Read-only throughout Stage 1: the report and the metrics file are the only
+Read-only throughout Stage 1: the report, the metrics file and, when the person
+says yes to the ablation run, the results and report it writes are the only
 things it writes.
 
 ## The report
@@ -181,6 +199,11 @@ How that goes in a conversation:
 - Walk the drafts sweep one folder at a time. Promotion follows the closeout
   tiers; clearing is theirs, so give it as the commands they can run.
 - Say the budget line even when it is flat: one sentence on the trend.
+- A demotion candidate comes back as a proposal: the line, its last three
+  weeks of flags, and the cheaper tier it could move to. The edit is theirs to
+  approve, one line at a time, since it changes what loads every session. A
+  check that needs revision is the ablation's to fix, not the line's: propose
+  the reworked check and leave the line where it is.
 - Record what was decided under `## Judgement pass` in the same report.
 
 ## Close

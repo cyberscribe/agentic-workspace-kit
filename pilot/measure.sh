@@ -6,6 +6,8 @@
 #   pilot/measure.sh --backfill 8    rebuild the CSV with one row per week for the last 8 weeks
 #   pilot/measure.sh --print         print today's row without writing anything
 #   --out <path>                     write somewhere other than pilot/metrics.csv (with either mode)
+#   --target <dir>                   measure that repository (default: the one the command is run in,
+#                                    so a kit checkout's copy can measure the repository it serves)
 #   MEASURE_ALWAYS_LOADED="CLAUDE.md" pilot/measure.sh
 #                                    the files counted as always loaded (default: AGENTS.md CLAUDE.md)
 #
@@ -16,21 +18,23 @@
 # of the first commit rather than inventing zero rows for the weeks before it.
 set -euo pipefail
 
-usage() { sed -n '2,16p' "$0"; exit 1; }
+usage() { sed -n '2,18p' "$0"; exit 1; }
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
-mode=append weeks="" out=""
+mode=append weeks="" out="" target=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --print) mode=print; shift ;;
         --backfill) mode=backfill; weeks="${2:-}"; [[ "$weeks" =~ ^[0-9]+$ ]] || usage; shift 2 ;;
         --out) out="${2:-}"; [[ -n "$out" ]] || usage; shift 2 ;;
+        --target) target="${2:-}"; [[ -n "$target" ]] || usage; shift 2 ;;
         *) usage ;;
     esac
 done
 
 # A relative --out is relative to where the command was typed, as any other path argument would be.
 [[ -z "$out" || "$out" == /* ]] || out="$PWD/$out"
-root="$(git rev-parse --show-toplevel)"
+root="$(git -C "${target:-.}" rev-parse --show-toplevel)"
 cd "$root"
 out="${out:-pilot/metrics.csv}"
 
@@ -46,6 +50,7 @@ mkdir -p "$(dirname "$out")"
 
 header="date,always_loaded_bytes,decisions_logged,doc_files,people_profiles,audit_reports,build_items_named,build_items_exist,doc_commits_7d,doc_contributors_7d"
 header+=",projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done"
+header+=",ablations_named,ablations_discriminating,ablations_no_difference"
 
 # The always-loaded tier. In a kit install CLAUDE.md is a one-line import of AGENTS.md, and both are
 # counted so that growth in either shows up. A repository whose agents load something else says so.
@@ -81,6 +86,7 @@ conventions() { git show "$1:.claude/projects.md" 2>/dev/null || cat .claude/pro
 # `projects/<slug>/` becomes a folder pattern; a Section names sentence that mentions Done when or
 # People lends that section every backticked name in the sentence (both, if it mentions both). Labels
 # are matched in any case and on an indented bullet, as the projects hook reads them.
+# shellcheck disable=SC2016  # an awk program: its $ fields are awk's, not the shell's
 settings_awk='
 function first_tick(s) { return match(s, /`[^`]+`/) ? substr(s, RSTART + 1, RLENGTH - 2) : "" }
 function is_label(line, name) { return tolower(line) ~ ("^[ \t]*[-*] \\*\\*" name ":\\*\\*") }
@@ -115,6 +121,7 @@ END { if (names != "") aliases(names) }'
 # One project entry point in, one tab-separated line out:
 #   state  blocked(0/1)  done_when(0/1)  has_people(0/1)  owners(comma list)  blocked since(date)
 # The owners are the people named owns or does, lower-cased; they are compared, never printed.
+# shellcheck disable=SC2016  # an awk program, as above
 readme_awk='
 function clean(v) { gsub(/`|\*\*/, "", v); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
 function label(line, name,   re) {
@@ -172,7 +179,7 @@ END {
 state_of() {
     local s
     s="$(git show "$1:$2" 2>/dev/null | awk -v done_names="$done_names" -v people_names="$people_names" "$readme_awk" | cut -f1 || true)"
-    if [[ "$s" == "-" ]]; then case "$3" in done) s=done ;; paused) s=paused ;; esac; fi
+    if [[ "$s" == "-" ]]; then case "$3" in "done") s="done" ;; paused) s=paused ;; esac; fi
     echo "$s"
 }
 
@@ -181,7 +188,7 @@ state_of() {
 # are the same folder and only State tells them apart.
 kind_of() {
     if [[ "$1" =~ $loc_active ]]; then echo active
-    elif [[ -n "$loc_done" && "$1" =~ $loc_done ]]; then echo done
+    elif [[ -n "$loc_done" && "$1" =~ $loc_done ]]; then echo "done"
     elif [[ -n "$loc_paused" && "$1" =~ $loc_paused ]]; then echo paused
     else echo active; fi
 }
@@ -198,7 +205,7 @@ days_to_done() {
             "") continue ;;
         esac
         path="$line"; created="$ct"
-        if [[ $still -eq 1 && "$(state_of "$hash" "$path" "$(kind_of "$(dirname "$path")")")" == done ]]; then done_ct="$ct"; else still=0; fi
+        if [[ $still -eq 1 && "$(state_of "$hash" "$path" "$(kind_of "$(dirname "$path")")")" == "done" ]]; then done_ct="$ct"; else still=0; fi
     done < <(git log --follow --format='C %H %ct' --name-only "$1" -- "$2")
     # A README whose whole history is done (a finished project brought in from elsewhere) has no
     # measurable time to done, and is left out of the median rather than counted as zero.
@@ -239,7 +246,7 @@ projects_row() {
         kind="$(kind_of "$dir")"
         rec="$(git show "$rev:$entry" | awk -v done_names="$done_names" -v people_names="$people_names" "$readme_awk")"
         state="${rec%%$'\t'*}"
-        if [[ "$state" == "-" ]]; then case "$kind" in done) state=done ;; paused) state=paused ;; esac; fi
+        if [[ "$state" == "-" ]]; then case "$kind" in "done") state="done" ;; paused) state=paused ;; esac; fi
         rec="$state"$'\t'"${rec#*$'\t'}"
         # No People section: the register row whose cells name this folder supplies the owner, else
         # a default owner the conventions name (- **Default owner:** `Sam`), as a one-person
@@ -254,7 +261,7 @@ projects_row() {
             rec="$(awk -F'\t' -v OFS='\t' -v o="${owners:--}" '{ $5 = o; print }' <<< "$rec")"
         fi
         records+="$rec"$'\n'
-        [[ "$state" != done ]] || durations+="$(days_to_done "$rev" "$entry")"$'\n'
+        [[ "$state" != "done" ]] || durations+="$(days_to_done "$rev" "$entry")"$'\n'
     done <<< "$dirs"
 
     # Active is anything not done or paused, including a project whose State cannot be read: it is
@@ -280,12 +287,54 @@ projects_row() {
         END { if (NR) print (NR % 2 ? v[(NR + 1) / 2] : int((v[NR / 2] + v[NR / 2 + 1] + 1) / 2)) }')"
 }
 
+# --- Ablations ------------------------------------------------------------------------------------
+# ablations_named is the number of ablation files in pilot/ablations/; of those, the other two count
+# the ablations whose latest result on or before the row's day is `discriminates`, or `no difference
+# (both pass)`. The result comes from ablate.sh --outcomes, the rule its report flags with, so these
+# counts and the report agree; `leans with, rerun at k=5`, `check fails both arms`, `inconclusive` and
+# the comparator-only results count in neither.
+# Past rows read the files and pilot/ablation-results.csv as committed at that revision, so backfill
+# works. Today's row reads them from the working tree: the runner writes results that are committed
+# with the row, and the weekly pass measures again after it runs the ablations.
+# The runner is the kit's: beside this script in a kit checkout, else in the checkout the installer
+# recorded when it vendored the plugins here.
+ablate_sh="$here/ablate.sh"
+if [[ ! -f "$ablate_sh" ]]; then
+    kit_checkout="$(sed -n 's/^kit checkout: \(.*\) (on the machine that ran the installer)$/\1/p' .claude/plugins/VENDORED 2>/dev/null | awk 'NR == 1' || true)"
+    ablate_sh="${kit_checkout:+$kit_checkout/pilot/ablate.sh}"
+fi
+results_tmp="$(mktemp "${TMPDIR:-/tmp}/measure.XXXXXX")"
+trap 'rm -f "$results_tmp"' EXIT
+
+ablations_row() {
+    local rev="$1" day="$2" names outcomes
+    if [[ "$day" == "$(days_ago 0)" && -d pilot/ablations ]]; then
+        names="$(find pilot/ablations -maxdepth 1 -name '*.md' ! -name README.md | sed 's#.*/##; s#\.md$##')"
+        cat pilot/ablation-results.csv > "$results_tmp" 2>/dev/null || : > "$results_tmp"
+    else
+        names="$(git ls-tree --name-only "$rev" -- pilot/ablations/ 2>/dev/null | { grep '\.md$' || true; } \
+            | { grep -v '/README\.md$' || true; } | sed 's#.*/##; s#\.md$##')"
+        git show "$rev:pilot/ablation-results.csv" > "$results_tmp" 2>/dev/null || : > "$results_tmp"
+    fi
+    if [[ -z "$names" ]]; then printf '0,0,0'; return; fi
+    # Results dated after the row's day are not yet known on that day. Without the runner there is no
+    # rule to read them by, so the two counts are left empty rather than guessed.
+    if [[ ! -f "$ablate_sh" ]]; then printf '%d,,' "$(grep -c . <<< "$names")"; return; fi
+    awk -F, -v day="$day" 'NR == 1 || $1 <= day' "$results_tmp" > "$results_tmp.day" && mv "$results_tmp.day" "$results_tmp"
+    outcomes="$(bash "$ablate_sh" --target "$root" --outcomes "$results_tmp" 2>/dev/null || true)"
+    awk -F'\t' -v names="$(paste -sd, - <<< "$names")" '
+        BEGIN { n = split(names, a, ","); for (i = 1; i <= n; i++) named[a[i]] = 1 }
+        ($1 in named) && $3 == "discriminates" { d++ }
+        ($1 in named) && $3 == "no difference (both pass)" { nd++ }
+        END { printf "%d,%d,%d", n, d, nd }' <<< "$outcomes"
+}
+
 # --------------------------------------------------------------------------------------------------
 
 row_for() {
     local day="$1" rev bytes=0 f s decisions doc_files people audits named exist commits authors since
     rev="$(git rev-list -1 --before="$day 23:59:59" HEAD 2>/dev/null || true)"
-    if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"; return; fi
+    if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0"; return; fi
 
     for f in "${always_loaded[@]}"; do
         s="$(git cat-file -s "$rev:$f" 2>/dev/null || echo 0)"
@@ -316,7 +365,7 @@ row_for() {
     commits="$(git log --since="$since 23:59:59" --until="$day 23:59:59" --format=%H -- "${doc_paths[@]}" | wc -l | tr -d ' ')"
     authors="$(git log --since="$since 23:59:59" --until="$day 23:59:59" --format=%ae -- "${doc_paths[@]}" | sort -u | grep -c . || true)"
 
-    echo "$day,$bytes,$decisions,$doc_files,$people,$audits,$named,$exist,$commits,$authors,$(projects_row "$rev" "$day")"
+    echo "$day,$bytes,$decisions,$doc_files,$people,$audits,$named,$exist,$commits,$authors,$(projects_row "$rev" "$day"),$(ablations_row "$rev" "$day")"
 }
 
 case "$mode" in
