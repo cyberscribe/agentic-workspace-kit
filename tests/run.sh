@@ -3,21 +3,21 @@
 #
 #   bash tests/run.sh               run everything
 #   AW_KEEP=1 bash tests/run.sh     keep the scratch directory afterwards, for inspection
-#   AW_SKIP_HISTORY=1 bash tests/run.sh
-#                                   skip the git-history half of the attribution check (reported
-#                                   as SKIP, never as PASS) — for use only while a known history
-#                                   rewrite is pending
+#   AW_BANNED_WORDS_FILE=<path> bash tests/run.sh
+#                                   read section 6's word list from <path> rather than
+#                                   ~/.config/agentic-workspace-kit/banned-words.txt; with no list
+#                                   there, the scan is reported as SKIP
 #
 # One line per check: PASS, FAIL or SKIP, then a count. Exits non-zero when anything fails.
 # Every repository it builds lives under one mktemp directory in $TMPDIR, removed on exit.
 #
 # The sections follow the numbered list in the spec's tests section:
 #   1 non-interactive install, twice    5 measure.sh --backfill on a dated fixture history
-#   2 interactive install, piped        6 words the kit does not use
+#   2 interactive install, piped        6 words the kit does not use, from a private list
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces 7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                    8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook  9 the twelve commands, on Claude Code and as skills
+#   4b the projects session-start hook  9 the nine commands, on Claude Code and as skills
 set -uo pipefail
 
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -68,7 +68,7 @@ S1="$SCRATCH/skills-1"   # the skills folder a desktop assistant would load, out
 out1="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot --skills-dir "$S1" </dev/null 2>&1)"; rc1=$?
 if [[ $rc1 -eq 0 ]]; then ok "1 first run exits 0"; else ko "1 first run exits 0" "$out1"; fi
 missing=""
-for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/closeout.md .claude/projects.md inbox.md \
+for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/closeout.md .claude/projects.md \
          templates/verification-standard.md templates/catalogue.md \
          .claude/plugins/VENDORED .claude/plugins/.claude-plugin/marketplace.json \
          projects/INDEX.md logs/decisions.md memory/glossary.md \
@@ -78,8 +78,22 @@ for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/closeout.md .claude/p
 done
 empty "1 first run lays down the promised files" "$missing"
 check "1 the team name reaches AGENTS.md" grep -q 'Test Team' "$T1/AGENTS.md"
-check "1 inbox.md is the team inbox's one-line header, and nothing else yet" \
-    test "$(grep -c '^- \[' "$T1/inbox.md")" = 0 -a "$(head -n 1 "$T1/inbox.md")" = "# Inbox"
+# The conventions every projects command reads first carry the staleness the board measures against,
+# and the project template carries the Current state block the hook, board and metrics read.
+check "1 .claude/projects.md sets the staleness a project's Updated date is measured against" \
+    grep -qE '^- \*\*Staleness:\*\* `[^`]+`' "$T1/.claude/projects.md"
+tpl="$T1/templates/project-readme.md"
+bad=""
+for h in '## Done when' '## Current state' '## Planned *(optional)*' '## People *(optional)*'; do
+    grep -qxF "$h" "$tpl" || bad+="no heading: $h"$'\n'
+done
+# The block's labels are exactly these four, in this order, so a label added back is caught as
+# surely as one taken away; and State offers exactly the five states.
+labels="$(awk '/^## / { f = ($0 == "## Current state") ; next } f && /^- \*\*[^*]+:\*\*/ { l = $0; sub(/^- \*\*/, "", l); sub(/:\*\*.*/, "", l); print l }' "$tpl" | paste -sd'|' -)"
+[[ "$labels" == 'State|Blocked by|Check-in|Updated' ]] || bad+="the block's labels are \"$labels\", not State|Blocked by|Check-in|Updated"$'\n'
+grep -qxF -- '- **State:** <ready · doing · blocked · paused · done>' "$tpl" || bad+="the State line does not offer exactly the five states"$'\n'
+bad+="$(grep -nE '^## (Now|Next up|Parked)([[:space:]]|$)' "$tpl")"
+empty "1 the installed project template has a Current state block (State, Blocked by, Check-in, Updated), Planned, and no older sections" "$bad"
 grep -q '/workspace:quick-start' <<<"$out1" && ok "1 the Next message says to run /workspace:quick-start" \
     || ko "1 the Next message says to run /workspace:quick-start" "$(grep -A3 '^Next' <<<"$out1")"
 check "1 no .claude/commands directory (quick-start lives in the workspace plugin)" test ! -e "$T1/.claude/commands"
@@ -221,6 +235,21 @@ if [[ -f "$M/regen/.claude/plugins/projects/commands/board.md.kit-incoming" ]] \
     ok "2b a changed command regenerates its skill; while the vendored copy differs, the skill follows procedure.md and says so"
 else ko "2b a changed command regenerates its skill; while the vendored copy differs, the skill follows procedure.md and says so" \
     "$out"; fi
+
+# A command the kit later drops leaves its generated skill, its Gemini wrapper and its vendored copy
+# behind, since the installer never deletes; the next run names each one as a file to delete.
+MR="$M/plugins-retired"
+cp -R "$KIT/plugins" "$MR"
+printf -- '---\ndescription: A command that a later version drops\n---\n\nBody.\n' > "$MR/projects/commands/retired.md"
+bash "$KIT/install.sh" --target "$M/retire" --init --surfaces claude,gemini --plugin-src "$MR" --skills-dir "$M/retire-skills" >/dev/null 2>&1
+rm "$MR/projects/commands/retired.md"
+out="$(bash "$KIT/install.sh" --target "$M/retire" --surfaces claude,gemini --plugin-src "$MR" --skills-dir "$M/retire-skills" 2>&1)"
+if grep -q "retire-skills/projects-retired/ was generated from plugins/projects/commands/retired.md" <<<"$out" \
+    && grep -q "^  .gemini/commands/projects/retired.toml was generated from" <<<"$out" \
+    && grep -q "^  .claude/plugins/projects/commands/retired.md has no counterpart in the kit" <<<"$out" \
+    && [[ "$(grep -c 'no longer has\|no counterpart' <<<"$out")" == 3 && -f "$M/retire-skills/projects-retired/SKILL.md" ]]; then
+    ok "2b a command the kit has dropped is named on every surface as a file to delete, and nothing is deleted"
+else ko "2b a command the kit has dropped is named on every surface as a file to delete, and nothing is deleted" "$out"; fi
 
 # ---------------------------------------------------------------------------------------------------
 echo
@@ -503,6 +532,24 @@ if [[ -f "$DR/s2.md" && -f "$DR/.seen.s2.md" ]] && jq -r '.hookSpecificOutput.ad
 else ko "4 review: an old draft never yet surfaced is kept and surfaced (retention counts from first surfacing)"; fi
 check "4 review: a marker whose draft is gone is removed" test ! -e "$DR/.seen.gone.md"
 
+# Retention prunes only top-level *.md drafts, and only in a folder a session opens again: a file of
+# another kind, a subdirectory, and the drafts of a folder nobody reopens outlive any window. Those
+# are what the drafts sweep in /workspace:hygiene lists.
+PS="$(mkproject swept)"
+DS="$DRAFTS/swept"
+mkdir -p "$DS/research" "$DRAFTS/not-reopened"
+printf '### a claim\n' > "$DS/t1.md"; printf 'transcript\n' > "$DS/_sess.txt"
+printf '### notes\n' > "$DS/research/n.md"; printf '### a claim\n' > "$DRAFTS/not-reopened/t2.md"
+for f in "$DS/_sess.txt" "$DS/research/n.md" "$DS/research" "$DRAFTS/not-reopened/t2.md"; do age "$f" 30; done
+review "$PS" >/dev/null; age "$DS/.seen.t1.md" 30; review "$PS" >/dev/null
+check "4 review: a surfaced draft past the window is pruned (the control for the three below)" test ! -e "$DS/t1.md"
+check "4 review: retention leaves a file that is not a *.md draft, 30 days on" test -f "$DS/_sess.txt"
+check "4 review: retention leaves a subdirectory and its contents, 30 days on" test -f "$DS/research/n.md"
+check "4 review: retention leaves the drafts of a folder no session reopens" test -f "$DRAFTS/not-reopened/t2.md"
+for f in plugins/workspace/commands/hygiene.md rituals/weekly-hygiene.md; do
+    grep -qi 'drafts sweep' "$KIT/$f" && ok "4 the drafts sweep is named in $f" || ko "4 the drafts sweep is named in $f"
+done
+
 # Personal conventions (closeout 1.2.0): read after the project's, which win where they disagree.
 UC="$SCRATCH/user/closeout.md" UT="$SCRATCH/user/tiers.md" FH="$SCRATCH/user-home"
 mkdir -p "$SCRATCH/user" "$FH/.claude"
@@ -566,57 +613,75 @@ git -C "$PF" init -q
 cp "$KIT/team/projects-conventions.md" "$PF/.claude/projects.md"
 for i in $(seq -w 1 19); do
     mkdir -p "$PF/projects/p$i"
-    printf '# Project p%s\n\n## Desired outcome\n\nThe p%s rollout is live\nfor every team.\n\n## Done when\n\n- [x] one\n- [ ] two\n- [x] three\n- [ ] four\n\n## Now\n\n- **State:** doing\n- **Next action:** Priya drafts the p%s email\n  to the sponsor\n- **Updated:** 2026-09-24\n\n## People\n\n- Sam — owns — `memory/people/sam.md`\n- Priya — does\n' \
+    printf '# Project p%s\n\n## Desired outcome\n\nThe p%s rollout is live\nfor every team.\n\n## Done when\n\n- [x] one\n- [ ] two\n- [x] three\n- [ ] four\n\n## Current state\n\n- **State:** doing\n- **Updated:** 2026-09-24\n\n2026-09-24 — Priya has the p%s draft with the sponsor.\n\n## People\n\n- Sam — owns — `memory/people/sam.md`\n- Priya — does\n' \
         "$i" "$i" "$i" > "$PF/projects/p$i/README.md"
 done
 mkdir -p "$PF/projects/gap/notes"
-printf '# Gap\n\n<!-- proposed by /projects:adopt 2026-09-28: confirm or edit -->\n## Now\n\nState: next\nNext action: none found — decide at the next review\n' > "$PF/projects/gap/README.md"
+printf '# Gap\n\n<!-- proposed by /projects:adopt 2026-09-28: confirm or edit -->\n## Current state\n\nState: ready\nBlocked by: not yet named\n' > "$PF/projects/gap/README.md"
 
 out="$(pstart "$PF/projects/p07")"
 msg="$(pmsg <<<"$out")"
 if [[ "$(printf '%s\n' "$msg" | grep -c .)" == "3" ]] \
-    && grep -qF 'outcome: The p07 rollout is live for every team.' <<<"$msg" \
-    && grep -qF 'Done when: 2 of 4 ticked' <<<"$msg" \
-    && grep -qF 'Next action: Priya drafts the p07 email to the sponsor — owner Sam' <<<"$msg"; then
-    ok "4b session-start: three lines in a project folder — outcome, done-when progress, next action and owner"
-else ko "4b session-start: three lines in a project folder — outcome, done-when progress, next action and owner" "$msg"; fi
+    && grep -qxF 'Project: Project p07 — outcome: The p07 rollout is live for every team.' <<<"$msg" \
+    && grep -qxF 'Done when: 2 of 4 ticked' <<<"$msg" \
+    && grep -qxF 'State: doing — owner Sam' <<<"$msg"; then
+    ok "4b session-start: three lines in a project folder — outcome, done-when progress, state and owner"
+else ko "4b session-start: three lines in a project folder — outcome, done-when progress, state and owner" "$msg"; fi
 jq -e '.hookSpecificOutput.hookEventName == "SessionStart" and (.hookSpecificOutput.additionalContext | contains("projects/p07/README.md"))' <<<"$out" >/dev/null 2>&1 \
     && ok "4b session-start: the agent gets the same lines as additionalContext, naming the file" \
     || ko "4b session-start: the agent gets the same lines as additionalContext, naming the file" "$out"
 msg="$(pstart "$PF/projects/gap/notes" | pmsg)"
-grep -qF 'Next action: none named yet' <<<"$msg" && grep -qF '(next, proposed)' <<<"$msg" \
-    && ok "4b session-start: a 'none found' next action is a gap, and a proposed block says so, from a subfolder" \
-    || ko "4b session-start: a 'none found' next action is a gap, and a proposed block says so, from a subfolder" "$msg"
+grep -qF 'Project: Gap (proposed)' <<<"$msg" && grep -qxF 'State: ready — no owner named' <<<"$msg" \
+    && ok "4b session-start: a 'not yet named' blocker is a gap, and a proposed block says so, from a subfolder" \
+    || ko "4b session-start: a 'not yet named' blocker is a gap, and a proposed block says so, from a subfolder" "$msg"
 
-# Outside a project: one line on the first session of a day with something waiting, then nothing.
-printf '# Inbox\n\n- [2026-09-29] Ask legal about exports — Sam\n' > "$PF/inbox.md"
+# What blocks a project is on the state line, with its date: after "blocked" when that is the state,
+# after the state otherwise.
+mkdir -p "$PF/projects/held" "$PF/projects/snag"
+printf '# Held\n\n## Current state\n\n- **State:** blocked\n- **Blocked by:** the signed budget from finance — since 2026-09-01\n\n## People\n\n- Dana — owns\n' > "$PF/projects/held/README.md"
+printf '# Snag\n\n## Current state\n\n- **State:** doing\n- **Blocked by:** the test rig\n  being rebuilt\n\n## People\n\n- Dana — owns\n' > "$PF/projects/snag/README.md"
+msg="$(pstart "$PF/projects/held" | pmsg)"
+grep -qxF 'State: blocked by the signed budget from finance — since 2026-09-01 — owner Dana' <<<"$msg" \
+    && ok "4b session-start: a blocked project names what blocks it and since when" \
+    || ko "4b session-start: a blocked project names what blocks it and since when" "$msg"
+msg="$(pstart "$PF/projects/snag" | pmsg)"
+grep -qxF 'State: doing — blocked by the test rig being rebuilt — owner Dana' <<<"$msg" \
+    && ok "4b session-start: a Blocked by line on another state is named after it, joined across a wrapped line" \
+    || ko "4b session-start: a Blocked by line on another state is named after it, joined across a wrapped line" "$msg"
+rm -rf "$PF/projects/held" "$PF/projects/snag"
+
+# Outside a project: one line on the first session of a day when an active project has been blocked
+# for more than 14 days, then nothing that day. Paused and done projects, a blocker 14 days old, and
+# one dated only by a due date are not named.
+mkdir -p "$PF/projects/stuck" "$PF/projects/fresh" "$PF/projects/due" "$PF/projects/resting" "$PF/projects/over"
+printf '# Stuck one\n\n## Current state\n\n- **State:** blocked\n- **Blocked by:** legal sign-off — since 2025-12-01\n' > "$PF/projects/stuck/README.md"
+printf '# Fresh\n\n## Current state\n\n- **State:** blocked\n- **Blocked by:** a quote — since 2025-12-19\n' > "$PF/projects/fresh/README.md"
+printf '# Due\n\n## Current state\n\n- **State:** blocked\n- **Blocked by:** a quote, due 2025-11-01\n' > "$PF/projects/due/README.md"
+printf '# Resting\n\n## Current state\n\n- **State:** paused\n- **Blocked by:** a hire — since 2025-10-01\n' > "$PF/projects/resting/README.md"
+printf '# Over\n\n## Current state\n\n- **State:** done\n- **Blocked by:** a hire — since 2025-10-01\n' > "$PF/projects/over/README.md"
 msg="$(pstart "$PF" PROJECTS_HOOK_TODAY=2026-01-02 | pmsg)"
-grep -qF '1 item in inbox.md' <<<"$msg" && grep -qF '1 active project with no next action (Gap)' <<<"$msg" \
-    && ok "4b session-start: outside a project, one line for inbox items and projects with no next action" \
-    || ko "4b session-start: outside a project, one line for inbox items and projects with no next action" "$msg"
+[[ "$msg" == 'Projects: 1 active project blocked for more than 14 days (Stuck one). /projects:board shows it.' ]] \
+    && ok "4b session-start: outside a project, one line naming projects blocked for more than 14 days, by title" \
+    || ko "4b session-start: outside a project, one line naming projects blocked for more than 14 days, by title" "$msg"
 empty "4b session-start: at most once a day per repository" "$(pstart "$PF" PROJECTS_HOOK_TODAY=2026-01-02)"
 empty "4b session-start: the once-a-day stamp lives outside the repository" "$(find "$PF" -name '*.last')"
-printf '# Inbox\n' > "$PF/inbox.md"
-printf -- '- **Next action:** Sam writes the brief\n' >> "$PF/projects/gap/README.md"
+# Both dated blockers are cleared, so the next day, when Fresh's would have passed 14 days, is clean.
+printf '# Stuck one\n\n## Current state\n\n- **State:** doing\n' > "$PF/projects/stuck/README.md"
+printf '# Fresh\n\n## Current state\n\n- **State:** doing\n' > "$PF/projects/fresh/README.md"
 empty "4b session-start: prints nothing outside a project folder on a clean day" "$(pstart "$PF" PROJECTS_HOOK_TODAY=2026-01-03)"
-check "4b session-start: a clean day records no stamp, so a later item still surfaces that day" \
+check "4b session-start: a clean day records no stamp, so a later blocker still surfaces that day" \
     test "$(cat "$PSTAMPS"/*.last 2>/dev/null)" = "2026-01-02"
-# The shared reading rules: a waiting project with a Waiting on line has what it needs; with no
-# People section the register names the owner; a bold State reads as its word.
-mkdir -p "$PF/projects/waits" "$PF/projects/03-reg"
-printf '# Waits
+rm -rf "$PF/projects/stuck" "$PF/projects/fresh" "$PF/projects/due" "$PF/projects/resting" "$PF/projects/over"
 
-## Now
-
-- **State:** waiting
-- **Waiting on:** Lee — the quote — since 2026-01-01
-' > "$PF/projects/waits/README.md"
+# The shared reading rules: with no People section the register names the owner; a bold State reads
+# as its word.
+mkdir -p "$PF/projects/03-reg"
 printf '# Reg
 
-## Now
+## Current state
 
 - **State:** **doing**
-- **Next action:** Kim sends it
+- **Updated:** 2026-09-20
 ' > "$PF/projects/03-reg/README.md"
 printf '# Projects
 
@@ -626,39 +691,48 @@ printf '# Projects
 |---|---|---|---|---|
 | Reg | `projects/03-reg/` | doing | Kim Lee | x |
 ' > "$PF/projects/INDEX.md"
-empty "4b session-start: a waiting project with a Waiting on line is not nagged for a next action" \
-    "$(pstart "$PF" PROJECTS_HOOK_TODAY=2026-01-04)"
-grep -qF 'Project: Reg (doing)' <<<"$(pstart "$PF/projects/03-reg" | pmsg)" && grep -qF 'owner Kim Lee' <<<"$(pstart "$PF/projects/03-reg" | pmsg)" \
+msg="$(pstart "$PF/projects/03-reg" | pmsg)"
+grep -qF 'Project: Reg — ' <<<"$msg" && grep -qxF 'State: doing — owner Kim Lee' <<<"$msg" \
     && ok "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" \
-    || ko "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" "$(pstart "$PF/projects/03-reg" | pmsg)"
+    || ko "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" "$msg"
 
-# A done project says how it ended rather than naming a next action; a CLAUDE.md entry point's
-# title is the project's name, not the file's description.
+# A done project says how it ended, dated by its Updated line, rather than giving a state; a CLAUDE.md
+# entry point's title is the project's name, not the file's description.
 mkdir -p "$PF/projects/shipped" "$PF/projects/thesis"
-printf '# Shipped\n\n## Done when\n\n- [x] it ships\n\n## Now\n\n- **State:** done\n- **Next action:** none — done 2026-10-13\n\n## People\n\n- Tom — owns\n' > "$PF/projects/shipped/README.md"
-printf '# Thesis rewrite — agent entry point\n\n## Now\n\n- **State:** doing\n- **Next action:** Alex rewrites chapter 2\n' > "$PF/projects/thesis/CLAUDE.md"
+printf '# Shipped\n\n## Done when\n\n- [x] it ships\n\n## Current state\n\n- **State:** done\n- **Updated:** 2026-10-13\n\n## People\n\n- Tom — owns\n' > "$PF/projects/shipped/README.md"
+printf '# Thesis rewrite — agent entry point\n\n## Current state\n\n- **State:** doing\n- **Updated:** 2026-09-20\n' > "$PF/projects/thesis/CLAUDE.md"
 msg="$(pstart "$PF/projects/shipped" | pmsg)"
-grep -qF 'Done 2026-10-13; how it ended is recorded in README.md' <<<"$msg" && ! grep -q 'Next action' <<<"$msg" \
-    && ok "4b session-start: a done project reads as done, not as an open next action" \
-    || ko "4b session-start: a done project reads as done, not as an open next action" "$msg"
-grep -qF 'Project: Thesis rewrite (doing)' <<<"$(pstart "$PF/projects/thesis" | pmsg)" \
+grep -qxF 'Done 2026-10-13; how it ended is recorded in README.md' <<<"$msg" && ! grep -q '^State:' <<<"$msg" \
+    && ok "4b session-start: a done project reads as done, with its Updated date" \
+    || ko "4b session-start: a done project reads as done, with its Updated date" "$msg"
+grep -qF 'Project: Thesis rewrite — ' <<<"$(pstart "$PF/projects/thesis" | pmsg)" \
     && ok "4b session-start: a CLAUDE.md entry point is named by its title before the dash" \
     || ko "4b session-start: a CLAUDE.md entry point is named by its title before the dash" "$(pstart "$PF/projects/thesis" | pmsg)"
 
-# Conventions: a status-folder layout with its own Done when heading and inbox path.
+# A block in its earlier format (a Now heading) is still read, and the line says adopt converts it.
+mkdir -p "$PF/projects/legacy"
+printf '# Legacy\n\n## Now\n\n- **State:** doing\n\n## People\n\n- Ana — owns\n' > "$PF/projects/legacy/README.md"
+msg="$(pstart "$PF/projects/legacy" | pmsg)"
+grep -qxF 'State: doing — owner Ana — from an older Now block; /projects:adopt converts it' <<<"$msg" \
+    && ok "4b session-start: an older Now block is read and labelled for conversion by /projects:adopt" \
+    || ko "4b session-start: an older Now block is read and labelled for conversion by /projects:adopt" "$msg"
+rm -rf "$PF/projects/legacy"
+
+# Conventions: a status-folder layout with its own Done when heading.
 PX="$SCRATCH/projects-f13-example"
 mkdir -p "$PX/.claude" "$PX/work/03-vendor-review" "$PX/work/_paused/old"
 git -C "$PX" init -q
 cp "$KIT/plugins/projects/examples/projects-conventions.md" "$PX/.claude/projects.md"
-printf '# Vendor review\n\n## Exit criteria\n\n- [X] longlist\n- [ ] shortlist\n\n## Now\n\nState: waiting\nNext action: Dana chases the quotes\n' > "$PX/work/03-vendor-review/README.md"
-printf '# Old\n\n## Now\n\n- **State:** parked\n' > "$PX/work/_paused/old/README.md"
+printf '# Vendor review\n\n## Exit criteria\n\n- [X] longlist\n- [ ] shortlist\n\n## Current state\n\nState: blocked\nBlocked by: the vendors quotes — since 2026-09-10\n' > "$PX/work/03-vendor-review/README.md"
+printf '# Old\n\n## Current state\n\n- **State:** paused\n' > "$PX/work/_paused/old/README.md"
 msg="$(pstart "$PX/work/03-vendor-review")"
 grep -qF 'Done when: 1 of 2 ticked' <<<"$(pmsg <<<"$msg")" \
     && ok "4b session-start: follows .claude/projects.md — project folder and a Section names alias" \
     || ko "4b session-start: follows .claude/projects.md — project folder and a Section names alias" "$msg"
-grep -qF 'Project: Old (parked)' <<<"$(pstart "$PX/work/_paused/old" | pmsg)" \
+msg="$(pstart "$PX/work/_paused/old" | pmsg)"
+grep -qF 'Project: Old — ' <<<"$msg" && grep -qF 'State: paused' <<<"$msg" \
     && ok "4b session-start: the most specific location wins (paused inside active)" \
-    || ko "4b session-start: the most specific location wins (paused inside active)"
+    || ko "4b session-start: the most specific location wins (paused inside active)" "$msg"
 
 # Silent on failure, and fast.
 errs=""
@@ -707,7 +781,7 @@ fx_commit() {
 }
 fx_readme() { # <slug> <state>
     mkdir -p "$F/projects/$1"
-    printf '# %s\n\n## Desired outcome\n\nA thing exists.\n\n## Done when\n\n- [ ] it exists\n\n## Now\n\n- **State:** %s\n- **Next action:** Alex writes the first draft\n- **Updated:** %s\n' \
+    printf '# %s\n\n## Desired outcome\n\nA thing exists.\n\n## Done when\n\n- [ ] it exists\n\n## Current state\n\n- **State:** %s\n- **Updated:** %s\n' \
         "$1" "$2" "$(days_ago 0)" > "$F/projects/$1/README.md"
 }
 decision() { printf '\n## [%s] Decision %s\n\n**Decision**: something.\n' "$(days_ago "$1")" "$2" >> "$F/logs/decisions.md"; }
@@ -725,7 +799,7 @@ fx_commit 18 Alex alex@example.test "Start alpha"
 
 decision 11 2
 printf '# Blair\n' > "$F/memory/people/blair.md"
-fx_readme beta next
+fx_readme beta ready
 mkdir -p "$F/audits"; printf '# Audits\n' > "$F/audits/README.md"; printf 'report\n' > "$F/audits/hygiene-1.md"
 printf '# Build list\n\n| # | Item | Owner | Due | Status |\n|---|---|---|---|---|\n| 1 | Thing one | Alex | soon | exists |\n| 2 | Thing two | Blair | later | planned |\n' > "$F/pilot/build-list.md"
 fx_commit 11 Blair blair@example.test "Start beta"
@@ -772,28 +846,28 @@ empty "5 metrics.csv holds counts only — a date, fifteen integers, and the med
 
 # --- F12: the project columns ---------------------------------------------------------------------
 # In the fixture above, alpha is created 18 days ago in state doing and set to done 4 days ago (14
-# days to done); beta is created 11 days ago in state next. Neither has a People section and the
+# days to done); beta is created 11 days ago in state ready. Neither has a People section and the
 # register has no Owner column, so nobody is counted in flight. median_days_to_done is empty until a
 # project reaches done.
-known="$(printf '%s\n' ${base//,/ } projects_active projects_with_next_action projects_with_done_when \
-    projects_done waiting_over_14d max_in_flight_per_person median_days_to_done)"
-[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_with_next_action,projects_with_done_when,projects_done,waiting_over_14d,max_in_flight_per_person,median_days_to_done" ]] \
+known="$(printf '%s\n' ${base//,/ } projects_active projects_blocked projects_with_done_when \
+    projects_done blocked_over_14d max_in_flight_per_person median_days_to_done)"
+[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done" ]] \
     && ok "5 F12 the header ends with the seven project columns, in order" || ko "5 F12 the header ends with the seven project columns, in order" "$(head -n 1 "$CSV")"
 bad=""
 for c in $(head -n 1 "$CSV" | tr , ' '); do grep -qxF "$c" <<<"$known" || bad+="unknown column $c"$'\n'; done
 empty "5 every metrics.csv column is a known one" "$bad"
 bad="$(
-    expect 1 projects_active 1; expect 1 projects_with_next_action 1; expect 1 projects_with_done_when 1; expect 1 projects_done 0
+    expect 1 projects_active 1; expect 1 projects_blocked 0; expect 1 projects_with_done_when 1; expect 1 projects_done 0
     expect 1 median_days_to_done ""
-    expect 2 projects_active 2; expect 2 projects_with_next_action 2; expect 2 projects_with_done_when 2; expect 2 projects_done 0
-    expect 2 waiting_over_14d 0; expect 2 max_in_flight_per_person 0; expect 2 median_days_to_done ""
-    expect 3 projects_active 1; expect 3 projects_with_next_action 1; expect 3 projects_with_done_when 1; expect 3 projects_done 1
-    expect 3 waiting_over_14d 0; expect 3 max_in_flight_per_person 0; expect 3 median_days_to_done 14
+    expect 2 projects_active 2; expect 2 projects_blocked 0; expect 2 projects_with_done_when 2; expect 2 projects_done 0
+    expect 2 blocked_over_14d 0; expect 2 max_in_flight_per_person 0; expect 2 median_days_to_done ""
+    expect 3 projects_active 1; expect 3 projects_blocked 0; expect 3 projects_with_done_when 1; expect 3 projects_done 1
+    expect 3 blocked_over_14d 0; expect 3 max_in_flight_per_person 0; expect 3 median_days_to_done 14
 )"
 empty "5 F12 the project columns count the fixture history correctly, week by week" "$bad"
 
 # A second history exercises the data-model rules: a conventions file with its own locations,
-# register and a Done when alias; plain and bold labels; honest gaps; waiting lines by date; the
+# register and a Done when alias; plain and bold labels; honest gaps; a Blocked by line by date; the
 # in-flight rule from People and from the register; a project moved into a done folder with no State
 # line; and a median over two finished projects (6 and 20 days, so 13).
 G="$SCRATCH/measure-f12"
@@ -809,16 +883,16 @@ printf '# Project conventions\n\n## Where projects live\n\n- **Active:** `work/<
 printf '# Work\n\n## In flight\n\n| Project | Folder | State | Owner |\n|---|---|---|---|\n| Two | `work/two/` | doing | Sam |\n| Three | `work/three/` | doing | Lee |\n' > "$G/work/README.md"
 # gp <folder> <sections>: a project README; the sections are printf %b text after a common head.
 gp() { mkdir -p "$G/$1"; { printf '# %s\n\nWhat this is. A project written to be counted, shaped like a real one.\n\n## Desired outcome\n\nIt is finished.\n\n' "${1##*/}"; printf '%b' "$2"; } > "$G/$1/README.md"; }
-gp work/one "## Done when\n\n- [ ] it ships\n\n## Now\n\n- **State:** doing\n- **Next action:** Sam drafts the plan\n\n## People\n\n- Sam — owns\n"
-gp work/five "## Done when\n\n- [ ] it ships\n\n## Now\n\n- **State:** doing\n- **Next action:** Kim writes it\n\n## People\n\n- Kim — owns\n"
-gp work/two "## Done when\n\n- [ ] none found — decide at the next review\n\n## Now\n\n- **State:** doing\n- **Next action:** not yet named\n"
-gp work/three "## Done when\n\n- [x] it ships\n\n## Now\n\nState: doing\nNext action: Kim calls the vendor\nWaiting on: Lee — the budget — since $(days_ago 30)\n- **Waiting on:** Lee — sign-off — since $(days_ago 2)\n\n## People\n\n- **Sam** — owns — \`team/sam.md\`\n- Kim — does\n- Sam — does\n- Lee — keep told\n"
-gp work/four "## Exit criteria\n\n- [x] it ships\n\n## Status\n\nA prose paragraph, no Now block.\n"
-gp work/six "## Done when\n\n- [ ] it ships\n\n## Now\n\n- **State:** parked\n- **Next action:** Sam revisits it\n\n## People\n\n- Sam — owns\n"
+gp work/one "## Done when\n\n- [ ] it ships\n\n## Current state\n\n- **State:** doing\n\n## People\n\n- Sam — owns\n"
+gp work/five "## Done when\n\n- [ ] it ships\n\n## Current state\n\n- **State:** doing\n\n## People\n\n- Kim — owns\n"
+gp work/two "## Done when\n\n- [ ] none found yet\n\n## Current state\n\n- **State:** doing\n- **Blocked by:** not yet named\n"
+gp work/three "## Done when\n\n- [x] it ships\n\n## Current state\n\nState: doing\nBlocked by: the budget from Lee — since $(days_ago 30)\n\n## People\n\n- **Sam** — owns — \`team/sam.md\`\n- Kim — does\n- Sam — does\n- Lee — keep told\n"
+gp work/four "## Exit criteria\n\n- [x] it ships\n\n## Status\n\nA prose paragraph, no Current state block.\n"
+gp work/six "## Done when\n\n- [ ] it ships\n\n## Current state\n\n- **State:** paused\n\n## People\n\n- Sam — owns\n"
 gx_commit 30 "Six projects"
-gp work/five "## Done when\n\n- [x] it ships\n\n## Now\n\n- **State:** done\n- **Next action:** Kim writes it\n\n## People\n\n- Kim — owns\n"
+gp work/five "## Done when\n\n- [x] it ships\n\n## Current state\n\n- **State:** done\n\n## People\n\n- Kim — owns\n"
 gx_commit 24 "Five is done"
-# One moves to the done folder, and its Now block goes with the move: the folder says it is done.
+# One moves to the done folder, and its Current state block goes with the move: the folder says it is done.
 mkdir -p "$G/archive" && git -C "$G" mv work/one archive/one
 gp archive/one "## Done when\n\n- [x] it ships\n\n## People\n\n- Sam — owns\n"
 gx_commit 10 "One moves to the archive"
@@ -829,12 +903,12 @@ if [[ $grc -eq 0 && -f "$gcsv" && ! -e "$G/pilot/metrics.csv" ]]; then ok "5 F12
 else ko "5 F12 --out writes where it is told, relative to the working directory" "$gout"; fi
 gcol() { awk -F, -v name="$1" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == name) c = i; next } NR == 2 { print (c ? $c : "missing") }' "$gcsv"; }
 bad="$(
-    for pair in always_loaded_bytes=$(wc -c < "$G/CLAUDE.md" | tr -d ' ') projects_active=3 projects_with_next_action=1 \
-        projects_with_done_when=2 projects_done=2 waiting_over_14d=1 max_in_flight_per_person=2 median_days_to_done=13; do
+    for pair in always_loaded_bytes=$(wc -c < "$G/CLAUDE.md" | tr -d ' ') projects_active=3 projects_blocked=1 \
+        projects_with_done_when=2 projects_done=2 blocked_over_14d=1 max_in_flight_per_person=2 median_days_to_done=13; do
         got="$(gcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"
     done
 )"
-empty "5 F12 the data-model rules hold (locations, aliases, gaps, waiting, in flight, moved to done, median)" "$bad"
+empty "5 F12 the data-model rules hold (locations, aliases, gaps, blocked, in flight, moved to done, median)" "$bad"
 
 # An older CSV with fewer columns is rebuilt for the same dates when today's row is appended.
 printf '%s\n%s,1,1,1,1,1,1,1,1,1\n' "$base" "$(days_ago 7)" > "$gcsv"
@@ -843,8 +917,8 @@ printf '%s\n%s,1,1,1,1,1,1,1,1,1\n' "$base" "$(days_ago 7)" > "$gcsv"
     && ok "5 F12 an older CSV is recomputed in the new columns, keeping its dates" || ko "5 F12 an older CSV is recomputed in the new columns, keeping its dates" "$(cat "$gcsv")"
 
 # The reading rules the board, the hook and these columns share: a heading's name ends at a dash or
-# bracket; Done when counts checklist lines only; a waiting project with a Waiting on line has what it
-# needs; only "since" dates a waiting-on; "none" is a gap.
+# bracket; Done when counts checklist lines only; a blocked State counts as blocked without a Blocked
+# by line; only "since" dates a block; "none" is a gap.
 Hx="$SCRATCH/measure-rules"
 mkdir -p "$Hx/pilot" && git -C "$Hx" init -q && cp "$KIT/pilot/measure.sh" "$Hx/pilot/measure.sh"
 mkdir -p "$Hx/projects/a" "$Hx/projects/b" "$Hx/projects/c"
@@ -854,10 +928,10 @@ printf '# A
 
 - [ ] it ships
 
-## Now
+## Current state
 
-- **State:** waiting
-- **Waiting on:** Lee — a quote, due %s
+- **State:** blocked
+- **Blocked by:** a quote from Lee, due %s
 ' "$(days_ago 40)" > "$Hx/projects/a/README.md"
 printf '# B
 
@@ -865,10 +939,10 @@ printf '# B
 
 - it ships
 
-## Now
+## Current state
 
 - **State:** doing
-- **Next action:** none
+- **Blocked by:** none
 
 ## People *(optional)*
 
@@ -880,10 +954,9 @@ printf '# C
 
 - [x] it ships
 
-## Now
+## Current state
 
 - **State:** doing
-- **Next action:** Kim writes it
 
 ## People (optional)
 
@@ -892,9 +965,9 @@ printf '# C
 git -C "$Hx" add -A && git -C "$Hx" -c commit.gpgsign=false commit -q -m rules
 hrow="$(cd "$Hx" && bash pilot/measure.sh --print 2>/dev/null | tail -n 1)"
 hcol() { awk -F, -v name="$1" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == name) c = i; next } NR == 2 { print $c }' <<<"$(printf '%s\n%s\n' "$(head -n 1 "$CSV")" "$hrow")"; }
-bad="$(for pair in projects_active=3 projects_with_next_action=2 projects_with_done_when=2 waiting_over_14d=0 max_in_flight_per_person=2; do
+bad="$(for pair in projects_active=3 projects_blocked=1 projects_with_done_when=2 blocked_over_14d=0 max_in_flight_per_person=2; do
     got="$(hcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"; done)"
-empty "5 F12 reads READMEs by the shared rules (headings, checklists, waiting, since-only dates, gaps)" "$bad"
+empty "5 F12 reads READMEs by the shared rules (headings, checklists, blocked, since-only dates, gaps)" "$bad"
 # A repository with nothing committed has no history to read: a note, and no file.
 Hn="$SCRATCH/measure-empty"
 mkdir -p "$Hn/pilot" && git -C "$Hn" init -q && cp "$KIT/pilot/measure.sh" "$Hn/pilot/measure.sh"
@@ -986,15 +1059,35 @@ attrib="co-authored""-by:|claude""-session:|^[^[:alnum:]]*generated"" with "
 hits="$(cd "$KIT" && grep -rnIiE "$attrib" --exclude-dir=.git . || true)"
 empty "7 no attribution lines in any kit file" "$hits"
 
-if [[ "${AW_SKIP_HISTORY:-}" == "1" ]]; then
-    skp "7 attribution in git history NOT CHECKED — AW_SKIP_HISTORY=1 is set; unset it once the history rewrite has landed"
-elif ! git -C "$KIT" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+# One commit is exempt by its full hash: Robert decided on 2026-09-29 not to rewrite history for it (v1.2).
+history_exempt="d0a56ae2d7163d310008b47302258ec8ca46a56d"
+# histscan <repo> <exempt full hash>: "<hash> <subject>: <line>" for each attribution line in a commit
+# message reachable from HEAD, other than the exempt commit's.
+# Each message is read on its own, so nothing a message says can pass for the start of another commit.
+histscan() {
+    local h
+    git -C "$1" rev-list HEAD | while IFS= read -r h; do
+        [[ "$h" == "$2" ]] && continue
+        git -C "$1" log -1 --format=%B "$h" | awk -v pat="$attrib" -v c="$h $(git -C "$1" log -1 --format=%s "$h")" \
+            'tolower($0) ~ pat { print c ": " $0 }'
+    done
+}
+# The probe: two commits with trailers, one exempted; the other is still reported.
+AH="$SCRATCH/attrib-history"
+mkdir -p "$AH" && git -C "$AH" init -q
+git -C "$AH" -c commit.gpgsign=false commit -q --allow-empty -m "first" -m "Co-Authored""-By: a tool <t@example.test>"
+ah_first="$(git -C "$AH" rev-parse HEAD)"
+git -C "$AH" -c commit.gpgsign=false commit -q --allow-empty -m "second" -m "Claude""-Session: https://example.test/s"
+ah_second="$(git -C "$AH" rev-parse HEAD)"
+r="$(histscan "$AH" "$ah_first")"
+[[ "$(grep -c . <<<"$r")" == 1 ]] && grep -q "^$ah_second second: " <<<"$r" \
+    && ok "7 the history scan exempts one commit by full hash and still reports a trailer in any other" \
+    || ko "7 the history scan exempts one commit by full hash and still reports a trailer in any other" "$r"
+if ! git -C "$KIT" rev-parse --verify -q HEAD >/dev/null 2>&1; then
     skp "7 attribution in git history not checked — the kit is not a git checkout"
 else
-    hits="$(git -C "$KIT" log HEAD --format='@@commit %h %s%n%B' | awk -v pat="$attrib" '
-        /^@@commit / { c = substr($0, 10); next }
-        tolower($0) ~ pat { print c ": " $0 }')"
-    empty "7 no attribution lines in any commit message reachable from HEAD" "$hits"
+    empty "7 no attribution lines in any commit message reachable from HEAD, bar the one exempt commit" \
+        "$(histscan "$KIT" "$history_exempt")"
 fi
 
 # ---------------------------------------------------------------------------------------------------
@@ -1031,15 +1124,15 @@ printf 'Fine.\n<!-- register-audit: ignore-start -->\nQuoted: MUST.\n<!-- regist
 
 # ---------------------------------------------------------------------------------------------------
 echo
-echo "9 · The twelve commands, on Claude Code and as skills, from one source each"
+echo "9 · The nine commands, on Claude Code and as skills, from one source each"
 
-# The command set is fixed by the spec's architecture table; a thirteenth, or a missing one, fails here
+# The command set is fixed by the spec's architecture table; a tenth, or a missing one, fails here
 # so the plugins, the skills and this list move together.
-twelve="closeout/closeout projects/adopt projects/board projects/capture projects/close projects/mine
-projects/new projects/pickup projects/review workspace/hygiene workspace/quick-start workspace/register-audit"
+commands="closeout/closeout projects/adopt projects/board projects/close projects/new projects/pickup
+workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && ls */commands/*.md | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$twelve" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the twelve commands" \
-    || ko "9 the kit has exactly the twelve commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the nine commands" \
+    || ko "9 the kit has exactly the nine commands" "has: $have"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }
@@ -1072,7 +1165,7 @@ assert n < 30, f"{n} lines"
 PYSKILL
 }
 bad=""
-for pc in $twelve; do
+for pc in $commands; do
     p="${pc%/*}" c="${pc#*/}"
     src="$KIT/plugins/$p/commands/$c.md" sk="$S1/$(skill_of "$pc")"
     cmp -s "$src" "$T1/.claude/plugins/$p/commands/$c.md" || bad+="$pc: not vendored for Claude Code as it stands in the kit"$'\n'
@@ -1084,7 +1177,7 @@ for pc in $twelve; do
     cmp -s "$SCRATCH/body.md" "$sk/procedure.md" || bad+="$pc: procedure.md is not the command's body"$'\n'
 done
 extra="$(cd "$S1" && ls -A | sort | paste -sd' ' -)"
-[[ "$extra" == "$(for pc in $twelve; do skill_of "$pc"; done | sort | paste -sd' ' -)" ]] || bad+="skills folder holds: $extra"$'\n'
+[[ "$extra" == "$(for pc in $commands; do skill_of "$pc"; done | sort | paste -sd' ' -)" ]] || bad+="skills folder holds: $extra"$'\n'
 empty "9 every command is vendored for Claude Code and has one valid skill under 30 lines, pointing at it" "$bad"
 
 # Where a skill points depends on where the kit sits. Inside the repository (a submodule), the skill
