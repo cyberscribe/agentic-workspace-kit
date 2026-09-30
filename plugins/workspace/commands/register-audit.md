@@ -13,18 +13,23 @@ the narrowest layer that will hold. A month with no genuine findings is a fine
 result, reported plainly; a detector tuned until it can find nothing is not.
 
 The rule, the severity table, the three suppression layers and the lessons from
-running this are in `docs/documentation-register.md`. Read it first and follow
-it; this prompt adds only what it takes to run that scan here — which files,
-how each severity is matched, where the report goes, and when to ask. Where the
-two differ, that file wins. If the repository has no copy, use the place where
-it states its own register — a section of the always-loaded file, often — and
-say which; if it states none, say so and stop, since the scan needs the rule it
-is checking against.
+running this are in `kit/docs/documentation-register.md`, read where it is in
+the kit (`docs/documentation-register.md` in a workspace that keeps its own
+copy, which then wins). Read it first and follow it; this prompt adds only what
+it takes to run that scan here — which files, how each severity is matched,
+where the report goes, and when to ask. Where the two differ, that file wins. If
+neither exists, use the place where the repository states its own register — a
+section of the always-loaded file, often — and say which; if it states none,
+say so and stop, since the scan needs the rule it is checking against.
 
 ## Conventions come first
 
-- `docs/documentation-register.md` — the rule, and its **Suppressions here**
-  list: directories left out and exempt phrases.
+- The register file — the rule, and its **Suppressions here** list:
+  directories left out and exempt phrases. The kit's list covers every
+  workspace. A workspace's own suppressions go in a `## Suppressions here`
+  section of its own `docs/documentation-register.md`, read after the kit's and
+  added to it; that file can hold only that section, since `kit/` is the kit's
+  and is not edited here.
 - `.claude/projects.md` — where active and paused projects live and each
   project's entry-point file, since project manifests are in scope.
 - The always-loaded file, and `docs/workspace-map.md` for the layout.
@@ -50,13 +55,24 @@ skill, it is what they asked for).
 The file's "Where it applies" section names the kinds of prose in scope. In a
 repository laid out like the kit, that is:
 
-- the always-loaded files at the root (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`);
+- the always-loaded files at the root (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`);
 - each project's manifest and entry point, and its `decisions.md`, in the
   active and paused locations, and the register;
-- `memory/`, `logs/`, `templates/`, `rituals/` and `docs/`;
-- the extension points `.claude/closeout.md` and `.claude/projects.md`;
+- `memory/`, `logs/` and `docs/`, and `templates/` and `rituals/` where the
+  workspace keeps its own;
+- the extension points `.claude/closeout.md`, `.claude/projects.md` and
+  `.claude/workspace.md`;
 - skills, commands and agent definitions the team wrote — `skills/`,
-  `.claude/skills/`, `.claude/commands/`, `.claude/agents/`, and any role files.
+  `.claude/commands/`, `.claude/agents/`, and any role files — and
+  `.claude/skills/` where it is not the skills bridge's output. Where
+  `.claude/skills/.kit-generated` exists, the folders it lists are generated
+  from `kit/` and from `skills/`, so they are read at their sources and left
+  out here.
+
+`kit/` is left out: the kit's own guidance, `kit/CLAUDE.kit.md` included, is
+audited in the kit's repository, and a finding there goes upstream. The
+imported `kit/CLAUDE.kit.md` still loads in every session, so name it in the
+report as read by the kit's own audit rather than this one.
 
 Markdown only. Leave out the directories on the **Suppressions here** list and
 any file carrying the `ignore-file` marker, and name in the report what was left
@@ -140,9 +156,9 @@ the message, and writing it is their check that they understand what changed.
   reads calmly is out of scope; a tidy one that threatens is a finding.
 - **Human-facing prose is not in scope.** Drafts, deliverables, research notes
   and reports are material an agent reads, not instructions addressed to it.
-- **Findings in vendored files go upstream.** A plugin or kit copy vendored
-  into the repository is changed where it comes from; note it, and leave the
-  copy alone.
+- **Findings in the kit go upstream.** `kit/` is changed by pull request to
+  the kit, and so is a kit copy vendored by an older install
+  (`.claude/plugins/`); note the finding, and leave the file alone.
 - **A skipped file is not a clean one.** Anything that could not be read is
   named in the report as not scanned.
 - **Placement is a different pass.** Where files live is `/workspace:hygiene`;

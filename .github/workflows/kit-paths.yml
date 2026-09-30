@@ -1,0 +1,32 @@
+name: kit paths
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  paths:
+    runs-on: ubuntu-latest
+    env:
+      BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+      HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Take the checker from the base commit
+        run: |
+          mkdir -p "$RUNNER_TEMP/base"
+          if git cat-file -e "$BASE:scripts/check-paths.sh" 2>/dev/null; then
+            git archive "$BASE" scripts lib | tar -x -C "$RUNNER_TEMP/base"
+          else
+            echo "::warning::The base commit has no checker; using this commit's."
+            git archive HEAD scripts lib | tar -x -C "$RUNNER_TEMP/base"
+          fi
+      - name: Every path in the kit is on the allow-list
+        run: bash "$RUNNER_TEMP/base/scripts/check-paths.sh" --root "$GITHUB_WORKSPACE" --content --all
+      - name: Every commit in this change passes, one at a time
+        run: |
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then exit 0; fi
+          bash "$RUNNER_TEMP/base/scripts/check-paths.sh" --root "$GITHUB_WORKSPACE" --content --commits "$BASE..$HEAD_SHA"

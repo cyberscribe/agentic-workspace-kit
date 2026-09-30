@@ -3,6 +3,11 @@
 #
 #   file  has_block  state  outcome  done_found  done_total  done_ticked  owner
 #   proposed  title  people_found  blocked_by  blocked_since  updated  old_format
+#   versioned  sensitivity  resources  resources_generated  resources_ignored
+#
+# Fields 16-20 were added in kit 3.0, after the first fifteen, so a reader takes
+# fields by position (awk -F '\037' '{ print $17 }') or ends a read with a spare
+# variable; a reader of the first fifteen keeps working.
 #
 # The parser contract the projects commands and pilot/measure.sh share (see "How
 # the files are read" in the plugin README):
@@ -25,6 +30,18 @@
 # - Done when counts checklist lines only ("- [ ]", "- [x]").
 # - A block inserted by /projects:adopt --draft carries a "proposed by
 #   /projects:adopt" comment; its presence sets proposed=1.
+# - versioned is the first "Versioned:" label outside fences and HTML comments,
+#   bold or plain: its first word, lowercased, kept only when it is workspace,
+#   own-repo or untracked. sensitivity is the same for "Sensitivity:" with normal
+#   and sensitive. Anything else, a stand-in included, is empty; an empty
+#   sensitivity reads as normal.
+# - resources are the list items under a heading named "resources": the name is
+#   the item's text before the first " — ", " – ", " - " or ":", without
+#   backticks, kept when it is letters, digits, dot, dash and underscore (starting
+#   with a letter or digit). resources_generated are those whose description says
+#   "generated", in any case. resources_ignored are the item names that did not fit
+#   the pattern, so a reader can name them. Stand-ins ("<name>") are skipped. Each
+#   list is comma-joined.
 #
 # Portable across BSD awk and gawk: no gensub, no IGNORECASE, no arrays of arrays.
 
@@ -32,9 +49,10 @@ function flush(   st, bb, up) {
     if (file == "") return
     if (block_section) { st = blk_state; bb = blk_blocked; up = blk_updated }
     else { st = any_state; bb = any_blocked; up = any_updated }
-    printf "%s\037%d\037%s\037%s\037%d\037%d\037%d\037%s\037%d\037%s\037%d\037%s\037%s\037%s\037%d\n", \
+    printf "%s\037%d\037%s\037%s\037%d\037%d\037%d\037%s\037%d\037%s\037%d\037%s\037%s\037%s\037%d\037%s\037%s\037%s\037%s\037%s\n", \
         file, (block_section || any_state != ""), st, outcome, done_found, done_total, done_ticked, \
-        owner, proposed, title, people_found, bb, since_date(bb), up, old_format
+        owner, proposed, title, people_found, bb, since_date(bb), up, old_format, \
+        versioned, sensitivity, res_names, res_generated, res_ignored
 }
 
 function reset() {
@@ -44,9 +62,41 @@ function reset() {
     proposed = 0; title = ""; section = ""; fence = 0
     people_found = 0; old_format = 0
     cont_blk = 0; cont_any = 0; outcome_done = 0
+    versioned = ""; sensitivity = ""; versioned_seen = 0; sensitivity_seen = 0
+    res_names = ""; res_generated = ""; res_ignored = ""; in_cmt = 0; vis = ""
 }
 
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+
+# The line with any HTML comment removed, carrying an open comment across lines
+# in in_cmt. Used by fields 16-20, which ignore anything inside a comment.
+function visible(line,   out, p) {
+    out = ""
+    while (line != "") {
+        if (in_cmt) {
+            p = index(line, "-->"); if (!p) return out
+            line = substr(line, p + 3); in_cmt = 0
+        } else {
+            p = index(line, "<!--"); if (!p) return out line
+            out = out substr(line, 1, p - 1); line = substr(line, p + 4); in_cmt = 1
+        }
+    }
+    return out
+}
+
+# The first word of a label's value, markup stripped and lowercased; "" when the
+# value is not one of the allowed words (a space-separated list).
+function first_word(v, allowed,   w, n, a, i) {
+    gsub(/\*|`|_/, "", v)
+    v = trim(v)
+    split(v, w, /[ \t,;.(]/)
+    v = tolower(w[1])
+    n = split(allowed, a, " ")
+    for (i = 1; i <= n; i++) if (v == a[i]) return v
+    return ""
+}
+
+function add_to(list, item) { return list == "" ? item : list "," item }
 
 function since_date(s,   low) {
     low = tolower(s)
@@ -103,6 +153,36 @@ FNR == 1 { flush(); reset(); file = FILENAME }
 /^[ \t]*```/ { fence = !fence; next }
 fence { next }
 
+# Fields 16-20 read the visible text only; this rule consumes nothing.
+{ vis = visible($0) }
+
+!versioned_seen && vis != "" {
+    v = label_value(vis, "versioned")
+    if (v != "\001") { versioned_seen = 1; versioned = first_word(v, "workspace own-repo untracked") }
+}
+!sensitivity_seen && vis != "" {
+    v = label_value(vis, "sensitivity")
+    if (v != "\001") { sensitivity_seen = 1; sensitivity = first_word(v, "normal sensitive") }
+}
+section == "resources" && vis ~ /^[ \t]*[-*][ \t]+/ {
+    item = vis; sub(/^[ \t]*[-*][ \t]+/, "", item); gsub(/`/, "", item)
+    rname = item; rdesc = ""
+    n = 0
+    split(" — | – | - |:", seps, "|")
+    for (i = 1; i <= 4; i++) {
+        p = index(item, seps[i])
+        if (p && (n == 0 || p < n)) { n = p; nl = length(seps[i]) }
+    }
+    if (n) { rname = substr(item, 1, n - 1); rdesc = substr(item, n + nl) }
+    rname = trim(rname)
+    if (rname != "" && index(rname, "<") != 1) {
+        if (rname ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/) {
+            res_names = add_to(res_names, rname)
+            if (tolower(rdesc) ~ /generated/) res_generated = add_to(res_generated, rname)
+        } else res_ignored = add_to(res_ignored, rname)
+    }
+}
+
 /proposed by \/projects:adopt/ { proposed = 1 }
 
 # A hard-wrapped Blocked by carries on in indented lines that are not new items.
@@ -133,6 +213,7 @@ fence { next }
     else if (is_named(name, "done when", alias_done)) { section = "done"; done_found = 1 }
     else if (is_named(name, "desired outcome", alias_outcome)) section = "outcome"
     else if (is_named(name, "people", alias_people)) { section = "people"; people_found = 1 }
+    else if (name == "resources") section = "resources"
     else section = ""
     next
 }

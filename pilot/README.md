@@ -1,7 +1,11 @@
 # Pilot protocol
 
-*How to run this repository as a time-boxed pilot of shared standards and documentation — across the
+*How to run a workspace as a time-boxed pilot of shared standards and documentation — across the
 team, and with the team's agents — so that at the end there is something countable to say about it.*
+
+> This page and the two scripts beside it are the kit's, read and run in place from `kit/pilot/` in a
+> workspace built on the kit. What the pilot produces — `pilot/build-list.md`, `pilot/metrics.csv`,
+> `pilot/ablations/` and their results — lives in the workspace's own `pilot/` folder.
 
 ---
 
@@ -19,34 +23,40 @@ not re-deriving the same decision twice.
 
 | Role | Who | What it involves |
 |---|---|---|
-| **Standards owner** | __OWNER__ | Reviews pull requests that touch `AGENTS.md` or `docs/memory-layers.md`. Holds the always-loaded budget. |
-| **Ritual keeper** | <name; can rotate monthly> | Runs the weekly hygiene pass and `pilot/measure.sh`, commits both outputs. |
-| **Everyone** | The whole team | Runs `/closeout` at the end of working sessions; owns their row(s) in `build-list.md` and their own `memory/people/` profile. |
+| **Standards owner** | The person `CLAUDE.md` §1 names | Reviews pull requests that touch `CLAUDE.md`. Holds the always-loaded budget; the kit's share of it, `kit/CLAUDE.kit.md`, changes by pull request to the kit. |
+| **Ritual keeper** | <name; can rotate monthly> | Runs the weekly hygiene pass and `bash kit/pilot/measure.sh`, commits both outputs. |
+| **Everyone** | The whole team | Runs `/closeout` at the end of working sessions; owns their row(s) in `pilot/build-list.md` and their own `memory/people/` profile. |
 | **External reviewer** | <optional> | One critique pass at week 4–6: reads what exists, comments, builds nothing. |
 
 ## Timeline
 
 | When | What happens | What it leaves behind |
 |---|---|---|
-| **Week 0** — 90 minutes together | Install (below). Fill §1 of `AGENTS.md`. Transfer the team's own list of what to build into `build-list.md`, one owner and one date per row. Each person drafts their profile. Run one `/closeout` together on a real session. | `AGENTS.md` §1, `build-list.md`, first profiles, first closeout, first `metrics.csv` row |
+| **Week 0** — 90 minutes together | Install (below). Fill §1 of `CLAUDE.md`. Transfer the team's own list of what to build into `pilot/build-list.md`, one owner and one date per row. Each person drafts their profile. Run one `/closeout` together on a real session. | `CLAUDE.md` §1, `pilot/build-list.md`, first profiles, first closeout, first `pilot/metrics.csv` row |
 | **Weeks 1–8** | Normal work. `/closeout` at the end of sessions. Documentation changes by pull request; always-loaded changes reviewed by the standards owner. | Commits, decision entries, promoted drafts |
-| **Weekly** — 15 minutes | Ritual keeper: `rituals/weekly-hygiene.md`, then `pilot/measure.sh`. Commit the report into `audits/` and the updated `metrics.csv`. | A dated trail |
-| **Week 4–6** | External review pass, if there is one. Update `build-list.md` statuses honestly. | Review notes |
+| **Weekly** — 15 minutes | Ritual keeper: `/workspace:hygiene` (the ritual is `kit/rituals/weekly-hygiene.md`), which runs `bash kit/pilot/measure.sh`. Commit the report into `audits/` and the updated `pilot/metrics.csv`. | A dated trail |
+| **Week 4–6** | External review pass, if there is one. Update `pilot/build-list.md` statuses honestly. | Review notes |
 | **Week 8** | Final `measure.sh`. Readout: the numbers below, plus the team's own account of what changed. | The case study |
 
 ## Install
 
-From a checkout of the kit, into this repository:
+A new workspace for the pilot, from a checkout of the kit:
 
 ```bash
-./install.sh --target <path-to-this-repo> --team "<team name>" --owner "<owner name>" --owner-handle "@<handle>" --pilot
+kit/setup.sh new <folder> --team "<team name>" --owner "<owner name>" --owner-handle "@<handle>" --pilot
 ```
 
-Then, per person, once:
+In a workspace that already carries the kit at `kit/`, from its root:
 
-- **Claude Code**: open the repository, accept the folder trust prompt, and approve the closeout
-  plugin's hooks when asked. Without that approval the hooks never run and only `/closeout` works.
-  Needs `jq` on the machine.
+```bash
+kit/setup.sh --pilot
+```
+
+`--pilot` adds `pilot/build-list.md` to the workspace; the scripts stay in the kit and run from
+`kit/pilot/`. Then, per person, once:
+
+- **Claude Code**: open the workspace, accept the folder trust prompt, and approve the kit's plugins
+  when asked (`kit/setup.sh` names this step). Needs `jq` on the machine.
 
 ## What gets measured
 
@@ -61,7 +71,7 @@ anyone with read access. `metrics.csv` contains counts only.
 | `decisions_logged` | Entries in the decisions logs | Whether reasoning is being kept, not just outcomes |
 | `people_profiles` | Files in `memory/people/` | The "who to go to" directory |
 | `audit_reports` | Markdown reports in `audits/` — hygiene and register audit — not its README or a metrics CSV kept there | Whether the weekly ritual is being run — a ritual with no artefacts is a plan |
-| `always_loaded_bytes` | Size of `AGENTS.md` + `CLAUDE.md` | Should stay roughly flat. Steady growth means the budget rule is not holding. |
+| `always_loaded_bytes` | Size of `CLAUDE.md`, `AGENTS.md` and `kit/CLAUDE.kit.md`, with every file they import by an `@path` line, each counted once | Should stay roughly flat. Steady growth means the budget rule is not holding. A file inside the kit is read at the commit the workspace records for `kit/`, so a kit update shows in the week its pointer was committed. |
 | `projects_active` | Projects not yet done or paused | The denominator for the project columns below it. |
 | `projects_blocked` | Active projects whose `State:` reads `blocked`, or that carry a `Blocked by:` line | How much of the work in flight cannot move until something outside it changes. |
 | `projects_with_done_when` | Active projects with a Done when checklist | Whether the tracking is kept, not just started. A project without a finish line has no way to end. |
@@ -81,21 +91,27 @@ README: an honest gap such as `none found …` or `not yet named` counts as miss
 only by the `since` on its `Blocked by:` line, and people are counted in flight by the rule under Pace
 in that file.
 
-Three options fit the script to a repository laid out differently from a kit install:
-`--target <dir>` measures that repository rather than the one the command is run in, so the kit
-checkout's copy can serve a repository that has none; `--out <path>` writes the CSV somewhere other
-than `pilot/metrics.csv` (with `--backfill` or the daily row), relative to where the command was
-typed; and `MEASURE_ALWAYS_LOADED="CLAUDE.md"` names the files the team's agents actually load at
-every session, where that is not `AGENTS.md` plus `CLAUDE.md`. A CSV written by an earlier version
-with fewer columns is recomputed for the same dates the next time a row is added.
+Run from the workspace root, `bash kit/pilot/measure.sh` measures the workspace. Three options fit it
+to a repository laid out differently: `--target <dir>` measures that repository rather than the one
+the command is run in; `--out <path>` writes the CSV somewhere other than `pilot/metrics.csv` (with
+`--backfill` or the daily row), relative to where the command was typed; and
+`MEASURE_ALWAYS_LOADED="CLAUDE.md"` names the files the team's agents actually load at every session,
+where that is not the default set. Imports are followed from whatever the list names. A CSV written by
+an earlier version with fewer columns is recomputed for the same dates the next time a row is added.
+
+Moving a 2.x install to the 3.0 layout changes two columns once. `always_loaded_bytes` counts the
+kit's working standards through the import in `CLAUDE.md` rather than a copy in `AGENTS.md`, and
+`doc_files` stops counting the copies of the kit's templates, rituals and docs the migration retires,
+since those are read from `kit/` now. Rows before the migration keep their old values; read the step
+between them as the layout change, not as the team's doing.
 
 ## Context ablations
 
 `ablate.sh` tests whether one line of the always-loaded or reference context changes what the
 agent does on the task it was promoted for. It stays in the kit's own `pilot/` and is not copied into
-a team's repository: run the kit checkout's copy with `--target` pointing here,
-`<kit checkout>/pilot/ablate.sh --target <this repository>`, so every team runs the one current
-version. The ablations and their results live in the target: each ablation in
+a workspace: from the workspace root, `bash kit/pilot/ablate.sh` tests the workspace around that kit
+checkout, and `--target <repository>` names another, so every team runs the one current version. A
+kit checkout is not a target: its files reach a session only through a workspace. The ablations and their results live in the target: each ablation in
 `<target>/pilot/ablations/<id>.md` names the line, a realistic prompt and a Check; the runner runs the
 prompt headless in a fresh worktree of HEAD with the line (`with`) and without it (`without`), grades
 each run, and appends a row per run to `<target>/pilot/ablation-results.csv`, with
@@ -146,7 +162,7 @@ and its rotating backups under `~/.claude/backups`, and nothing else. With the t
 the run's temporary config directory and `HOME`.
 
 `--bare` adds a third arm with every always-loaded file emptied (`MEASURE_ALWAYS_LOADED`, default
-`AGENTS.md CLAUDE.md`): the whole tier off. With the token it empties the copy's user-level file too
+`CLAUDE.md AGENTS.md kit/CLAUDE.kit.md`): the whole tier off. With the token it empties the copy's user-level file too
 and is recorded as `bare`; without it, it is recorded as `bare-repo` and reported as "repository tier
 emptied; user-level tier present".
 
@@ -187,8 +203,9 @@ API-equivalent cost stated first, and the person decides; `measure.sh` then runs
 The three `ablations_` columns come from `ablate.sh --outcomes`, the same rule the report's flags use,
 so the two never disagree. A past row reads the ablation files and results as committed at that
 revision, so backfill works; today's row reads them from the working tree, since the results are
-committed with it. Without the runner (no `ablate.sh` beside `measure.sh` and no kit checkout named in
-`.claude/plugins/VENDORED`), `ablations_named` is still counted and the other two are left empty.
+committed with it. Without the runner (no `ablate.sh` beside `measure.sh`, none at `kit/pilot/`, and,
+for a 2.x install, no kit checkout named in `.claude/plugins/VENDORED`), `ablations_named` is still
+counted and the other two are left empty.
 
 If the team already runs a before/after pulse survey, keep it alongside these. The survey measures how
 it feels; these measure what exists. A case study is stronger with both, and honest about which is

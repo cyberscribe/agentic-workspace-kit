@@ -1,9 +1,20 @@
 # <Project name>
 
+- **Versioned:** <workspace · own-repo · untracked>
+- **Sensitivity:** <normal · sensitive>
+
 *Copy to `projects/<slug>/README.md` and add a row to `projects/INDEX.md`, or run `/projects:new` to be
 interviewed for it; `/projects:adopt` adds the tracking sections to a project that already has a
 README. Sections marked optional are deleted when they would be empty, rather than left as
 placeholders. Delete this block.*
+
+*The two lines under the title say how the project is kept in git and whether anything in it is
+sensitive. **Versioned:** is `workspace` (tracked by the workspace repository), `own-repo` (its own
+repository, added to the workspace as a submodule) or `untracked` (listed in the workspace's
+`.gitignore`; the README is still read on this machine). **Sensitivity:** is `normal` or `sensitive`;
+a sensitive project is `untracked` or its own private repository, never tracked by the workspace. They
+sit outside the Current state block, which is tracking. `/projects:adopt` changes how a project is
+versioned.*
 
 *This file is the project's entry point. An agent picking the project up reads it top to bottom, then
 opens only what the task touches — so it carries orientation and pointers rather than content.*
@@ -100,6 +111,18 @@ Where two files could both look authoritative, say plainly which one wins.
 
 Marking which files are canonical and which are derived is the single most useful thing in a project
 folder. A companion treated as authoritative is the failure this prevents.
+
+## Resources *(optional)*
+
+Material this project uses that is not in the repository, by name. Each machine maps the names to real
+paths in `.claude/resources.local.md`; no machine path goes here.
+
+- <name> — <what it is>
+
+A name is letters, digits, dot, dash and underscore. `kit/setup.sh link <slug>` links each mapped name
+at `projects/<slug>/.resources/<name>` and grants the folder to Claude Code. A resource whose
+description says it is generated (build output, renders) and that no machine maps lives inside the
+project at `projects/<slug>/<name>/`, kept out of git by the project's own `.gitignore`.
 
 ## Working conventions
 

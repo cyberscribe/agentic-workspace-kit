@@ -2,8 +2,9 @@
 
 *Which store a durable fact belongs in, when it loads back, and which store wins when two disagree.*
 
-> Skeleton. §3 is the part that is genuinely yours — fill in the stores you actually have. The rest
-> transfers as written.
+> The kit's taxonomy, read in place at `kit/docs/memory-layers.md` and updated with the kit. §3 is
+> pre-filled for the workspace layout the kit sets up; a workspace that keeps other stores names them in
+> its own `.claude/closeout.md`.
 
 ---
 
@@ -39,16 +40,22 @@ content-first one absorbs the new tool as another column.
 
 ## 3. Where each type lives
 
-> Fill this in for your setup. The columns are the two axes; the rows are the four types. Every store
-> you use appears in exactly one cell per row, and anything else points at it.
+> Pre-filled for a team working in Claude Code (and, where a team uses them, Cowork or Gemini CLI) from
+> one private workspace repository with the kit at `kit/`. Every store appears in exactly one cell per
+> row. Files under `kit/` are the kit's, read in place and changed by pull request to the kit; a team
+> that wants its own copy of a kit template makes one and points `.claude/projects.md` at it.
 
-| Type | Shared — committed, reaches others | Individual — one machine or one surface |
+| Type | Shared — committed, reaches the team | Individual — one person, one machine |
 |---|---|---|
-| Working standards | `<always-loaded manifest>`, `memory/context/<name>-profile.md` | `<user-level config>`, `<cross-surface preference store>` |
-| General reference | `memory/`, `docs/` — including the catalogue of reusable work (`docs/catalogue.md`) and what counts as checked (`docs/verification.md`) — `<tool notes>` | `<per-surface memory>` |
-| Project reference | `projects/<slug>/` — canonical — and the project's own `decisions.md` | `<per-surface memory>`, holding a **pointer** to the project folder |
-| Templates | `templates/`, `skills/`, `<agent role definitions>` | `<user-level agents or commands>` |
-| *Tracking (other axis)* | Each project README's **Current state** block, `projects/INDEX.md` | None; the kit keeps tracking shared |
+| Working standards | `CLAUDE.md`, whose first line imports `kit/CLAUDE.kit.md` (the kit's standards, updated with the kit); `AGENTS.md` routes other tools to the same two files | `~/.claude/CLAUDE.md`, and each other surface's own file |
+| General reference | `docs/` (including `docs/workspace-map.md`, and `docs/catalogue.md` and `docs/verification.md` once the team keeps them), `memory/glossary.md`, `memory/people/`, `memory/context/`; the kit's own reference in `kit/docs/` | Claude Code auto-memory under `~/.claude/projects/`, holding a **pointer** at most |
+| Project reference | `projects/<slug>/` — canonical, whether the workspace tracks it, it is its own repository, or it stays untracked (its README's `Versioned:` line) — and the project's own `decisions.md`; material outside the repository is named under the README's `## Resources` | Per-surface memory, holding a **pointer** to the project folder; `.claude/resources.local.md`, which maps resource names to this machine's paths |
+| Templates | `kit/templates/` and `kit/rituals/` (the kit's), `skills/` (the team's own), `.claude/agents/`, `.claude/commands/` (and `.gemini/commands/` where Gemini CLI is set up) | `~/.claude/agents/`, `~/.claude/commands/`, and `.claude/skills/`, the skills bridge written on each machine for Cowork |
+| *Tracking (other axis)* | Each project README's **Current state** block, `projects/INDEX.md`, `pilot/build-list.md` | None; the kit keeps tracking shared |
+
+Closeout drafts written by the plugin's end-of-session hook live in `~/.claude/closeout-drafts/` —
+individual by design. They reach the team only when someone promotes them, by pull request, into a
+shared cell above.
 
 Two rules make the table usable:
 

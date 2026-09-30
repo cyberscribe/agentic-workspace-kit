@@ -1,7 +1,7 @@
 # workspace — set up a shared agentic workspace, and keep it that way
 
 A Claude Code plugin for the workspace itself rather than any one project. Three
-commands:
+commands, two hooks and a state check:
 
 | Command | What it is for |
 |---|---|
@@ -82,41 +82,94 @@ either command for the scan alone, as a scheduled run would. If your repository
 already runs its own hygiene or register scanner, the command runs that instead
 of adding a second pass.
 
+## The session-start summary
+
+When a session starts in a workspace, a hook says what is out of step there, one
+line each, with the command that fixes it — and nothing when all is in step:
+
+```
+Workspace: git hooks are not active — kit/setup.sh hooks turns them on.
+Workspace: site: 2 commits not pushed; kit: pointer changed, not committed.
+Workspace: 2 resources not reachable on this machine (field-study/media, field-study/survey-data) — kit/setup.sh link.
+Workspace: origin is not confirmed private — kit/setup.sh records it once confirmed.
+```
+
+It covers the git hooks, the `@kit/CLAUDE.kit.md` import in `CLAUDE.md`, the kit
+off `main` in developer mode, submodules out of step (the kit and projects that
+are their own repository; other submodules are left alone), gitlinks with no
+`.gitmodules` entry, resources absent on this machine, sensitive projects with
+files the workspace tracks, an origin not confirmed private, and the kit behind
+its remote. It finds the workspace from the session's folder, so a session opened
+inside `kit/` or inside a project that is its own repository reports on the
+workspace around it, and one opened anywhere else reports nothing.
+
+It reads `bin/state.sh --quick`, which makes no network call, takes no lock and
+never lists a resource folder (listing a cloud-drive folder can stall). It needs
+jq, and it is silent on any failure. `WORKSPACE_HOOK_DISABLED=1` turns it off, and
+a headless run (`AW_HEADLESS_RUN=1`) or closeout's capture child
+(`CLOSEOUT_HOOK_CHILD`) gets nothing.
+
+## The git guard
+
+A second hook, before each shell command an agent runs, declines the ways of
+getting past the workspace's git hooks: `--no-verify`, `commit -n`, and setting
+`core.hooksPath` for one command or for good. The hooks decide what reaches a
+remote; a refusal is reported to the person with the hook's reason, and the
+person decides. It is silent on every other command, and
+`AW_GIT_GUARD_DISABLED=1` in the session's environment turns it off.
+
 ## The state check
 
 `bin/state.sh` reads a repository and reports where it stands against the kit, one
-`key=value` per line: the always-loaded file and the stand-ins left in it, the
-person's profile, the project conventions, the register, the decisions log, the
-team's own skills, the plugins registered, and a closing `mode=` line (`fresh`,
-`joining`, `existing-system` or `nothing-left`). It is written for the
-quick-start and the setup wizard to branch on, and the tests assert against it.
-Run it in the repository, or name another folder; `--json` gives the same facts
-as one object:
+`key=value` per line. For the workspace: the git hooks, where the kit is and how
+far it is from its remote, the import in `CLAUDE.md`, the origin and whether it is
+recorded as confirmed private, each submodule's state (`submodule.<path>`),
+gitlinks with no `.gitmodules` entry, sensitive projects and any the workspace
+tracks, projects whose `Versioned:` line disagrees with the folder, each resource
+(`resource.<slug>/<name>`), the skills bridge, and traces of a 2.x layout. For the
+people in it: the always-loaded file and the stand-ins left in it, the person's
+profile, the project conventions, the register, the decisions log, the team's own
+skills, the plugins registered, and a closing `mode=` line (`fresh`, `joining`,
+`existing-system` or `nothing-left`). It is written for the quick-start, the
+setup wizard, the session-start summary and the board to branch on, and the tests
+assert against it. Run it from the workspace, or name another folder:
 
 ```
-bash .claude/plugins/workspace/bin/state.sh
-bash .claude/plugins/workspace/bin/state.sh ../other-repo --json
+bash kit/plugins/workspace/bin/state.sh
+bash kit/plugins/workspace/bin/state.sh --quick
+bash kit/plugins/workspace/bin/state.sh ../other-repo --json
+bash kit/plugins/workspace/bin/state.sh --explain submodule.kit
 ```
+
+`--quick` gives only the keys the session-start summary reads, at a cost that
+does not grow with the number of projects. `--json` gives the same facts as one
+object. `--explain` says what each key means, or one key, from the comments beside
+the lines that work it out.
 
 It writes nothing and makes no network call. It reads git only with
 `--no-optional-locks`, so it leaves no `index.lock` behind, even run from a
-desktop assistant's shell on a repository a session has open. It needs bash 3.2
-and git; jq reads the settings file and gives `--json`.
+desktop assistant's shell on a repository a session has open. It never opens a
+file the workspace keeps from tools (`AGENTS.md` by default, unless the kit wrote
+it): that reads `agents_md=opaque`. It needs bash 3.2 and git; jq reads the
+settings files and gives `--json`.
 
 ## Install
 
-Part of the [workspace context kit](https://github.com/cyberscribe/agentic-workspace-kit):
+Part of the [workspace context kit](https://github.com/cyberscribe/agentic-workspace-kit).
+A workspace holds the kit as a submodule at `kit/`, and `.claude/settings.json`
+registers `kit` as the `agentic-workspace` plugin marketplace, so the plugin is
+read in place and updates with the kit (`kit/setup.sh update`). On its own:
 
 ```
 /plugin marketplace add cyberscribe/agentic-workspace-kit
 /plugin install workspace@agentic-workspace
 ```
 
-The kit's `install.sh` vendors it into a team repository alongside the closeout and
-projects plugins. With `--skills-dir <path>` it also writes one thin skill per
-command (`workspace-quick-start`, `workspace-hygiene`,
-`workspace-register-audit`) for assistants that load skills from a folder; each
-points at the command file, so the procedure still has one source.
+For assistants that load skills from a folder, `kit/setup.sh skills` writes one
+thin skill per command into `.claude/skills/`, prefixed `kit-`
+(`kit-workspace-quick-start`, `kit-workspace-hygiene`,
+`kit-workspace-register-audit`); each points at the command file, so the procedure
+still has one source.
 
 ## Works with
 

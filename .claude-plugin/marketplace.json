@@ -15,14 +15,14 @@
     },
     {
       "name": "projects",
-      "description": "The life of a project, kept in its README: /projects:new and /projects:adopt set the finish line and the current state; /projects:board shows everything in flight with flags; /projects:close finishes a project with evidence and a retrospective; /projects:pickup briefs whoever takes one over. A session-start hook says where the folder's project stands.",
+      "description": "The life of a project, kept in its README: /projects:new interviews for the finish line, the people, how it is versioned and whether it is sensitive; /projects:adopt adds what an existing project is missing and changes how it is versioned; hold, board, pickup and close pause, show, resume and archive the work. A session-start line says where the folder's project stands, and which of its resources this machine has not mapped.",
       "source": "./plugins/projects",
       "category": "productivity",
       "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
     },
     {
       "name": "workspace",
-      "description": "Set up and look after a shared agentic workspace: /workspace:quick-start interviews the team and each person, makes the kit the team's own and checks it is reachable on every surface people use; /workspace:hygiene runs the weekly tidy of where context lives; /workspace:register-audit checks guidance files for the register they are written in.",
+      "description": "Set up and look after a shared agentic workspace: /workspace:quick-start interviews the team and each person, makes the kit the team's own and checks it is reachable on every surface people use; /workspace:hygiene runs the weekly tidy of where context lives, submodules included; /workspace:register-audit checks guidance files for the register they are written in. A session-start line names what is out of step, and a guard keeps agents from bypassing the git hooks.",
       "source": "./plugins/workspace",
       "category": "productivity",
       "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"

@@ -1,1 +1,16 @@
 .DS_Store
+
+# Private material that never belongs in the kit, which is public. A session opened inside kit/, or a
+# pilot run, then cannot sweep any of it in with a broad git add; scripts/check-paths.sh refuses the
+# same names at commit and push.
+.secrets/
+*.local.*
+*.local/
+.resources/
+_delete/
+.claude/
+CLAUDE.local.md
+pilot/ablation-results.csv
+pilot/ablation-report.md
+pilot/ablations/
+pilot/metrics.csv

@@ -1,0 +1,29 @@
+{
+  "description": "Workspace plugin — SessionStart summary of what is out of step in the workspace (git hooks, the kit import, submodules, resources, the origin), and a PreToolUse guard that keeps an agent from bypassing the git hooks.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-git.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

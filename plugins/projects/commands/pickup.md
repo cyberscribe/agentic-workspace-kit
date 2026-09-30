@@ -1,5 +1,5 @@
 ---
-description: Pick up a project cold — a read-only brief of its outcome, done-when progress, current state, last decisions and commits, open questions and who to ask; for anyone taking a project over or coming back to it after time away
+description: Pick up a project cold — a brief of its outcome, done-when progress, current state, last decisions and commits, open questions and who to ask, for anyone taking a project over or coming back to it after time away; read-only while briefing; after the brief, one offered write: resuming a paused project, on a yes
 offer-unprompted: Offer it when someone takes a project over, or comes back to one after time away.
 argument-hint: <slug or folder>
 ---
@@ -14,16 +14,19 @@ course. You are brief because their attention is the scarce thing, and honest
 about gaps, because a confident summary over a missing finish line sends them
 the wrong way.
 
-This command only reads. It writes, stages and sends nothing, and it does not
-fix what it finds; it names it, so the person can decide.
+While it briefs, this command only reads. It writes, stages and sends nothing,
+and it does not fix what it finds; it names it, so the person can decide. After
+the brief there is one offered write, and only for a paused project: resuming
+it, on a yes.
 
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,
 and follow it over the defaults here: where active, paused and finished projects
 live, whether a folder prefix is part of the name, the entry-point file, the
-staleness setting, where the decisions log and people profiles are, and any
-**Section names** line saying what a Done when or People section is called here.
+staleness setting, where the decisions log and people profiles are, any
+**Section names** line saying what a Done when or People section is called here,
+the register's section names, and the in-flight limit.
 
 ## Which project
 
@@ -81,7 +84,7 @@ thing a newcomer can learn.
 - [ ] <each unticked criterion, as written>
 **Current state:** <state> — updated <date> (<n> days ago)
 - Blocked by: <what — since date> (<n> days)
-- Check-in: <cadence — last date>
+- Check-in: <cadence — last date, or look again on date (<n> days away, or passed)>
 <the dated narrative line, as written>
 **Planned:**
 1. <each step, as written>
@@ -93,13 +96,17 @@ thing a newcomer can learn.
 **Open questions:**
 - <each, as written>
 **Who to ask:** owns — <name> (<profile>); ask first — <names>
+**Kept:** <Versioned: value> · <Sensitivity: value>; resources: <names, and any not reachable here>
 **Read first:** <the first one or two items of Read before acting, if it exists>
 **Worth knowing:** <the gaps and staleness below, one line each>
 ```
 
 - Omit a `Blocked by` or `Check-in` line the Current state block does not have,
   **Planned** if the README keeps no such list, and the **Read first** line if
-  the README has no reading order.
+  the README has no reading order. The **Kept** line says `not stated` for a
+  missing versioning line, and leaves out resources when the README names none.
+  A sensitive project is worth the newcomer knowing first: its files stay out
+  of the workspace repository and out of anything shared.
 - Decisions and commits run newest first. Mark a decision whose status is
   Superseded, or one still Under review.
 - If the Done when list, Planned, the open questions or the commits would run
@@ -112,7 +119,10 @@ thing a newcomer can learn.
   register row whose state or owner disagrees with the README; sections still
   carrying a `proposed by /projects:adopt` marker, which nobody has confirmed
   yet; commits since the last `Updated:` date, which suggest the Current state
-  block has fallen behind; a profile path in People that does not exist.
+  block has fallen behind; a profile path in People that does not exist; a
+  `Versioned:` line that disagrees with the folder; a resource not mapped or
+  not reachable on this machine (`kit/setup.sh link <slug>`); a look-again
+  date that has passed.
   If there is nothing to say, the line reads `nothing — the README is current`.
 
 Dates are absolute; day counts are from today. Quote the README's own words for
@@ -125,13 +135,43 @@ One line, only if the brief found something to fix, and what would fix it —
 `/projects:adopt` for missing sections or an older Now block to convert; the
 person's own edit to the README for a stale Current state block or a proposal
 to confirm (confirming one deletes its marker) — for the person to do when they
-choose. Then stop.
-The next move is theirs.
+choose.
+
+**Resuming a paused project.** When the Current state block reads
+`State: paused`, offer to resume it — one question, after the brief. On a yes,
+show the edits and write them:
+
+- `State: ready` — or `doing` if the person means to work on it from today,
+  after counting what the owner already has in flight, as `/projects:new` does:
+  the active projects whose Current state block reads `State: doing` and whose
+  People section names them as **owns** or **does**, against the limit in their
+  profile, else the conventions' default, else 3. Over the limit is said
+  plainly, with the names, and is advice, not a block.
+- The look-again `Check-in:` line (`look again on YYYY-MM-DD`) removed. If
+  the project had a cadence of its own before it was put on hold (the
+  README's history shows it), offer to set it again from today.
+- `Updated:` set to today.
+- The dated line rewritten as `<today> — Resumed.`, with a few words on why
+  now if the person gives them.
+- The register row moved from the paused section to the Active section, both
+  as the conventions file names them, with its State cell set to match.
+
+By default a paused project never left its folder, so nothing moves. Where the
+conventions keep paused projects in a separate location and this one is there,
+the move back to the active location is part of the resume, made as
+`/projects:hold` made it: `git mv` (or `mv` with the `.gitignore` line
+rewritten, for an untracked project), and `kit/setup.sh hooks` after moving a
+project that is its own repository — on a yes, or printed for the person when
+the conventions' **Folder moves** line gives moves to the person.
+
+For any other state, there is no offer. Then stop. The next move is theirs, and
+so is the commit.
 
 ## Practices
 
-- Read-only, always. Correcting a stale Current state block while briefing would hide from
-  the new owner the very thing they most need to see.
+- Read-only while briefing; after the brief, one offered write: resuming a
+  paused project, on a yes. Correcting a stale Current state block while
+  briefing would hide from the new owner the very thing they most need to see.
 - Quote, don't compose. A summary that reads better than the README is a
   summary the README no longer backs.
 - Gaps are findings. "No done-when" is the brief working, not failing.

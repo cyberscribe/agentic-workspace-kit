@@ -1,0 +1,5 @@
+# The files that hold the kit's privacy guards: a change to any of them is reviewed by the maintainer.
+/scripts/check-paths.sh @cyberscribe
+/githooks/ @cyberscribe
+/.github/ @cyberscribe
+/lib/common.sh @cyberscribe

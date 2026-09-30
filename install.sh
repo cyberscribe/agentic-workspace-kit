@@ -1,314 +1,231 @@
 #!/usr/bin/env bash
-# Backticks in the single-quoted printf and awk text below are literal markdown, not expansions.
+# Backticks in the single-quoted printf, awk and jq text below are literal markdown, not expansions.
 # shellcheck disable=SC2016
-# Deploys the workspace context kit into a team's shared repository.
 #
-#   ./install.sh                  asks the handful of questions it needs, then installs
-#   ./install.sh --target ../team-workspace --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
+# install.sh: the engine behind kit/setup.sh. It creates the files a workspace owns, once each, from
+# the templates in the kit checkout the workspace pins (kit/), and records each one in
+# .claude/kit-templates.lock with the kit commit and a hash of what it rendered. From then on the file
+# is the person's: the engine never writes beside it or over it. It maintains two things afterwards,
+# the marketplace path in .claude/settings.json and the .gitignore lines, and it answers the questions
+# kit/setup.sh update asks: has a template changed since a file was made, and what is the change as a
+# diff the person can apply.
 #
-# What it lays down:
-#   - the kit (docs/, rituals/, templates/, logs/, projects/INDEX.md, memory/) with AGENTS.md as the
-#     one always-loaded file, and §1 rewritten for a team rather than a person
-#   - Claude Code: CLAUDE.md as a one-line import of AGENTS.md; the closeout, projects and workspace
-#     plugins registered in .claude/settings.json, with .claude/closeout.md pointing closeout at the
-#     kit's taxonomy; /workspace:quick-start is the first-time interview that fills in the rest
-#   - .claude/projects.md, the team's project conventions, read first by every projects command
-#   - with --surfaces claude,gemini: .gemini/settings.json loading AGENTS.md, and a wrapper for every
-#     plugin command, generated from the same markdown Claude Code runs
-#   - with --skills-dir DIR: one thin skill per command, for assistants that load skills from a folder
-#   - .github/CODEOWNERS and a pull request template for the always-loaded tier
-#   - with --pilot: pilot/ (protocol, build list, metrics script); the script reads committed
-#     history, so the first metrics row is taken after the first commit
+# The guided path is kit/setup.sh; this script is what it runs. The forms:
 #
-# It never overwrites. An existing file with different content is left alone and the kit's version is
-# written beside it as <file>.kit-incoming, so the merge is a human decision. JSON settings are the
-# exception: they are merged additively with jq, which only ever adds keys and list entries. So are the
-# files it generates from the command files (skills, Gemini wrappers), which are refreshed in place.
-# Running it twice is safe.
-set -euo pipefail
+#   install.sh --target WS [--kit REL] [--team NAME] [--owner NAME] [--owner-handle @h] [--pilot]
+#              [--cowork] [--surfaces claude|claude,gemini] [--gitignore merge|offer|report]
+#              [--dry-run] [--init]
+#   install.sh --stand-ins --target OUT [--kit REL]
+#   install.sh --skills-only --skills-dir DIR [--skills-prefix PFX] [--skills-skip LIST] [--target WS]
+#              [--plugin-src DIR] [--dry-run]
+#   install.sh --template-status --target WS
+#   install.sh --template-diff DEST --target WS
+#   install.sh --template-record DEST --status accepted|skipped --target WS
+#   install.sh --gitignore-decline LINE --target WS
+#
+# Exit codes: 0 ok; 1 a precondition or a write failed; 2 a usage error. --template-diff exits 1 when
+# the old template cannot be recovered and 3 when the diff is empty; --gitignore offer exits 3 when no
+# line is missing.
+set -uo pipefail
 
-KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET="" TEAM="" OWNER="" OWNER_HANDLE="" PLUGIN="vendor" PLUGIN_SRC="" SURFACES="claude" PILOT=0 DRY=0
-INTERACTIVE=0 PILOT_SET=0 SURFACES_SET=0 SKILLS_DIR="" SKILLS_SET=0 SKILLS_ONLY=0
-PLUGIN_REPO="cyberscribe/agentic-workspace-kit"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=lib/common.sh
+. "$SELF_DIR/lib/common.sh"
+# shellcheck source=lib/templates.sh
+. "$SELF_DIR/lib/templates.sh"
 
-usage() { sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; cat <<'USAGE'
+# The engine always names its repository explicitly; a GIT_DIR inherited from a hook or a wrapper
+# would point every git call at the wrong one.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR GIT_PREFIX
 
-Options:
-  --target DIR          the team repository (a git repository; created if --init is also given)
-  --team NAME           team name, written into AGENTS.md and the closeout conventions
-  --owner NAME          standards owner, who reviews changes to the always-loaded tier
-  --owner-handle @h     their GitHub/GitLab handle for CODEOWNERS (defaults to a placeholder)
-  --plugin MODE         vendor (default) | github | none
-                          vendor: copy this kit's plugins/ (closeout, projects, workspace) into
-                                  .claude/plugins/ — pinned, reviewable, no network or GitHub
-                                  access needed
-                          github: register this kit's repository as the marketplace and let Claude
-                                  Code fetch the plugins from it
-  --plugin-src DIR      vendor from a plugins directory other than this kit's plugins/
-  --surfaces LIST       claude (default) | claude,gemini | gemini
-  --skills-dir DIR      also write one skill per command into DIR (projects-new, closeout,
-                        workspace-quick-start, …), for a desktop assistant that loads skills from a
-                        folder rather than plugins; each points at the command file, so the
-                        procedure keeps one source
-  --skills-only         write the skills and nothing else (with --skills-dir; --target, default the
-                        current folder, is the repository the skills point into)
-  --pilot               add pilot/: protocol, build list, and the metrics script to run after the
-                        first commit
-  --init                git init the target if it is not already a repository
-  --interactive         ask for anything not given as an option (the default when run with no options
-                        from a terminal)
-  --dry-run             say what would happen, write nothing
+usage() {
+    cat <<'USAGE'
+install.sh — the engine behind kit/setup.sh. It creates the files a workspace owns, once each, from
+the templates in its kit checkout, and records them in .claude/kit-templates.lock.
 
-After installing, run /workspace:quick-start in Claude Code (or the workspace-quick-start skill): it
-interviews the team for what a script cannot usefully ask — what the team does, its conventions, its
-approval gates, its people.
+  install.sh --target WS [--kit REL] [--team NAME] [--owner NAME] [--owner-handle @h] [--pilot]
+             [--cowork] [--surfaces claude|claude,gemini] [--gitignore merge|offer|report]
+             [--dry-run] [--init]
+      Create the workspace's own files that are missing, keep the ones already there, and report.
+      --kit REL        where the kit sits inside WS (default kit); every template is read from there
+      --gitignore      merge: add the template's missing lines; offer: print them as a diff and
+                       write nothing; report: list them (the default, except with --init or when
+                       CLAUDE.md is created in this run, which merge)
+      --init           git init WS when it is not a repository yet
+      --dry-run        say what would happen, write nothing
+
+  install.sh --stand-ins --target OUT [--kit REL]
+      Render every file with the stand-in values into OUT, with no ledger (the template repository).
+
+  install.sh --skills-only --skills-dir DIR [--skills-prefix PFX] [--skills-skip LIST] [--target WS]
+             [--plugin-src DIR] [--dry-run]
+      One skill per kit command, for a surface that loads skills from a folder.
+
+  install.sh --template-status --target WS
+  install.sh --template-diff DEST --target WS
+  install.sh --template-record DEST --status accepted|skipped --target WS
+  install.sh --gitignore-decline LINE --target WS
+      The questions kit/setup.sh update asks, one per form.
+
+The guided path is kit/setup.sh.
 USAGE
 }
 
-INIT=0
-[[ $# -eq 0 && -t 0 ]] && INTERACTIVE=1
+usage_error() {
+    printf 'install.sh: %s\n' "$1" >&2
+    printf 'install.sh --help lists the forms it takes. The guided path is kit/setup.sh.\n' >&2
+    exit 2
+}
+die() { printf 'install.sh: %s\n' "$1" >&2; exit 1; }
+
+if [[ $# -eq 0 ]]; then usage >&2; exit 2; fi
+
+MODE=install
+TARGET="" REL="kit" TEAM="" OWNER="" HANDLE="" PILOT=0 COWORK=0 SURFACES="" GI_MODE="" DRY=0 INIT=0
+SKILLS_DIR="" SKILLS_PREFIX="" SKILLS_SKIP="" PLUGIN_SRC="" ARG_DEST="" REC_STATUS="" DECLINE=""
+# An option's value may be empty (setup passes an unanswered question through as ""); an empty path is
+# caught where the path is used.
+need() { [[ $# -ge 2 ]] || usage_error "$1 needs a value"; }
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --target) TARGET="$2"; shift 2 ;;
-        --team) TEAM="$2"; shift 2 ;;
-        --owner) OWNER="$2"; shift 2 ;;
-        --owner-handle) OWNER_HANDLE="$2"; shift 2 ;;
-        --plugin) PLUGIN="$2"; shift 2 ;;
-        --plugin-src) PLUGIN_SRC="$2"; shift 2 ;;
-        --surfaces) SURFACES="$2"; SURFACES_SET=1; shift 2 ;;
-        --skills-dir) SKILLS_DIR="$2"; SKILLS_SET=1; shift 2 ;;
-        --skills-only) SKILLS_ONLY=1; shift ;;
-        --pilot) PILOT=1; PILOT_SET=1; shift ;;
-        --interactive) INTERACTIVE=1; shift ;;
-        --init) INIT=1; shift ;;
+        --target) need "$@"; TARGET="$2"; shift 2 ;;
+        --kit) need "$@"; REL="$2"; shift 2 ;;
+        --team) need "$@"; TEAM="$2"; shift 2 ;;
+        --owner) need "$@"; OWNER="$2"; shift 2 ;;
+        --owner-handle) need "$@"; HANDLE="$2"; shift 2 ;;
+        --pilot) PILOT=1; shift ;;
+        --cowork) COWORK=1; shift ;;
+        --surfaces) need "$@"; SURFACES="$2"; shift 2 ;;
+        --gitignore) need "$@"; GI_MODE="$2"; shift 2 ;;
         --dry-run) DRY=1; shift ;;
+        --init) INIT=1; shift ;;
+        --stand-ins) MODE=standins; shift ;;
+        --skills-only) MODE=skills; shift ;;
+        --skills-dir) need "$@"; SKILLS_DIR="$2"; shift 2 ;;
+        --skills-prefix) need "$@"; SKILLS_PREFIX="$2"; shift 2 ;;
+        --skills-skip) [[ $# -ge 2 ]] || usage_error "--skills-skip needs a value"; SKILLS_SKIP="$2"; shift 2 ;;
+        --plugin-src) need "$@"; PLUGIN_SRC="$2"; shift 2 ;;
+        --template-status) MODE=status; shift ;;
+        --template-diff) need "$@"; MODE="diff"; ARG_DEST="$2"; shift 2 ;;
+        --template-record) need "$@"; MODE=record; ARG_DEST="$2"; shift 2 ;;
+        --status) need "$@"; REC_STATUS="$2"; shift 2 ;;
+        --gitignore-decline) [[ $# -ge 2 ]] || usage_error "--gitignore-decline needs a line"; MODE=decline; DECLINE="$2"; shift 2 ;;
+        --plugin) usage_error "--plugin was retired in 3.0: the plugins are read in place from kit/" ;;
+        --interactive) usage_error "--interactive was retired in 3.0" ;;
         -h|--help) usage; exit 0 ;;
-        *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
+        *) usage_error "unknown option: $1" ;;
     esac
 done
 
-die() { echo "install.sh: $*" >&2; exit 1; }
+# Options that belong to one form only.
+[[ -z "$SKILLS_DIR" || $MODE == skills ]] || usage_error "--skills-dir goes with --skills-only; a workspace's skills bridge is kit/setup.sh skills"
+[[ -z "$PLUGIN_SRC" || $MODE == skills ]] || usage_error "--plugin-src goes with --skills-only; an install reads the plugins in place from kit/"
+[[ -z "$SKILLS_PREFIX$SKILLS_SKIP" || $MODE == skills ]] || usage_error "--skills-prefix and --skills-skip go with --skills-only"
+[[ -z "$REC_STATUS" || $MODE == record ]] || usage_error "--status goes with --template-record"
+case "$GI_MODE" in ''|merge|offer|report) ;; *) usage_error "--gitignore takes merge, offer or report" ;; esac
+REL="${REL%/}"; REL="${REL:-kit}"
+case "$REL" in /*|*..*) usage_error "--kit takes a path inside the workspace, such as kit" ;; esac
 
-# The quick-start's first half: only what the files need to be laid down. Everything that takes
-# judgement — what the team does, how it works, who owns what — is asked by /workspace:quick-start in the
-# agent, where the answers can be discussed rather than typed into a prompt.
-if [[ $INTERACTIVE -eq 1 ]]; then
-    # A question with no default takes an empty answer as "none": ${2:-} keeps set -u from stopping here.
-    ask() { local reply; read -r -p "$1${2:+ [$2]}: " reply || true; printf '%s' "${reply:-${2:-}}"; }
-    echo "Workspace context kit — a few questions, then it installs. Press Enter to accept a [default]."
-    echo
-    [[ -n "$TARGET" ]] || TARGET="$(ask "Path to the team's shared repository (created if it does not exist)" ".")"
-    [[ -d "$TARGET" ]] && git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1 || INIT=1
-    [[ -n "$TEAM" ]] || TEAM="$(ask "Team name")"
-    [[ -n "$OWNER" ]] || OWNER="$(ask "Standards owner — who reviews changes to the shared standards file")"
-    [[ -n "$OWNER_HANDLE" ]] || OWNER_HANDLE="$(ask "Their GitHub or GitLab handle, for CODEOWNERS" "${OWNER:+@}$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')")"
-    [[ $SURFACES_SET -eq 1 ]] || SURFACES="$(ask "Agent tools the team uses (claude, or claude,gemini)" "claude" | tr -d ' ')"
-    [[ $SKILLS_SET -eq 1 ]] || SKILLS_DIR="$(ask "Folder a desktop assistant loads skills from, if anyone uses one (Enter for none)")"
-    if [[ $PILOT_SET -eq 0 ]]; then
-        case "$(ask "Run it as a measured pilot, with a build list and weekly metrics? (y/n)" "n")" in
-            [Yy]*) PILOT=1 ;;
-        esac
-    fi
-    echo
-    echo "  repository   $TARGET$([[ $INIT -eq 1 ]] && echo '  (will be created)')"
-    echo "  team         ${TEAM:-<to fill in>}"
-    echo "  owner        ${OWNER:-<to fill in>} ${OWNER_HANDLE}"
-    echo "  tools        $SURFACES"
-    echo "  skills       ${SKILLS_DIR:-none}"
-    echo "  pilot        $([[ $PILOT -eq 1 ]] && echo yes || echo no)"
-    echo
-    case "$(ask "Install? (y/n)" "y")" in [Yy]*) ;; *) echo "Nothing written."; exit 0 ;; esac
+# A value goes into a tab-separated ledger line and into markdown, so tabs and newlines become spaces.
+clean() { printf '%s' "$1" | tr '\t\r\n' '   '; }
+TEAM="$(clean "$TEAM")" OWNER="$(clean "$OWNER")" HANDLE="$(clean "$HANDLE")"
+
+# Surfaces: claude, or claude with gemini (parked, still generated on request). "both" reads as the two.
+if [[ -n "$SURFACES" ]]; then
+    SURFACES="$(printf '%s' "$SURFACES" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+    [[ "$SURFACES" != both ]] || SURFACES="claude,gemini"
+    for s in ${SURFACES//,/ }; do
+        [[ "$s" == claude || "$s" == gemini ]] || usage_error "--surfaces takes claude or claude,gemini (got '$s')"
+    done
+    [[ ",$SURFACES," == *",claude,"* ]] || usage_error "--surfaces takes claude or claude,gemini: a workspace is always set up for Claude Code"
 fi
 
-[[ $SKILLS_ONLY -eq 0 || -n "$SKILLS_DIR" ]] || die "--skills-only needs --skills-dir"
-[[ $SKILLS_ONLY -eq 0 || -n "$TARGET" ]] || TARGET="."
-[[ -n "$TARGET" ]] || { usage; exit 1; }
-[[ "$PLUGIN" =~ ^(vendor|github|none)$ ]] || die "--plugin must be vendor, github or none"
-# Surfaces are a comma-separated list of claude and gemini; "both" is read as the two of them. Anything
-# else stops the run here, rather than installing for no surface and saying it had.
-SURFACES="$(printf '%s' "$SURFACES" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
-[[ "$SURFACES" != "both" ]] || SURFACES="claude,gemini"
-for surf in ${SURFACES//,/ }; do [[ "$surf" == claude || "$surf" == gemini ]] || die "--surfaces takes claude, gemini or claude,gemini (got '$surf')"; done
-[[ -n "${SURFACES//,/}" ]] || die "--surfaces needs at least one of claude, gemini"
-TEAM="${TEAM:-<team name>}"
-OWNER="${OWNER:-<standards owner>}"
-OWNER_HANDLE="${OWNER_HANDLE:-@<standards-owner-handle>}"
 TODAY="$(date +%F)"
-has_surface() { [[ ",$SURFACES," == *",$1,"* ]]; }
+work="$(mktemp -d "${TMPDIR:-/tmp}/aw-install.XXXXXX")" || die "cannot make a temporary folder under ${TMPDIR:-/tmp}"
+trap 'rm -rf "$work"' EXIT
 
-if [[ ! -d "$TARGET" ]]; then
-    [[ $INIT -eq 1 ]] || die "$TARGET does not exist (add --init to create it)"
-    [[ $DRY -eq 1 ]] || mkdir -p "$TARGET"
-fi
-if [[ $DRY -eq 0 && $SKILLS_ONLY -eq 0 ]] && ! git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
-    [[ $INIT -eq 1 ]] || die "$TARGET is not a git repository (add --init to create one)"
-    git -C "$TARGET" init -q
-fi
-TARGET="$(cd "$TARGET" 2>/dev/null && pwd || echo "$TARGET")"
-# The skills folder is usually outside the repository (an assistant's own folder), so it is resolved
-# against where the installer was run, and created if need be.
-if [[ -n "$SKILLS_DIR" ]]; then
-    [[ $DRY -eq 1 ]] || mkdir -p "$SKILLS_DIR"
-    SKILLS_DIR="$(cd "$SKILLS_DIR" 2>/dev/null && pwd || echo "$SKILLS_DIR")"
-fi
+# Report buckets. Items are paths, except under "Worth knowing" and "Added to .gitignore".
+r_created=() r_merged=() r_gitignore=() r_regen=() r_same=() r_kept=() r_changed=() r_notes=()
 
-# Report buckets, printed at the end.
-added=() same=() incoming=() merged=() regenerated=() notes=()
+# ---- The skills generator (--skills-only; and the Gemini CLI wrappers of a gemini install) ----------
+#
+# Each plugins/<plugin>/commands/<command>.md is the one source of its procedure; every other surface
+# gets a thin generated form of it, never a copy to edit. A command named after its own plugin is not
+# namespaced (closeout's is /closeout everywhere); the rest are <plugin> then <command>.
+#   gemini   .gemini/commands/<plugin>/<command>.toml: the description, and the body as the prompt.
+#   skills   <skills dir>/<prefix><name>/SKILL.md, a thin pointer at the command file with a
+#            description that says when to offer it, and procedure.md beside it, the body as it stands.
+# A generated file carries a marker naming its source, so a changed command replaces it; a file at
+# that path without the marker is someone's own and is left alone.
 
-# Substitutes the install-time values into a template on its way to the target.
-sed_escape() { printf '%s' "$1" | sed 's/[&|\\]/\\&/g'; }
-render() {
-    local team owner handle
-    team="$(sed_escape "$TEAM")"; owner="$(sed_escape "$OWNER")"; handle="$(sed_escape "$OWNER_HANDLE")"
-    sed -e "s|__TEAM__|$team|g" -e "s|__OWNER__|$owner|g" -e "s|__OWNER_HANDLE__|$handle|g" \
-        -e "s|__DATE__|$TODAY|g" -e 's|MANIFEST\.md|AGENTS.md|g' "$1"
-}
+GEN_MARK='Generated by install.sh from plugins/'
 
-# place <content-file> <relative-dest> [root]: the one place a file reaches the target. The root is
-# the repository unless a caller writes somewhere else the person named, such as a skills folder.
-place() {
-    local src="$1" rel="$2" dest="${3:-$TARGET}/$2"
-    # Files placed outside the repository are reported by full path, so the report says where.
-    [[ "${3:-$TARGET}" == "$TARGET" ]] || rel="$dest"
-    if [[ -e "$dest" ]]; then
-        if cmp -s "$src" "$dest"; then same+=("$rel"); return; fi
-        incoming+=("$rel")
-        [[ $DRY -eq 1 ]] || cp "$src" "$dest.kit-incoming"
-        return
-    fi
-    added+=("$rel")
-    [[ $DRY -eq 1 ]] || { mkdir -p "$(dirname "$dest")"; cp "$src" "$dest"; }
-}
-
-# place_generated <content-file> <relative-dest> [root]: as place, for a file generate_commands derives
-# from a command. Such a file is never edited by hand — its first comment says to edit the command and
-# re-run — so a changed command replaces it here rather than arriving as .kit-incoming, which keeps
-# the command the one source. A file at that path without the generated comment is someone's own, and
-# goes through place like any other. procedure.md carries no comment of its own; the SKILL.md beside
-# it, written in the same run, vouches for it.
-place_generated() {
-    local src="$1" rel="$2" dest="${3:-$TARGET}/$2" mark
-    mark="$dest"; [[ "$(basename "$dest")" != procedure.md ]] || mark="$(dirname "$dest")/SKILL.md"
-    if [[ -e "$dest" ]] && ! cmp -s "$src" "$dest" && grep -qs 'Generated by install.sh from plugins/' "$mark"; then
-        [[ "${3:-$TARGET}" == "$TARGET" ]] || rel="$dest"
-        regenerated+=("$rel")
-        [[ $DRY -eq 1 ]] || cp "$src" "$dest"
-        return
-    fi
-    place "$@"
-}
-
-# place_rendered <kit-file> <relative-dest>. mktemp makes its file 0600; the rendered file is a
-# shared document, so it is opened up to the usual 0644 before it is copied into place.
-place_rendered() { local t; t="$(mktemp "${TMPDIR:-/tmp}/aw.XXXXXX")"; render "$1" > "$t"; chmod 644 "$t"; place "$t" "$2"; rm -f "$t"; }
-
-# replace_section <file> <start-regex> <end-regex> <replacement-file>
-# Swaps the lines from the start heading up to (not including) the end marker for the replacement.
-# Used to specialise one section of a kit file without keeping a second copy of the rest of it.
-replace_section() {
-    awk -v start="$2" -v end="$3" -v repl="$4" '
-        $0 ~ start && !done { while ((getline l < repl) > 0) print l; skip = 1; done = 1; next }
-        skip && $0 ~ end { skip = 0 }
-        !skip { print }' "$1"
-}
-
-# merge_json <kit-json> <relative-dest>: additive merge; list values are unioned rather than replaced.
-merge_json() {
-    local src="$1" rel="$2" dest="$TARGET/$2" t
-    if [[ ! -e "$dest" ]]; then place "$src" "$rel"; return; fi
-    if ! command -v jq >/dev/null; then
-        incoming+=("$rel (jq not found — merge by hand)")
-        [[ $DRY -eq 1 ]] || cp "$src" "$dest.kit-incoming"
-        return
-    fi
-    t="$(mktemp "${TMPDIR:-/tmp}/aw.XXXXXX")"
-    jq -s '
-        def union(a; b): ((a // []) + (b // [])) | unique;
-        .[0] as $old | .[1] as $new
-        | ($old * $new)
-        | if ($old.permissions.allow or $new.permissions.allow) then .permissions.allow = union($old.permissions.allow; $new.permissions.allow) else . end
-        | if ($old.sandbox.filesystem.allowWrite or $new.sandbox.filesystem.allowWrite) then .sandbox.filesystem.allowWrite = union($old.sandbox.filesystem.allowWrite; $new.sandbox.filesystem.allowWrite) else . end
-        | if ($old.context.fileName or $new.context.fileName) then .context.fileName = union([$old.context.fileName] | flatten | map(select(. != null)); $new.context.fileName) else . end
-    ' "$dest" "$src" > "$t"
-    if cmp -s <(jq -S . "$dest") <(jq -S . "$t"); then same+=("$rel"); else
-        merged+=("$rel")
-        [[ $DRY -eq 1 ]] || cp "$t" "$dest"
-    fi
-    rm -f "$t"
-}
-
-# Commands on the surfaces that do not load Claude Code plugins. Each plugins/<plugin>/commands/
-#     <command>.md is the one source of its procedure; every other surface gets a thin generated form
-#     of it, never a copy to edit. generate_commands is the only place that knows where the commands
-#     are, how they are named and how their front matter is read, and each surface is one case in it:
-#       gemini   .gemini/commands/<plugin>/<command>.toml: the description, and the markdown body as
-#                the prompt. Gemini CLI appends what the user typed after the command, which is why the
-#                commands speak of it in prose rather than through a placeholder.
-#       skills   <skills dir>/<name>/SKILL.md, for assistants that load skills from a folder: a thin
-#                pointer at the command file, a description that says when to offer it unprompted
-#                (the command's offer-unprompted line, since such surfaces run no session hooks), and
-#                procedure.md beside it, the body as it stands in the kit. Both are refreshed on every
-#                run (place_generated), so a changed command reaches the skills with no merge step.
-#     A command named after its own plugin is not namespaced (closeout's is /closeout on every
-#     surface); the rest are <plugin> then <command>, joined however the surface joins names.
-#     A new surface is a new case: it sets dest (and root, when it writes outside the repository)
-#     and writes the file to $t; the loop, the naming and the placing are shared.
-# fm_body <markdown>: everything after the front matter.
 fm_body() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }
-generate_commands() { # <format>
-    local fmt="$1" src plugin cmd ns desc offer t dest root name ptr p tgt
-    for src in "${PLUGIN_SRC:-$KIT/plugins}"/*/commands/*.md; do
+fm_field() { awk -v k="$2" 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { exit } fm && index($0, k ":") == 1 { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }' "$1"; }
+
+# place_generated <content file> <dest, absolute> <label for the report>
+place_generated() {
+    local src="$1" dest="$2" label="$3" mark
+    mark="$dest"; [[ "$(basename "$dest")" != procedure.md ]] || mark="$(dirname "$dest")/SKILL.md"
+    if [[ ! -e "$dest" ]]; then
+        r_created+=("$label")
+        [[ $DRY -eq 1 ]] || { mkdir -p "$(dirname "$dest")" && cat "$src" > "$dest"; } || die "cannot write $dest"
+    elif cmp -s "$src" "$dest"; then
+        r_same+=("$label")
+    elif grep -qs "$GEN_MARK" "$mark"; then
+        r_regen+=("$label")
+        [[ $DRY -eq 1 ]] || cat "$src" > "$dest" || die "cannot write $dest"
+    else
+        r_kept+=("$label")
+    fi
+}
+
+skip_listed() { # <name without prefix>: 0 when --skills-skip names it, with or without the prefix
+    local item
+    for item in $(printf '%s' "$SKILLS_SKIP" | tr ',' ' '); do
+        [[ "$item" == "$1" || "$item" == "$SKILLS_PREFIX$1" ]] && return 0
+    done
+    return 1
+}
+
+generate_commands() { # <format> <plugins dir> <repository root, resolved>
+    local fmt="$1" psrc="$2" root="$3" src plugin cmd ns desc offer t tp dest name base ptr p lab
+    for src in "$psrc"/*/commands/*.md; do
         [[ -f "$src" ]] || continue
         plugin="$(basename "$(dirname "$(dirname "$src")")")" cmd="$(basename "$src" .md)"
         ns="$plugin"; [[ "$plugin" == "$cmd" ]] && ns=""
-        # The description comes from the command's own front matter, so no surface can drift from it.
-        desc="$(awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { exit } fm && sub(/^description:[[:space:]]*/, "") { print; exit }' "$src")"
+        desc="$(fm_field "$src" description)"
         [[ -n "$desc" ]] || die "no description in the front matter of $src"
-        offer="$(awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { exit } fm && sub(/^offer-unprompted:[[:space:]]*/, "") { print; exit }' "$src")"
-        t="$(mktemp "${TMPDIR:-/tmp}/aw.XXXXXX")" root="$TARGET"
+        offer="$(fm_field "$src" offer-unprompted)"
+        t="$work/gen"
         case "$fmt" in
             gemini)
-                dest=".gemini/commands/${ns:+$ns/}$cmd.toml"
-                # The body becomes a TOML literal string, which cannot hold three single quotes, and
-                # Gemini CLI would run !{...} and expand @{...} rather than pass them through as text.
+                dest="$root/.gemini/commands/${ns:+$ns/}$cmd.toml" lab=".gemini/commands/${ns:+$ns/}$cmd.toml"
+                # A TOML literal string cannot hold three single quotes, and Gemini CLI would run !{...}
+                # and expand @{...} rather than pass them through as text.
                 if fm_body "$src" | grep -qE "'''|[!@][{]"; then
-                    rm -f "$t"; die "$src contains ''', !{ or @{, which a Gemini CLI command cannot carry as written"
+                    die "$src contains ''', !{ or @{, which a Gemini CLI command cannot carry as written"
                 fi
                 {
-                    printf '# Generated by install.sh from plugins/%s/commands/%s.md: edit that file, then re-run the installer.\n' "$plugin" "$cmd"
+                    printf '# %s%s/commands/%s.md: edit that file, then re-run the installer.\n' "$GEN_MARK" "$plugin" "$cmd"
                     printf 'description = "%s"\n' "$(printf '%s' "$desc" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
                     printf "prompt = '''\n"
                     fm_body "$src"
                     printf "'''\n"
-                } > "$t" ;;
+                } > "$t"
+                place_generated "$t" "$dest" "$lab" ;;
             skills)
-                root="$SKILLS_DIR" name="${ns:+$ns-}$cmd" dest="$name/SKILL.md"
-                # Where the skill points, as a path from the repository root. The kit inside the
-                # repository (a submodule, or the kit's own checkout) is pointed at directly; a vendored
-                # install at its copy under .claude/plugins/; with neither, there is no path in the
-                # repository to give, and procedure.md is the whole of it.
+                base="${ns:+$ns-}$cmd" name="$SKILLS_PREFIX${ns:+$ns-}$cmd"
+                if skip_listed "$base"; then r_notes+=("not generated: $name (--skills-skip)"); continue; fi
+                # Where the skill points, as a path from the repository root: the command file itself when
+                # the kit is inside the repository; otherwise procedure.md beside the skill is the whole of it.
                 ptr="" p="$(cd "$(dirname "$src")" 2>/dev/null && pwd -P)/$cmd.md"
-                tgt="$(cd "$TARGET" 2>/dev/null && pwd -P || echo "$TARGET")"
-                case "$p" in "$tgt"/*) ptr="${p#"$tgt"/}" ;; esac
-                # The vendored copy is named only while it says what procedure.md says. A team that kept
-                # an older copy (the newer one waiting as .kit-incoming) would otherwise be told the two
-                # are one procedure when they are not; until they merge, procedure.md is the whole of it.
-                local vend="$TARGET/.claude/plugins/$plugin/commands/$cmd.md"
-                if [[ -z "$ptr" && -f "$vend" ]]; then
-                    fm_body "$vend" > "$t.a"; fm_body "$src" > "$t.b"
-                    if cmp -s "$t.a" "$t.b"; then ptr=".claude/plugins/$plugin/commands/$cmd.md"
-                    else notes+=("skill $name follows procedure.md: the vendored .claude/plugins/$plugin/commands/$cmd.md differs from the kit's (merge its .kit-incoming, then re-run)"); fi
-                    rm -f "$t.a" "$t.b"
-                elif [[ -z "$ptr" && $DRY -eq 1 && $SKILLS_ONLY -eq 0 && "$PLUGIN" == "vendor" ]] && has_surface claude; then
-                    ptr=".claude/plugins/$plugin/commands/$cmd.md"
-                fi
-                # The description is a double-quoted YAML string: backslashes and quotes escaped.
+                case "$p" in "$root"/*) ptr="${p#"$root"/}" ;; esac
                 desc="${desc%.}. The kit's /${ns:+$ns:}$cmd command, as a skill.${offer:+ $offer}"
                 {
                     printf -- '---\nname: %s\n' "$name"
                     printf 'description: "%s"\n---\n\n' "$(printf '%s' "$desc" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
-                    printf '<!-- Generated by install.sh from plugins/%s/commands/%s.md: edit that file, then re-run the installer. -->\n\n' "$plugin" "$cmd"
+                    printf '<!-- %s%s/commands/%s.md: edit that file, then re-run the installer. -->\n\n' "$GEN_MARK" "$plugin" "$cmd"
                     printf '# %s\n\n' "$name"
                     printf "This is the kit's \`/%s\` command as a skill, for an assistant that loads skills from a folder\n" "${ns:+$ns:}$cmd"
                     printf 'rather than plugins. Its procedure has one source, and this skill points at it.\n\n'
@@ -322,285 +239,589 @@ generate_commands() { # <format>
                     fi
                     printf 'Where the procedure speaks of what the user typed after the command, read it as what the\n'
                     printf 'person asked for in their message. Where it names another kit command (`/projects:new`,\n'
-                    printf '`/workspace:hygiene`, `/closeout`), that is the skill of the same name joined by a hyphen\n'
-                    printf 'here (`projects-new`, `workspace-hygiene`, `closeout`): name it that way to the person.\n'
+                    if [[ -n "$SKILLS_PREFIX" ]]; then
+                        printf '`/workspace:hygiene`, `/closeout`), that is the skill of that name joined by hyphens, with the\n'
+                        printf '`%s` prefix (`%sprojects-new`, `%sworkspace-hygiene`, `%scloseout`): name it that way.\n' \
+                            "$SKILLS_PREFIX" "$SKILLS_PREFIX" "$SKILLS_PREFIX" "$SKILLS_PREFIX"
+                    else
+                        printf '`/workspace:hygiene`, `/closeout`), that is the skill of the same name joined by a hyphen\n'
+                        printf 'here (`projects-new`, `workspace-hygiene`, `closeout`): name it that way to the person.\n'
+                    fi
                     printf 'This surface runs no session hooks, so anything the procedure leaves to a hook is offered\n'
                     printf 'in words instead. If it cannot read the repository'"'"'s files, say so first and ask the person\n'
                     printf 'to share the ones the procedure reads; if it cannot write them, give each change as the\n'
                     printf 'exact text to paste and the path it goes to, and make nothing else up.\n'
                 } > "$t"
-                local tp; tp="$(mktemp "${TMPDIR:-/tmp}/aw.XXXXXX")"
-                fm_body "$src" > "$tp"; place_generated "$tp" "$name/procedure.md" "$root"; rm -f "$tp" ;;
-            *) rm -f "$t"; die "generate_commands: no output format called $fmt" ;;
+                tp="$work/gen-procedure"
+                fm_body "$src" > "$tp"
+                place_generated "$tp" "$SKILLS_DIR/$name/procedure.md" "$SKILLS_DIR/$name/procedure.md"
+                place_generated "$t" "$SKILLS_DIR/$name/SKILL.md" "$SKILLS_DIR/$name/SKILL.md" ;;
+            *) die "generate_commands: no output format called $fmt" ;;
         esac
-        place_generated "$t" "$dest" "$root"; rm -f "$t"
     done
 }
-# stale_generated: the installer only ever adds, so a command the kit has since removed would stay
-# live on every surface an earlier run reached. Each generated file names its source in its marker
-# line; one whose source is gone, and a vendored command with no counterpart in the kit, is listed
-# under "Worth knowing" as a file to delete. Nothing is deleted here: the team decides.
+
+# stale_generated <plugins dir> <root>: a generated file whose source command the kit no longer has is
+# named under "Worth knowing" as one to delete. Nothing is deleted here.
 stale_generated() {
-    local src_root="${PLUGIN_SRC:-$KIT/plugins}" f rel
+    local psrc="$1" root="$2" f rel
     while IFS= read -r f; do
+        [[ -n "$f" ]] || continue
         rel="$(sed -n 's/.*Generated by install\.sh from plugins\/\([^:]*\.md\):.*/\1/p' "$f" | head -n 1)"
-        [[ -n "$rel" && ! -f "$src_root/$rel" ]] || continue
+        [[ -n "$rel" && ! -f "$psrc/$rel" ]] || continue
         case "$f" in
-            */SKILL.md) notes+=("$(dirname "$f")/ was generated from plugins/$rel, which the kit no longer has: delete the folder") ;;
-            *) notes+=("${f#"$TARGET"/} was generated from plugins/$rel, which the kit no longer has: delete it") ;;
+            */SKILL.md) r_notes+=("$(dirname "$f")/ was generated from plugins/$rel, which the kit no longer has: delete the folder") ;;
+            *) r_notes+=("${f#"$root"/} was generated from plugins/$rel, which the kit no longer has: delete it") ;;
         esac
     done < <({ [[ -n "$SKILLS_DIR" && -d "$SKILLS_DIR" ]] && find "$SKILLS_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md
-               [[ -d "$TARGET/.gemini/commands" ]] && find "$TARGET/.gemini/commands" -name '*.toml'; } 2>/dev/null | sort)
-    for f in "$TARGET"/.claude/plugins/*/commands/*.md; do
-        [[ -f "$f" ]] || continue
-        rel="${f#"$TARGET"/.claude/plugins/}"
-        [[ -f "$src_root/$rel" ]] || notes+=(".claude/plugins/$rel has no counterpart in the kit any more: delete it")
-    done
+               [[ $MODE == install && -d "$root/.gemini/commands" ]] && find "$root/.gemini/commands" -name '*.toml'; } 2>/dev/null | sort)
 }
-# The report, printed at the end of every run.
-report() {
-    say() { local label="$1"; shift; [[ $# -gt 0 ]] || return 0; echo "$label"; printf '  %s\n' "$@"; }
+
+# ---- The report -----------------------------------------------------------------------------------
+say_list() { local label="$1"; shift; [[ $# -gt 0 ]] || return 0; echo "$label"; printf '  %s\n' "$@"; }
+report_lists() {
+    say_list "Created (yours from here on):" ${r_created[@]+"${r_created[@]}"}
+    say_list "Merged (settings marketplace path):" ${r_merged[@]+"${r_merged[@]}"}
+    say_list "Added to .gitignore:" ${r_gitignore[@]+"${r_gitignore[@]}"}
+    say_list "Regenerated from the kit's command files:" ${r_regen[@]+"${r_regen[@]}"}
+    say_list "Already in place:" ${r_same[@]+"${r_same[@]}"}
+    say_list "Kept as it was (yours, from before the kit):" ${r_kept[@]+"${r_kept[@]}"}
+    say_list "Template changed since your copy was made (kit/setup.sh update offers the diff):" ${r_changed[@]+"${r_changed[@]}"}
+    say_list "Worth knowing:" ${r_notes[@]+"${r_notes[@]}"}
+}
+
+# ---- --skills-only --------------------------------------------------------------------------------
+if [[ $MODE == skills ]]; then
+    [[ -n "$SKILLS_DIR" ]] || usage_error "--skills-only needs --skills-dir"
+    TARGET="${TARGET:-.}"
+    [[ -d "$TARGET" ]] || die "no folder at $TARGET"
+    root="$(cd "$TARGET" && pwd -P)"
+    psrc="${PLUGIN_SRC:-$SELF_DIR/plugins}"
+    [[ -d "$psrc" ]] || die "no plugins folder at $psrc"
+    psrc="$(cd "$psrc" && pwd -P)"
+    # The skills folder, resolved through its nearest existing ancestor, so a folder not made yet is
+    # still judged by where it would land.
+    sd="$SKILLS_DIR"; [[ "$sd" == /* ]] || sd="$PWD/$sd"
+    sd_rest=""
+    while [[ ! -d "$sd" ]]; do sd_rest="/$(basename "$sd")$sd_rest"; sd="$(dirname "$sd")"; done
+    sd="$(cd "$sd" && pwd -P)$sd_rest"
+    # The kit checkout is public: skills generated inside it would be committed to it.
+    for kr in "$SELF_DIR" "$root/kit"; do
+        [[ -d "$kr" ]] || continue
+        kr="$(cd "$kr" && pwd -P)"
+        case "$sd/" in "$kr"/*) die "the skills folder $SKILLS_DIR is inside the kit checkout ($kr), which is public; choose a folder outside it" ;; esac
+    done
+    SKILLS_DIR="$sd"
+    [[ $DRY -eq 1 ]] || mkdir -p "$SKILLS_DIR" || die "cannot make $SKILLS_DIR"
+    generate_commands skills "$psrc" "$root"
+    stale_generated "$psrc" "$root"
     echo
     [[ $DRY -eq 1 ]] && echo "Dry run — nothing written." && echo
-    if [[ $SKILLS_ONLY -eq 1 ]]; then echo "Skills written to $SKILLS_DIR, pointing into $TARGET"; else echo "Kit deployed to $TARGET"; fi
+    echo "Skills written to $SKILLS_DIR, pointing into $root"
     echo
-    say "Added:" ${added[@]+"${added[@]}"}
-    say "Merged (JSON, additive):" ${merged[@]+"${merged[@]}"}
-    say "Regenerated from the kit's command files:" ${regenerated[@]+"${regenerated[@]}"}
-    say "Already up to date:" ${same[@]+"${same[@]}"}
-    say "Existing file kept; kit version written beside it as .kit-incoming — merge by hand:" ${incoming[@]+"${incoming[@]}"}
-    say "Worth knowing:" ${notes[@]+"${notes[@]}"}
-    echo
-    if [[ $DRY -eq 0 && $SKILLS_ONLY -eq 1 ]]; then
-        echo "Next: load the skills into the assistant (a skills folder it reads, or one upload per skill folder)."
-        echo "  Re-run this after updating the kit: the skills are regenerated from the command files."
-    elif [[ $DRY -eq 0 ]]; then
-        # A stand-in is an angle-bracketed phrase with a space in it; path patterns like <name> are not.
-        n="$(tr '\n' ' ' < "$TARGET/AGENTS.md" | grep -o '<[A-Za-z][^<>]* [^<>]*>' | wc -l | tr -d ' ')"
-        echo "Next:"
-        if [[ $claude_kept -eq 1 ]]; then
-            # A CLAUDE.md of the repository's own means a system was here first: the quick-start maps it
-            # onto the kit rather than filling in AGENTS.md, so the stand-in count would mislead.
-            kept_files=(CLAUDE.md)
-            for f in projects/INDEX.md logs/decisions.md; do [[ ! -e "$TARGET/$f.kit-incoming" ]] || kept_files+=("$f"); done
-            case ${#kept_files[@]} in
-                1) kept="CLAUDE.md was" ;;
-                2) kept="${kept_files[0]} and ${kept_files[1]} were" ;;
-                *) kept="${kept_files[0]}, ${kept_files[1]} and ${kept_files[2]} were" ;;
-            esac
-            echo "  1. Your own $kept kept. Run /workspace:quick-start in Claude Code (or the"
-            echo "     workspace-quick-start skill): it maps your system onto the kit and changes nothing without your yes."
-        else
-            echo "  1. Open the repository in Claude Code and run /workspace:quick-start (or the workspace-quick-start"
-            echo "     skill). It interviews you for the rest — AGENTS.md has $n answers still to fill in — then offers"
-            echo "     /projects:new for the first projects."
-        fi
-        [[ "$PLUGIN" == "none" ]] && has_surface claude && ! has_surface gemini && \
-            echo "     With --plugin none the workspace plugin is not installed: add it, or follow the kit's plugins/workspace/commands/quick-start.md by hand."
-        has_surface claude && [[ "$PLUGIN" != "none" ]] && \
-            echo "  2. Each person, in Claude Code: trust the folder, then approve the closeout and projects plugins' hooks when asked."
-        [[ -n "$SKILLS_DIR" ]] && \
-            echo "     Skills for a desktop assistant are in $SKILLS_DIR, one folder per command. Where the assistant" && \
-            echo "     reads a skills folder, point it at this one; where it takes uploads, zip each folder and upload it."
-        [[ $PILOT -eq 1 ]] && echo "  3. Put the team's own build list into pilot/build-list.md, commit, then run pilot/measure.sh."
-        echo "  Review with: git -C \"$TARGET\" status"
-    fi
-}
-
-work="$(mktemp -d "${TMPDIR:-/tmp}/aw.XXXXXX")"
-trap 'rm -rf "$work"' EXIT
-
-# A CLAUDE.md that is not the kit's one-line import belongs to a system that was here first.
-claude_kept=0
-if [[ $SKILLS_ONLY -eq 0 ]] && has_surface claude && [[ -e "$TARGET/CLAUDE.md" ]] \
-    && ! cmp -s <(render "$KIT/team/CLAUDE.md") "$TARGET/CLAUDE.md"; then
-    claude_kept=1
-fi
-
-# With --skills-only, the skills are the whole job: nothing else reaches the repository.
-if [[ $SKILLS_ONLY -eq 1 ]]; then
-    generate_commands skills
-    report
+    report_lists
     exit 0
 fi
 
-# The surface table in AGENTS.md §4 says what this install actually set up, because every session
-# reads it. The Claude Code row names the plugins and their hooks only when they were installed. Each
-# other surface installed gets its own row; with none, the row stays a stand-in for the quick-start to
-# fill with the team's other surface, or to remove.
-if [[ "$PLUGIN" == "none" ]]; then
-    claude_row='| Claude Code | `CLAUDE.md`, which imports this file | The kit'"'"'s plugins are not installed here (`install.sh --plugin none`); add them to get `/closeout`, `/projects:*`, `/workspace:*` and their hooks |'
-else
-    claude_row='| Claude Code | `CLAUDE.md`, which imports this file | Plugins closeout, projects, workspace: `/closeout`, `/projects:*`, `/workspace:*`; the closeout end-of-session capture and next-session review, and the projects session-start line |'
+# ---- Every other form works on a workspace with the kit inside it ------------------------------------
+[[ -n "$TARGET" ]] || usage_error "--target is needed"
+[[ -d "$TARGET" ]] || die "no folder at $TARGET"
+WS="$(cd "$TARGET" && pwd -P)"
+KIT="$WS/$REL"
+if ! grep -qs '"agentic-workspace"' "$KIT/.claude-plugin/marketplace.json" || [[ ! -f "$KIT/CLAUDE.kit.md" ]]; then
+    printf 'install.sh: no kit at %s/%s — add it with kit/setup.sh new, or git submodule add <url> kit\n' "$WS" "$REL" >&2
+    exit 1
 fi
-other_rows=""
-if has_surface gemini; then
-    other_rows+='| Gemini CLI | This file, via `.gemini/settings.json` | The same commands, as wrappers in `.gemini/commands/` generated from the plugin files; no end-of-session capture |'$'\n'
-fi
-if [[ -n "$SKILLS_DIR" ]]; then
-    # A skill can name a command file in this repository only when one is there: the vendored plugins,
-    # or the kit itself inside the repository. Otherwise it carries its procedure beside it.
-    kit_real="$(cd "$KIT" && pwd -P)" target_real="$(cd "$TARGET" 2>/dev/null && pwd -P || echo "$TARGET")"
-    if { [[ "$PLUGIN" == "vendor" ]] && has_surface claude; } || [[ "$kit_real" == "$target_real"/* ]]; then
-        skills_how='pointing at the command files in this repository'
-    else
-        skills_how='each carrying its procedure beside it as `procedure.md`'
-    fi
-    other_rows+='| Desktop assistant | This file, read by the `workspace-quick-start` and other kit skills when they run | One skill per command, generated by `install.sh --skills-dir` and '"$skills_how"'; no session hooks, so the skills say when to offer the board and closeout |'$'\n'
-fi
-[[ -n "$other_rows" ]] || other_rows='| <second surface> | This file + <config> | <what differs> |'$'\n'
+KIT_COMMIT="$(aw_git_elsewhere "$KIT" rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)" || KIT_COMMIT=""
+[[ -n "$KIT_COMMIT" ]] || KIT_COMMIT="-"
+KIT_VERSION="$(awk '/^## v[0-9]/ { v = $2; sub(/^v/, "", v); print v; exit }' "$KIT/CHANGELOG.md" 2>/dev/null)"
+LEDGER="$WS/$AW_LEDGER_REL"
 
-# 1 · The always-loaded file. MANIFEST.md becomes AGENTS.md, with the single-person header note and
-#     §1 swapped for the team versions, and the surface table filled in.
-how_read='Claude Code reads it through `CLAUDE.md`'
-has_surface claude || how_read=''
-has_surface gemini && how_read="${how_read:+$how_read; }Gemini CLI through \`.gemini/settings.json\`"
-[[ -n "$SKILLS_DIR" ]] && how_read="${how_read:+$how_read; }the kit's skills when they run"
-{
-    echo "# $TEAM — Team Manifest"
-    echo
-    echo "> The team's always-loaded file, read in full by every agent surface at the start of every"
-    echo "> session. ${how_read:+${how_read}.}"
-    echo "> It is a budget, not a folder: an addition names the line it replaces. Changes go by pull"
-    echo "> request to the standards owner. Angle-bracket placeholders are the team's to fill in."
-    echo
-    replace_section "$KIT/MANIFEST.md" '^## 1[.] Who this is for' '^---$' "$KIT/team/who-this-team-is.md" \
-        | awk 'f; /^---$/ && !f { f = 1; print }' \
-        | CLAUDE_ROW="$claude_row" OTHER_ROWS="$other_rows" awk '
-            # ENVIRON rather than -v, so backslashes and backticks in the rows reach the file as written.
-            $0 == "| <primary surface> | This file | <permission model, quirks> |" { print ENVIRON["CLAUDE_ROW"]; next }
-            $0 == "| <second surface> | This file + <config> | <what differs> |" { printf "%s", ENVIRON["OTHER_ROWS"]; next }
-            { print }' \
-        | sed -e "s#^\*Last updated: <YYYY-MM-DD>\*#*Last updated: $TODAY*#"
-} > "$work/AGENTS.md"
-place_rendered "$work/AGENTS.md" AGENTS.md
-
-# 2 · General reference and rituals. memory-layers §3 is pre-filled for this setup.
-replace_section "$KIT/docs/memory-layers.md" '^## 3[.] Where each type lives' '^Two rules make the table usable' \
-    "$KIT/team/memory-layers-stores.md" > "$work/memory-layers.md"
-place_rendered "$work/memory-layers.md" docs/memory-layers.md
-for f in docs/workspace-map.md docs/documentation-register.md rituals/closeout.md rituals/weekly-hygiene.md \
-         templates/project-decisions.md templates/project-readme.md templates/person-profile.md \
-         templates/verification-standard.md templates/catalogue.md templates/team-roster.md; do
-    place_rendered "$KIT/$f" "$f"
-done
-place "$KIT/docs/images/context-taxonomy.svg" docs/images/context-taxonomy.svg
-
-# 3 · Empty homes for the canonical files the manifest points at, so every promised path exists.
-printf '# Projects\n\nThe register: one line per project, linking its folder.\n\n## Active\n\n| Project | Folder | State | Owner | One-liner |\n|---|---|---|---|---|\n\n## Paused\n\n## Done\n' > "$work/INDEX.md"
-place "$work/INDEX.md" projects/INDEX.md
-printf '# Decisions\n\nCross-project decisions only. The filter and the entry format are in `templates/project-decisions.md`.\n' > "$work/decisions.md"
-place "$work/decisions.md" logs/decisions.md
-printf '# Glossary\n\nThe team'"'"'s vocabulary, acronyms and internal names. One line each.\n\n| Term | Meaning |\n|---|---|\n' > "$work/glossary.md"
-place "$work/glossary.md" memory/glossary.md
-printf '# People\n\nOne file per person, from `templates/person-profile.md`: who owns what, and who to go to for what.\n' > "$work/people.md"
-place "$work/people.md" memory/people/README.md
-# The projects plugin's extension point: prose conventions every projects command reads first.
-place_rendered "$KIT/team/projects-conventions.md" .claude/projects.md
-# Closeout's extension point, the team's tiers and house rules: wherever /closeout can run — the
-# Claude Code plugin, the generated Gemini CLI command, or the closeout skill. All read this one file.
-# Where the repository keeps a CLAUDE.md of its own, that file stays the always-loaded one, and the
-# house rule says so rather than sending promotions to an AGENTS.md nothing here loads.
-if { has_surface claude && [[ "$PLUGIN" != "none" ]]; } || has_surface gemini || [[ -n "$SKILLS_DIR" ]]; then
-    if [[ $claude_kept -eq 1 ]]; then
-        awk '/^- \*\*The always-loaded file is `AGENTS.md`/ {
-                 print "- **The always-loaded file is `CLAUDE.md`**, this repository'"'"'s own, kept when the kit was installed;"
-                 print "  `/workspace:quick-start` confirms it with the person. Promotions into working standards go there."
-                 skip = 1; next }
-             skip && /^  / { next }
-             { skip = 0; print }' "$KIT/team/closeout-conventions.md" > "$work/closeout-conventions.md"
-        place_rendered "$work/closeout-conventions.md" .claude/closeout.md
-    else
-        place_rendered "$KIT/team/closeout-conventions.md" .claude/closeout.md
-    fi
-fi
-printf '# Audits\n\nDated reports from the weekly hygiene pass and the monthly register audit. Committed, so the trail reaches everyone.\n' > "$work/audits.md"
-place "$work/audits.md" audits/README.md
-
-# 4 · Governance for a shared always-loaded tier.
-place_rendered "$KIT/team/CODEOWNERS" .github/CODEOWNERS
-place_rendered "$KIT/team/pull_request_template.md" .github/pull_request_template.md
-lc_team="$(printf '%s' "$TEAM" | tr '[:upper:]' '[:lower:]')"
-if [[ "$lc_team" == solo || "$TEAM" == "$OWNER" ]]; then
-    notes+=(".github/ routes changes to the always-loaded file to the standards owner for review; with one person it is optional, and the quick-start offers to remove it")
-fi
-
-# 5 · Claude Code.
-if has_surface claude; then
-    place_rendered "$KIT/team/CLAUDE.md" CLAUDE.md
-    if [[ "$PLUGIN" != "none" ]]; then
-        if [[ "$PLUGIN" == "vendor" ]]; then
-            # The plugins ship inside this kit, so vendoring is a local copy with no network needed.
-            # They are laid down as one small marketplace, so a single settings entry registers them all.
-            PLUGIN_SRC="${PLUGIN_SRC:-$KIT/plugins}"
-            rev="$(git -C "$KIT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-            # Built from a working tree with changes, the commit alone would not say what was copied.
-            [[ -z "$(git -C "$KIT" status --porcelain 2>/dev/null)" ]] || rev="$rev + uncommitted changes"
-            vendored=""
-            for name in closeout projects workspace; do
-                src="$PLUGIN_SRC/$name"
-                [[ -f "$src/.claude-plugin/plugin.json" ]] || die "no $name plugin at $src — pass --plugin-src"
-                while IFS= read -r f; do
-                    place "$src/$f" ".claude/plugins/$name/$f"
-                done < <(cd "$src" && find . -type f ! -path './.git/*' ! -name .DS_Store | sed 's#^\./##' | sort)
-                vendored+="$name $(jq -r .version "$src/.claude-plugin/plugin.json" 2>/dev/null || echo unknown)"$'\n'
-            done
-            cat > "$work/marketplace.json" <<JSON
-{
-  "name": "agentic-workspace",
-  "description": "Vendored from github.com/$PLUGIN_REPO by install.sh.",
-  "owner": { "name": "Robert Peake", "url": "https://github.com/cyberscribe" },
-  "plugins": [
-    { "name": "closeout", "source": "./closeout" },
-    { "name": "projects", "source": "./projects" },
-    { "name": "workspace", "source": "./workspace" }
-  ]
+# The files a workspace owns, in the contract's order: <dest>|<template in the kit>. .gitignore is
+# handled on its own, since its lines are merged rather than its file compared.
+owned_files() {
+    printf '%s\n' \
+        'CLAUDE.md|templates/workspace/CLAUDE.md' \
+        'AGENTS.md|templates/workspace/AGENTS.md' \
+        'README.md|templates/workspace/README.md' \
+        '.claude/settings.json|templates/workspace/settings.json' \
+        '.claude/closeout.md|templates/workspace/closeout.md' \
+        '.claude/projects.md|templates/workspace/projects.md'
+    [[ "${1:-}" == standins ]] || printf '%s\n' '.claude/workspace.md|templates/workspace/workspace.md'
+    printf '%s\n' \
+        'projects/INDEX.md|templates/workspace/INDEX.md' \
+        'logs/decisions.md|templates/workspace/decisions.md' \
+        'memory/glossary.md|templates/workspace/glossary.md' \
+        'memory/people/README.md|templates/workspace/people-README.md' \
+        'audits/README.md|templates/workspace/audits-README.md' \
+        'docs/workspace-map.md|templates/workspace/workspace-map.md' \
+        '.github/CODEOWNERS|templates/workspace/CODEOWNERS' \
+        '.github/pull_request_template.md|templates/workspace/pull_request_template.md' \
+        '.github/workflows/stay-private.yml|templates/workspace/stay-private.yml'
+    [[ "${1:-}" == standins || "$AW_V_pilot" != 1 ]] || printf '%s\n' 'pilot/build-list.md|pilot/build-list.md'
 }
-JSON
-            place "$work/marketplace.json" .claude/plugins/.claude-plugin/marketplace.json
-            # The local checkout is named too, so pilot/measure.sh and the installer can be found
-            # again from here without asking.
-            printf 'Vendored from github.com/%s (plugins/)\nkit commit: %s\nkit checkout: %s (on the machine that ran the installer)\n\n%s\nTo update, re-run install.sh from a newer checkout of the kit;\nchanged files arrive as .kit-incoming for review.\n' \
-                "$PLUGIN_REPO" "$rev" "$KIT" "$vendored" > "$work/VENDORED"
-            place "$work/VENDORED" .claude/plugins/VENDORED
-            source_json='{ "source": "directory", "path": ".claude/plugins" }'
+
+GI_TPL="templates/workspace.gitignore"
+GI_HEADER='# Added by the agentic workspace kit (kit/templates/workspace.gitignore)'
+
+# gi_missing <.gitignore or /dev/null> <declined list or /dev/null>: the template's lines (not blank,
+# not a # line) that the file does not have and the person has not declined, in template order. Lines
+# compare after trailing spaces are trimmed.
+gi_missing() {
+    awk '
+        { l = $0; sub(/[ \t\r]+$/, "", l) }
+        FILENAME == ARGV[1] { if (l == "" || l ~ /^#/) next; if (!(l in seen)) { seen[l] = 1; order[++n] = l }; next }
+        { have[l] = 1 }
+        END { for (i = 1; i <= n; i++) if (!(order[i] in have)) print order[i] }' "$KIT/$GI_TPL" "$1" "$2"
+}
+# gi_new_content <.gitignore> <missing lines file>: the file as it is, then the header (once) and the lines.
+gi_new_content() {
+    cat "$1"
+    [[ ! -s "$1" || "$(tail -c 1 "$1" | od -An -c | tr -d ' ')" == '\n' ]] || printf '\n'
+    if ! grep -qxF "$GI_HEADER" "$1"; then
+        [[ ! -s "$1" ]] || printf '\n'
+        printf '%s\n' "$GI_HEADER"
+    fi
+    cat "$2"
+}
+
+# The values the files are rendered with: the ledger's @values when it has them, else this run's answers
+# over the stand-ins.
+load_values() {
+    local v=""
+    aw_tpl_standins
+    [[ -f "$1" ]] && v="$(awk -F '\t' '$1 == "@values" { print; exit }' "$1")"
+    if [[ -n "$v" ]]; then aw_tpl_values_parse "$v"; return 0; fi
+    return 1
+}
+
+# render_to <kit commit or empty> <template path> <out>: with the current AW_V_* values.
+render_to() { aw_tpl_read "$KIT" "$1" "$2" 2>/dev/null | aw_tpl_render "$KIT" "$1" > "$3"; }
+
+# ---- --template-status, --template-diff, --template-record, --gitignore-decline ----------------------
+if [[ $MODE == status || $MODE == diff || $MODE == record || $MODE == decline ]]; then
+    [[ -f "$LEDGER" ]] || die "no ledger at $AW_LEDGER_REL in $WS (kit/setup.sh creates it)"
+    load_values "$LEDGER"
+fi
+
+if [[ $MODE == status ]]; then
+    while IFS= read -r line; do
+        case "$line" in ''|'#'*|'@'*|'!'*) continue ;; esac
+        IFS="$AW_TAB" read -r dest src c h st _rest <<<"$line"
+        if [[ "$st" == lines ]]; then st_out=lines
+        elif aw_tpl_opaque "$WS" "$dest"; then st_out=opaque
+        elif [[ ! -e "$WS/$dest" && ! -L "$WS/$dest" ]]; then st_out=removed
+        elif [[ ! -f "$KIT/$src" ]]; then st_out=dropped
         else
-            source_json="{ \"source\": \"github\", \"repo\": \"$PLUGIN_REPO\" }"
+            render_to "" "$src" "$work/new"
+            if [[ "$(aw_tpl_hash < "$work/new")" == "$h" ]]; then st_out=current
+            elif [[ "$c" != "-" ]] && aw_git_elsewhere "$KIT" cat-file -e "$c:$src" 2>/dev/null; then st_out=changed
+            else st_out=changed-no-base; fi
         fi
-        sed "s|__MARKETPLACE_SOURCE__|$source_json|" "$KIT/team/claude-settings.json" > "$work/claude-settings.json"
-        merge_json "$work/claude-settings.json" .claude/settings.json
+        printf '%s\t%s\t%s\n' "$st_out" "$dest" "$src"
+    done < "$LEDGER"
+    exit 0
+fi
+
+if [[ $MODE == diff ]]; then
+    line="$(aw_ledger_line "$LEDGER" "$ARG_DEST")"
+    [[ -n "$line" ]] || die "$ARG_DEST has no entry in $AW_LEDGER_REL"
+    IFS="$AW_TAB" read -r dest src c h st rest <<<"$line"
+    [[ "$st" != lines ]] || die ".gitignore is offered line by line: install.sh --gitignore offer"
+    ! aw_tpl_opaque "$WS" "$dest" || die "$dest is opaque here (AW_OPAQUE_PATHS); no diff is offered for it"
+    [[ -f "$KIT/$src" ]] || die "the kit no longer has $src"
+    if [[ "$c" == "-" ]] || ! aw_git_elsewhere "$KIT" cat-file -e "$c:$src" 2>/dev/null; then
+        printf 'install.sh: the template %s as it was at %s is not in this kit checkout (a shallow clone?); compare %s with kit/%s by hand\n' \
+            "$src" "${c:0:7}" "$dest" "$src" >&2
+        exit 1
+    fi
+    render_to "" "$src" "$work/new"
+    # The old side is rendered with the values the file was made with: @values, with any value that
+    # changed since (a later --cowork, say) taken back to what it was then.
+    for k in $AW_VALUE_KEYS; do n="AW_V_$k"; printf -v "AW_O_$k" '%s' "${!n}"; done
+    [[ -z "${rest:-}" ]] || aw_tpl_values_parse "$rest"
+    render_to "$c" "$src" "$work/old"
+    aw_tpl_swap
+    if cmp -s "$work/old" "$work/new"; then exit 3; fi
+    tdir="$work/diff"
+    if ! { mkdir -p "$tdir/$(dirname "$dest")" && aw_git_elsewhere "$tdir" init -q >/dev/null 2>&1; }; then
+        die "cannot make a scratch repository under ${TMPDIR:-/tmp}"
+    fi
+    cat "$work/old" > "$tdir/$dest"
+    aw_git_elsewhere "$tdir" -c core.autocrlf=false -c core.safecrlf=false add -f -- "$dest" || die "cannot stage the old template in the scratch repository"
+    cat "$work/new" > "$tdir/$dest"
+    aw_git_elsewhere "$tdir" -c diff.noprefix=false -c diff.mnemonicPrefix=false -c color.ui=false \
+        -c diff.srcPrefix=a/ -c diff.dstPrefix=b/ -c core.autocrlf=false -c core.quotePath=false \
+        diff --no-color --no-ext-diff --no-textconv -- "$dest"
+    exit 0
+fi
+
+if [[ $MODE == record ]]; then
+    case "$REC_STATUS" in accepted|skipped) ;; *) usage_error "--template-record takes --status accepted or --status skipped" ;; esac
+    line="$(aw_ledger_line "$LEDGER" "$ARG_DEST")"
+    [[ -n "$line" ]] || die "$ARG_DEST has no entry in $AW_LEDGER_REL"
+    IFS="$AW_TAB" read -r dest src _c _h st _rest <<<"$line"
+    [[ "$st" != lines ]] || die ".gitignore lines are declined one at a time: install.sh --gitignore-decline LINE"
+    ! aw_tpl_opaque "$WS" "$dest" || die "$dest is opaque here (AW_OPAQUE_PATHS); its entry stays kept"
+    [[ -f "$KIT/$src" ]] || die "the kit no longer has $src"
+    render_to "" "$src" "$work/new"
+    aw_ledger_put "$LEDGER" "$dest" "$dest$AW_TAB$src$AW_TAB$KIT_COMMIT$AW_TAB$(aw_tpl_hash < "$work/new")$AW_TAB$REC_STATUS" \
+        || die "cannot write $AW_LEDGER_REL"
+    exit 0
+fi
+
+if [[ $MODE == decline ]]; then
+    DECLINE="$(printf '%s' "$DECLINE" | sed 's/[[:space:]]*$//')"
+    [[ -n "$DECLINE" ]] || usage_error "--gitignore-decline needs a line"
+    if ! aw_ledger_declined "$LEDGER" | grep -qxF -- "$DECLINE"; then
+        printf '!declined\t.gitignore\t%s\n' "$DECLINE" >> "$LEDGER" || die "cannot write $AW_LEDGER_REL"
+    fi
+    exit 0
+fi
+
+# ---- --gitignore offer: the missing lines as one diff, for kit/setup.sh update to present ------------
+if [[ $MODE == install && "$GI_MODE" == offer ]]; then
+    gi="$WS/.gitignore"
+    [[ -f "$gi" ]] || { printf 'install.sh: no .gitignore to offer lines to; the engine creates one when it has no record of it\n' >&2; exit 3; }
+    aw_ledger_declined "$LEDGER" > "$work/declined"
+    gi_missing "$gi" "$work/declined" > "$work/missing"
+    [[ -s "$work/missing" ]] || exit 3
+    tdir="$work/offer"
+    if ! { mkdir -p "$tdir" && aw_git_elsewhere "$tdir" init -q >/dev/null 2>&1; }; then
+        die "cannot make a scratch repository under ${TMPDIR:-/tmp}"
+    fi
+    cat "$gi" > "$tdir/.gitignore"
+    aw_git_elsewhere "$tdir" -c core.autocrlf=false add -f -- .gitignore || die "cannot stage .gitignore in the scratch repository"
+    gi_new_content "$gi" "$work/missing" > "$tdir/.gitignore"
+    aw_git_elsewhere "$tdir" -c diff.noprefix=false -c diff.mnemonicPrefix=false -c color.ui=false \
+        -c diff.srcPrefix=a/ -c diff.dstPrefix=b/ -c core.autocrlf=false \
+        diff --no-color --no-ext-diff --no-textconv -- .gitignore
+    exit 0
+fi
+
+# ---- The repository ---------------------------------------------------------------------------------
+if ! aw_git_elsewhere "$WS" rev-parse --git-dir >/dev/null 2>&1; then
+    if [[ $INIT -eq 1 && $DRY -eq 0 ]]; then
+        aw_git_elsewhere "$WS" init -q -b main >/dev/null 2>&1 \
+            || { aw_git_elsewhere "$WS" init -q && aw_git_elsewhere "$WS" symbolic-ref HEAD refs/heads/main; } \
+            || die "cannot git init $WS"
+    elif [[ $INIT -eq 1 ]]; then
+        r_notes+=("$WS is not a git repository yet; --init would make one")
+    elif [[ $MODE == install ]]; then
+        die "$WS is not a git repository (kit/setup.sh new makes one, or add --init)"
     fi
 fi
 
-# 6 · Commands on the surfaces that do not load Claude Code plugins (generate_commands, above).
-if has_surface gemini; then
-    merge_json "$KIT/team/gemini-settings.json" .gemini/settings.json
-    generate_commands gemini
+# ---- --stand-ins: the template repository's files ---------------------------------------------------
+if [[ $MODE == standins ]]; then
+    aw_tpl_standins
+    while IFS='|' read -r dest src; do
+        [[ -f "$KIT/$src" ]] || die "the kit at $REL/ has no $src"
+        if aw_tpl_opaque "$WS" "$dest"; then r_notes+=("$dest is opaque here and was left unread"); continue; fi
+        render_to "" "$src" "$work/new"
+        if cmp -s "$work/new" "$WS/$dest"; then r_same+=("$dest"); continue; fi
+        r_created+=("$dest")
+        [[ $DRY -eq 1 ]] || { mkdir -p "$(dirname "$WS/$dest")" && cat "$work/new" > "$WS/$dest"; } || die "cannot write $dest"
+    done < <(owned_files standins)
+    if cmp -s "$KIT/$GI_TPL" "$WS/.gitignore"; then r_same+=(".gitignore")
+    else
+        r_created+=(".gitignore")
+        [[ $DRY -eq 1 ]] || cat "$KIT/$GI_TPL" > "$WS/.gitignore" || die "cannot write .gitignore"
+    fi
+    echo
+    [[ $DRY -eq 1 ]] && echo "Dry run — nothing written." && echo
+    echo "Stand-in files in $WS  (kit at $REL/, ${KIT_VERSION:-unknown version}, commit ${KIT_COMMIT:0:7})"
+    echo
+    report_lists
+    exit 0
 fi
-if [[ -n "$SKILLS_DIR" ]]; then
-    # Skills of the person's own that do a kit skill's job would both answer the same request until
-    # the quick-start folds them; say so now rather than leave it to be found.
-    for d in "$SKILLS_DIR"/*/; do
-        # Skip unless the folder has a SKILL.md that install.sh did not generate.
-        # shellcheck disable=SC2015
-        [[ -f "$d/SKILL.md" ]] && ! grep -qs 'Generated by install.sh from plugins/' "$d/SKILL.md" || continue
-        own="$(basename "$d")"
-        for kw in closeout board hygiene; do
-            case "$(printf '%s' "$own" | tr '[:upper:]' '[:lower:]')" in
-                *"$kw"*) notes+=("skill $own overlaps the kit's $kw skill; /workspace:quick-start folds the two into one"); break ;;
-            esac
-        done
+
+# ---- The install proper -----------------------------------------------------------------------------
+LW="$work/ledger"
+if [[ -f "$LEDGER" ]]; then cat "$LEDGER" > "$LW" || die "cannot read $AW_LEDGER_REL"; else aw_ledger_header > "$LW"; fi
+
+# Values. The first run records them; later runs render with what was recorded, so neither the date
+# nor a repeated flag makes a template look changed. A later run can still fill a stand-in (a team name
+# given at last) and switch on cowork, gemini or the pilot; the files that change with it are handled
+# per file below, from the old values kept in AW_O_*.
+changed_keys=""
+if load_values "$LW"; then
+    for k in $AW_VALUE_KEYS; do n="AW_V_$k"; printf -v "AW_O_$k" '%s' "${!n}"; done
+    set_value() { # <key> <value>
+        local n="AW_V_$1"
+        [[ "${!n}" != "$2" ]] || return 0
+        printf -v "$n" '%s' "$2"; changed_keys+=" $1"
+    }
+    for pair in "team|$TEAM|<team name>" "owner|$OWNER|<standards owner>" "handle|$HANDLE|@<standards-owner-handle>"; do
+        IFS='|' read -r k given standin <<<"$pair"
+        n="AW_V_$k"
+        [[ -n "$given" && "$given" != "${!n}" ]] || continue
+        if [[ "${!n}" == "$standin" ]]; then set_value "$k" "$given"
+        else r_notes+=("$k is recorded as '${!n}' in $AW_LEDGER_REL, so '$given' was not applied; the files are yours to edit"); fi
     done
-    generate_commands skills
+    [[ $COWORK -eq 0 ]] || set_value cowork 1
+    [[ $PILOT -eq 0 ]] || set_value pilot 1
+    if [[ -n "$SURFACES" ]]; then
+        sv="$AW_V_surfaces"
+        for s in ${SURFACES//,/ }; do [[ ",$sv," == *",$s,"* ]] || sv="$sv,$s"; done
+        set_value surfaces "$sv"
+    fi
+else
+    aw_tpl_standins
+    [[ -z "$TEAM" ]] || AW_V_team="$TEAM"
+    [[ -z "$OWNER" ]] || AW_V_owner="$OWNER"
+    [[ -z "$HANDLE" ]] || AW_V_handle="$HANDLE"
+    [[ -z "$SURFACES" ]] || AW_V_surfaces="$SURFACES"
+    AW_V_date="$TODAY" AW_V_cowork="$COWORK" AW_V_pilot="$PILOT"
+fi
+# The @values line goes after the leading comments, replacing any earlier one.
+vline="$(aw_tpl_values_line)"
+AW_L_V="$vline" awk -F '\t' '
+    $1 == "@values" { next }
+    !done && $0 !~ /^#/ { print ENVIRON["AW_L_V"]; done = 1 }
+    { print }
+    END { if (!done) print ENVIRON["AW_L_V"] }' "$LW" > "$work/ledger.v" && cat "$work/ledger.v" > "$LW"
+
+ledger_set() { # <dest> <source> <commit> <hash> <status> [<base value>...]
+    local dest="$1" out="$1"; shift
+    while [[ $# -gt 0 ]]; do out+="$AW_TAB$1"; shift; done
+    aw_ledger_put "$LW" "$dest" "$out" || die "cannot update the ledger copy"
+}
+write_dest() { # <dest> <content file>
+    [[ $DRY -eq 1 ]] && return 0
+    { mkdir -p "$(dirname "$WS/$1")" && cat "$2" > "$WS/$1"; } || die "cannot write $1"
+}
+exists() { [[ -e "$WS/$1" || -L "$WS/$1" ]]; }
+
+created_claude=0 settings_created=0 opaque_kept=()
+process_file() {
+    local dest="$1" src="$2" line c h st rest nh k n base=""
+    if [[ ! -f "$KIT/$src" ]]; then r_notes+=("the kit at $REL/ has no $src, so $dest was not created"); return; fi
+    render_to "" "$src" "$work/new"
+    nh="$(aw_tpl_hash < "$work/new")"
+    line="$(aw_ledger_line "$LW" "$dest")"
+    if aw_tpl_opaque "$WS" "$dest"; then
+        # Opaque: recorded, never opened. Its base is recorded all the same.
+        [[ -n "$line" ]] || ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" kept
+        opaque_kept+=("$dest")
+        return
+    fi
+    if [[ -n "$line" ]]; then
+        IFS="$AW_TAB" read -r _d _s c h st rest <<<"$line"
+        if ! exists "$dest"; then
+            r_notes+=("$dest is recorded in $AW_LEDGER_REL but is not here; the kit does not recreate a file you removed")
+            return
+        fi
+        if [[ -n "$changed_keys" ]]; then
+            aw_tpl_swap; render_to "" "$src" "$work/old"; aw_tpl_swap
+            if ! cmp -s "$work/old" "$work/new"; then
+                if cmp -s "$WS/$dest" "$work/old"; then
+                    # Untouched since the engine wrote it: the new values' render replaces it.
+                    write_dest "$dest" "$work/new"; ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" created
+                    r_created+=("$dest")
+                else
+                    # Edited since: the change is offered as a diff, rendered from the values it was made with.
+                    if [[ -z "${rest:-}" ]]; then
+                        for k in $changed_keys; do n="AW_O_$k"; base+="$AW_TAB$k=${!n}"; done
+                        rest="${base#"$AW_TAB"}"
+                    fi
+                    aw_ledger_put "$LW" "$dest" "$dest$AW_TAB$src$AW_TAB$c$AW_TAB$h$AW_TAB$st$AW_TAB$rest" \
+                        || die "cannot update the ledger copy"
+                    r_changed+=("$dest")
+                fi
+                return
+            fi
+        fi
+        if cmp -s "$WS/$dest" "$work/new"; then
+            if [[ "$h" != "$nh" || -n "${rest:-}" ]]; then
+                [[ "$st" == accepted ]] || st=created
+                ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" "$st"
+            fi
+            r_same+=("$dest")
+        elif [[ "$h" == "$nh" && -z "${rest:-}" ]]; then
+            r_same+=("$dest")
+        else
+            r_changed+=("$dest")
+        fi
+        return
+    fi
+    if ! exists "$dest"; then
+        write_dest "$dest" "$work/new"; ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" created
+        r_created+=("$dest")
+        [[ "$dest" != CLAUDE.md ]] || created_claude=1
+        [[ "$dest" != .claude/settings.json ]] || settings_created=1
+    elif cmp -s "$WS/$dest" "$work/new"; then
+        ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" created
+        r_same+=("$dest")
+    else
+        # The stand-in rule: a file byte-identical to the stand-in render (the template repository's
+        # copy, never edited) is the kit's still, and takes the real render.
+        vline="$(aw_tpl_values_line)"
+        aw_tpl_standins; render_to "" "$src" "$work/standin"
+        aw_tpl_standins; aw_tpl_values_parse "$vline"
+        if cmp -s "$WS/$dest" "$work/standin"; then
+            write_dest "$dest" "$work/new"; ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" created
+            r_created+=("$dest")
+            [[ "$dest" != CLAUDE.md ]] || created_claude=1
+        else
+            ledger_set "$dest" "$src" "$KIT_COMMIT" "$nh" kept
+            r_kept+=("$dest")
+        fi
+    fi
+}
+
+while IFS='|' read -r dest src; do process_file "$dest" "$src"; done < <(owned_files)
+for f in ${opaque_kept[@]+"${opaque_kept[@]}"}; do
+    r_notes+=("$f is opaque here (AW_OPAQUE_PATHS): recorded as kept without being opened")
+done
+
+# ---- .claude/settings.json: the one key the engine maintains ----------------------------------------
+settings="$WS/.claude/settings.json"
+want_src='{"source":"directory","path":"kit"}'
+if [[ $settings_created -eq 0 && -f "$settings" ]]; then
+    if ! command -v jq >/dev/null 2>&1; then
+        r_notes+=(".claude/settings.json was not checked: jq is not on PATH")
+    elif ! jq -e . "$settings" >/dev/null 2>&1; then
+        r_notes+=(".claude/settings.json does not parse as JSON, so its marketplace path was not checked")
+    else
+        cur="$(jq -c '.extraKnownMarketplaces["agentic-workspace"].source // empty' "$settings")"
+        cp "$settings" "$work/settings"
+        if [[ -z "$cur" ]]; then
+            jq --argjson s "$want_src" '.extraKnownMarketplaces["agentic-workspace"].source = $s' "$settings" > "$work/settings" \
+                || die "cannot update .claude/settings.json"
+            jq -S . "$settings" > "$work/cmp-a" 2>/dev/null; jq -S . "$work/settings" > "$work/cmp-b" 2>/dev/null
+            if ! cmp -s "$work/cmp-a" "$work/cmp-b"; then
+                write_dest .claude/settings.json "$work/settings"
+                r_merged+=(".claude/settings.json")
+            fi
+        elif [[ "$(printf '%s' "$cur" | jq -S -c .)" != "$(printf '%s' "$want_src" | jq -S -c .)" ]]; then
+            r_notes+=("legacy: the agentic-workspace marketplace in .claude/settings.json is $cur, not kit/ — kit/setup.sh migrate --dry-run shows the change")
+        fi
+        # Kit keys the person's file lacks are listed, each with the command that adds it; the person's own
+        # values, a plugin switched off included, are never changed.
+        # The jq program is literal text for jq, not for the shell.
+        while IFS= read -r expr; do
+            [[ -n "$expr" ]] || continue
+            q="${expr//\'/\'\\\'\'}"
+            r_notes+=("settings key the kit's template has and yours lacks: jq '$q' .claude/settings.json > .claude/settings.json.new && mv .claude/settings.json.new .claude/settings.json")
+        done < <(jq -r --slurpfile t "$KIT/templates/workspace/settings.json" '
+            def pexpr: (reduce .[] as $k (""; . + (if ($k | type) == "string" and ($k | test("^[A-Za-z_][A-Za-z0-9_]*$"))
+                then "." + $k else "[" + ($k | tojson) + "]" end))) | if startswith("[") then "." + . else . end;
+            def miss($u; $t; $p):
+                if ($t | type) == "object" then
+                    $t | to_entries[] | .key as $k | .value as $v
+                    | if ($u | type) == "object" and ($u | has($k)) then miss($u[$k]; $v; $p + [$k])
+                      elif ($u | type) == "object" or $u == null then {p: ($p + [$k]), op: "=", v: $v}
+                      else empty end
+                elif ($t | type) == "array" and ($u | type) == "array" then
+                    $t[] as $e | if any($u[]; . == $e) then empty else {p: $p, op: "+=", v: [$e]} end
+                else empty end;
+            miss(.; $t[0]; []) | "\(.p | pexpr) \(.op) \(.v | tojson)"' "$work/settings" 2>/dev/null)
+    fi
 fi
 
-# 7 · Pilot layer.
-if [[ $PILOT -eq 1 ]]; then
-    place_rendered "$KIT/pilot/README.md" pilot/README.md
-    place "$KIT/pilot/build-list.md" pilot/build-list.md
-    place "$KIT/pilot/measure.sh" pilot/measure.sh
-    [[ $DRY -eq 1 ]] || chmod 755 "$TARGET/pilot/measure.sh"
+# ---- .gitignore -------------------------------------------------------------------------------------
+[[ -n "$GI_MODE" ]] || { if [[ $INIT -eq 1 || $created_claude -eq 1 ]]; then GI_MODE=merge; else GI_MODE=report; fi; }
+gi="$WS/.gitignore"
+gi_line="$(aw_ledger_line "$LW" .gitignore)"
+if ! exists .gitignore; then
+    if [[ -n "$gi_line" ]]; then
+        r_notes+=(".gitignore is recorded in $AW_LEDGER_REL but is not here; the kit does not recreate a file you removed")
+    else
+        write_dest .gitignore "$KIT/$GI_TPL"
+        ledger_set .gitignore "$GI_TPL" "$KIT_COMMIT" - lines
+        r_created+=(".gitignore")
+    fi
+else
+    [[ -n "$gi_line" ]] || ledger_set .gitignore "$GI_TPL" "$KIT_COMMIT" - lines
+    aw_ledger_declined "$LW" > "$work/declined"
+    gi_missing "$gi" "$work/declined" > "$work/missing"
+    if [[ -s "$work/missing" ]]; then
+        case "$GI_MODE" in
+            merge)
+                gi_new_content "$gi" "$work/missing" > "$work/gitignore"
+                write_dest .gitignore "$work/gitignore"
+                ledger_set .gitignore "$GI_TPL" "$KIT_COMMIT" - lines
+                while IFS= read -r l; do r_gitignore+=("$l"); done < "$work/missing" ;;
+            *)
+                n_missing=$(( $(aw_count < "$work/missing") ))
+                r_notes+=(".gitignore lacks $n_missing line(s) the kit's template has ($(paste -sd' ' - < "$work/missing")); kit/setup.sh update offers them") ;;
+        esac
+    fi
 fi
 
-stale_generated
-report
+# ---- Gemini CLI (parked: still set up on request) ---------------------------------------------------
+if [[ ",$AW_V_surfaces," == *",gemini,"* ]]; then
+    gs="$WS/.gemini/settings.json" gtpl="$KIT/templates/workspace/gemini-settings.json"
+    if [[ ! -e "$gs" ]]; then
+        write_dest .gemini/settings.json "$gtpl"; r_created+=(".gemini/settings.json")
+    elif command -v jq >/dev/null 2>&1 && jq -e . "$gs" >/dev/null 2>&1; then
+        # An additive merge: the context file list is unioned, and nothing of the person's is removed.
+        jq -s '.[0] as $old | .[1] as $new | ($new * $old)
+            | .context.fileName = (([$old.context.fileName] | flatten | map(select(. != null))) + ($new.context.fileName // []) | unique)' \
+            "$gs" "$gtpl" > "$work/gemini" || die "cannot merge .gemini/settings.json"
+        jq -S . "$gs" > "$work/cmp-a" 2>/dev/null; jq -S . "$work/gemini" > "$work/cmp-b" 2>/dev/null
+        if cmp -s "$work/cmp-a" "$work/cmp-b"; then r_same+=(".gemini/settings.json")
+        else write_dest .gemini/settings.json "$work/gemini"; r_merged+=(".gemini/settings.json"); fi
+    else
+        r_notes+=(".gemini/settings.json was not merged: jq is missing or the file does not parse")
+    fi
+    generate_commands gemini "$KIT/plugins" "$WS"
+    stale_generated "$KIT/plugins" "$WS"
+fi
+
+# ---- Traces of the 2.x layout: reported, never touched ----------------------------------------------
+[[ ! -e "$WS/.claude/plugins/VENDORED" ]] \
+    || r_notes+=("legacy: .claude/plugins/ holds the 2.x vendored plugins — kit/setup.sh migrate --dry-run shows the move")
+incoming="$(aw_git_elsewhere "$WS" ls-files -co --exclude-standard -- '*.kit-incoming' ":(exclude)$REL" 2>/dev/null | head -n 5 | paste -sd' ' -)"
+[[ -z "$incoming" ]] || r_notes+=("legacy: 2.x .kit-incoming files ($incoming) — kit/setup.sh migrate --dry-run lists them")
+for f in "$WS"/skills/*/SKILL.md; do
+    if [[ ! -f "$f" ]] || ! grep -qs "$GEN_MARK" "$f"; then continue; fi
+    r_notes+=("legacy: skills/$(basename "$(dirname "$f")") was generated by the 2.x installer — kit/setup.sh migrate --dry-run moves it out")
+done
+if [[ -f "$WS/CLAUDE.md" ]] && ! aw_tpl_opaque "$WS" CLAUDE.md \
+    && [[ "$(awk '/^[[:space:]]*$/ { next } /^<!--/ { c = 1 } c { if (/-->/) c = 0; next } { print }' "$WS/CLAUDE.md" 2>/dev/null)" == "@AGENTS.md" ]]; then
+    r_notes+=("legacy: CLAUDE.md is the 2.x one-line import of AGENTS.md — kit/setup.sh migrate --dry-run shows the 3.0 step")
+fi
+if exists .github/CODEOWNERS && [[ " ${r_created[*]-} " == *" .github/CODEOWNERS "* ]]; then
+    lc_team="$(printf '%s' "$AW_V_team" | tr '[:upper:]' '[:lower:]')"
+    if [[ "$lc_team" == solo || "$AW_V_team" == "$AW_V_owner" ]]; then
+        r_notes+=(".github/ routes changes to the always-loaded file to the standards owner for review; with one person it is optional, and the quick-start offers to remove it")
+    fi
+fi
+
+# ---- The ledger -------------------------------------------------------------------------------------
+if ! cmp -s "$LW" "$LEDGER"; then
+    [[ -f "$LEDGER" ]] || r_created+=("$AW_LEDGER_REL")
+    write_dest "$AW_LEDGER_REL" "$LW"
+fi
+
+# ---- Report -----------------------------------------------------------------------------------------
+echo
+[[ $DRY -eq 1 ]] && echo "Dry run — nothing written." && echo
+echo "Workspace: $WS  (kit at $REL/, ${KIT_VERSION:-unknown version}, commit ${KIT_COMMIT:0:7})"
+echo
+report_lists
+if [[ $DRY -eq 0 ]]; then
+    echo
+    echo "Next:"
+    i=1
+    if [[ -f "$WS/CLAUDE.md" && "$(awk 'NF { print; exit }' "$WS/CLAUDE.md" 2>/dev/null)" == '@kit/CLAUDE.kit.md' ]] \
+        && [[ " ${r_kept[*]-} " != *" CLAUDE.md "* ]]; then
+        # A stand-in is an angle-bracketed phrase with a space in it; path patterns like <name> are not.
+        n="$(tr '\n' ' ' < "$WS/CLAUDE.md" | grep -o '<[A-Za-z][^<>]* [^<>]*>' | aw_count)"
+        echo "  $i. Open the workspace in Claude Code and run /workspace:quick-start. It interviews you for the rest"
+        echo "     — CLAUDE.md has $n answers still to fill in — then offers /projects:new for the first projects."
+    else
+        echo "  $i. Your own CLAUDE.md was kept. The kit's working standards load through a first line of"
+        echo "     @kit/CLAUDE.kit.md; /workspace:quick-start maps your system onto the kit and changes nothing without your yes."
+    fi
+    i=$((i + 1))
+    echo "  $i. Each person, in Claude Code: trust the folder, then approve the closeout, projects and workspace plugins when asked."
+    i=$((i + 1))
+    if [[ "$AW_V_pilot" == 1 ]]; then
+        echo "  $i. Put the team's own build list into pilot/build-list.md, commit, then run bash $REL/pilot/measure.sh."
+    fi
+    echo "  Nothing is committed. Review with: git -C \"$WS\" status"
+fi
+exit 0

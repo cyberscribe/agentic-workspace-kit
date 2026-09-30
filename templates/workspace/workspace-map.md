@@ -2,8 +2,9 @@
 
 *The file-by-file layout, the canonical source for each kind of fact, and where new files go.*
 
-> Skeleton. The always-loaded manifest keeps a high-level surface table; this file holds the detail,
-> so it can grow without costing every session.
+> This workspace's own map, started from the kit's template and kept by the team. The always-loaded
+> file keeps a high-level surface table; this file holds the detail, so it can grow without costing
+> every session.
 
 ---
 
@@ -15,28 +16,39 @@ age at different rates.
 
 | Domain | Canonical file |
 |---|---|
-| Who the work is for | `memory/context/<name>-profile.md` |
+| The team, its standards owner and its conventions | `CLAUDE.md` §1–§4 |
+| The kit's working standards | `kit/CLAUDE.kit.md` (the kit's; imported by `CLAUDE.md`) |
 | Glossary, acronyms, internal vocabulary | `memory/glossary.md` |
-| People and organisations | `memory/context/<topic>.md` |
-| Which store a durable fact belongs in | `docs/memory-layers.md` |
-| How guidance prose should read | `docs/documentation-register.md` |
+| People | `memory/people/<name>.md` |
+| Organisations and topics | `memory/context/<topic>.md` |
+| Which store a durable fact belongs in | `kit/docs/memory-layers.md` |
+| How guidance prose should read | `kit/docs/documentation-register.md` |
 | Cross-project decisions | `logs/decisions.md` |
 | Active projects | `projects/INDEX.md` |
+| Project conventions | `.claude/projects.md` |
+| End-of-session promotion conventions | `.claude/closeout.md`, with the ritual in `kit/rituals/closeout.md` |
+| Remotes confirmed private, and other workspace settings | `.claude/workspace.md` |
 | Per-tool conventions | `docs/<tool>-conventions.md` |
-| End-of-session promotion conventions | `rituals/closeout.md` |
-| Reusable document skeletons | `templates/` |
+| Reusable document skeletons | `kit/templates/` |
 
 ## Filesystem
 
 ```
 workspace/
-  MANIFEST.md              ← the always-loaded file
+  CLAUDE.md                ← the always-loaded file; line 1 imports kit/CLAUDE.kit.md
+  AGENTS.md                ← points other tools at the same two files
   README.md                ← navigational entry point for humans
+  kit/                     ← the kit, a submodule: read in place, updated with kit/setup.sh update
+
+  .claude/
+    settings.json          ← registers kit/ as the plugin marketplace
+    projects.md            ← project conventions, read first by every projects command
+    closeout.md            ← closeout conventions
+    workspace.md           ← private remotes and other settings the git hooks read
+    kit-templates.lock     ← which template each file above started from (written by the kit)
 
   docs/                    ← general reference, loaded on demand
     workspace-map.md       ← this file
-    memory-layers.md       ← the content-type taxonomy
-    documentation-register.md
     catalogue.md           ← what the team has built and can reuse (optional)
     verification.md        ← what counts as checked, per kind of work (optional)
     <topic>.md             ← one file per subsystem or convention
@@ -46,14 +58,14 @@ workspace/
     <slug>/                ← one folder per project
       README.md            ← what, why, done when, the Current state block, open questions
       decisions.md         ← when the project earns one
+    _done/<slug>/          ← finished projects
 
-  templates/               ← reusable skeletons, copied into the project that needs one
-  rituals/                 ← the procedures for the recurring passes
-  skills/                  ← packaged procedures the agent surface can invoke
+  skills/                  ← the team's own skills
   logs/
     decisions.md           ← cross-project decisions
   memory/
     glossary.md
+    people/<name>.md
     context/<topic>.md     ← canonical cross-surface facts
   audits/                  ← dated reports from the periodic checks
 ```
@@ -64,18 +76,20 @@ workspace/
 |---|---|
 | Per-project working files | `projects/<slug>/` — and a row in `projects/INDEX.md` |
 | Something reusable the team has built | One line in `docs/catalogue.md` |
-| Per-person or per-organisation notes | `memory/context/<topic>.md` |
+| Per-person notes | `memory/people/<name>.md` |
+| Per-organisation or per-topic notes | `memory/context/<topic>.md` |
 | Long-form drafts | `drafts/<slug>/` |
 | Cross-project decisions | `logs/decisions.md`, after the strip filter |
-| Project-specific decisions | `projects/<slug>/decisions.md`, from `templates/project-decisions.md` |
-| Reusable document skeletons | `templates/<name>.md` |
-| Detail referenced from the manifest | `docs/<topic>.md` |
+| Project-specific decisions | `projects/<slug>/decisions.md`, from `kit/templates/project-decisions.md` |
+| A skeleton of the team's own | `templates/<name>.md`, named in `.claude/projects.md` where a command reads it |
+| Detail referenced from the always-loaded file | `docs/<topic>.md` |
+| Material outside the repository | Named under `## Resources` in the project README, mapped per machine in `.claude/resources.local.md` |
 | One-shot deliverables | Wherever your surface surfaces files; not in the durable tree |
 
 If a referenced file does not exist yet, create it at first use. A documented-but-absent path is a
 promise rather than a fault.
 
-New guidance prose follows `docs/documentation-register.md`.
+New guidance prose follows `kit/docs/documentation-register.md`.
 
 ## How file references are written
 

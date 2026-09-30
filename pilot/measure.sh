@@ -7,9 +7,10 @@
 #   pilot/measure.sh --print         print today's row without writing anything
 #   --out <path>                     write somewhere other than pilot/metrics.csv (with either mode)
 #   --target <dir>                   measure that repository (default: the one the command is run in,
-#                                    so a kit checkout's copy can measure the repository it serves)
+#                                    so bash kit/pilot/measure.sh from a workspace's root measures it)
 #   MEASURE_ALWAYS_LOADED="CLAUDE.md" pilot/measure.sh
-#                                    the files counted as always loaded (default: AGENTS.md CLAUDE.md)
+#                                    the files counted as always loaded (default: CLAUDE.md AGENTS.md
+#                                    kit/CLAUDE.kit.md), with every file they import by an @path line
 #
 # Each row is a snapshot of the repository as it stood at the end of that day, plus activity in the
 # seven days up to it. Backfill works because every number is recomputed from a past commit rather
@@ -18,7 +19,11 @@
 # of the first commit rather than inventing zero rows for the weeks before it.
 set -euo pipefail
 
-usage() { sed -n '2,18p' "$0"; exit 1; }
+# Every git call reads only: optional locks off, so a run beside a live session never leaves an
+# index.lock behind.
+git() { command git --no-optional-locks "$@"; }
+
+usage() { sed -n '2,19p' "$0"; exit 1; }
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 mode=append weeks="" out="" target=""
@@ -52,9 +57,17 @@ header="date,always_loaded_bytes,decisions_logged,doc_files,people_profiles,audi
 header+=",projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done"
 header+=",ablations_named,ablations_discriminating,ablations_no_difference"
 
-# The always-loaded tier. In a kit install CLAUDE.md is a one-line import of AGENTS.md, and both are
-# counted so that growth in either shows up. A repository whose agents load something else says so.
-read -r -a always_loaded <<< "${MEASURE_ALWAYS_LOADED:-AGENTS.md CLAUDE.md}"
+# The always-loaded tier. In a workspace built on the kit, CLAUDE.md starts with an import of the kit's
+# working standards, kit/CLAUDE.kit.md, and AGENTS.md routes other tools to the same file; a 2.x install
+# has CLAUDE.md as a one-line import of AGENTS.md. Every file on the list is counted, and so is every file
+# they import with an @path line, each once, so growth in any of them shows up. A repository whose
+# agents load something else says so.
+read -r -a always_loaded <<< "${MEASURE_ALWAYS_LOADED:-CLAUDE.md AGENTS.md kit/CLAUDE.kit.md}"
+# Files some workspaces keep for other tools and do not let tools read (AW_OPAQUE_PATHS, as the kit's
+# engine reads it: unset means these two, set but empty means none). Their size is counted from git's
+# record of them; their content is never read, so an import inside one is not followed. One the kit's
+# engine created itself (a created or accepted line in .claude/kit-templates.lock) stays readable.
+opaque_paths="${AW_OPAQUE_PATHS-AGENTS.md copilot-instructions.md}"
 
 # Paths that count as the team's documentation, as opposed to code or pilot bookkeeping.
 doc_paths=(AGENTS.md CLAUDE.md docs memory projects logs templates rituals)
@@ -90,9 +103,11 @@ conventions() { git show "$1:.claude/projects.md" 2>/dev/null || cat .claude/pro
 settings_awk='
 function first_tick(s) { return match(s, /`[^`]+`/) ? substr(s, RSTART + 1, RLENGTH - 2) : "" }
 function is_label(line, name) { return tolower(line) ~ ("^[ \t]*[-*] \\*\\*" name ":\\*\\*") }
+# A folder whose name starts with _ or . is reserved, not a project (projects/_done, projects/_delete),
+# so a <slug> placeholder never matches one.
 function folder(v) {
     sub(/^\.\//, "", v); sub(/\/+$/, "", v); gsub(/\./, "\\.", v)
-    if (v ~ /</) gsub(/<[^>]*>/, "[^/]+", v); else v = v "/[^/]+"
+    if (v ~ /</) gsub(/<[^>]*>/, "[^/_.][^/]*", v); else v = v "/[^/_.][^/]*"
     return "^" v "$"
 }
 function aliases(text,   n, i, parts, s, d, p, v) {
@@ -216,9 +231,11 @@ projects_row() {
     local rev="$1" day="$2" conv settings register entry_name default_owner dirs dir entry f kind rec state owners records="" durations=""
     conv="$(conventions "$rev")"
     settings="$(printf '%s\n' "$conv" | awk "$settings_awk")"
-    loc_active="$(awk '$1 == "active" { print $2; exit }' <<< "$settings")"; loc_active="${loc_active:-^projects/[^/]+\$}"
+    loc_active="$(awk '$1 == "active" { print $2; exit }' <<< "$settings")"; loc_active="${loc_active:-^projects/[^/_.][^/]*\$}"
     loc_paused="$(awk '$1 == "paused" { print $2; exit }' <<< "$settings")"
     loc_done="$(awk '$1 == "done" { print $2; exit }' <<< "$settings")"
+    # With no conventions file at all, the kit's own default applies: finished projects in projects/_done/.
+    [[ -n "$conv" ]] || loc_done='^projects/_done/[^/_.][^/]*$'
     register="$(awk '$1 == "register" { print $2; exit }' <<< "$settings")"; register="${register:-projects/INDEX.md}"
     entry_name="$(awk '$1 == "entry" { print $2; exit }' <<< "$settings")"; entry_name="${entry_name:-README.md}"
     default_owner="$(awk '$1 == "owner" { $1 = ""; sub(/^ +/, ""); print; exit }' <<< "$settings")"
@@ -296,15 +313,17 @@ projects_row() {
 # Past rows read the files and pilot/ablation-results.csv as committed at that revision, so backfill
 # works. Today's row reads them from the working tree: the runner writes results that are committed
 # with the row, and the weekly pass measures again after it runs the ablations.
-# The runner is the kit's: beside this script in a kit checkout, else in the checkout the installer
-# recorded when it vendored the plugins here.
+# The runner is the kit's: beside this script in a kit checkout, else in the workspace's kit/, else
+# (a 2.x install) in the checkout the installer recorded when it vendored the plugins here.
 ablate_sh="$here/ablate.sh"
+[[ -f "$ablate_sh" ]] || ablate_sh="$root/kit/pilot/ablate.sh"
 if [[ ! -f "$ablate_sh" ]]; then
     kit_checkout="$(sed -n 's/^kit checkout: \(.*\) (on the machine that ran the installer)$/\1/p' .claude/plugins/VENDORED 2>/dev/null | awk 'NR == 1' || true)"
     ablate_sh="${kit_checkout:+$kit_checkout/pilot/ablate.sh}"
 fi
 results_tmp="$(mktemp "${TMPDIR:-/tmp}/measure.XXXXXX")"
-trap 'rm -f "$results_tmp"' EXIT
+blob_tmp="$(mktemp "${TMPDIR:-/tmp}/measure.XXXXXX")"
+trap 'rm -f "$results_tmp" "$results_tmp.day" "$blob_tmp"' EXIT
 
 ablations_row() {
     local rev="$1" day="$2" names outcomes
@@ -329,17 +348,112 @@ ablations_row() {
         END { printf "%d,%d,%d", n, d, nd }' <<< "$outcomes"
 }
 
+# --- The always-loaded tier -----------------------------------------------------------------------
+# A file inside a submodule is read at the commit the revision records for that submodule, from the
+# submodule's own objects: the workspace's history holds only the pointer. So kit/CLAUDE.kit.md counts
+# as it stood at the kit commit the workspace had committed that day, and a kit update shows in the row
+# for the week its pointer was committed, not before.
+
+# blob_at <rev> <path>: the file's bytes at that revision, into $blob_tmp. Status 1 when it is not
+# there: never committed, or inside a submodule whose recorded commit this checkout does not have.
+blob_at() {
+    local rev="$1" path="$2" sub sha
+    : > "$blob_tmp"
+    if git cat-file -e "$rev:$path" 2>/dev/null; then git cat-file blob "$rev:$path" > "$blob_tmp"; return 0; fi
+    sub="$path"
+    while [[ "$sub" == */* ]]; do
+        sub="${sub%/*}"
+        sha="$(git ls-tree "$rev" -- "$sub" 2>/dev/null | awk '$1 == "160000" { print $3; exit }')"
+        [[ -n "$sha" ]] || continue
+        [[ -e "$sub/.git" ]] || return 1
+        # The submodule is another repository: git's own variables, if a hook set them, point elsewhere.
+        ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR GIT_PREFIX
+          git -C "$sub" cat-file blob "$sha:${path#"$sub"/}" ) > "$blob_tmp" 2>/dev/null || { : > "$blob_tmp"; return 1; }
+        return 0
+    done
+    return 1
+}
+
+# is_opaque <path>: status 0 when the path is one whose content is not read here (see opaque_paths).
+is_opaque() {
+    local p
+    for p in $opaque_paths; do
+        [[ "$1" == "$p" ]] || continue
+        awk -F'\t' -v d="$1" '$1 == d && ($5 == "created" || $5 == "accepted") { found = 1 } END { exit !found }' \
+            .claude/kit-templates.lock 2>/dev/null && return 1
+        return 0
+    done
+    return 1
+}
+
+# imports_of <file>: the @path imports in the file at $blob_tmp, one per line, as written. An import is
+# an @ at the start of a line or after a space, followed by a path; code spans and fenced blocks are
+# skipped, as Claude Code skips them.
+# shellcheck disable=SC2016  # an awk program: its $ fields are awk's, not the shell's
+imports_awk='
+/^[ \t]*(```|~~~)/ { fence = !fence; next }
+fence { next }
+{
+    line = $0; gsub(/`[^`]*`/, "", line)
+    while (match(line, /(^|[ \t])@[^ \t]+/)) {
+        tok = substr(line, RSTART, RLENGTH); sub(/^[ \t]*@/, "", tok); sub(/[.,;:)]+$/, "", tok)
+        if (tok != "") print tok
+        line = substr(line, RSTART + RLENGTH)
+    }
+}'
+
+# resolve <importing file> <import>: the import as a repository-relative path, or nothing when it leaves
+# the repository (a home-directory or absolute path, or one that climbs above the root).
+resolve() {
+    local from="$1" imp="$2" dir out="" seg rest
+    case "$imp" in "~"*|/*) return 0 ;; esac
+    dir="$(dirname "$from")/"
+    [[ "$dir" != ./ ]] || dir=""
+    rest="$dir$imp/"
+    while [[ -n "$rest" ]]; do
+        seg="${rest%%/*}"; rest="${rest#*/}"
+        case "$seg" in
+            ""|.) ;;
+            ..) [[ -n "$out" ]] || return 0
+                if [[ "$out" == */* ]]; then out="${out%/*}"; else out=""; fi ;;
+            *) out="${out:+$out/}$seg" ;;
+        esac
+    done
+    printf '%s' "$out"
+}
+
+# always_bytes <rev>: the bytes of the always-loaded files and everything they import, each file once,
+# imports followed up to five deep as Claude Code follows them.
+always_bytes() {
+    local rev="$1" bytes=0 seen=" " queue=() depth=() i=0 f d s imp p
+    for f in "${always_loaded[@]}"; do queue+=("$f"); depth+=(0); done
+    while [[ $i -lt ${#queue[@]} ]]; do
+        f="${queue[$i]}" d="${depth[$i]}"; i=$((i + 1))
+        case "$seen" in *" $f "*) continue ;; esac
+        seen+="$f "
+        if is_opaque "$f"; then
+            s="$(git cat-file -s "$rev:$f" 2>/dev/null || echo 0)"; bytes=$((bytes + s)); continue
+        fi
+        blob_at "$rev" "$f" || continue
+        bytes=$((bytes + $(wc -c < "$blob_tmp")))
+        [[ $d -lt 5 ]] || continue
+        while IFS= read -r imp; do
+            p="$(resolve "$f" "$imp")"
+            [[ -n "$p" ]] || continue
+            queue+=("$p"); depth+=($((d + 1)))
+        done < <(awk "$imports_awk" "$blob_tmp")
+    done
+    echo "$bytes"
+}
+
 # --------------------------------------------------------------------------------------------------
 
 row_for() {
-    local day="$1" rev bytes=0 f s decisions doc_files people audits named exist commits authors since
+    local day="$1" rev bytes=0 decisions doc_files people audits named exist commits authors since
     rev="$(git rev-list -1 --before="$day 23:59:59" HEAD 2>/dev/null || true)"
     if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0"; return; fi
 
-    for f in "${always_loaded[@]}"; do
-        s="$(git cat-file -s "$rev:$f" 2>/dev/null || echo 0)"
-        bytes=$((bytes + s))
-    done
+    bytes="$(always_bytes "$rev")"
 
     # Decision entries are dated level-two headings: "## [YYYY-MM-DD] Title" as in
     # templates/project-decisions.md, or "## YYYY-MM-DD — Title" as some teams' own logs write them.

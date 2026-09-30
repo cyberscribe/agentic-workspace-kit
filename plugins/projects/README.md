@@ -1,16 +1,17 @@
 # projects — start a project right for agentic co-working
 
 A Claude Code plugin for the life of a project, kept in the project's own
-README so that people and agents read the same thing. Five commands, one
+README so that people and agents read the same thing. Six commands, one
 session-start line:
 
 | Command | What it is for |
 |---|---|
 | **`/projects:new`** | Open a project the way a good kickoff does: a short interview, then its entry point. |
-| **`/projects:adopt <folder>`** | For a project that already exists: add only what is missing (Done when, Current state, People) as small insertions. |
+| **`/projects:adopt <folder>`** | For a project that already exists: add only what is missing (Done when, Current state, People, the versioning lines) as small insertions; or change how a project is versioned. |
+| **`/projects:hold <slug>`** | Set a project aside on purpose: paused, with a reason and a date to look again; the folder stays where it is, still versioned. |
 | **`/projects:board`** | Everything in flight on one page, with one-line flags for what needs attention. |
-| **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear. |
-| **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it. |
+| **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear, and the folder archived to `projects/_done/`. |
+| **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it; it offers to resume a paused one. |
 
 Most of it is optional. What it insists on, kindly, is the part that decides
 whether the work ever finishes:
@@ -20,6 +21,8 @@ whether the work ever finishes:
   project's closeout state: later sessions reconcile against it, and when every
   box is ticked the project is finished.
 - **An owner** — one person who answers for the outcome.
+- **How it is kept** — whether the workspace tracks it, it is its own
+  repository, or it stays out of git, and whether anything in it is sensitive.
 
 And what it offers, if you want it:
 
@@ -32,7 +35,55 @@ And what it offers, if you want it:
   work before asking, because a rejected alternative from last time is the most
   valuable thing to know at the start.
 - **Planned steps, constraints, a check-in cadence, open questions.**
+- **Resources** — material the project uses that lives outside the repository,
+  named in the README and mapped to real paths on each machine.
 
+## How a project is kept
+
+Two lines sit directly under each README's title, outside the Current state
+block:
+
+```
+- **Versioned:** workspace
+- **Sensitivity:** normal
+```
+
+| Versioned | What it means | Use it for |
+|---|---|---|
+| `workspace` | Tracked by the workspace repository | Most projects |
+| `own-repo` | Its own repository, with its own remote, added to the workspace as a submodule | Work that publishes, or has collaborators outside the workspace |
+| `untracked` | Listed in the workspace's `.gitignore`; the README is still read on this machine | Material that stays on one machine |
+
+`Sensitivity:` is `normal` or `sensitive`. A sensitive project is `untracked`
+or its own private repository; it is never tracked by the workspace, and the
+workspace's git hooks refuse to stage its files. An absent line reads as
+`normal`. `/projects:new` asks both questions, `/projects:adopt` proposes the
+lines for an older project, and `/projects:adopt <slug> own-repo` (or
+`workspace`, or `untracked`) moves a project from one way to another, showing
+every command first and saying plainly what the workspace's history still
+holds.
+
+## Resources
+
+A project names the material it uses that is not in the repository — large
+media, generated output, a data extract, a shared drive folder — by name, never
+by path:
+
+```
+## Resources
+
+- media — raw interview recordings (large; kept outside git)
+- exports — generated renders; rebuilt by `make render`
+```
+
+Each machine maps the names in `.claude/resources.local.md`, which is not
+committed (`field-study/media  ~/Shared drives/Field study/recordings`), and
+`kit/setup.sh link <slug>` links them at `projects/<slug>/.resources/<name>`
+and grants the folders to Claude Code. A resource described as generated, and
+mapped nowhere, lives inside the project folder and is kept out of git. The
+session-start line offers the mapping once when a name is not mapped here, and
+the board flags a resource this machine cannot reach, as a fact about the
+machine rather than an error.
 ## The Current state block
 
 Every project README carries a small block straight after Done when, so where
@@ -120,8 +171,13 @@ block was updated, and for a blocked project what blocks it. Under the board, on
 line per thing that needs attention: no owner, no done-when, an `Updated:` date
 older than the staleness setting, a project blocked for more than 14 days,
 someone over their in-flight limit, a register row that disagrees with its
-README, `/projects:adopt` proposals nobody has confirmed, and a project whose
-Done when is fully ticked but not yet closed. It only reads. Type `write` after the command to
+README, `/projects:adopt` proposals nobody has confirmed, a project whose
+Done when is fully ticked but not yet closed, a sensitive project the workspace
+still tracks, a `Versioned:` line that disagrees with the folder, a project
+repository out of step with its pointer, a resource this machine cannot reach,
+and a paused project whose look-again date has come. Where the kit's state
+check is present (`kit/plugins/workspace/bin/state.sh --quick`) it reads those
+facts from it. It only reads. Type `write` after the command to
 also save it as `projects/BOARD.md`, whose first line marks it as generated; the
 READMEs stay canonical. On a repository with no projects it says so and suggests
 `/projects:new`.
@@ -139,9 +195,22 @@ three-question retrospective: what worked, what you would change, and what the
 next similar project should know first. It offers to promote that last answer to
 the cross-project decisions log or general reference, and to add a catalogue line
 for anything reusable, but writes neither without your yes. Finally it marks the
-project `State: done`, moves it to wherever `.claude/projects.md` says finished
-projects go, and suggests who should hear, based on People roles. It sends
-nothing, and the commit is yours.
+project `State: done`, moves the folder to `projects/_done/<slug>/` (or wherever
+`.claude/projects.md` says finished projects go) with `git mv`, so its history
+follows — a plain move and a rewritten `.gitignore` line for an untracked
+project — moves the register row to Done, and suggests who should hear, based
+on People roles. It lists the other files that still name the old path rather
+than rewriting them. It sends nothing, and the commit is yours.
+
+## Hold
+
+**`/projects:hold <slug> [reason]`** sets a project aside on purpose. It sets
+`State: paused`, writes the reason as the dated line (carrying any `Blocked by:`
+text into it), turns `Check-in:` into `look again on YYYY-MM-DD` when you give a
+date, and moves the register row to the paused section, whatever your register
+calls it. The folder stays where it is and stays versioned, so resting never
+means losing history. The board flags the project once its look-again date has
+passed, and `/projects:pickup` resumes it.
 
 ## Pick up
 
@@ -152,8 +221,11 @@ counts, the last three decisions and the last five commits to the folder,
 anything not yet committed, the open questions, and who to ask (the owner and
 the *ask first* people). It closes with a short "worth knowing" list of gaps and
 stale lines. It quotes the README rather than paraphrasing it, fits in under 40
-lines, and only reads. Where something needs fixing, it says what would fix it
-and leaves the fixing to you.
+lines, and reads while it briefs. Where something needs fixing, it says what
+would fix it and leaves the fixing to you. For a paused project, it then offers
+one write: resuming it — `State: ready` (or `doing`, after the in-flight
+count), the look-again date removed, a dated `Resumed.` line, and the register
+row back under Active — on your yes.
 
 ## Session-start line
 
@@ -170,16 +242,30 @@ State: blocked by the signed budget from finance — since 2026-09-14 — owner 
 
 You see them at the top of the session, and the agent reads them as context. It
 says so when sections are still proposals from `/projects:adopt`, and when the
-block is still in the earlier Now format. Anywhere else in the repository it
+block is still in the earlier Now format. When the README names resources this
+machine has not mapped, a fourth line says which —
+
+```
+Resources not mapped on this machine: media, survey-data — kit/setup.sh link field-study maps them.
+```
+
+— and the agent offers once to map them, asking you for each path. The offer
+comes once per set of unmapped names per machine. A folder listed under **Not
+adopted** in `.claude/projects.md` whose README has no Current state block gets
+a note for the agent alone, so `/projects:adopt` is not offered there
+unprompted. Anywhere else in the repository it
 says nothing, except at most once a day: one line naming the active projects
 blocked for more than 14 days. A clean day prints nothing.
 
 The hook finds projects, the entry point and any renamed sections from
 `.claude/projects.md`. It needs `jq`, makes no network calls, finishes in well
 under 100 ms on a repository with 20 projects, and exits silently if anything
-goes wrong. `PROJECTS_HOOK_DISABLED=1` turns it off. The once-a-day marker lives
-in `~/.claude/projects-hook/` (`PROJECTS_HOOK_STATE_DIR` moves it), never in the
-repository. Surfaces without session hooks, such as desktop assistants that load
+goes wrong. `PROJECTS_HOOK_DISABLED=1` turns it off. The once-a-day marker and
+the resource-offer markers live in `~/.claude/projects-hook/`
+(`PROJECTS_HOOK_STATE_DIR` moves them), never in the repository. Folders under
+`projects/` whose names start with `_` or `.` (`_done`, `_delete`) are not
+projects: the once-a-day scan skips them, and a finished project in
+`projects/_done/<slug>/` reads as done. Surfaces without session hooks, such as desktop assistants that load
 skills, get the same view by running the board when a session opens in a project
 folder — the generated skills say so.
 
@@ -191,7 +277,18 @@ has its own template, say so in
 `.claude/projects.md`. Every projects command reads that file first and follows it
 over its own defaults; anything it leaves out falls back to them. It is prose, not
 a schema — see [`examples/projects-conventions.md`](examples/projects-conventions.md)
-for an annotated example. The kit's installer lays down a default one.
+for an annotated example. The kit's setup lays down a default one, from
+`kit/templates/workspace/projects.md`, which is yours from then on.
+
+Four lines there shape the 3.0 lifecycle:
+
+- **Done** — where `/projects:close` moves a finished project;
+  `projects/_done/<slug>/` by default.
+- **Folder moves** — `the command` (the default) has close and hold make the
+  moves they show, on a yes; `the person` has them print the commands instead.
+- **Versioned default** — what `/projects:new` offers first.
+- **Not adopted** — folders whose README is not a project README, such as a
+  published site's home page; the commands leave them alone unless asked.
 
 It is also where the team's **in-flight limit** lives — how many projects one
 person has in `doing` at once, 3 unless you say otherwise. A person's profile can
@@ -207,25 +304,33 @@ the commands read either name.
 
 ## Install
 
-Part of the [workspace context kit](https://github.com/cyberscribe/agentic-workspace-kit):
+Part of the [workspace context kit](https://github.com/cyberscribe/agentic-workspace-kit).
+In a workspace made with the kit, the kit sits at `kit/` and is the plugin
+marketplace: `.claude/settings.json` points `agentic-workspace` at it, and the
+plugin is read in place, so a kit update reaches it by pull. On its own:
 
 ```
 /plugin marketplace add cyberscribe/agentic-workspace-kit
 /plugin install projects@agentic-workspace
 ```
 
-The kit's `install.sh` vendors it into a team repository alongside the closeout
-and workspace plugins. With `--skills-dir <path>` it also writes one thin skill
-per command (`projects-new`, `projects-board`, …) for assistants that load
-skills from a folder rather than plugins; each skill points at the command file,
-so the procedure still has one source.
+For assistants that load skills from a folder rather than plugins,
+`kit/setup.sh skills` writes one thin skill per command (`kit-projects-new`,
+`kit-projects-hold`, …) into `.claude/skills/`; each skill points at the command
+file, so the procedure still has one source.
 
 ## Works with
 
 - **closeout** — reconciles each session against the project's done-when list and
   Current state block, and uses its People roles for "who needs to know".
-- **The kit's project template** — `templates/project-readme.md` carries the same
-  sections, so a project started by hand, one started by interview and one
+- **The kit's project template** — `kit/templates/project-readme.md` carries the
+  same sections, so a project started by hand, one started by interview and one
   adopted all look alike.
+- **The workspace plugin** — its state check reports each project's versioning,
+  sensitivity, submodule and resource state, which the board reads, and its own
+  session-start line names what is out of step across the workspace.
+- **`kit/setup.sh`** — `link <slug>` maps resources, and `hooks` (with
+  `--repo <folder>` for a project that is its own repository) keeps the git
+  hooks running after a project moves.
 
 MIT licensed, as part of the kit.

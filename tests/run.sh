@@ -10,25 +10,49 @@
 #                                   there, the scan is reported as SKIP
 #   AW_REQUIRE_CLAUDE=1 bash tests/run.sh
 #                                   fail, rather than skip, section 3's plugin validation when no
-#                                   claude binary with `plugin validate` is on PATH (for a release)
+#                                   claude binary with `plugin validate` is on PATH (for a release);
+#                                   implies AW_TEST_CLAUDE=1
+#   AW_SECTIONS="13 16" bash tests/run.sh
+#                                   run only the named sections ("4b", "11", or a file's number in
+#                                   tests/sections/); a section that reads another's fixtures brings it
+#   AW_TEST_CLAUDE=1 bash tests/run.sh
+#                                   run the checks in tests/sections/ that start Claude Code, with a
+#                                   scratch CLAUDE_CONFIG_DIR; each run appends a line to $AW_CC_LOG
+#                                   (default: claude-runs.md in the scratch directory)
+#   AW_BASH32=0 bash tests/run.sh   leave PATH alone; by default a bash that is /bin/bash (3.2 on
+#                                   macOS) comes first, so child scripts run under the kit's floor
 #
 # One line per check: PASS, FAIL or SKIP, then a count. Exits non-zero when anything fails.
 # Every repository it builds lives under one mktemp directory in $TMPDIR, removed on exit.
 #
+# The prelude, below the check helpers, builds what the 3.0 sections share: KITSRC (a one-commit
+# repository of the kit's working tree), mkws_min, mkws and mkws2x (fixture workspaces), the st_*
+# state-check helpers, the bash 3.2 PATH entry, a git that counts its calls, and cc_gate and cc_run
+# for Claude Code. Sections 12 and on live in tests/sections/NN-name.sh and are sourced after
+# section 11.
+#
 # The sections follow the numbered list in the spec's tests section:
-#   1 non-interactive install, twice    5 measure.sh --backfill on a dated fixture history
-#   2 interactive install, piped        6 words the kit does not use, from a private list
+#   1 the engine (kit/install.sh), twice     5 measure.sh --backfill on a dated fixture history
+#   2 the retired interactive installer      6 words the kit does not use, from a private list
 #   2b installer modes and flags
-#   3 JSON, TOML, versions, marketplaces 7 no AI-vendor attribution, in files and in history
-#   4 closeout hooks                    8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook  9 the nine commands, on Claude Code and as skills; the
-#                                          closeout command and ritual carry the same core rules
-#                                       10 ablations: pilot/ablate.sh against a stub claude; the
-#                                          blind comparator, the bare arm, the login-token switch,
-#                                          the billing guard, and the flags and demotion rule from a
-#                                          prepared CSV
-#                                       11 the state check: modes, keys, no lock left; the setup
-#                                          wizard run unattended against it
+#   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
+#   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
+#   4b the projects session-start hook       9 the ten commands, on Claude Code and as skills; the
+#                                               closeout command and ritual carry the same core rules
+#                                            10 ablations: pilot/ablate.sh against a stub claude; the
+#                                               blind comparator, the bare arm, the login-token switch,
+#                                               the billing guard, and the flags and demotion rule from a
+#                                               prepared CSV
+#                                            11 the state check: modes, keys, no lock left; the setup
+#                                               scripts parse and lint clean
+# and then, from tests/sections/: 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state
+# check's 3.0 keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout,
+# hygiene and the pilot in a 3.0 workspace (12, the docs, arrives with them).
+#
+# Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
+# written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
+# literal backtick or $ in single quotes on purpose.
+# shellcheck disable=SC2015,SC2016
 set -uo pipefail
 
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -70,31 +94,277 @@ age() { python3 -c 'import os,sys,time; t = time.time() - float(sys.argv[2]) * 8
 
 install_args=(--team "Test Team" --owner "Sam Example" --owner-handle "@sam")
 
-# ---------------------------------------------------------------------------------------------------
-echo "1 · Non-interactive install, then a second run"
+# ---- The 3.0 prelude: fixtures and helpers every section can use --------------------------------
+#
+# The section filter. AW_SECTIONS="13 16" runs only those sections; the existing sections are named by
+# their number as printed ("4b", "11"), the files in tests/sections/ by their leading number. A section
+# that reads another's fixtures brings that one along (3 and 9 read 1's). Unset or empty, every
+# section runs.
+aw_sections_run=""
+if [[ -n "${AW_SECTIONS:-}" ]]; then
+    for aw_s in $AW_SECTIONS; do
+        case "$aw_s" in 3|9) aw_sections_run+=" 1" ;; esac
+        aw_sections_run+=" $aw_s"
+    done
+    echo "Sections: $AW_SECTIONS (AW_SECTIONS); running$aw_sections_run"
+fi
+aw_sections_seen=""
+# aw_want <section id>: 0 when the section runs.
+aw_want() {
+    [[ -n "${AW_SECTIONS:-}" ]] || return 0
+    case " $aw_sections_run " in *" $1 "*) aw_sections_seen+=" $1"; return 0 ;; esac
+    return 1
+}
 
+# The state check and its helpers, shared by section 11 and the sections in tests/sections/. They run
+# under /bin/bash where there is one (bash 3.2 on macOS), since that is the floor the kit is written for.
+STATE="$KIT/plugins/workspace/bin/state.sh"
+st_bash=bash; [[ -x /bin/bash ]] && st_bash=/bin/bash
+st_err=""
+# st_run <dir> [option...]: the report on stdout; anything on stderr is collected for the silence check.
+st_run() { local d="$1" e; shift; "$st_bash" "$STATE" "$@" "$d" 2>"$SCRATCH/state.err"
+    e="$(cat "$SCRATCH/state.err")"; [[ -z "$e" ]] || st_err+="$d: $e"$'\n'; }
+# st_key <report> <key>: the value of one key. An index() match rather than a regex, since per-item keys
+# (submodule.<path>, resource.<slug>/<name>) carry slashes and dots.
+st_key() { printf '%s\n' "$1" | awk -v k="$2=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }'; }
+# st_expect <description> <report> key=value...: every pair matches, or the mismatches are the detail.
+st_expect() {
+    local d="$1" rep="$2" bad="" kv k; shift 2
+    for kv in "$@"; do
+        k="${kv%%=*}"
+        [[ "$(st_key "$rep" "$k")" == "${kv#*=}" ]] || bad+="$k: wanted '${kv#*=}', got '$(st_key "$rep" "$k")'"$'\n'
+    done
+    empty "$d" "$bad"
+}
+# st_tree <dir>: every path under it, .git included, with size and mtime, directories too — a lock
+# file created and removed still changes its directory's mtime, so a clean run leaves this unchanged.
+st_tree() { python3 - "$1" <<'PYTREE'
+import os, sys
+root = sys.argv[1]
+for dp, dn, fn in os.walk(root):
+    dn.sort()
+    for n in sorted(dn + fn):
+        p = os.path.join(dp, n); s = os.lstat(p)
+        print(os.path.relpath(p, root), s.st_size, s.st_mtime_ns)
+print(".", os.lstat(root).st_mtime_ns)
+PYTREE
+}
+
+# The bash 3.2 pass. bin32/bash points at /bin/bash and comes first on PATH, so a hook, a child script
+# started as "bash x.sh" or through #!/usr/bin/env bash, and session-start.sh all run under the floor
+# the kit is written for. AW_BASH32=0 leaves PATH alone, for a pass under the runner's own bash.
+if [[ "${AW_BASH32:-1}" != "0" && -x /bin/bash ]]; then
+    mkdir -p "$SCRATCH/bin32" && ln -s /bin/bash "$SCRATCH/bin32/bash"
+    export PATH="$SCRATCH/bin32:$PATH"
+fi
+
+# A git that counts: $SCRATCH/gitcount/git logs one line per call to $AW_GITCOUNT_LOG, then runs the
+# real git. For structural cost tests: gitcount_run <log> <command...> runs the command with it first
+# on PATH, and aw_count <"$log" gives the number of git calls.
+aw_real_git="$(command -v git)"
+mkdir -p "$SCRATCH/gitcount"
+# The $* and $@ are the shim's own, written literally.
+# shellcheck disable=SC2016
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" >> "${AW_GITCOUNT_LOG:-/dev/null}"' "exec \"$aw_real_git\" \"\$@\"" \
+    > "$SCRATCH/gitcount/git"
+chmod +x "$SCRATCH/gitcount/git"
+gitcount_run() { local log="$1"; shift; : > "$log"; AW_GITCOUNT_LOG="$log" PATH="$SCRATCH/gitcount:$PATH" "$@"; }
+aw_count() { awk 'END { print NR }'; }
+
+# No fixture's pre-push can reach a real gh (and the network): the hooks ask the command named by AW_GH,
+# which is a path that does not exist unless a check points it at a stub of its own.
+export AW_GH="$SCRATCH/no-gh"
+
+# KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
+# and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
+# so the scripts under test are the working tree's, committed or not.
+KITSRC="$SCRATCH/kit-src"
+kitsrc_ok=0
+if git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
+    mkdir -p "$KITSRC" && git -C "$KITSRC" init -q && git -C "$KITSRC" symbolic-ref HEAD refs/heads/main
+    while IFS= read -r -d '' aw_f; do
+        [[ -f "$KIT/$aw_f" ]] || continue
+        mkdir -p "$KITSRC/$(dirname "$aw_f")" && cp -p "$KIT/$aw_f" "$KITSRC/$aw_f"
+    done < <(git --no-optional-locks -C "$KIT" ls-files -z -co --exclude-standard)
+    git -C "$KITSRC" add -A \
+        && git -C "$KITSRC" -c commit.gpgsign=false commit -q -m "The kit's working tree, for the tests" \
+        && kitsrc_ok=1
+fi
+[[ $kitsrc_ok -eq 1 ]] || echo "note: the kit is not a git checkout; the fixtures built from KITSRC are not available"
+
+# mkws_min <dir>: the smallest 3.0 workspace, with no setup code. A new repository on main, the kit
+# added from KITSRC at kit/, the static tree in tests/fixtures/ws-min/ copied in (dot- names become
+# dot names: dot-claude/ is .claude/), and the hooks set. Nothing is committed. Returns non-zero when
+# the workspace could not be built (3: no KITSRC).
+mkws_min() {
+    local d="$1" f rel
+    [[ $kitsrc_ok -eq 1 ]] || return 3
+    mkdir -p "$d" && git -C "$d" init -q && git -C "$d" symbolic-ref HEAD refs/heads/main || return 1
+    git -C "$d" -c protocol.file.allow=always submodule add -q -b main "$KITSRC" kit >/dev/null 2>&1 || return 1
+    while IFS= read -r f; do
+        rel="${f#"$KIT/tests/fixtures/ws-min/"}"
+        [[ "$rel" == README.md ]] && continue
+        rel="$(printf '%s' "$rel" | sed -e 's#^dot-#.#' -e 's#/dot-#/.#g')"
+        mkdir -p "$d/$(dirname "$rel")" && cp -p "$f" "$d/$rel"
+    done < <(find "$KIT/tests/fixtures/ws-min" -type f | sort)
+    mkws_hooks "$d"
+}
+
+# mkws_kit <dir>: a new repository on main with the kit added from KITSRC at kit/, and nothing else:
+# the starting point for running the engine (kit/install.sh) directly. Returns 3 without KITSRC.
+mkws_kit() {
+    local d="$1"
+    [[ $kitsrc_ok -eq 1 ]] || return 3
+    mkdir -p "$d" && git -C "$d" init -q && git -C "$d" symbolic-ref HEAD refs/heads/main || return 1
+    git -C "$d" -c protocol.file.allow=always submodule add -q -b main "$KITSRC" kit >/dev/null 2>&1
+}
+
+# mkws_hooks <dir>: the git hooks for a fixture workspace and its kit. Once lib/setup/gitconfig.sh is
+# built, it does this. While it is a placeholder, the stub below is written in its place: the
+# contract's stub (the marker on line 2, the kit's hook of the same name found from the repository's
+# top), which passes over a kit hook that is itself still a placeholder, so a fixture can still commit.
+mkws_hooks() {
+    local d="$1" repo gd n
+    if ! grep -q 'not built yet' "$d/kit/lib/setup/gitconfig.sh" 2>/dev/null; then
+        "$st_bash" "$d/kit/lib/setup/gitconfig.sh" --target "$d" --hooks >/dev/null 2>&1
+        return
+    fi
+    for repo in "$d" "$d/kit"; do
+        gd="$(git -C "$repo" rev-parse --absolute-git-dir)" || return 1
+        mkdir -p "$gd/aw-hooks"
+        for n in pre-commit pre-merge-commit commit-msg pre-push; do
+            cat > "$gd/aw-hooks/$n" <<'W0STUB'
+#!/bin/sh
+# agentic-workspace-kit hook stub 1
+# Written by tests/run.sh (mkws_hooks) while lib/setup/gitconfig.sh is a placeholder.
+name=${0##*/}
+TOP=$(git rev-parse --show-toplevel 2>/dev/null) || exit 1
+target=""
+if grep -q '"agentic-workspace"' "$TOP/.claude-plugin/marketplace.json" 2>/dev/null && [ -x "$TOP/githooks/$name" ]; then
+    target="$TOP/githooks/$name"
+else
+    d=$TOP
+    while :; do
+        if grep -q '"agentic-workspace"' "$d/kit/.claude-plugin/marketplace.json" 2>/dev/null && [ -x "$d/kit/githooks/$name" ]; then
+            target="$d/kit/githooks/$name"; break
+        fi
+        [ "$d" = / ] && break
+        d=$(dirname "$d")
+    done
+fi
+if [ -z "$target" ]; then
+    echo "aw: the kit's hooks are not reachable from $TOP (kit not initialised, or moved); kit/setup.sh hooks sets them up again." >&2
+    exit 1
+fi
+grep -q 'not built yet' "$target" 2>/dev/null && exit 0
+exec "$target" "$@"
+W0STUB
+            chmod 755 "$gd/aw-hooks/$n"
+        done
+        git -C "$repo" config core.hooksPath "$gd/aw-hooks"
+    done
+}
+
+# mkws <dir> [setup args...]: a workspace made the way a person makes one, with setup.sh new, unattended,
+# the kit added from KITSRC. Setup's output goes to <dir>.log; its status is returned.
+mkws() {
+    local d="$1" rc; shift
+    [[ $kitsrc_ok -eq 1 ]] || return 3
+    AW_KIT_URL="$KITSRC" AW_WIZARD_NONINTERACTIVE=1 "$st_bash" "$KIT/setup.sh" new "$d" --team "Test Team" \
+        --owner "Sam Example" --owner-handle "@sam" "$@" </dev/null >"$d.log" 2>&1
+    rc=$?
+    git -C "$d" rev-parse --git-dir >/dev/null 2>&1 && git -C "$d" config user.name "Priya Shah"
+    return $rc
+}
+
+# mkws2x <dir>: a workspace in the 2.2.0 layout, for the migration: the kit at 915c528 (its own
+# repository, built once) as a submodule at templates/agentic-workspace, its 2.2.0 install.sh run with
+# vendored plugins and skills in <dir>/skills, and everything committed. Returns 3 when 915c528 is not
+# in the object store (a shallow clone); the sections that need it print one SKIP.
+mkws2x() {
+    local d="$1" k2="$SCRATCH/kit-2.2.0"
+    git --no-optional-locks -C "$KIT" cat-file -e '915c528^{commit}' 2>/dev/null || return 3
+    if [[ ! -d "$k2/.git" ]]; then
+        mkdir -p "$k2" && git --no-optional-locks -C "$KIT" archive 915c528 | tar -x -C "$k2" || return 1
+        git -C "$k2" init -q && git -C "$k2" symbolic-ref HEAD refs/heads/main && git -C "$k2" add -A \
+            && git -C "$k2" -c commit.gpgsign=false commit -q -m "Kit 2.2.0" || return 1
+    fi
+    mkdir -p "$d" && git -C "$d" init -q && git -C "$d" symbolic-ref HEAD refs/heads/main || return 1
+    git -C "$d" config user.name "Priya Shah"
+    git -C "$d" -c protocol.file.allow=always submodule add -q -b main "$k2" templates/agentic-workspace >/dev/null 2>&1 || return 1
+    bash "$d/templates/agentic-workspace/install.sh" --target "$d" "${install_args[@]}" --skills-dir "$d/skills" \
+        </dev/null >"$d.log" 2>&1 || return 1
+    git -C "$d" add -A && git -C "$d" -c commit.gpgsign=false commit -q -m "The 2.2.0 layout" || return 1
+}
+
+# Claude Code in tests is opt-in: AW_TEST_CLAUDE=1, which AW_REQUIRE_CLAUDE=1 implies (and which turns a
+# SKIP into a FAIL). Every run uses a scratch config directory, so nothing is written to ~/.claude, and
+# appends one line to AW_CC_LOG (default: a file in the scratch directory).
+[[ "${AW_REQUIRE_CLAUDE:-}" == "1" ]] && AW_TEST_CLAUDE=1
+AW_CC_LOG="${AW_CC_LOG:-$SCRATCH/claude-runs.md}"
+CC_CONFIG="$SCRATCH/cc-config"
+# cc_gate <description> [prompt]: 0 when Claude Code checks run here. Otherwise it records a SKIP (a
+# FAIL under AW_REQUIRE_CLAUDE=1) saying why and returns 1. With "prompt", the check calls the model
+# (claude -p), which needs CLAUDE_CODE_OAUTH_TOKEN: a keychain login does not follow CLAUDE_CONFIG_DIR.
+cc_gate() {
+    local why=""
+    if [[ "${AW_TEST_CLAUDE:-}" != "1" ]]; then skp "$1 — Claude Code checks are opt-in (AW_TEST_CLAUDE=1)"; return 1; fi
+    command -v claude >/dev/null 2>&1 || why="no claude binary on PATH"
+    [[ -z "$why" && "${2:-}" == prompt && -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] && why="no CLAUDE_CODE_OAUTH_TOKEN for claude -p"
+    [[ -z "$why" ]] && return 0
+    if [[ "${AW_REQUIRE_CLAUDE:-}" == "1" ]]; then ko "$1 — AW_REQUIRE_CLAUDE=1 and $why"; else skp "$1 — $why"; fi
+    return 1
+}
+# cc_run <label> <claude arguments...>: claude with the scratch config directory and non-essential
+# traffic off; one line per run goes to AW_CC_LOG. Its status is returned.
+cc_run() {
+    local label="$1" rc; shift
+    mkdir -p "$CC_CONFIG"
+    env CLAUDE_CONFIG_DIR="$CC_CONFIG" CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_TELEMETRY=1 claude "$@"
+    rc=$?
+    printf -- '- %s tests/run.sh: %s (claude %s) exit %s\n' "$(date '+%F %H:%M')" "$label" "${1:-}" "$rc" >> "$AW_CC_LOG" 2>/dev/null
+    return $rc
+}
+
+# ---------------------------------------------------------------------------------------------------
+if aw_want 1; then
+echo "1 · The engine: a first run, then a second"
+
+# Each fixture is a repository with the kit added from KITSRC at kit/ (mkws_kit), and the engine run on
+# it directly, so what is checked is the engine's own report. Section 15 drives the same engine through
+# kit/setup.sh new; section 14 covers the ledger, template changes and the .gitignore modes.
 T1="$SCRATCH/install-1"
-mkdir -p "$T1" && git -C "$T1" init -q
-S1="$SCRATCH/skills-1"   # the skills folder a desktop assistant would load, outside the repository
-out1="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot --skills-dir "$S1" </dev/null 2>&1)"; rc1=$?
+S1="$SCRATCH/skills-1"   # the commands as skills, outside the repository; section 9 reads them
+T1G="$SCRATCH/install-1-gemini"
+if ! mkws_kit "$T1" || ! mkws_kit "$T1G"; then
+    skp "1 the engine's fixtures need KITSRC (the kit is not a git checkout here)"
+else
+out1="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot </dev/null 2>&1)"; rc1=$?
 if [[ $rc1 -eq 0 ]]; then ok "1 first run exits 0"; else ko "1 first run exits 0" "$out1"; fi
 missing=""
-for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/closeout.md .claude/projects.md \
-         templates/verification-standard.md templates/catalogue.md templates/team-roster.md \
-         .claude/plugins/VENDORED .claude/plugins/.claude-plugin/marketplace.json \
-         projects/INDEX.md logs/decisions.md memory/glossary.md \
-         memory/people/README.md docs/memory-layers.md audits/README.md .github/CODEOWNERS \
-         pilot/measure.sh; do
+for f in CLAUDE.md AGENTS.md README.md .claude/settings.json .gitignore .claude/closeout.md .claude/projects.md \
+         .claude/workspace.md projects/INDEX.md logs/decisions.md memory/glossary.md memory/people/README.md \
+         audits/README.md docs/workspace-map.md .github/CODEOWNERS .github/pull_request_template.md \
+         .github/workflows/stay-private.yml pilot/build-list.md .claude/kit-templates.lock; do
     [[ -e "$T1/$f" ]] || missing+="$f"$'\n'
 done
-empty "1 first run lays down the promised files" "$missing"
-check "1 the team name reaches AGENTS.md" grep -q 'Test Team' "$T1/AGENTS.md"
+empty "1 first run creates the user-owned files, the ledger and the pilot's build list" "$missing"
+# Kit-owned files are read in place from kit/; none is copied into the workspace.
+extra=""
+for f in docs/memory-layers.md docs/documentation-register.md rituals templates pilot/measure.sh pilot/README.md \
+         .claude/plugins; do
+    [[ ! -e "$T1/$f" ]] || extra+="$f"$'\n'
+done
+empty "1 nothing kit-owned is copied: docs, rituals, templates, the pilot's scripts and the plugins stay in kit/" "$extra"
+check "1 the team name reaches CLAUDE.md" grep -q 'Test Team' "$T1/CLAUDE.md"
+check "1 CLAUDE.md starts with the import of the kit's standards" test "$(head -n 1 "$T1/CLAUDE.md")" = '@kit/CLAUDE.kit.md'
 check "1 .claude/closeout.md sets who needs to know, as auto" grep -qxF -- '- **Who needs to know:** auto' "$T1/.claude/closeout.md"
 # The conventions every projects command reads first carry the staleness the board measures against,
 # and the project template carries the Current state block the hook, board and metrics read.
 check "1 .claude/projects.md sets the staleness a project's Updated date is measured against" \
     grep -qE '^- \*\*Staleness:\*\* `[^`]+`' "$T1/.claude/projects.md"
-tpl="$T1/templates/project-readme.md"
+check "1 .claude/projects.md points at the project template in kit/" grep -qF '`kit/templates/project-readme.md`' "$T1/.claude/projects.md"
+tpl="$T1/kit/templates/project-readme.md"
 bad=""
 for h in '## Done when' '## Current state' '## Planned *(optional)*' '## People *(optional)*'; do
     grep -qxF "$h" "$tpl" || bad+="no heading: $h"$'\n'
@@ -104,180 +374,204 @@ done
 labels="$(awk '/^## / { f = ($0 == "## Current state") ; next } f && /^- \*\*[^*]+:\*\*/ { l = $0; sub(/^- \*\*/, "", l); sub(/:\*\*.*/, "", l); print l }' "$tpl" | paste -sd'|' -)"
 [[ "$labels" == 'State|Blocked by|Check-in|Updated' ]] || bad+="the block's labels are \"$labels\", not State|Blocked by|Check-in|Updated"$'\n'
 grep -qxF -- '- **State:** <ready · doing · blocked · paused · done>' "$tpl" || bad+="the State line does not offer exactly the five states"$'\n'
+[[ "$(sed -n 3p "$tpl")" == '- **Versioned:** <workspace · own-repo · untracked>' ]] || bad+="line 3 is not the Versioned line"$'\n'
+[[ "$(sed -n 4p "$tpl")" == '- **Sensitivity:** <normal · sensitive>' ]] || bad+="line 4 is not the Sensitivity line"$'\n'
 bad+="$(grep -nE '^## (Now|Next up|Parked)([[:space:]]|$)' "$tpl")"
-empty "1 the installed project template has a Current state block (State, Blocked by, Check-in, Updated), Planned, and no older sections" "$bad"
+empty "1 the kit's project template has Versioned and Sensitivity under the title, a Current state block (State, Blocked by, Check-in, Updated), Planned, and no older sections" "$bad"
 grep -q '/workspace:quick-start' <<<"$out1" && ok "1 the Next message says to run /workspace:quick-start" \
     || ko "1 the Next message says to run /workspace:quick-start" "$(grep -A3 '^Next' <<<"$out1")"
 check "1 no .claude/commands directory (quick-start lives in the workspace plugin)" test ! -e "$T1/.claude/commands"
 
-# The quick-start decides the team part is unfinished while AGENTS.md §1–§3 hold an angle-bracketed
+# The quick-start decides the team part is unfinished while CLAUDE.md §1–§3 hold an angle-bracketed
 # stand-in, which always has a space in it; path patterns such as memory/people/<name>.md never do.
-# This is the rule its prompt states, checked against the file the installer actually writes.
+# This is the rule its prompt states, checked against the file the engine actually writes.
 standins() { tr '\n' ' ' < "$1" | grep -o '<[A-Za-z][^<>]* [^<>]*>' | wc -l | tr -d ' '; }
-n="$(standins "$T1/AGENTS.md")"
-[[ "$n" -gt 0 ]] && ok "1 a fresh AGENTS.md has stand-ins for the quick-start to find ($n)" || ko "1 a fresh AGENTS.md has stand-ins for the quick-start to find"
-filled="$SCRATCH/agents-filled.md"
-tr '\n' '\v' < "$T1/AGENTS.md" | sed -E 's/<[A-Za-z][^<>]* [^<>]*>/filled in/g' | tr '\v' '\n' > "$filled"
+n="$(standins "$T1/CLAUDE.md")"
+[[ "$n" -gt 0 ]] && ok "1 a fresh CLAUDE.md has stand-ins for the quick-start to find ($n)" || ko "1 a fresh CLAUDE.md has stand-ins for the quick-start to find"
+filled="$SCRATCH/claude-filled.md"
+tr '\n' '\v' < "$T1/CLAUDE.md" | sed -E 's/<[A-Za-z][^<>]* [^<>]*>/filled in/g' | tr '\v' '\n' > "$filled"
 if [[ "$(standins "$filled")" == "0" ]] && grep -q '<name>' "$filled"; then
     ok "1 once every stand-in is answered none remain, though path patterns such as <name> do"
 else ko "1 once every stand-in is answered none remain, though path patterns such as <name> do" "$(grep -n '<' "$filled")"; fi
 grep -q "has $n answers still to fill in" <<<"$out1" && ok "1 the Next message counts stand-ins, not path patterns" \
     || ko "1 the Next message counts stand-ins, not path patterns" "$(grep 'still to fill' <<<"$out1")"
 
-# snap <dir>: a checksum per file, so any write the second run makes shows up, whatever its route.
-snap() { (cd "$1" && find . -path ./.git -prune -o -type f -print0 | sort -z | xargs -0 shasum); }
-# The skills folder is written on the same runs, outside the repository, so it is checked too.
-s1="$(snap "$T1"; snap "$S1")"
-out2="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot --skills-dir "$S1" </dev/null 2>&1)"; rc2=$?
+# The second run: every path under the workspace, .git included, keeps its size and mtime.
+st_tree "$T1" > "$SCRATCH/install-1-before.txt"
+out2="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot </dev/null 2>&1)"; rc2=$?
 if [[ $rc2 -eq 0 ]]; then ok "1 second run exits 0"; else ko "1 second run exits 0" "$out2"; fi
-printf '%s\n' "$s1" > "$SCRATCH/snap-1"; { snap "$T1"; snap "$S1"; } > "$SCRATCH/snap-2"
-empty "1 second run changes no file, in the repository or the skills folder" "$(diff "$SCRATCH/snap-1" "$SCRATCH/snap-2")"
-if grep -q '^Already up to date:' <<<"$out2" && ! grep -qE '^(Added|Merged|Regenerated|Existing file kept)' <<<"$out2"; then
-    ok "1 second run reports everything already up to date, and nothing added, merged or set aside"
+st_tree "$T1" > "$SCRATCH/install-1-after.txt"
+empty "1 second run changes no file, .git included" "$(diff "$SCRATCH/install-1-before.txt" "$SCRATCH/install-1-after.txt" 2>&1)"
+if grep -q '^Already in place:' <<<"$out2" && ! grep -qE '^(Created|Merged|Added to \.gitignore|Regenerated|Kept as it was)' <<<"$out2"; then
+    ok "1 second run reports everything already in place, and nothing created, merged or kept aside"
 else
-    ko "1 second run reports everything already up to date, and nothing added, merged or set aside" \
-        "$(grep -A8 -E '^(Added|Merged|Regenerated|Existing file kept)' <<<"$out2")"
+    ko "1 second run reports everything already in place, and nothing created, merged or kept aside" \
+        "$(grep -A8 -E '^(Created|Merged|Added to \.gitignore|Regenerated|Kept as it was)' <<<"$out2")"
 fi
 check "1 the default install is Claude Code only (no .gemini/)" test ! -e "$T1/.gemini"
-# Every session reads AGENTS.md, and every projects command reads .claude/projects.md first, so
+# Every session reads CLAUDE.md, and every projects command reads .claude/projects.md first, so
 # neither may name a surface this install did not set up.
 empty "1 a Claude-only install names no Gemini CLI surface in the files read first" \
-    "$(grep -n -i -E 'gemini cli|\.gemini/settings' "$T1/AGENTS.md" "$T1/.claude/projects.md")"
-check "1 the surface table names the plugins' hooks, including the session-start line" \
-    grep -qF 'the closeout end-of-session capture and next-session review, and the projects session-start line' "$T1/AGENTS.md"
-check "1 the surface table gains a desktop-assistant row when skills are written" grep -q '^| Desktop assistant |' "$T1/AGENTS.md"
-grep -qF "approve the closeout and projects plugins' hooks" <<<"$out1" && ok "1 the Next message asks each person to approve both plugins' hooks" \
-    || ko "1 the Next message asks each person to approve both plugins' hooks" "$(grep -A6 '^Next' <<<"$out1")"
-empty "1 no .kit-incoming files after two runs" "$(find "$T1" "$S1" -name '*.kit-incoming' -not -path '*/.git/*')"
-perm="$(python3 -c 'import os,sys; print(" ".join(oct(os.stat(f).st_mode & 0o777)[2:] for f in sys.argv[1:]))' \
-    "$T1/AGENTS.md" "$T1/CLAUDE.md" "$T1/pilot/README.md" "$T1/pilot/measure.sh")"
-[[ "$perm" == "644 644 644 755" ]] && ok "1 rendered files are 0644 and pilot/measure.sh is 0755" \
-    || ko "1 rendered files are 0644 and pilot/measure.sh is 0755" "$perm"
-check "1 VENDORED names the kit checkout it was built from" grep -qF "kit checkout: $KIT" "$T1/.claude/plugins/VENDORED"
+    "$(grep -n -i -E 'gemini cli|\.gemini/settings' "$T1/CLAUDE.md" "$T1/AGENTS.md" "$T1/.claude/projects.md")"
+check "1 the surface table carries the Claude Code row, naming the plugins and the git hooks in kit/" \
+    grep -qxF "$(head -n 1 "$KIT/templates/workspace/surface-rows/claude.md")" "$T1/CLAUDE.md"
+grep -qF "approve the closeout, projects and workspace plugins when asked" <<<"$out1" \
+    && ok "1 the Next message asks each person to approve the three plugins" \
+    || ko "1 the Next message asks each person to approve the three plugins" "$(grep -A6 '^Next' <<<"$out1")"
+grep -qF "bash kit/pilot/measure.sh" <<<"$out1" && ok "1 the pilot's Next line runs the measurement from kit/" \
+    || ko "1 the pilot's Next line runs the measurement from kit/" "$(grep -A6 '^Next' <<<"$out1")"
+empty "1 no .kit-incoming files after two runs" "$(find "$T1" -name '*.kit-incoming' -not -path '*/.git/*' -not -path "$T1/kit/*")"
+check "1 pilot/measure.sh is mode 100755 in the kit" test "$(git -C "$T1/kit" ls-files -s pilot/measure.sh | cut -c1-6)" = 100755
 
-# A repository with a CLAUDE.md of its own keeps it as the always-loaded file: the Next message
-# points at the quick-start's mapping, and .claude/closeout.md promotes to that file, not AGENTS.md.
+# The Gemini CLI surface (frozen) still installs on request, beside Claude Code; section 3 parses it.
+bash "$KIT/install.sh" --target "$T1G" "${install_args[@]}" --surfaces claude,gemini </dev/null >/dev/null 2>&1
+check "1 --surfaces claude,gemini installs Claude Code and Gemini CLI" test -f "$T1G/CLAUDE.md" -a -f "$T1G/.gemini/settings.json"
+
+# The commands as skills, for surfaces with no plugins (section 9 checks each one). They are generated by
+# the workspace's own kit, as the skills bridge does it, so each points at its command file in kit/.
+bash "$T1/kit/install.sh" --skills-only --target "$T1" --skills-dir "$S1" </dev/null >/dev/null 2>&1
+check "1 --skills-only writes the skills into a folder outside the repository" test -f "$S1/closeout/SKILL.md"
+
+# A repository with a CLAUDE.md of its own keeps it as the always-loaded file: the engine records it
+# kept, the Next message points at the quick-start's mapping, and .claude/closeout.md names CLAUDE.md.
 TK="$SCRATCH/install-kept"
-mkdir -p "$TK" && git -C "$TK" init -q && printf '# My rules\n\nHouse rules of my own.\n' > "$TK/CLAUDE.md"
-outk="$(bash "$KIT/install.sh" --target "$TK" --team Solo --owner Alex </dev/null 2>&1)"
-if grep -qF 'Your own CLAUDE.md was kept' <<<"$outk" && ! grep -q 'answers still to fill in' <<<"$outk" \
-    && grep -qF 'The always-loaded file is `CLAUDE.md`' "$TK/.claude/closeout.md" \
-    && ! grep -qF 'The always-loaded file is `AGENTS.md`' "$TK/.claude/closeout.md" \
-    && grep -q 'with one person it is optional' <<<"$outk"; then
-    ok "1 an existing CLAUDE.md stays the always-loaded file, in the Next message and .claude/closeout.md"
-else ko "1 an existing CLAUDE.md stays the always-loaded file, in the Next message and .claude/closeout.md" "$outk"; fi
+if mkws_kit "$TK"; then
+    printf '# My rules\n\nHouse rules of my own.\n' > "$TK/CLAUDE.md"
+    outk="$(bash "$KIT/install.sh" --target "$TK" --team Solo --owner Alex </dev/null 2>&1)"
+    if grep -qF 'Your own CLAUDE.md was kept' <<<"$outk" && ! grep -q 'answers still to fill in' <<<"$outk" \
+        && [[ "$(head -n 1 "$TK/CLAUDE.md")" == '# My rules' ]] \
+        && grep -q "^CLAUDE.md	templates/workspace/CLAUDE.md	.*	kept\$" "$TK/.claude/kit-templates.lock" \
+        && grep -qF 'The always-loaded file is `CLAUDE.md`' "$TK/.claude/closeout.md" \
+        && grep -q 'with one person it is optional' <<<"$outk"; then
+        ok "1 a CLAUDE.md of its own is kept, recorded kept, and the engine reports it"
+    else ko "1 a CLAUDE.md of its own is kept, recorded kept, and the engine reports it" "$outk"; fi
+else
+    skp "1 the kept-CLAUDE.md fixture needs KITSRC"
+fi
+fi
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 2; then
 echo
-echo "2 · Interactive install with answers piped in"
+echo "2 · The interactive installer is retired; the guided path is kit/setup.sh"
 
-T2="$SCRATCH/install-2"   # deliberately absent: the interactive path offers to create it
-# Answers, in the order install.sh asks: target, team, owner, handle, tools, skills folder, pilot,
-# confirm.
-S2="$SCRATCH/skills-2"
-out="$(printf '%s\n' "$T2" "Piped Team" "Pat Example" "@pat" "claude,gemini" "$S2" "y" "y" \
-    | bash "$KIT/install.sh" --interactive 2>&1)"; rc=$?
-if [[ $rc -eq 0 ]]; then ok "2 interactive install exits 0"; else ko "2 interactive install exits 0" "$out"; fi
-check "2 the target was created as a git repository" git -C "$T2" rev-parse --git-dir
-check "2 the piped team name reaches AGENTS.md" grep -q 'Piped Team' "$T2/AGENTS.md"
-check "2 the piped handle reaches CODEOWNERS" grep -q '@pat' "$T2/.github/CODEOWNERS"
-check "2 the pilot answer installs pilot/" test -f "$T2/pilot/measure.sh"
-check "2 both surfaces installed" test -f "$T2/CLAUDE.md" -a -f "$T2/.gemini/settings.json"
-check "2 the piped skills folder gets the skills" test -f "$S2/workspace-quick-start/SKILL.md"
+# Section 15 runs kit/setup.sh new unattended, which takes the defaults the old interactive path offered.
+out="$(bash "$KIT/install.sh" --interactive </dev/null 2>&1)"; rc=$?
+[[ $rc -eq 2 ]] && grep -qF 'The guided path is kit/setup.sh.' <<<"$out" \
+    && ok "2 install.sh --interactive exits 2, naming kit/setup.sh" \
+    || ko "2 install.sh --interactive exits 2, naming kit/setup.sh" "rc $rc: $out"
+out="$(bash "$KIT/install.sh" </dev/null 2>&1)"; rc=$?
+[[ $rc -eq 2 ]] && grep -qF 'The guided path is kit/setup.sh.' <<<"$out" \
+    && ok "2 install.sh with no options prints its usage and exits 2" \
+    || ko "2 install.sh with no options prints its usage and exits 2" "rc $rc: $out"
 
-# Enter on every question: the questions with no default are left as stand-ins, and nothing stops.
-T2E="$SCRATCH/install-2-enter"
-out="$(printf '%s\n' "$T2E" "" "" "" "" "" "" "" | bash "$KIT/install.sh" --interactive 2>&1)"; rc=$?
-if [[ $rc -eq 0 ]] && grep -q '<team name>' "$T2E/AGENTS.md" 2>/dev/null && [[ ! -e "$T2E/.gemini" && ! -e "$T2E/pilot" ]] \
-    && grep -qE '^  skills +none$' <<<"$out" && [[ ! -e "$T2E/.claude/closeout.md.kit-incoming" ]]; then
-    ok "2 Enter on every question installs with the defaults: stand-ins kept, Claude Code only, no skills, no pilot"
-else ko "2 Enter on every question installs with the defaults: stand-ins kept, Claude Code only, no skills, no pilot" "$out"; fi
-
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 2b; then
 echo
 echo "2b · Installer modes and flags"
 
 M="$SCRATCH/modes"
 mkdir -p "$M"
+if ! mkws_kit "$M/bogus"; then
+    skp "2b the installer's fixtures need KITSRC"
+else
 out="$(bash "$KIT/install.sh" --target "$M/bogus" --init --surfaces bogus 2>&1)"; rc=$?
-[[ $rc -ne 0 && ! -e "$M/bogus/AGENTS.md" ]] && ok "2b an unknown surface stops the run before anything is written" \
+[[ $rc -ne 0 && ! -e "$M/bogus/CLAUDE.md" ]] && ok "2b an unknown surface stops the run before anything is written" \
     || ko "2b an unknown surface stops the run before anything is written" "rc=$rc $out"
-bash "$KIT/install.sh" --target "$M/both" --init --surfaces Both >/dev/null 2>&1
+mkws_kit "$M/both" && bash "$KIT/install.sh" --target "$M/both" --init --surfaces Both >/dev/null 2>&1
 check "2b --surfaces both installs Claude Code and Gemini CLI" test -f "$M/both/CLAUDE.md" -a -f "$M/both/.gemini/settings.json"
 
-bash "$KIT/install.sh" --target "$M/github" --init --plugin github >/dev/null 2>&1
-check "2b --plugin github registers the kit's repository as the marketplace, and vendors nothing" \
-    jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "github", "repo": "cyberscribe/agentic-workspace-kit"}' "$M/github/.claude/settings.json"
-check "2b --plugin github: no .claude/plugins" test ! -e "$M/github/.claude/plugins"
+# The plugins are read in place from kit/, so the 2.x ways of registering them are retired.
+out="$(bash "$KIT/install.sh" --target "$M/bogus" --plugin github 2>&1)"; rc=$?
+[[ $rc -eq 2 && ! -e "$M/bogus/CLAUDE.md" ]] && ok "2b --plugin github is retired (exit 2), and nothing is written" \
+    || ko "2b --plugin github is retired (exit 2), and nothing is written" "rc=$rc $out"
+out="$(bash "$KIT/install.sh" --target "$M/bogus" --plugin none 2>&1)"; rc=$?
+[[ $rc -eq 2 && ! -e "$M/bogus/CLAUDE.md" ]] && ok "2b --plugin none is retired (exit 2), and nothing is written" \
+    || ko "2b --plugin none is retired (exit 2), and nothing is written" "rc=$rc $out"
+# The engine needs the kit inside the workspace: a repository with no kit/ is refused.
+mkdir -p "$M/no-kit" && git -C "$M/no-kit" init -q
+out="$(bash "$KIT/install.sh" --target "$M/no-kit" 2>&1)"; rc=$?
+[[ $rc -eq 1 && "$(ls -A "$M/no-kit")" == ".git" ]] && grep -q 'no kit at' <<<"$out" \
+    && ok "2b a repository with no kit/ is refused (exit 1), naming kit/setup.sh new, and nothing is written" \
+    || ko "2b a repository with no kit/ is refused (exit 1), naming kit/setup.sh new, and nothing is written" "rc=$rc $out"
 
-bash "$KIT/install.sh" --target "$M/none" --init --plugin none --skills-dir "$M/none-skills" >/dev/null 2>&1
-if [[ ! -e "$M/none/.claude/plugins" ]] && ! jq -e '.enabledPlugins' "$M/none/.claude/settings.json" >/dev/null 2>&1 \
-    && [[ -f "$M/none/.claude/closeout.md" && -f "$M/none-skills/closeout/SKILL.md" ]] \
-    && grep -q "plugins are not installed here" "$M/none/AGENTS.md"; then
-    ok "2b --plugin none: no plugins enabled, the closeout skill still gets .claude/closeout.md, and AGENTS.md says so"
-else ko "2b --plugin none: no plugins enabled, the closeout skill still gets .claude/closeout.md, and AGENTS.md says so" \
-    "$(ls -A "$M/none/.claude"; grep -n '^| Claude Code' "$M/none/AGENTS.md")"; fi
-
-mkdir -p "$M/dry" && git -C "$M/dry" init -q
-bash "$KIT/install.sh" --target "$M/dry" --dry-run --skills-dir "$M/dry-skills" --pilot >/dev/null 2>&1
-[[ "$(ls -A "$M/dry")" == ".git" && ! -e "$M/dry-skills" ]] && ok "2b --dry-run writes nothing, in the repository or the skills folder" \
-    || ko "2b --dry-run writes nothing, in the repository or the skills folder" "$(ls -A "$M/dry" "$M/dry-skills" 2>&1)"
+mkws_kit "$M/dry"
+st_tree "$M/dry" > "$M/dry-before.txt"
+bash "$KIT/install.sh" --target "$M/dry" --dry-run --pilot >/dev/null 2>&1
+st_tree "$M/dry" > "$M/dry-after.txt"
+empty "2b --dry-run writes nothing" "$(diff "$M/dry-before.txt" "$M/dry-after.txt" 2>&1)"
 
 mkdir -p "$M/only"
 bash "$KIT/install.sh" --skills-only --target "$M/only" --skills-dir "$M/only-skills" >/dev/null 2>&1
 out="$(bash "$KIT/install.sh" --skills-only --target "$M/only" --skills-dir "$M/only-skills" 2>&1)"
-if grep -q '^Already up to date:' <<<"$out" && ! grep -qE '^(Added|Merged|Regenerated|Existing file kept)' <<<"$out"; then
-    ok "2b a second --skills-only run reports only files already up to date"
-else ko "2b a second --skills-only run reports only files already up to date" "$out"; fi
+if grep -q '^Already in place:' <<<"$out" && ! grep -qE '^(Created|Merged|Regenerated|Kept as it was)' <<<"$out"; then
+    ok "2b a second --skills-only run reports only files already in place"
+else ko "2b a second --skills-only run reports only files already in place" "$out"; fi
+
+# The bridge's form: --skills-prefix names each skill kit-<name>, and its sibling sentence uses the
+# prefixed names; --skills-skip leaves the named commands out.
+bash "$KIT/install.sh" --skills-only --target "$M/only" --skills-dir "$M/prefixed" --skills-prefix kit- \
+    --skills-skip closeout,workspace-hygiene >/dev/null 2>&1
+bad=""
+[[ -f "$M/prefixed/kit-projects-new/SKILL.md" ]] || bad+="no kit-projects-new"$'\n'
+grep -q '^name: kit-projects-new$' "$M/prefixed/kit-projects-new/SKILL.md" 2>/dev/null || bad+="the name is not prefixed"$'\n'
+grep -qF '(`kit-projects-new`' "$M/prefixed/kit-projects-new/SKILL.md" 2>/dev/null \
+    && ! grep -qF '(`projects-new`' "$M/prefixed/kit-projects-new/SKILL.md" 2>/dev/null || bad+="the sibling sentence does not name kit- skills"$'\n'
+[[ ! -e "$M/prefixed/kit-closeout" && ! -e "$M/prefixed/kit-workspace-hygiene" ]] || bad+="a skipped command was written"$'\n'
+[[ -z "$(find "$M/prefixed" -maxdepth 1 -mindepth 1 ! -name 'kit-*')" ]] || bad+="a folder without the prefix"$'\n'
+empty "2b --skills-prefix kit- names the skills and their sibling sentence; --skills-skip leaves commands out" "$bad"
+out="$(bash "$KIT/install.sh" --skills-only --target "$M/bogus" --skills-dir "$M/bogus/kit/skills-inside" 2>&1)"; rc=$?
+[[ $rc -eq 1 && ! -e "$M/bogus/kit/skills-inside" ]] && ok "2b a skills folder inside the kit checkout is refused (exit 1)" \
+    || ko "2b a skills folder inside the kit checkout is refused (exit 1)" "rc=$rc $out"
 
 # A changed command reaches its skill on the next run, with no merge step: generated files are
-# refreshed. The vendored copy is a team file and keeps the never-overwrite rule, so while it differs
-# the skill stops naming it and follows procedure.md, and the report says why.
+# refreshed, and nothing is written beside them.
 MP="$M/plugins-copy"
 cp -R "$KIT/plugins" "$MP"
-bash "$KIT/install.sh" --target "$M/regen" --init --plugin-src "$MP" --skills-dir "$M/regen-skills" >/dev/null 2>&1
+mkdir -p "$M/regen"
+bash "$KIT/install.sh" --skills-only --target "$M/regen" --plugin-src "$MP" --skills-dir "$M/regen-skills" >/dev/null 2>&1
 printf '\nOne more line, added upstream.\n' >> "$MP/projects/commands/board.md"
-out="$(bash "$KIT/install.sh" --target "$M/regen" --plugin-src "$MP" --skills-dir "$M/regen-skills" 2>&1)"
-if [[ -f "$M/regen/.claude/plugins/projects/commands/board.md.kit-incoming" ]] \
-    && grep -q 'One more line, added upstream' "$M/regen-skills/projects-board/procedure.md" \
+out="$(bash "$KIT/install.sh" --skills-only --target "$M/regen" --plugin-src "$MP" --skills-dir "$M/regen-skills" 2>&1)"
+if grep -q 'One more line, added upstream' "$M/regen-skills/projects-board/procedure.md" \
     && [[ -z "$(find "$M/regen-skills" -name '*.kit-incoming')" ]] \
-    && ! grep -q 'in this repository' "$M/regen-skills/projects-board/SKILL.md" \
-    && grep -q 'in this repository' "$M/regen-skills/projects-new/SKILL.md" \
-    && grep -q 'skill projects-board follows procedure.md' <<<"$out"; then
-    ok "2b a changed command regenerates its skill; while the vendored copy differs, the skill follows procedure.md and says so"
-else ko "2b a changed command regenerates its skill; while the vendored copy differs, the skill follows procedure.md and says so" \
-    "$out"; fi
+    && grep -q 'projects-board' <<<"$(sed -n '/^Regenerated/,/^$/p' <<<"$out")"; then
+    ok "2b a changed command regenerates its skill on the next run, and nothing is written beside it"
+else ko "2b a changed command regenerates its skill on the next run, and nothing is written beside it" "$out"; fi
 
-# A command the kit later drops leaves its generated skill, its Gemini wrapper and its vendored copy
-# behind, since the installer never deletes; the next run names each one as a file to delete.
-MR="$M/plugins-retired"
-cp -R "$KIT/plugins" "$MR"
-printf -- '---\ndescription: A command that a later version drops\n---\n\nBody.\n' > "$MR/projects/commands/retired.md"
-bash "$KIT/install.sh" --target "$M/retire" --init --surfaces claude,gemini --plugin-src "$MR" --skills-dir "$M/retire-skills" >/dev/null 2>&1
-rm "$MR/projects/commands/retired.md"
-out="$(bash "$KIT/install.sh" --target "$M/retire" --surfaces claude,gemini --plugin-src "$MR" --skills-dir "$M/retire-skills" 2>&1)"
+# A command the kit later drops leaves its generated skill and its Gemini wrapper behind, since the
+# engine never deletes; the next run names each as a file to delete. The first runs read a clone of the
+# kit (kit-a) that still has the command; the next runs read kit/, which never had it.
+mkws_kit "$M/retire"
+git clone -q "$KITSRC" "$M/retire/kit-a" 2>/dev/null
+printf -- '---\ndescription: A command that a later version drops\n---\n\nBody.\n' > "$M/retire/kit-a/plugins/projects/commands/retired.md"
+bash "$KIT/install.sh" --skills-only --target "$M/retire" --plugin-src "$M/retire/kit-a/plugins" --skills-dir "$M/retire-skills" >/dev/null 2>&1
+bash "$KIT/install.sh" --target "$M/retire" --kit kit-a --init --surfaces claude,gemini >/dev/null 2>&1
+out="$( { bash "$KIT/install.sh" --skills-only --target "$M/retire" --skills-dir "$M/retire-skills" 2>&1
+          bash "$KIT/install.sh" --target "$M/retire" --surfaces claude,gemini 2>&1; } )"
 if grep -q "retire-skills/projects-retired/ was generated from plugins/projects/commands/retired.md" <<<"$out" \
     && grep -q "^  .gemini/commands/projects/retired.toml was generated from" <<<"$out" \
-    && grep -q "^  .claude/plugins/projects/commands/retired.md has no counterpart in the kit" <<<"$out" \
-    && [[ "$(grep -c 'no longer has\|no counterpart' <<<"$out")" == 3 && -f "$M/retire-skills/projects-retired/SKILL.md" ]]; then
-    ok "2b a command the kit has dropped is named on every surface as a file to delete, and nothing is deleted"
-else ko "2b a command the kit has dropped is named on every surface as a file to delete, and nothing is deleted" "$out"; fi
+    && [[ "$(grep -c 'no longer has' <<<"$out")" == 2 && -f "$M/retire-skills/projects-retired/SKILL.md" \
+          && -f "$M/retire/.gemini/commands/projects/retired.toml" ]]; then
+    ok "2b a command the kit has dropped is named as a file to delete, as a skill and as a Gemini wrapper, and nothing is deleted"
+else ko "2b a command the kit has dropped is named as a file to delete, as a skill and as a Gemini wrapper, and nothing is deleted" "$out"; fi
+fi
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 3; then
 echo
 echo "3 · JSON, TOML, plugin versions, marketplaces"
 
-# team/claude-settings.json is a template: the installer fills __MARKETPLACE_SOURCE__ with a JSON
-# object, so it is parsed with a representative one in place.
+# templates/workspace/settings.json has no placeholder in 3.0, so every JSON file parses as it stands.
 bad=""
-while IFS= read -r f; do
-    sed 's|__MARKETPLACE_SOURCE__|{ "source": "directory", "path": ".claude/plugins" }|' "$f" | jq empty >/dev/null 2>&1 \
-        || bad+="${f#"$KIT"/}"$'\n'
-done < <(find "$KIT" -name '*.json' -not -path '*/.git/*' | sort)
-empty "3 every JSON file in the kit parses (templates with their placeholder filled)" "$bad"
+while IFS= read -r f; do jq empty "$f" >/dev/null 2>&1 || bad+="${f#"$KIT"/}"$'\n'; done \
+    < <(find "$KIT" -name '*.json' -not -path '*/.git/*' | sort)
+empty "3 every JSON file in the kit parses, templates included" "$bad"
 bad=""
 while IFS= read -r f; do jq empty "$f" >/dev/null 2>&1 || bad+="${f#"$SCRATCH"/}"$'\n'; done \
-    < <(find "$T1" "$T2" -name '*.json' -not -path '*/.git/*' | sort)
+    < <(find "$T1" "$T1G" -name '*.json' -not -path '*/.git/*' -not -path '*/kit/*' 2>/dev/null | sort)
 empty "3 every JSON file an install writes parses" "$bad"
 
 # Gemini CLI is frozen: its wrappers are still generated on request, but parsing them needs
@@ -294,12 +588,12 @@ assert isinstance(d.get("description"), str) and d["description"].strip(), "no d
     bad="" n=0
     while IFS= read -r f; do
         n=$((n + 1)); toml_ok "$f" >/dev/null 2>&1 || bad+="${f#"$SCRATCH"/}"$'\n'
-    done < <(find "$T1/.gemini" "$T2/.gemini" -name '*.toml' 2>/dev/null | sort)
+    done < <(find "$T1G/.gemini" -name '*.toml' 2>/dev/null | sort)
     [[ $n -gt 0 ]] || bad="no TOML files were generated"
     empty "3 every generated TOML ($n) parses, with a description and a prompt" "$bad"
 fi
 
-check "3 the kit ships no hand-written Gemini wrapper" test -z "$(find "$KIT/team" -name '*.toml')"
+check "3 the kit ships no hand-written Gemini wrapper" test -z "$(find "$KIT/templates/workspace" -name '*.toml')"
 
 bad=""
 for pj in "$KIT"/plugins/*/.claude-plugin/plugin.json; do
@@ -333,12 +627,9 @@ lists_plugins() {
 }
 empty "3 the root marketplace lists all three plugins, and every plugin in plugins/" \
     "$(lists_plugins "$KIT/.claude-plugin/marketplace.json" "./plugins/" "$KIT/plugins")"
-empty "3 the vendored marketplace lists all three plugins, and every plugin in plugins/" \
-    "$(lists_plugins "$T1/.claude/plugins/.claude-plugin/marketplace.json" "./" "$T1/.claude/plugins")"
 # §9.2: the optional "$schema" key is ignored at load time and names a vendor URL, so no marketplace carries it.
 empty "3 no marketplace file carries a \$schema key" \
-    "$(for f in "$KIT"/.claude-plugin/marketplace.json "$KIT"/plugins/*/.claude-plugin/marketplace.json \
-            "$T1/.claude/plugins/.claude-plugin/marketplace.json"; do
+    "$(for f in "$KIT"/.claude-plugin/marketplace.json "$KIT"/plugins/*/.claude-plugin/marketplace.json; do
         [[ -f "$f" ]] && jq -e 'has("$schema")' "$f" >/dev/null && echo "$f"; done)"
 
 # The marketplace check has to bite: two copies of the kit's manifests, one with a plugin directory
@@ -392,29 +683,27 @@ else
         || ko "3 fixture: claude plugin validate --strict fails a plugin.json with an unknown field"
 fi
 
-bad=""
-for d in "$KIT"/plugins/*/; do
-    name="$(basename "$d")" ver="$(jq -r .version "$d/.claude-plugin/plugin.json")"
-    grep -qx "$name $ver" "$T1/.claude/plugins/VENDORED" || bad+="VENDORED lacks '$name $ver'"$'\n'
-    diff -rq -x .DS_Store -x .git "$d" "$T1/.claude/plugins/$name" >/dev/null 2>&1 || bad+="vendored $name differs from the kit"$'\n'
-done
-empty "3 VENDORED names each plugin's version, and each vendored copy matches the kit" "$bad"
-
-bad="$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' "$T1/.claude/settings.json")"
+bad="$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' "$T1/.claude/settings.json" 2>/dev/null)"
 missing=""
 for name in closeout projects workspace; do grep -qx "$name@agentic-workspace" <<<"$bad" || missing+="$name@agentic-workspace"$'\n'; done
-empty "3 .claude/settings.json enables all three plugins" "$missing"
+jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "directory", "path": "kit"}' "$T1/.claude/settings.json" >/dev/null 2>&1 \
+    || missing+="the marketplace is not the directory kit"$'\n'
+empty "3 .claude/settings.json enables all three plugins from the directory marketplace at kit" "$missing"
 
 # One source per procedure works on both surfaces only if commands speak of arguments in prose.
 empty "3 no command uses a tool-specific argument placeholder" \
     "$(cd "$KIT" && grep -nE '\$ARGUMENTS|\{\{args\}\}' plugins/*/commands/*.md 2>/dev/null)"
 
+# Every shell script: the .sh files, and the git hooks, which have no extension.
 bad=""
 while IFS= read -r f; do bash -n "$f" 2>/dev/null || bad+="${f#"$KIT"/}"$'\n'; done \
-    < <(find "$KIT" -name '*.sh' -not -path '*/.git/*' | sort)
-empty "3 every shell script passes bash -n" "$bad"
+    < <({ find "$KIT" -name '*.sh' -not -path '*/.git/*'
+          for f in "$KIT"/githooks/*; do [[ -f "$f" && "$(head -n 1 "$f")" == *bash* ]] && echo "$f"; done; } | sort)
+empty "3 every shell script passes bash -n, the git hooks included" "$bad"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 4; then
 echo
 echo "4 · Closeout hooks: team detection, capture prompt, review pointer"
 
@@ -576,7 +865,7 @@ DR="$DRAFTS/reviewed"
 empty "4 review: silent when there are no drafts" "$(review "$PR")"
 mkdir -p "$DR"
 printf '### a claim\n' > "$DR/s1.md"
-empty "4 review: silent inside the capture child, and marks nothing" "$(review "$PR" CLOSEOUT_HOOK_CHILD=1)$(ls -A "$DR" | grep '^\.seen' || true)"
+empty "4 review: silent inside the capture child, and marks nothing" "$(review "$PR" CLOSEOUT_HOOK_CHILD=1)$(find "$DR" -mindepth 1 -maxdepth 1 -name '.seen*' | sed 's#.*/##')"
 outr="$(review "$PR")"
 if jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' <<<"$outr" >/dev/null 2>&1 \
     && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF "$DR/s1.md"; then
@@ -755,11 +1044,13 @@ grep -qF 'only for a change of that kind' "$KIT/rituals/closeout.md" || bad+="ri
 grep -qF '**Contact detail**' "$KIT/plugins/workspace/commands/register-audit.md" && grep -qF 'team/people.md' "$KIT/plugins/workspace/commands/register-audit.md" \
     || bad+="register-audit.md: does not flag a contact detail in the roster"$'\n'
 grep -qF 'team/people.md' "$KIT/plugins/projects/commands/new.md" || bad+="projects new.md: no offer to seed People from the roster"$'\n'
-grep -qxF -- '- **Who needs to know:** auto' "$KIT/team/closeout-conventions.md" || bad+="team/closeout-conventions.md: no setting line"$'\n'
-grep -qE '^\| Name \| Role \| Default relationship \| Channel \| Handle \|$' "$KIT/team/closeout-conventions.md" || bad+="team/closeout-conventions.md: no roster example"$'\n'
+grep -qxF -- '- **Who needs to know:** auto' "$KIT/templates/workspace/closeout.md" || bad+="templates/workspace/closeout.md: no setting line"$'\n'
+grep -qE '^\| Name \| Role \| Default relationship \| Channel \| Handle \|$' "$KIT/templates/workspace/closeout.md" || bad+="templates/workspace/closeout.md: no roster example"$'\n'
 empty "4 who needs to know: the setting, the roster, precedence and How / Offer in the command, ritual, conventions, audit and /projects:new" "$bad"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 4b; then
 echo
 echo "4b · Projects session-start line (F13)"
 
@@ -778,7 +1069,7 @@ pmsg() { jq -r '.systemMessage // empty' 2>/dev/null; }
 PF="$SCRATCH/projects-f13"
 mkdir -p "$PF/.claude" "$PF/projects"
 git -C "$PF" init -q
-cp "$KIT/team/projects-conventions.md" "$PF/.claude/projects.md"
+cp "$KIT/templates/workspace/projects.md" "$PF/.claude/projects.md"
 for i in $(seq -w 1 19); do
     mkdir -p "$PF/projects/p$i"
     printf '# Project p%s\n\n## Desired outcome\n\nThe p%s rollout is live\nfor every team.\n\n## Done when\n\n- [x] one\n- [ ] two\n- [x] three\n- [ ] four\n\n## Current state\n\n- **State:** doing\n- **Updated:** 2026-09-24\n\n2026-09-24 — Priya has the p%s draft with the sponsor.\n\n## People\n\n- Sam — owns — `memory/people/sam.md`\n- Priya — does\n' \
@@ -938,7 +1229,9 @@ PY
 [[ "$ms" -lt 100 ]] && ok "4b session-start: under 100 ms with 20 projects (median ${ms} ms)" \
     || ko "4b session-start: under 100 ms with 20 projects (median ${ms} ms)"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 5; then
 echo
 echo "5 · measure.sh --backfill on a dated fixture history"
 
@@ -978,7 +1271,7 @@ printf '# Build list\n\n| # | Item | Owner | Due | Status |\n|---|---|---|---|--
 fx_commit 11 Blair blair@example.test "Start beta"
 
 decision 4 3
-fx_readme alpha done
+fx_readme alpha "done"
 fx_commit 4 Alex alex@example.test "Alpha is done"
 mkdir -p "$F/docs"; printf '# Reference\n' > "$F/docs/reference.md"
 fx_commit 3 Blair blair@example.test "Reference doc"
@@ -1044,7 +1337,8 @@ empty "5 F12 the project columns count the fixture history correctly, week by we
 # A second history exercises the data-model rules: a conventions file with its own locations,
 # register and a Done when alias; plain and bold labels; honest gaps; a Blocked by line by date; the
 # in-flight rule from People and from the register; a project moved into a done folder with no State
-# line; and a median over two finished projects (6 and 20 days, so 13).
+# line; and a median over two finished projects (6 and 20 days, so 13). CLAUDE.md imports AGENTS.md, so
+# naming only CLAUDE.md in MEASURE_ALWAYS_LOADED still counts both: imports are followed.
 G="$SCRATCH/measure-f12"
 mkdir -p "$G/pilot" "$G/.claude" "$G/work" && git -C "$G" init -q
 cp "$KIT/pilot/measure.sh" "$G/pilot/measure.sh"
@@ -1078,7 +1372,7 @@ if [[ $grc -eq 0 && -f "$gcsv" && ! -e "$G/pilot/metrics.csv" ]]; then ok "5 F12
 else ko "5 F12 --out writes where it is told, relative to the working directory" "$gout"; fi
 gcol() { awk -F, -v name="$1" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == name) c = i; next } NR == 2 { print (c ? $c : "missing") }' "$gcsv"; }
 bad="$(
-    for pair in always_loaded_bytes=$(wc -c < "$G/CLAUDE.md" | tr -d ' ') projects_active=3 projects_blocked=1 \
+    for pair in always_loaded_bytes=$(( $(wc -c < "$G/CLAUDE.md") + $(wc -c < "$G/AGENTS.md") )) projects_active=3 projects_blocked=1 \
         projects_with_done_when=2 projects_done=2 blocked_over_14d=1 max_in_flight_per_person=2 median_days_to_done=13; do
         got="$(gcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"
     done
@@ -1231,17 +1525,23 @@ lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/nul
 [[ "$lrow" == "4,3,0" ]] && ok "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" \
     || ko "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" "got $lrow"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 6; then
 echo
 echo "6 · Words the kit does not use"
 
 # The words the kit does not use live in a private list outside the repository, so the repository
-# never spells them out: $AW_BANNED_WORDS_FILE, by default ~/.config/agentic-workspace-kit/banned-words.txt.
+# never spells them out. It is resolved as the hooks resolve it (lib/common.sh aw_word_list): first
+# $AW_BANNED_WORDS_FILE, then the "Private word list" of the workspace around this kit checkout, then
+# ~/.config/agentic-workspace-kit/banned-words.txt.
 # One extended-regex alternative per line; lines starting with # and blank lines are ignored. The scan
 # is whole-word and case-insensitive across every text file except the licences, so plurals and
 # hyphenated forms are caught exactly as far as the list's own regexes allow. With no list, the scan
 # is reported as SKIP, never as PASS.
-words_file="${AW_BANNED_WORDS_FILE:-$HOME/.config/agentic-workspace-kit/banned-words.txt}"
+words_ws="$(git --no-optional-locks -C "$KIT" rev-parse --show-superproject-working-tree 2>/dev/null)"
+# shellcheck source=/dev/null
+words_file="$( . "$KIT/lib/common.sh" && aw_word_list "$words_ws" 2>/dev/null )"; words_rc=$?
 # listpattern <file>: the list as one alternation, comments, blank lines and trailing space dropped.
 listpattern() { sed -e 's/[[:space:]]*$//' "$1" | grep -vE '^[[:space:]]*(#|$)' | paste -sd'|' -; }
 # wordscan <pattern> <path>...
@@ -1269,7 +1569,7 @@ printf 'One Zorbl, and a zorblet.\nTwo BLIPBLOPS and the blip-blop.\nNothing to 
 ppat="$(listpattern "$probe/list.txt")"
 [[ "$ppat" == 'zorbl|blip-?blops?' ]] && ok "6 the list loader keeps one alternative per line and drops comments, blanks and trailing space" \
     || ko "6 the list loader keeps one alternative per line and drops comments, blanks and trailing space" "$ppat"
-[[ "$(wordscan "$ppat" "$probe/tree" | grep -oiwE "($ppat)" | tr 'A-Z' 'a-z' | sort | paste -sd' ' -)" == "blip-blop blipblops zorbl" ]] \
+[[ "$(wordscan "$ppat" "$probe/tree" | grep -oiwE "($ppat)" | tr '[:upper:]' '[:lower:]' | sort | paste -sd' ' -)" == "blip-blop blipblops zorbl" ]] \
     && ok "6 the word scan catches whole words in any case, with the plurals and hyphens the list allows" \
     || ko "6 the word scan catches whole words in any case, with the plurals and hyphens the list allows" "$(wordscan "$ppat" "$probe/tree")"
 # A list line that is not a valid regex fails the scan rather than letting it pass unread.
@@ -1278,8 +1578,10 @@ r="$(scanned "probe" wordscan "$(listpattern "$probe/broken.txt")" "$probe/tree"
 [[ "$r" == FAIL* ]] && ok "6 a list line that is not a valid regex fails the scan instead of passing it" \
     || ko "6 a list line that is not a valid regex fails the scan instead of passing it" "$r"
 
-if [[ ! -f "$words_file" ]]; then
-    skp "6 word scan not run — no word list at $words_file (set AW_BANNED_WORDS_FILE to use another path)"
+if [[ $words_rc -ne 0 ]]; then
+    ko "6 word scan not run — a word list is named but cannot be read, or sits inside the kit checkout"
+elif [[ -z "$words_file" || ! -f "$words_file" ]]; then
+    skp "6 word scan not run — no word list resolves (AW_BANNED_WORDS_FILE, the workspace's Private word list, or ~/.config/agentic-workspace-kit/banned-words.txt)"
 else
     banned="$(listpattern "$words_file")"
     if [[ -z "$banned" ]]; then
@@ -1296,7 +1598,9 @@ else
     fi
 fi
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 7; then
 echo
 echo "7 · No AI-vendor attribution"
 
@@ -1339,7 +1643,9 @@ else
         "$(histscan "$KIT" "$history_exempt")"
 fi
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 8; then
 echo
 echo "8 · The register: no capitals-for-emphasis in prompts, templates and rituals"
 
@@ -1347,8 +1653,8 @@ echo "8 · The register: no capitals-for-emphasis in prompts, templates and ritu
 # stated as facts about how the work is done, so shouted imperatives have no place in them. Lines
 # between register-audit ignore markers (used where the words are quoted as examples) are skipped.
 # The set covers every file an agent reads as a prompt or as guidance: commands, their examples, the
-# templates and rituals, the team overlay (the Gemini closeout prompt included), MANIFEST.md, the
-# mould for AGENTS.md, and the pilot's prompts (pilot/lib/judge.md, handed to the blind comparator). The closeout hooks' prompts are checked in section 4. Line numbers are
+# templates and rituals, the workspace templates (templates/workspace/), the kit's working standards
+# (CLAUDE.kit.md), the git hooks, the docs pages for commands and hooks, and the pilot's prompts (pilot/lib/judge.md, handed to the blind comparator). The closeout hooks' prompts are checked in section 4. Line numbers are
 # the file's own, and an ignore-start with no ignore-end fails rather than exempting the rest.
 regscan() { # <file>: offending lines as "line: text", plus a note for an unterminated ignore block
     awk '/register-audit: ignore-start/ { s = 1; next } /register-audit: ignore-end/ { s = 0; next }
@@ -1358,13 +1664,15 @@ regscan() { # <file>: offending lines as "line: text", plus a note for an unterm
 hits=""
 shopt -s nullglob
 for f in "$KIT"/plugins/*/commands/*.md "$KIT"/plugins/*/examples/* "$KIT"/templates/* "$KIT"/rituals/* \
-         "$KIT"/team/*.md "$KIT"/team/*.toml "$KIT"/MANIFEST.md "$KIT"/pilot/lib/*.md; do
+         "$KIT"/templates/workspace/* "$KIT"/templates/workspace/surface-rows/* "$KIT"/CLAUDE.kit.md \
+         "$KIT"/githooks/* "$KIT"/docs/commands/*.md "$KIT"/docs/hooks/*.md "$KIT"/docs/setup.md \
+         "$KIT"/docs/migration.md "$KIT"/pilot/lib/*.md; do
     [[ -f "$f" ]] || continue
     h="$(regscan "$f")"
     [[ -n "$h" ]] && hits+="$(printf '%s\n' "$h" | sed "s#^#${f#"$KIT"/}:#")"$'\n'
 done
 shopt -u nullglob
-empty "8 no MUST, NEVER, CRITICAL or IMPORTANT in command, example, template, ritual, team, manifest or pilot prompt files" "$hits"
+empty "8 no MUST, NEVER, CRITICAL or IMPORTANT in command, example, template, ritual, workspace template, kit standards, hook, docs or pilot prompt files" "$hits"
 empty "8 the team roster template passes the register scan" "$(regscan "$KIT/templates/team-roster.md")"
 probe="$SCRATCH/register-probe.md"
 printf 'Fine.\n<!-- register-audit: ignore-start -->\nQuoted: MUST.\n<!-- register-audit: ignore-end -->\nYou NEVER skip.\n<!-- register-audit: ignore-start -->\nALWAYS.\n' > "$probe"
@@ -1372,17 +1680,19 @@ printf 'Fine.\n<!-- register-audit: ignore-start -->\nQuoted: MUST.\n<!-- regist
     && ok "8 the register scan reports real line numbers and fails an unterminated ignore block" \
     || ko "8 the register scan reports real line numbers and fails an unterminated ignore block" "$(regscan "$probe")"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 9; then
 echo
-echo "9 · The nine commands, on Claude Code and as skills, from one source each"
+echo "9 · The ten commands, on Claude Code and as skills, from one source each"
 
-# The command set is fixed by the spec's architecture table; a tenth, or a missing one, fails here
+# The command set is fixed by the contract's command list; an eleventh, or a missing one, fails here
 # so the plugins, the skills and this list move together.
-commands="closeout/closeout projects/adopt projects/board projects/close projects/new projects/pickup
+commands="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pickup
 workspace/hygiene workspace/quick-start workspace/register-audit"
-have="$(cd "$KIT/plugins" && ls */commands/*.md | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the nine commands" \
-    || ko "9 the kit has exactly the nine commands" "has: $have"
+have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the ten commands" \
+    || ko "9 the kit has exactly the ten commands" "has: $have"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }
@@ -1414,21 +1724,23 @@ n = text.count("\n") + (0 if text.endswith("\n") else 1)  # lines as wc -l count
 assert n < 30, f"{n} lines"
 PYSKILL
 }
+# Claude Code reads each command in place from kit/ (the workspace's kit is KITSRC, the working tree);
+# the skills section 1 generated point at that same file and carry its body as procedure.md.
 bad=""
 for pc in $commands; do
     p="${pc%/*}" c="${pc#*/}"
     src="$KIT/plugins/$p/commands/$c.md" sk="$S1/$(skill_of "$pc")"
-    cmp -s "$src" "$T1/.claude/plugins/$p/commands/$c.md" || bad+="$pc: not vendored for Claude Code as it stands in the kit"$'\n'
+    cmp -s "$src" "$T1/kit/plugins/$p/commands/$c.md" || bad+="$pc: kit/ in the workspace does not hold the command as it stands in the kit"$'\n'
     if [[ ! -f "$sk/SKILL.md" ]]; then bad+="$pc: no skill $(skill_of "$pc")"$'\n'; continue; fi
     err="$(skill_ok "$sk/SKILL.md" 2>&1)" || bad+="$pc: $(printf '%s' "$err" | tail -n 1)"$'\n'
-    grep -qF "\`.claude/plugins/$p/commands/$c.md\` in this repository" "$sk/SKILL.md" \
-        || bad+="$pc: the skill does not point at the vendored command file"$'\n'
+    grep -qF "\`kit/plugins/$p/commands/$c.md\` in this repository" "$sk/SKILL.md" \
+        || bad+="$pc: the skill does not point at the command file in kit/"$'\n'
     body_of "$src" > "$SCRATCH/body.md"
     cmp -s "$SCRATCH/body.md" "$sk/procedure.md" || bad+="$pc: procedure.md is not the command's body"$'\n'
 done
-extra="$(cd "$S1" && ls -A | sort | paste -sd' ' -)"
+extra="$(cd "$S1" 2>/dev/null && find . -mindepth 1 -maxdepth 1 | sed 's#^\./##' | sort | paste -sd' ' -)"
 [[ "$extra" == "$(for pc in $commands; do skill_of "$pc"; done | sort | paste -sd' ' -)" ]] || bad+="skills folder holds: $extra"$'\n'
-empty "9 every command is vendored for Claude Code and has one valid skill under 30 lines, pointing at it" "$bad"
+empty "9 every command is read from kit/ by Claude Code and has one valid skill under 30 lines, pointing at it" "$bad"
 
 # Where a skill points depends on where the kit sits. Inside the repository (a submodule), the skill
 # names the command file itself; with no copy in the repository, procedure.md is the whole of it.
@@ -1452,7 +1764,7 @@ else ko "9 skills-only: with no copy of the kit in the repository, a skill follo
 # the rules the two copies must not drift apart on.
 bad=""
 for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
-    for w in 'zero-sum' 'Promote learnings first' '`doing`' '`blocked`' '`paused`' '`done`'; do
+    for w in 'zero-sum' 'Promote learnings first' '`doing`' '`blocked`' '`paused`' '`done`' 'inside the submodule'; do
         grep -qF -- "$w" "$KIT/$f" || bad+="$f: no $w"$'\n'
     done
 done
@@ -1472,7 +1784,9 @@ for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
 done
 empty "9 closeout parity: the command and the ritual both offer an ablation on the top two tiers, optionally, and report it" "$bad"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 10; then
 echo
 echo "10 · Ablations: pilot/ablate.sh end to end against a stub claude"
 
@@ -1638,7 +1952,9 @@ chmod +x "$ASTUB/claude"
 # ablate <args...>: the runner against the fixture, with the stub first on PATH and no API key from the
 # calling shell; output in $aout, status in $arc.
 ablate() { aout="$(env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN -u AW_ALLOW_API_BILLING PATH="$ASTUB:$PATH" ALOG="$ALOG" "$@" 2>&1)"; arc=$?; }
-calls() { ls "$ALOG" | grep -c . ; }
+calls() { find "$ALOG" -mindepth 1 -maxdepth 1 ! -name '.*' | grep -c . ; }
+# judges: the comparator's logs, judge.<id>, in the stub's log folder.
+judges() { find "$AJLOG" -mindepth 1 -maxdepth 1 -name 'judge.*' | sed 's#.*/##' | grep -c '^judge\.[A-Za-z0-9]*$'; }
 ACSV="$AR/pilot/ablation-results.csv" AREP="$AR/pilot/ablation-report.md"
 wtcount() { git -C "$AR" worktree list | grep -c . ; }
 
@@ -1848,7 +2164,7 @@ n3="$(calls)"
 ablate env AJLOG="$AJLOG" bash "$ABL" --target "$AR" --runs 2 judged
 got="$(grep ",judged," "$ACSV" | cut -d, -f3,4,5,6,13 | paste -sd' ' -)"
 [[ $arc -eq 0 && "$got" == "with,1,,with,ok with,2,,with,ok without,1,,,ok without,2,,,ok judge,1,,with,ok judge,2,,with,ok" \
-    && "$(calls)" == "$((n3 + 4))" && "$(ls "$AJLOG" | grep -c '^judge\.[A-Za-z0-9]*$')" == 2 ]] \
+    && "$(calls)" == "$((n3 + 4))" && "$(judges)" == 2 ]] \
     && ok "10 a Judge sends each pair to the comparator and writes the unblinded winner on the with row, with a judge row per pair" \
     || ko "10 a Judge sends each pair to the comparator and writes the unblinded winner on the with row, with a judge row per pair" "rc=$arc $got"$'\n'"$aout"
 [[ "$(grep ',judged,judge,1,' "$ACSV")" == "$today,judged,judge,1,,with,100,40,0,800,0.01,1,ok,none" ]] \
@@ -1900,7 +2216,7 @@ for arm in with without; do
 done
 printf '%s\n' "2026-09-02,judged,with,1,,,10,20,0,1000,0.2,2,ok" "2026-09-02,judged,without,1,,,10,20,0,1000,0.2,2,ok" \
     "2026-10-06,judged,with,1,,,10,20,0,1000,0.2,2,ok" "2026-10-06,judged,without,1,,,10,20,0,1000,0.2,2,ok" >> "$ACSV"
-j0="$(ls "$AJLOG" | grep -c '^judge\.[A-Za-z0-9]*$')"
+j0="$(judges)"
 ablate env AJLOG="$AJLOG" bash "$ABL" --target "$AR" --judge-kept "$AKEPT2" judged
 got="$(grep -E '^2026-(09-02|10-06),judged,' "$ACSV" | cut -d, -f1,3,6 | paste -sd' ' -)"
 [[ $arc -eq 0 && "$got" == "2026-09-02,with,with 2026-09-02,without, 2026-10-06,with, 2026-10-06,without, 2026-09-02,judge,with" ]] \
@@ -1909,7 +2225,7 @@ got="$(grep -E '^2026-(09-02|10-06),judged,' "$ACSV" | cut -d, -f1,3,6 | paste -
 r6="$(grep -c . "$ACSV")"
 ablate env AJLOG="$AJLOG" bash "$ABL" --target "$AR" --judge-kept "$AKEPT2" judged
 [[ $arc -eq 0 && "$(grep -c . "$ACSV")" == "$r6" && "$aout" == *"already judged"* \
-    && "$(ls "$AJLOG" | grep -c '^judge\.[A-Za-z0-9]*$')" == "$((j0 + 1))" ]] \
+    && "$(judges)" == "$((j0 + 1))" ]] \
     && ok "10 --judge-kept twice on one folder adds no row and calls no comparator the second time" \
     || ko "10 --judge-kept twice on one folder adds no row and calls no comparator the second time" "rc=$arc"$'\n'"$aout"
 
@@ -1927,11 +2243,11 @@ winners="$(cat "$kept"/judge/judged/run-*/verdict.json 2>/dev/null | jq -r .winn
 
 # --no-judge: the arms run and are graded as usual, but no comparator runs, no judge row is written and
 # the with rows' judge column stays empty; --help and --dry-run say so.
-n5="$(calls)" j5="$(ls "$AJLOG" | grep -c '^judge\.[A-Za-z0-9]*$')" r5="$(grep -c . "$ACSV")"
+n5="$(calls)" j5="$(judges)" r5="$(grep -c . "$ACSV")"
 ablate env AJLOG="$AJLOG" bash "$ABL" --target "$AR" --runs 1 --no-judge judged
 got="$(tail -n +"$((r5 + 1))" "$ACSV" | cut -d, -f2,3,4,6,13 | paste -sd' ' -)"
 [[ $arc -eq 0 && "$got" == "judged,with,1,,ok judged,without,1,,ok" && "$(calls)" == "$((n5 + 2))" \
-    && "$(ls "$AJLOG" | grep -c '^judge\.[A-Za-z0-9]*$')" == "$j5" && "$(wtcount)" == 1 ]] \
+    && "$(judges)" == "$j5" && "$(wtcount)" == 1 ]] \
     && ok "10 --no-judge runs both arms and calls no comparator: no judge row, the with row's judge column empty" \
     || ko "10 --no-judge runs both arms and calls no comparator: no judge row, the with row's judge column empty" "rc=$arc $got"$'\n'"$aout"
 ablate bash "$ABL" --target "$AR" --runs 1 --dry-run --no-judge judged
@@ -1993,8 +2309,8 @@ for r in "$ALOG"/call.*; do
     grep -qx 'market_autoupdate=\[false\]' "$r" && grep -qx 'autoupdater=1' "$r" \
         || bad+="$(basename "$r"): auto-update not off: $(grep 'autoupdate' "$r" | paste -sd' ' -)"$'\n'
 done
-[[ "$(ls "$ALOG"/call.* | grep -c .)" == 6 ]] || bad+="$(ls "$ALOG"/call.* | grep -c .) calls, not 6"$'\n'
-[[ -z "$(ls "$ATMP" | grep -E '^ablate-(cfg|home|judge)\.')" ]] || bad+="left in TMPDIR: $(ls "$ATMP")"$'\n'
+[[ "$(find "$ALOG" -mindepth 1 -maxdepth 1 -name 'call.*' | grep -c .)" == 6 ]] || bad+="$(find "$ALOG" -mindepth 1 -maxdepth 1 -name 'call.*' | grep -c .) calls, not 6"$'\n'
+if find "$ATMP" -mindepth 1 -maxdepth 1 | sed 's#.*/##' | grep -qE '^ablate-(cfg|home|judge)\.'; then bad+="left in TMPDIR: $(ls "$ATMP")"$'\n'; fi
 [[ "$(homesum)" == "$home0" ]] || bad+="the person's own config changed"$'\n'
 empty "10 each run gets its own temporary config (the minimum set only) and HOME, removed after, the token passed through, and the person's config untouched" "$bad"
 pick() { grep -l -x "$1" "$ALOG"/call.* | xargs grep -l -x "$2" | grep -c .; }
@@ -2120,7 +2436,9 @@ mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -
     && ok "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" \
     || ko "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" "got $mrow"
 
+fi
 # ---------------------------------------------------------------------------------------------------
+if aw_want 11; then
 echo
 echo "11 · The state check: one scratch repository per mode, the other keys, and no lock left behind"
 
@@ -2128,70 +2446,42 @@ echo "11 · The state check: one scratch repository per mode, the other keys, an
 # setup wizard branch on its mode= line. Each mode is built in scratch from a real install, so the
 # facts it reads are the installer's own. It runs under /bin/bash where there is one (bash 3.2 on
 # macOS), since that is the floor it is written for.
-STATE="$KIT/plugins/workspace/bin/state.sh"
-st_bash=bash; [[ -x /bin/bash ]] && st_bash=/bin/bash
+# STATE and the st_* helpers (st_bash, st_run, st_key, st_expect, st_tree) are in the prelude.
 st_err=""
-# st_run <dir> [option...]: the report on stdout; anything on stderr is collected for the silence check.
-st_run() { local d="$1" e; shift; "$st_bash" "$STATE" "$@" "$d" 2>"$SCRATCH/state.err"
-    e="$(cat "$SCRATCH/state.err")"; [[ -z "$e" ]] || st_err+="$d: $e"$'\n'; }
-st_key() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n 1; }
-# st_expect <description> <report> key=value...: every pair matches, or the mismatches are the detail.
-st_expect() {
-    local d="$1" rep="$2" bad="" kv k; shift 2
-    for kv in "$@"; do
-        k="${kv%%=*}"
-        [[ "$(st_key "$rep" "$k")" == "${kv#*=}" ]] || bad+="$k: wanted '${kv#*=}', got '$(st_key "$rep" "$k")'"$'\n'
-    done
-    empty "$d" "$bad"
-}
-# st_tree <dir>: every path under it, .git included, with size and mtime, directories too — a lock
-# file created and removed still changes its directory's mtime, so a clean run leaves this unchanged.
-st_tree() { python3 - "$1" <<'PYTREE'
-import os, sys
-root = sys.argv[1]
-for dp, dn, fn in os.walk(root):
-    dn.sort()
-    for n in sorted(dn + fn):
-        p = os.path.join(dp, n); s = os.lstat(p)
-        print(os.path.relpath(p, root), s.st_size, s.st_mtime_ns)
-print(".", os.lstat(root).st_mtime_ns)
-PYTREE
-}
 
 check "11 state.sh parses under $st_bash" "$st_bash" -n "$STATE"
 # Every git call goes through --no-optional-locks; a git command in command position without it fails.
 empty "11 every git call in state.sh carries --no-optional-locks" \
     "$(grep -nE '(^|[;&|({]|\$\()[[:space:]]*git[[:space:]]' "$STATE" | grep -vE '^[0-9]+:[[:space:]]*#' | grep -v -- '--no-optional-locks')"
 
-# Fresh: the kit as the installer leaves it, stand-ins still in AGENTS.md, nothing committed.
+# Fresh: a workspace as kit/setup.sh new leaves it (mkws), with the pilot, stand-ins still in CLAUDE.md,
+# nothing committed.
 SF="$SCRATCH/state-fresh"
-mkdir -p "$SF" && git -C "$SF" init -q && git -C "$SF" config user.name "Priya Shah"
-bash "$KIT/install.sh" --target "$SF" "${install_args[@]}" --pilot </dev/null >/dev/null 2>&1
+mkws "$SF" --pilot || ko "11 the fresh fixture: kit/setup.sh new finishes" "$(tail -n 12 "$SF.log" 2>/dev/null)"
 r="$(st_run "$SF")"
-st_expect "11 fresh: mode and the always-loaded file" "$r" mode=fresh always_loaded=AGENTS.md agents_md=kit \
-    claude_md=shim gemini_md=missing signs= target="$SF" in_git=yes commits=0 authors=0
-[[ "$(st_key "$r" standins_remaining)" -gt 0 && "$(st_key "$r" surface_standins)" -gt 0 ]] \
-    && ok "11 fresh: stand-ins counted in §1–§3 and in the §4 surface table" \
-    || ko "11 fresh: stand-ins counted in §1–§3 and in the §4 surface table" "$r"
+st_expect "11 fresh: mode and the always-loaded file" "$r" mode=fresh always_loaded=CLAUDE.md agents_md=kit \
+    claude_md=kit gemini_md=missing signs= target="$SF" in_git=yes commits=0 authors=0
+# The §4 surface table is rendered from the kit's surface rows, so its stand-ins are gone at creation.
+[[ "$(st_key "$r" standins_remaining)" -gt 0 && "$(st_key "$r" surface_standins)" == 0 ]] \
+    && ok "11 fresh: stand-ins counted in §1–§3 of CLAUDE.md, none in the rendered §4 surface table" \
+    || ko "11 fresh: stand-ins counted in §1–§3 of CLAUDE.md, none in the rendered §4 surface table" "$r"
 st_expect "11 fresh: the person, their profile and the project conventions" "$r" "person=Priya Shah" \
     person_slug=priya-shah person_profile=missing person_profile_path= people_dir=memory/people people_profiles=0 \
-    projects_conventions=kit "projects_dir=projects/<slug>/" "paused_dir=projects/<slug>/" "done_dir=projects/<slug>/" \
+    projects_conventions=kit "projects_dir=projects/<slug>/" "paused_dir=projects/<slug>/" "done_dir=projects/_done/<slug>/" \
     conventions_not_set=0 in_flight_limit=3 "staleness=1 week" default_owner=
 st_expect "11 fresh: register, decisions log and the other canonical files" "$r" register=kit \
     register_path=projects/INDEX.md register_rows=0 project_folders=0 decisions_log=kit decisions_log_other= \
     glossary=present glossary_terms=0 build_list=present verification=missing catalogue=missing \
     codeowners=.github/CODEOWNERS kit_incoming= own_skills= foreign_skills=
-st_expect "11 fresh: plugins, surfaces and measurement" "$r" settings=present \
-    plugins_registered=closeout,projects,workspace plugins_mode=vendor plugins_path=.claude/plugins \
-    kit_checkout="$KIT" closeout_conventions=present surfaces=claude gemini_commands=0 \
-    measure_script=pilot/measure.sh metrics_csv=missing
-[[ -n "$(st_key "$r" vendored_commit)" ]] && ok "11 fresh: the vendored kit commit is read from VENDORED" \
-    || ko "11 fresh: the vendored kit commit is read from VENDORED" "$r"
+st_expect "11 fresh: plugins, surfaces and measurement, all read in place from kit/" "$r" settings=present \
+    plugins_registered=closeout,projects,workspace plugins_mode=kit plugins_path=kit \
+    kit_checkout=kit closeout_conventions=present surfaces=claude gemini_commands=0 \
+    measure_script=kit/pilot/measure.sh metrics_csv=missing vendored_commit= state_version=2
 
 # Joining: the team part filled in and committed, this person with no profile yet.
 SJ="$SCRATCH/state-joining"
 cp -R "$SF" "$SJ"
-python3 - "$SJ/AGENTS.md" <<'PYFILL'
+python3 - "$SJ/CLAUDE.md" <<'PYFILL'
 import re, sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
@@ -2202,7 +2492,7 @@ r="$(st_run "$SJ")"
 st_expect "11 joining: no stand-ins left and no profile for this person" "$r" mode=joining standins_remaining=0 \
     surface_standins=0 person_profile=missing signs= commits=1 authors=1 "author_names=Test Runner" uncommitted=0
 
-# Nothing left: the same, with this person's profile, a generated skill and a project folder with its
+# Nothing left: the same, with this person's profile, generated skills and a project folder with its
 # own decisions log — none of which is a sign of another system.
 SN="$SCRATCH/state-nothing-left"
 cp -R "$SJ" "$SN"
@@ -2223,24 +2513,28 @@ r="$(st_run "$SN/memory" --json)"
     && ok "11 --json gives the same facts, and a folder inside a repository reports on the repository" \
     || ko "11 --json gives the same facts, and a folder inside a repository reports on the repository" "$r"
 
-# Joining comes before existing system: once the kit's file is filled in, what the first person left
+# Joining comes before existing system: once the team's file is filled in, what the first person left
 # beside it is settled, so a newcomer is offered the personal part.
 SJ2="$SCRATCH/state-joining-own-skill"
 cp -R "$SJ" "$SJ2"
 mkdir -p "$SJ2/.claude/skills/our-closeout" && printf -- '---\nname: our-closeout\n---\n' > "$SJ2/.claude/skills/our-closeout/SKILL.md"
 st_expect "11 joining takes precedence over the signs of another system" "$(st_run "$SJ2")" mode=joining signs=foreign_skills
 
-# Existing system, first shape: the repository's own CLAUDE.md and register were there before the kit.
+# Existing system, first shape: the repository's own CLAUDE.md and register were there before the kit,
+# which the engine keeps and records as kept.
 SE="$SCRATCH/state-existing"
-mkdir -p "$SE/projects" && git -C "$SE" init -q && git -C "$SE" config user.name "Priya Shah"
-printf '# How we work\n\nWe keep decisions in plain files beside the code.\n' > "$SE/CLAUDE.md"
-printf '# Work\n\n## Live\n\n## Done\n' > "$SE/projects/INDEX.md"
-git -C "$SE" add -A && git -C "$SE" -c commit.gpgsign=false commit -q -m "Our own system"
-bash "$KIT/install.sh" --target "$SE" "${install_args[@]}" </dev/null >/dev/null 2>&1
+if mkws_kit "$SE"; then
+    git -C "$SE" config user.name "Priya Shah"
+    mkdir -p "$SE/projects"
+    printf '# How we work\n\nWe keep decisions in plain files beside the code.\n' > "$SE/CLAUDE.md"
+    printf '# Work\n\n## Live\n\n## Done\n' > "$SE/projects/INDEX.md"
+    git -C "$SE" add -A && git -C "$SE" -c commit.gpgsign=false commit -q -m "Our own system"
+    bash "$KIT/install.sh" --target "$SE" "${install_args[@]}" </dev/null >/dev/null 2>&1
+fi
 r="$(st_run "$SE")"
-st_expect "11 existing system: its own CLAUDE.md and register, the kit's versions written beside them" "$r" \
+st_expect "11 existing system: its own CLAUDE.md and register, kept by the engine, nothing written beside them" "$r" \
     mode=existing-system always_loaded=CLAUDE.md claude_md=own agents_md=kit standins_remaining=0 register=foreign \
-    kit_incoming=CLAUDE.md.kit-incoming,projects/INDEX.md.kit-incoming signs=claude_md,register
+    kit_incoming= signs=claude_md,register
 
 # Existing system, second shape: a filled-in kit whose person has a profile, plus skills and commands
 # of the team's own. Only the ones doing a kit command's job are signs; all of them are listed.
@@ -2277,15 +2571,17 @@ r="$("$st_bash" "$STATE" "$SCRATCH/no-such-folder" 2>"$SCRATCH/state.err")"; rc=
 
 # AGENTS.md where a sandbox denies the stat as well as the read: -e sees nothing, and only ls's error
 # says the file is there. A stub ls stands in for the sandbox; the control, with the real ls, is missing.
+# The copy leaves AGENTS.md out. The ledger records the engine created it, so it is not opaque (§0.4):
+# the state check tries it and reports it unreadable.
 SB="$SCRATCH/state-denied" SBL="$SCRATCH/ls-deny"
-cp -R "$SF" "$SB" && mv "$SB/AGENTS.md" "$SCRATCH/state-denied-AGENTS.md"
+python3 -c 'import shutil, sys; shutil.copytree(sys.argv[1], sys.argv[2], symlinks=True, ignore=lambda d, n: ["AGENTS.md"] if d == sys.argv[1] else [])' "$SF" "$SB"
 mkdir -p "$SBL"
 printf '%s\n' '#!/bin/sh' 'for a; do case "$a" in */AGENTS.md) echo "ls: $a: Operation not permitted" >&2; exit 1 ;; esac; done' \
     'exec /bin/ls "$@"' > "$SBL/ls"
 chmod +x "$SBL/ls"
-st_expect "11 an AGENTS.md whose stat is denied reads unreadable, and the stand-ins unknown" "$(PATH="$SBL:$PATH" st_run "$SB")" \
-    agents_md=unreadable always_loaded=AGENTS.md standins_remaining=unknown claude_md=shim mode=fresh
-st_expect "11 control: with no AGENTS.md at all it reads missing" "$(st_run "$SB")" agents_md=missing always_loaded=none
+st_expect "11 an AGENTS.md whose stat is denied reads unreadable; CLAUDE.md stays the always-loaded file" "$(PATH="$SBL:$PATH" st_run "$SB")" \
+    agents_md=unreadable always_loaded=CLAUDE.md claude_md=kit mode=fresh
+st_expect "11 control: with no AGENTS.md at all it reads missing" "$(st_run "$SB")" agents_md=missing always_loaded=CLAUDE.md
 # A repository git will not read here (another owner, as on a mounted folder) says so, not in_git=no.
 st_expect "11 a repository git refuses (safe.directory) reads in_git=refused" \
     "$(GIT_TEST_ASSUME_DIFFERENT_OWNER=1 st_run "$SJ")" in_git=refused commits=0
@@ -2314,9 +2610,9 @@ git -C "$SL" status --porcelain >/dev/null 2>&1
     || ko "11 control: a plain git status rewrites that index, so the no-write check can fail"
 
 # The quick-start branches on the state check. Its fenced command, with the placeholder Claude Code
-# fills in (${CLAUDE_PLUGIN_ROOT}) standing for the vendored plugin, is run in each mode's repository;
+# fills in (${CLAUDE_PLUGIN_ROOT}) standing for the plugin in kit/, is run in each mode's repository;
 # the mode it reports must be one the command has a branch for. The command names only keys the script
-# emits, names the vendored path for a surface that does not fill the placeholder in, keeps a fallback
+# emits, names the kit path for a surface that does not fill the placeholder in, keeps a fallback
 # for a surface with no shell, and offers the team roster in the team part.
 QS="$KIT/plugins/workspace/commands/quick-start.md"
 qs_cmd="$(awk '/^```/ { f = !f; next } f && /bin\/state\.sh/ { print; exit }' "$QS")"
@@ -2324,12 +2620,12 @@ bad=""
 [[ "$qs_cmd" == *'${CLAUDE_PLUGIN_ROOT}/bin/state.sh'* ]] || bad+="no state-check command in a fence: $qs_cmd"$'\n'
 for pair in "$SF:fresh" "$SJ:joining" "$SE:existing-system" "$SN:nothing-left"; do
     d="${pair%:*}" want="${pair##*:}"
-    got="$(cd "$d" && CLAUDE_PLUGIN_ROOT="$d/.claude/plugins/workspace" "$st_bash" -c "$qs_cmd" 2>&1 | sed -n 's/^mode=//p')"
+    got="$(cd "$d" && CLAUDE_PLUGIN_ROOT="$d/kit/plugins/workspace" "$st_bash" -c "$qs_cmd" 2>&1 | sed -n 's/^mode=//p')"
     [[ "$got" == "$want" ]] || bad+="$d: the quick-start's command reported mode '$got', wanted '$want'"$'\n'
     grep -qF -- "- **\`$want\`** — " "$QS" || bad+="no branch in the quick-start for mode $want"$'\n'
 done
-[[ -f "$SF/.claude/plugins/workspace/bin/state.sh" ]] || bad+="the fallback .claude/plugins/workspace/bin/state.sh is not vendored"$'\n'
-grep -qF '`.claude/plugins/workspace/bin/state.sh`' "$QS" || bad+="the quick-start does not name the vendored path"$'\n'
+[[ -f "$SF/kit/plugins/workspace/bin/state.sh" ]] || bad+="the fallback kit/plugins/workspace/bin/state.sh is not in the workspace"$'\n'
+grep -qF '`kit/plugins/workspace/bin/state.sh`' "$QS" || bad+="the quick-start does not name the path in kit/"$'\n'
 grep -q 'With no$' "$QS" && grep -q '^shell at all, read `state.sh` as a file' "$QS" || bad+="no fallback for a surface with no shell"$'\n'
 awk '/^## The team part/ { s = 1; next } /^## / { s = 0 } s' "$QS" | tr '\n' ' ' \
     | grep -q 'start `team/people.md` from *`templates/team-roster.md`' || bad+="the team part does not offer the team roster"$'\n'
@@ -2347,99 +2643,45 @@ modes="$(sed -n 's/.*then mode=\([a-z-]*\).*/\1/p; s/.*else mode=\([a-z-]*\).*/\
 [[ "$modes" == "existing-system fresh joining nothing-left" ]] || bad+="state.sh modes read as: $modes"$'\n'
 empty "11 the quick-start's state-check command decides each mode, names only keys state.sh emits, keeps the no-shell fallback and offers the roster" "$bad"
 
-# The setup wizard (setup.sh, lib/wizard.sh) reads its outcomes from this state check, so it is tested
-# here. It is never run attended in the suite: AW_WIZARD_NONINTERACTIVE=1 takes every default and skips
-# the stages only a person can do. A stub claude on PATH makes stage 1 deterministic and records any call.
+# The scripts setup.sh runs: they parse, lint clean and read git without taking its lock. Section 15
+# runs the wizard itself (the ten stages, new, adopt, update, --developer, hooks).
 SETUP="$KIT/setup.sh" WZLIB="$KIT/lib/wizard.sh"
 check "11 setup.sh parses under $st_bash" "$st_bash" -n "$SETUP"
 check "11 lib/wizard.sh parses under $st_bash" "$st_bash" -n "$WZLIB"
+sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugins/workspace/bin/state.sh
+    pilot/ablate.sh pilot/measure.sh plugins/closeout/hooks/lib/config.sh
+    githooks/pre-commit githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh
+    githooks/lib/common.sh)
+for f in "$KIT"/scripts/*.sh "$KIT"/lib/setup/*.sh "$KIT"/plugins/workspace/hooks/*.sh; do sc_list+=("${f#"$KIT"/}"); done
 if command -v shellcheck >/dev/null 2>&1; then
-    check "11 shellcheck -x is clean on setup.sh, lib/wizard.sh, state.sh and pilot/ablate.sh" \
-        bash -c 'cd "$1" && shellcheck -x setup.sh lib/wizard.sh plugins/workspace/bin/state.sh pilot/ablate.sh' _ "$KIT"
+    check "11 shellcheck -x is clean on setup.sh, install.sh, the libraries, state.sh, the pilot, the git hooks, scripts/, lib/setup/ and the workspace hooks" \
+        bash -c 'cd "$1" && shift && shellcheck -x "$@"' _ "$KIT" "${sc_list[@]}"
 else
-    skp "11 shellcheck not on PATH; setup.sh, lib/wizard.sh, state.sh and pilot/ablate.sh not linted"
+    skp "11 shellcheck not on PATH; the kit's scripts not linted"
 fi
 empty "11 every git call in the wizard carries --no-optional-locks" \
     "$(grep -nE '(^|[;&|({]|\$\()[[:space:]]*git[[:space:]]' "$SETUP" "$WZLIB" | grep -vE ':[0-9]+:[[:space:]]*#' | grep -v -- '--no-optional-locks')"
-WZSTUB="$SCRATCH/wizard-stub"; mkdir -p "$WZSTUB"
-printf '%s\n' '#!/bin/sh' "echo \"\$*\" >> \"$WZSTUB/calls\"" 'exit 1' > "$WZSTUB/claude"
-chmod +x "$WZSTUB/claude"
-# wz_run <log> <option...>: the wizard, unattended, with the stub first on PATH; its status is returned.
-wz_run() { local log="$1"; shift
-    PATH="$WZSTUB:$PATH" AW_WIZARD_NONINTERACTIVE=1 "$st_bash" "$SETUP" "$@" </dev/null >"$log" 2>&1; }
-# wz_outcome <log> <n>: how stage n ended, from the summary the finish stage prints.
-wz_outcome() { sed -n "s/^  $2\. [^:]*: //p" "$1" | tail -n 1; }
 
-SW="$SCRATCH/wizard-target"
-wz_run "$SCRATCH/wizard-1.log" --target "$SW" --init --team "Test Team" --owner "Sam Example"; rc=$?
-[[ $rc -eq 0 ]] && grep -q '^Stage 5 of 8' "$SCRATCH/wizard-1.log" \
-    && ok "11 wizard: an unattended run from an empty folder reaches stage 5 and finishes" \
-    || ko "11 wizard: an unattended run from an empty folder reaches stage 5 and finishes" "rc $rc: $(tail -n 12 "$SCRATCH/wizard-1.log")"
-bad=""
-for n in 1 2 3 4 5 6 7; do
-    case $n in 1) want="already done" ;; 2|3|7) want="done" ;; *) want="skipped" ;; esac
-    got="$(wz_outcome "$SCRATCH/wizard-1.log" $n)"
-    [[ "$got" == "$want" || "$got" == "$want ("* ]] || bad+="stage $n: wanted $want, got '$got'"$'\n'
-done
-empty "11 wizard, first run: stages 1–3 and 7 done, 4–6 skipped as a person's to do" "$bad"
-grep -q '^  6\. Cowork: skipped (off by default' "$SCRATCH/wizard-1.log" \
-    && ok "11 wizard: the Cowork stage is off by default" || ko "11 wizard: the Cowork stage is off by default" "$(grep '6\. Cowork' "$SCRATCH/wizard-1.log")"
-r="$(st_run "$SW")"
-st_expect "11 wizard: the target is laid down by install.sh, and the state check agrees" "$r" mode=fresh agents_md=kit \
-    plugins_registered=closeout,projects,workspace closeout_conventions=present kit_incoming=
-st_tree "$SW" > "$SCRATCH/wizard-before.txt"
-wz_run "$SCRATCH/wizard-2.log" --target "$SW" --team "Test Team" --owner "Sam Example"; rc=$?
-bad=""
-for n in 1 2 3; do
-    got="$(wz_outcome "$SCRATCH/wizard-2.log" $n)"
-    [[ "$got" == "already done" || "$got" == "already done ("* ]] || bad+="stage $n: got '$got'"$'\n'
-done
-[[ $rc -eq 0 ]] || bad+="status $rc"$'\n'
-empty "11 wizard, second run: stages 1–3 report already done" "$bad"
-st_tree "$SW" > "$SCRATCH/wizard-after.txt"
-empty "11 wizard, second run: nothing in the target changes, .git included" \
-    "$(diff "$SCRATCH/wizard-before.txt" "$SCRATCH/wizard-after.txt" 2>&1)"
-wz_run "$SCRATCH/wizard-3.log" --target "$SCRATCH/wizard-no-init" --team T; rc=$?
-[[ $rc -eq 1 && ! -e "$SCRATCH/wizard-no-init" ]] && grep -q -- '--init' "$SCRATCH/wizard-3.log" \
-    && ok "11 wizard: with no repository and no --init it stops at stage 2, creates nothing, and names --init" \
-    || ko "11 wizard: with no repository and no --init it stops at stage 2, creates nothing, and names --init" "rc $rc: $(tail -n 3 "$SCRATCH/wizard-3.log")"
-wz_run "$SCRATCH/wizard-4.log" --target "$KIT/pilot" --init; rc=$?
-[[ $rc -eq 1 ]] && grep -q "inside the kit's own checkout" "$SCRATCH/wizard-4.log" \
-    && ok "11 wizard: refuses the kit's own checkout as a target" \
-    || ko "11 wizard: refuses the kit's own checkout as a target" "rc $rc: $(tail -n 3 "$SCRATCH/wizard-4.log")"
-# The other modes: a repository already set up, joining, nothing left, and an existing system. Run twice
-# unattended, stages 1–3 are already done and 4–6 skipped; the existing system's kit versions are named
-# for merging by hand and left open at stage 7.
-bad=""
-for m in joining:"$SJ" nothing-left:"$SN" existing-system:"$SE"; do
-    mode="${m%%:*}" src="${m#*:}" w="$SCRATCH/wizard-$mode"
-    cp -R "$src" "$w"
-    wz_run "$SCRATCH/wizard-$mode-1.log" --target "$w" >/dev/null; rc1=$?
-    wz_run "$SCRATCH/wizard-$mode-2.log" --target "$w"; rc=$?
-    [[ $rc1 -eq 0 && $rc -eq 0 ]] || bad+="$mode: status $rc1, $rc"$'\n'
-    for n in 1 2 3 4 5 6; do
-        case $n in 1|2|3) want="already done" ;; *) want="skipped" ;; esac
-        got="$(wz_outcome "$SCRATCH/wizard-$mode-2.log" $n)"
-        [[ "$got" == "$want" || "$got" == "$want ("* ]] || bad+="$mode stage $n: wanted $want, got '$got'"$'\n'
-    done
-    if [[ "$mode" == existing-system ]]; then
-        [[ "$(wz_outcome "$SCRATCH/wizard-$mode-2.log" 4)" == "skipped (unattended run; to merge by hand: "* ]] \
-            || bad+="$mode stage 4: $(wz_outcome "$SCRATCH/wizard-$mode-2.log" 4)"$'\n'
-        [[ "$(wz_outcome "$SCRATCH/wizard-$mode-2.log" 7)" == "left open"* ]] || bad+="$mode stage 7: $(wz_outcome "$SCRATCH/wizard-$mode-2.log" 7)"$'\n'
-    else
-        [[ "$(wz_outcome "$SCRATCH/wizard-$mode-2.log" 7)" == "done" ]] || bad+="$mode stage 7: $(wz_outcome "$SCRATCH/wizard-$mode-2.log" 7)"$'\n'
-    fi
-done
-empty "11 wizard on joining, nothing-left and existing-system: run twice, stages 1–3 already done, 4–6 skipped, the existing system's merge left open" "$bad"
-# A different team name on a repository already set up is not claimed as done: stage 3 would not write it.
-wz_run "$SCRATCH/wizard-other-team.log" --target "$SCRATCH/wizard-joining" --team "Other Team"; rc=$?
-[[ $rc -eq 0 && "$(wz_outcome "$SCRATCH/wizard-other-team.log" 2)" == "left open (AGENTS.md and CODEOWNERS already name team Test Team; "* ]] \
-    && ! grep -q 'Other Team' "$SCRATCH/wizard-joining/AGENTS.md" \
-    && ok "11 wizard: a new team name on a set-up repository is left open, naming where to change it" \
-    || ko "11 wizard: a new team name on a set-up repository is left open, naming where to change it" "rc $rc: $(wz_outcome "$SCRATCH/wizard-other-team.log" 2)"
-[[ ! -s "$WZSTUB/calls" ]] && ok "11 wizard: never calls claude" || ko "11 wizard: never calls claude" "$(cat "$WZSTUB/calls")"
-
+fi
 # ---------------------------------------------------------------------------------------------------
+# The sections in tests/sections/, in order, each sourced into this shell. Each file prints its own
+# heading and prefixes its variables and functions with its number (s13_...), since they share one
+# shell; each writes only under $SCRATCH.
+shopt -s nullglob
+aw_section_files=("$KIT"/tests/sections/[0-9]*.sh)
+shopt -u nullglob
+for aw_section_file in ${aw_section_files[@]+"${aw_section_files[@]}"}; do
+    aw_id="${aw_section_file##*/}"; aw_id="${aw_id%%-*}"; aw_id="${aw_id%.sh}"
+    aw_want "$aw_id" || continue
+    # shellcheck source=/dev/null
+    . "$aw_section_file"
+done
+if [[ -n "${AW_SECTIONS:-}" ]]; then
+    for aw_s in $AW_SECTIONS; do
+        case " $aw_sections_seen " in *" $aw_s "*) ;; *) echo "note: AW_SECTIONS names $aw_s, and no section has that number" ;; esac
+    done
+fi
+
 echo
 echo "$pass passed, $fail failed, $skip skipped"
 [[ $fail -eq 0 ]]

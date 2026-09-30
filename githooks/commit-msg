@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
+# githooks/commit-msg: in the kit's own repository, the commit message is checked for the private
+# word list and for attribution trailers (scripts/check-paths.sh --message). In the workspace and in
+# project repositories it only runs the user's own commit-msg.
+set -uo pipefail
+# shellcheck source=lib/common.sh
+if ! . "$(dirname "$0")/lib/common.sh"; then
+    printf 'aw commit-msg: could-not-run: githooks/lib/common.sh cannot be read.\nNothing was committed.\n' >&2
+    exit 1
+fi
+awh_start commit-msg "$@"
+if [[ "$AWH_CONTEXT" == kit ]]; then
+    if [[ $# -lt 1 ]]; then
+        awh_item "could-not-run: git passed no message file"
+    else
+        awh_checkpaths --content --workspace "$AWH_WS" --message "$1"
+    fi
+fi
+awh_verdict
+awh_chain

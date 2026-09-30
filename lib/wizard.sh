@@ -1,6 +1,7 @@
 # shellcheck shell=bash
-# The setup wizard's screen library. setup.sh sources it above its stages; on its own it defines
-# functions and a few variables and does nothing else.
+# The setup wizard's screen library. setup.sh sources it above its stages, and every script setup.sh
+# starts (lib/setup/*.sh) sources it for ask, confirm, say, note and warn, so the unattended rule below
+# reaches them too. On its own it defines functions and a few variables and does nothing else.
 #
 # The shape follows the wizard pattern in mattpocock/skills (MIT): a fixed library, then one stage per
 # screen for each step a person has to take themselves. What a stage asks is offered with a default;
@@ -17,8 +18,14 @@
 # Written for bash 3.2 (macOS): no associative arrays, no ${x,,}, no read -i, and empty arrays are
 # expanded with ${a[@]+"${a[@]}"} so set -u does not stop on them.
 
+# AW_WIZARD_NONINTERACTIVE=0 is attended even with no terminal: the answers are read from stdin, one per
+# line, and a missing one takes its default. The tests drive the attended paths this way.
 WZ_UNATTENDED=0
-if [[ "${AW_WIZARD_NONINTERACTIVE:-0}" == 1 || ! -t 0 ]]; then WZ_UNATTENDED=1; fi
+case "${AW_WIZARD_NONINTERACTIVE:-}" in
+    1) WZ_UNATTENDED=1 ;;
+    0) ;;
+    *) [[ -t 0 ]] || WZ_UNATTENDED=1 ;;
+esac
 # Screen control only when a person is watching a terminal; a log or a test sees plain lines.
 WZ_TTY=0
 if [[ $WZ_UNATTENDED -eq 0 && -t 1 ]]; then WZ_TTY=1; fi
@@ -95,9 +102,20 @@ state_check() {
     [[ -d "$1" ]] || return 0
     WZ_STATE="$("${BASH:-bash}" "$WZ_STATE_SH" --target "$1" 2>/dev/null)"
 }
-state_key() { printf '%s\n' "$WZ_STATE" | sed -n "s/^$1=//p" | head -n 1; }
+# state_key <key>: the value of one key. An index() match rather than a pattern, since per-item keys
+# (submodule.<path>, resource.<slug>/<name>) carry slashes and dots.
+state_key() { printf '%s\n' "$WZ_STATE" | awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }'; }
 key_is()  { [[ "$(state_key "$1")" == "$2" ]]; }
 key_not() { [[ "$(state_key "$1")" != "$2" ]]; }
+
+# layout_2x <dir>: success when the last state check (or the files themselves) show the 2.x layout:
+# vendored plugins, or the kit registered at a path other than kit/. Such a workspace goes through the
+# migration (kit/setup.sh migrate) before anything else writes to it. The VENDORED file is also read
+# directly, so the answer holds with a state check that predates the legacy key.
+layout_2x() {
+    case ",$(state_key legacy)," in *,vendored,*|*,kit_not_at_kit,*) return 0 ;; esac
+    [[ -f "$1/.claude/plugins/VENDORED" ]]
+}
 
 # check <label> <command...>: a ✓ line when the command succeeds, a ✗ line when it does not, and the
 # command's status returned, so a stage can follow a ✗ with what to do about it.
@@ -114,4 +132,4 @@ finish() {
 }
 
 # Ctrl-C is the back button: say where the run stopped, and that a re-run picks up from there.
-trap 'echo; echo; say "Stopped at stage $WZ_N. Run setup.sh again: stages already done are skipped."; exit 130' INT
+trap 'echo; echo; if [[ $WZ_N -gt 0 ]]; then say "Stopped at stage $WZ_N. Run kit/setup.sh again: stages already done are skipped."; else say "Stopped."; fi; exit 130' INT

@@ -5,6 +5,92 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.0.0 — 2026-09-30
+
+**The kit is a submodule of the workspace, at `kit/`, and is read in place. Nothing kit-owned is copied
+into a workspace any more: the plugins, rituals, docs and project templates are read from `kit/`, and
+the files that are the team's own are created once and then left to the team. Git hooks keep a
+workspace's material out of the public kit and keep the workspace itself private.**
+
+**Upgrading from 2.x.** Existing installs run `kit/setup.sh update` once: in a 2.x layout, bring the
+kit checkout to 3.0 first (`git -C templates/agentic-workspace pull`), then run
+`templates/agentic-workspace/setup.sh update`. It sees the 2.x layout and hands over to the
+migration: `kit/setup.sh migrate --dry-run` shows every move and edit, and the same command without
+`--dry-run` makes them. `.kit-incoming` files and the vendored plugins in `.claude/plugins/` are
+retired. The migration moves the kit checkout to `kit/`, points the plugin marketplace at `kit`,
+moves generated skills and unchanged 2.x copies of kit-owned files to `_delete/` (it deletes
+nothing), prepends the import to `CLAUDE.md`, sets the git hooks and submodule settings, merges the
+`.gitignore` baseline, and ends with a commit plan that names every path. A workspace's own moves go in
+a map file kept outside `kit/`; `docs/migration.md` describes the format, with an example.
+
+**What moved in the kit.**
+
+| 2.2.0 | 3.0 |
+|---|---|
+| `MANIFEST.md` | `CLAUDE.kit.md` (the kit's working standards, imported by line 1 of the workspace's `CLAUDE.md`); the team sections are in `templates/workspace/CLAUDE.md` |
+| `team/who-this-team-is.md` | §1 of `templates/workspace/CLAUDE.md` |
+| `team/closeout-conventions.md`, `team/projects-conventions.md` | `templates/workspace/closeout.md`, `templates/workspace/projects.md` |
+| `team/claude-settings.json`, `team/gemini-settings.json` | `templates/workspace/settings.json`, `templates/workspace/gemini-settings.json` |
+| `team/CODEOWNERS`, `team/pull_request_template.md` | `templates/workspace/CODEOWNERS`, `templates/workspace/pull_request_template.md` |
+| `team/memory-layers-stores.md` | folded into `docs/memory-layers.md` §3 |
+| `team/README.md` | its table is in `README.md`, under "The files in this kit" |
+| `team/CLAUDE.md` | retired: the starter `CLAUDE.md` replaces the shim |
+| `docs/workspace-map.md` | `templates/workspace/workspace-map.md`, created once as the workspace's own `docs/workspace-map.md` |
+
+**Setup.** `kit/setup.sh` runs ten stages and dispatches `new`, `update`, `--developer`, `link`,
+`hooks`, `skills` and `migrate`. `kit/setup.sh new <dir>` makes a workspace from nothing, with the kit
+added as a submodule; the template repository is built by `scripts/build-template.sh`. `install.sh`
+is the engine the stages run: it creates each user-owned file once and records it in
+`.claude/kit-templates.lock`, so `update` can offer a later template change as a diff to apply or skip.
+`--interactive`, `--plugin` and vendoring are retired; with no options, `install.sh` names
+`kit/setup.sh`.
+
+**Privacy.** `githooks/` holds pre-commit, pre-merge-commit, commit-msg and pre-push, set per
+repository through stubs in its git directory (`kit/setup.sh hooks`). In the kit they refuse paths
+outside the allow-list, private-by-name and data-shaped files, symlinks, unlisted binaries, large
+files, words from the private list, names derived from the workspace, verbatim copies of workspace
+files and AI attribution. In the workspace they refuse a sensitive project's files and a push to a
+remote not confirmed private. A hook the person already had runs after the kit's. `scripts/check-paths.sh`
+is the one checker, also run in CI. A PreToolUse guard keeps agents from bypassing the hooks.
+
+**Projects, resources and the skills bridge.** A project README carries `Versioned:` and
+`Sensitivity:`; a sensitive project is untracked or its own private repository. Finished projects
+move to `projects/_done/<slug>/`; paused ones stay in place. Material outside the repository is named
+under `## Resources` and mapped per machine in `.claude/resources.local.md` (`kit/setup.sh link`).
+`scripts/skills-bridge.sh` (`kit/setup.sh skills`) writes the commands as `kit-` skills into
+`.claude/skills/` beside the team's own skills, and refreshes only what its manifest lists.
+
+**Plugins.** projects 3.0.0: `/projects:hold`; versioning and sensitivity in `/projects:new` and
+`/projects:adopt`; the `_done` archive in `/projects:close`; board flags 9–13; resume in
+`/projects:pickup`; the session line for unmapped resources. workspace 2.0.0: a session-start summary
+of what is out of step, the git guard, and `state.sh` `state_version` 2 with the 3.0 keys, `--quick`
+and `--explain`. closeout 1.4.0: the commit plan lists repositories innermost first — inside each
+submodule, then its pointer in the workspace — as commands for the person; closeout never commits.
+The `_done` archive wording; `.claude/skills/` is not a promotion destination while the bridge's
+manifest is there.
+
+**Measurement.** `pilot/measure.sh` counts `CLAUDE.md`, `AGENTS.md` and `kit/CLAUDE.kit.md` with
+their imports, and reads files inside `kit/` at the commit the workspace records. Moving a 2.x install
+to 3.0 changes `always_loaded_bytes` and `doc_files` once; rows before the migration keep their old
+values, and the step between them is the layout change.
+
+### Template changes
+
+New templates, each created once in a workspace and the team's from then on:
+`templates/workspace/CLAUDE.md` (the starter, with the import on line 1), `AGENTS.md` (a router to
+`kit/CLAUDE.kit.md` and `CLAUDE.md`), `README.md`, `workspace.md` (`.claude/workspace.md`: private and
+public remotes, the private word list, the bridge's skip list), `INDEX.md`, `decisions.md`,
+`glossary.md`, `people-README.md`, `audits-README.md`, `stay-private.yml`
+(`.github/workflows/stay-private.yml`), `surface-rows/`, and `templates/workspace.gitignore` (the
+`.gitignore` baseline). Changed: `settings.json` (the directory marketplace at `kit`, the `ask` rules
+for `kit/` and `.claude/workspace.md`, empty attribution), `closeout.md` (the taxonomy and templates in
+`kit/`, the commit order), `projects.md` (paused in place, `projects/_done/<slug>/`, `Folder moves`,
+`Reserved folders`, `Not adopted`, `Versioned default`), `workspace-map.md` (the 3.0 layout),
+`CODEOWNERS`, `pull_request_template.md`, and `templates/project-readme.md` (`Versioned:`,
+`Sensitivity:`, `## Resources`).
+
+---
+
 ## v2.2.0 — 2026-09-29
 
 **Context ablations test whether a line of guidance changes what the agent does. A state check

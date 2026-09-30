@@ -35,7 +35,7 @@ What was learned, decided, corrected or discovered this session?
 
 ### 2. Classify before writing
 
-Two axes, from `docs/memory-layers.md`. **Tier** — working standards, general reference, project
+Two axes, from `kit/docs/memory-layers.md`. **Tier** — working standards, general reference, project
 reference, or template — decides how often it is loaded back. **Scope** — shared or individual —
 decides who it reaches.
 
@@ -46,6 +46,14 @@ displaces, or make the case that the budget should grow, and get a human to agre
 additive and needs no such justification.
 
 **A learning others need is worthless in an individual store.** Prefer the committed destination.
+
+In a workspace built on the kit, the always-loaded file is `CLAUDE.md`, and its first line imports
+`kit/CLAUDE.kit.md`. Everything under `kit/`, that file included, is the kit's: its bytes count in the
+budget and are reviewed upstream, by pull request to the kit, not in a closeout. Promotions into working
+standards go below the import line. A learning about the kit itself is drafted in the report, and an
+edit inside `kit/` happens only with a person approving it. Where `.claude/skills/.kit-generated`
+exists, `.claude/skills/` is the skills bridge's generated copy, rewritten on its next run, so general
+reference goes to `skills/`.
 
 ### 3. Verify before recording
 
@@ -83,12 +91,14 @@ Context and tracking are different axes. Promote learnings first, then confirm t
 files reflect reality, and release any locks or claims this session holds. Where the project README
 has a **Done when** list, tick what this session completed and say in a line how far the project is
 from its finish line; when every box is ticked, propose closing the project, which is its own
-ritual with its own evidence walk. Report the two separately; merging them is how the ritual decays
+ritual with its own evidence walk and archives the folder to `projects/_done/<slug>/` (or where the
+project conventions' `Done:` line says). Report the two separately; merging them is how the ritual decays
 into a status update.
 
 Where the README has a **Current state** block, bring it up to date: the **State** changed only when
 it plainly moved (`ready`, `doing`, `blocked`, `paused`, `done`), with pausing and finishing left to
-the person; a **Blocked by** line — what, and since which date — set when the work cannot move until
+the person (a paused project stays where it is, still versioned); a **Blocked by** line — what, and
+since which date — set when the work cannot move until
 something outside it happens, and removed once that clears; `Updated:` to today's date; and a dated
 line saying where the work stands, added when the block has none and otherwise rewritten rather than
 added to. A block still marked as a proposal keeps its marker: confirming it is the person's.
@@ -96,7 +106,7 @@ added to. A block still marked as a proposal keeps its marker: confirming it is 
 ### 6. Who needs to know — when the project has more than one person
 
 *Optional. It applies when two or more people are known for the project: profiles in the people
-directory (`memory/people/`), the team roster (`team/people.md`, from `templates/team-roster.md`), a
+directory (`memory/people/`), the team roster (`team/people.md`, from `kit/templates/team-roster.md`), a
 People or Team section in the project's README or in the local closeout conventions, or an explicit
 team list in the configuration. With one person or none, skip it without comment. The line
 `Who needs to know: auto | ask | off` in the local closeout conventions sets it — `ask` offers it in
@@ -153,10 +163,18 @@ picked per row:
 - Who needs to know what, if step 6 applied.
 - Which files were touched, new against modified.
 - Anything left unfinished.
+- The commands that commit them, in the order below.
 
-Leave the commit to the human. The agent's part is to stage what it touched, by name, and summarise
-the change; the person committing writes the message, and writing it is their check that they
-understand what changed. A broad staging command sweeps unrelated in-flight work into it.
+Leave the commit to the person. List what you touched, by name (a broad staging command sweeps in
+unrelated work), and give the commands for them to run, with each message editable: writing or
+editing it is their check that they understand what changed. Where a file you touched sits inside a
+submodule — for example the kit at `kit/`, or a project that is its own repository — the commands
+come in this order: inside the submodule, add, commit and push; then, in the workspace, add the
+submodule's path (`git add kit`) with the other files, and commit. The workspace then never records a
+commit that the submodule's remote lacks, and `push.recurseSubmodules=check` refuses such a push
+anyway. With a submodule inside a submodule, the innermost repository comes first, and each pointer is
+added in the repository around it. Every `git add` names its paths exactly, and no command carries a
+comment. The ritual itself commits nothing and pushes nothing.
 
 ## The backstop
 

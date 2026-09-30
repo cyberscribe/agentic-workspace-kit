@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# githooks/pre-merge-commit: a merge commit made without conflicts skips pre-commit, so this hook runs
+# the same checks (githooks/pre-commit), then the user's own pre-merge-commit.
+set -uo pipefail
+AWH_AS=pre-merge-commit exec "$BASH" "$(dirname "$0")/pre-commit" "$@"

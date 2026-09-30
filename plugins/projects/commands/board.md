@@ -25,7 +25,8 @@ whether a folder prefix is part of the name, any **Section names** line saying
 what a Done when or People section is called here, the people directory, the
 in-flight limit and how it is counted, the staleness setting (an older file may
 call it the review cadence), which folders are not tracked from this
-repository, and any house rule that narrows a board (a client's day, say).
+repository, the **Not adopted** folders, and any house rule that narrows a board
+(a client's day, say).
 Anything it does not mention falls back to the defaults: active projects in
 `projects/<slug>/` with `README.md` as the entry point (a `CLAUDE.md` where a
 folder has no README), the register `projects/INDEX.md` with sections Active,
@@ -40,12 +41,23 @@ skill, it is what they asked for).
 - **The word "write"** (with or without dashes in front of it) — show it, and
   also write it to a file, as described under "Writing it down".
 
+## What the workspace can tell you
+
+Where the repository has the kit's state check,
+`kit/plugins/workspace/bin/state.sh --quick`, run it once and read its
+`key=value` lines: they say how each project is versioned, which submodules are
+out of step and which resources this machine cannot reach, without a network
+call. Where it is not there, the same facts come from git and the files, as each
+flag below says. Either way the board still writes nothing.
+
 ## Which projects are on the board
 
 The board is everything in flight: the active projects.
 
 - Every folder in the active location that has an entry point, and every row in
-  the register's Active section (whatever the conventions file calls it). Take
+  the register's Active section (whatever the conventions file calls it).
+  Folders whose names start with `_` or `.` (`projects/_done/`,
+  `projects/_delete/`) are not projects and are never read as one. Take
   the union, so a folder with no row and a row with no folder both show up. A
   row with no folder behind it is a flag only, not a card: there is no README to
   draw one from.
@@ -55,7 +67,9 @@ The board is everything in flight: the active projects.
   or one the conventions file says is not tracked from here, goes on the board
   only if its entry point is readable and carries a Current state block.
   Otherwise it is named once, in a line under the board —
-  "not read from here: …" — and raises no flags.
+  "not read from here: …" — and raises no flags. A folder listed under **Not
+  adopted** that has no Current state block is named in the same line, as not
+  adopted, and raises no flags.
 - The README's State decides. A project in the register's Paused section or the
   paused location whose README reads `ready`, `doing` or `blocked` is a card,
   and raises the register flag (6). Paused projects whose README reads
@@ -126,8 +140,10 @@ blocked · 2 paused" — and close it with the paused and not-read-from-here lin
 ## Flags
 
 Under the board, one line per flag, `- <project>: <what>`, grouped in this
-order. Flags are about active projects; a done project raises only the register
-flag.
+order. Flags are about active projects, with three exceptions: a done project
+raises the register flag, a paused one the look-again flag (13), and any
+project, paused and done included, the sensitive-and-tracked flag (9), since
+that one is about what the repository holds.
 
 1. **No owner.**
 2. **No done-when** — no Done when checklist the board can see. If a list under
@@ -161,14 +177,49 @@ flag.
 7. **Unconfirmed proposals** — how many `proposed by /projects:adopt` markers
    the README carries, and their date.
 8. **Ready to close** — every Done when box ticked while State is not `done`.
+9. **Sensitive and tracked** — a project whose README says
+   `Sensitivity: sensitive` while the workspace repository tracks its files:
+   the slugs in `sensitive_tracked`, or, without the state check, a folder
+   where `git ls-files -s -- <folder>` lists anything but a single gitlink. The
+   workspace's git hooks refuse its files from now on; the fix is
+   `/projects:adopt <slug> untracked` or `own-repo`.
+10. **Versioning disagrees** — the README's `Versioned:` line says one thing and
+    the folder another: `versioned_mismatch` lists `<slug>:<declared>/<actual>`,
+    or, without the state check, a gitlink is `own-repo`, a folder
+    `git check-ignore` matches is `untracked`, a `.git` of its own that the
+    workspace does not register is `nested`, and anything else is `workspace`.
+    Say both, as "says workspace, is untracked".
+11. **Submodule out of step** — a project that is its own repository and whose
+    path is in `submodules_attention`: from its `submodule.<path>` line, say
+    which of changed files, commits not pushed, a pointer changed and not
+    committed, commits behind its remote, or a detached checkout. Without the
+    state check, `git -C <folder> status --porcelain` and
+    `git submodule status -- <folder>` give the first and the pointer.
+12. **Resource not reachable here** — a `resource.<slug>/<name>` whose value
+    begins `missing` or `no-permission`, worded as where it stands on this
+    machine rather than as an error: "field-study/media is not on this machine
+    now", "not mapped on this machine — `kit/setup.sh link <slug>`", "this
+    machine cannot read it". Items under a README's Resources heading whose
+    names are not letters, digits, dot, dash and underscore are listed here too,
+    as names the kit cannot map. Without the state check, read the README's
+    Resources section and `.claude/resources.local.md`, and test each mapped
+    path for existence only; a laptop without the drive mounted is normal.
+13. **Look-again date reached** — a paused project whose `Check-in:` reads
+    `look again on <date>`, with the date before today: its name, the date and
+    how many days since. Besides flag 9, this is the one flag a paused project
+    raises; it stays off the cards.
 
 If there are no flags, say "No flags." — a clean board is worth saying plainly.
 
 After the flags, one line naming what would act on them, for the person to do
 when they choose: `/projects:adopt` for missing sections or an older Now block
-to convert; `/projects:close` for a project marked done or ready to close; the
-owner's own edit to the README for a stale block, a blocker to date or a
-proposal to confirm. Then stop.
+to convert, and `/projects:adopt <slug> untracked` (or `own-repo`) for a
+sensitive project the workspace tracks; `/projects:close` for a project marked
+done or ready to close; `/projects:pickup <slug>` for a paused project whose
+look-again date has come; `kit/setup.sh link <slug>` for a resource not mapped
+here; a commit or push inside the submodule, then the pointer, for one out of
+step; the owner's own edit to the README for a stale block, a blocker to date,
+a versioning line to correct or a proposal to confirm. Then stop.
 
 ## A repository with no projects
 
@@ -199,7 +250,8 @@ commit to them.
 
 ## Practices
 
-- Read-only, apart from `BOARD.md` on request. Fixing a Current state block
+- Read-only, apart from `BOARD.md` on request. The state check it runs is
+  read-only too. Fixing a Current state block
   while drawing the board would hide from the team the very thing the board
   exists to show.
 - Quote, don't compose. A blocker on a card is the README's own words.

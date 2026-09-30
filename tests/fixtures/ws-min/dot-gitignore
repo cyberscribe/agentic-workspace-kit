@@ -1,0 +1,41 @@
+# Started from kit/templates/workspace.gitignore. This file is yours; kit/setup.sh update offers any
+# line a later kit adds, and removes none.
+
+# Credentials and machine-local files
+.secrets/
+*.local.*
+*.local/
+settings.local.json
+.claude/resources.local.md
+.claude/private-terms.local
+.env
+.env.*
+!.env.example
+*.token
+
+# The generated skills bridge (kit/scripts/skills-bridge.sh)
+.claude/skills/
+
+# Project material that stays out of the repository
+projects/*/private/
+projects/_done/*/private/
+projects/*/.resources/
+projects/_done/*/.resources/
+
+# Staging for removal: moves go here and a person deletes them
+_delete/
+
+# Operating-system and tool clutter
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.bak
+*.bak-*
+
+# Cowork delivery folders
+Claude outputs/
+
+# Optional: rendered decks can exceed a host's file-size limit. Remove the # to keep them out.
+# *.pptx

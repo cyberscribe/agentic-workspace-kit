@@ -5,7 +5,7 @@
 # prose; a hook cannot, so it reads the few settings it needs from the one habit
 # that file keeps: one setting per bullet, "- **Label:** ... `value` ...", the
 # first backticked value being the setting. Anything absent falls back to the kit
-# defaults, which are also what team/projects-conventions.md says.
+# defaults, which are also what templates/workspace/projects.md says.
 #
 # Written for bash 3.2 (macOS /bin/bash): no ${x,,}, no mapfile, no associative
 # arrays.
@@ -30,15 +30,24 @@ projects_root() {
 # projects_config <root>
 #
 # Sets: CONVENTIONS_FILE, ACTIVE_PATTERN, PAUSED_PATTERN, DONE_PATTERN,
-#       ENTRY_POINT, REGISTER_FILE, DEFAULT_OWNER (a backticked **Owner:** or
-#       **Default owner:** — one owner for every project with no People section),
-#       ALIAS_OUTCOME, ALIAS_DONE, ALIAS_PEOPLE
+#       PROJECT_PATTERNS, ENTRY_POINT, REGISTER_FILE, DEFAULT_OWNER (a backticked
+#       **Owner:** or **Default owner:** — one owner for every project with no
+#       People section), NOT_ADOPTED (the backticked **Not adopted:** list, as
+#       written: folders or slugs joined by commas), ALIAS_OUTCOME, ALIAS_DONE,
+#       ALIAS_PEOPLE
+# PAUSED_PATTERN is set whenever the conventions name one, even when it equals
+# ACTIVE_PATTERN (3.0 keeps paused projects in place). PROJECT_PATTERNS is the
+# active, paused and done patterns with empty and repeated ones removed, one per
+# line in that order, so a caller that walks every project folder reads each
+# folder once.
 # Patterns are root-relative paths whose <placeholder> segments stand for any one
 # folder name, e.g. "projects/<slug>" or "archive/<year>/<slug>". Aliases are
 # lowercase heading names joined by "|", from the conventions file's
 # **Section names** line, read sentence by sentence: a backticked name in a
 # sentence that mentions "Done when" is an alias for Done when, and so on — so a
 # Section names sentence backticks heading names and nothing else.
+# The settings are read by the scripts that source this file.
+# shellcheck disable=SC2034
 projects_config() {
     local root="$1" label value
     CONVENTIONS_FILE="$root/.claude/projects.md"
@@ -48,9 +57,11 @@ projects_config() {
     ENTRY_POINT="README.md"
     REGISTER_FILE="projects/INDEX.md"
     DEFAULT_OWNER=""
+    NOT_ADOPTED=""
     ALIAS_OUTCOME=""
     ALIAS_DONE=""
     ALIAS_PEOPLE=""
+    PROJECT_PATTERNS="$ACTIVE_PATTERN"
     [[ -f "$CONVENTIONS_FILE" ]] || return 0
 
     # Collected first and read from a here-document rather than by process
@@ -65,6 +76,7 @@ projects_config() {
             entry\ point) [[ -n "$value" ]] && ENTRY_POINT="$value" ;;
             register)    [[ -n "$value" ]] && REGISTER_FILE="${value#./}" ;;
             owner|default\ owner) [[ -n "$value" ]] && DEFAULT_OWNER="$value" ;;
+            not\ adopted) NOT_ADOPTED="$value" ;;
             alias_outcome) ALIAS_OUTCOME="${ALIAS_OUTCOME:+$ALIAS_OUTCOME|}$value" ;;
             alias_done)    ALIAS_DONE="${ALIAS_DONE:+$ALIAS_DONE|}$value" ;;
             alias_people)  ALIAS_PEOPLE="${ALIAS_PEOPLE:+$ALIAS_PEOPLE|}$value" ;;
@@ -72,6 +84,19 @@ projects_config() {
     done <<EOF
 $records
 EOF
+    projects_patterns_set
+}
+
+# projects_patterns_set
+# Sets PROJECT_PATTERNS from ACTIVE_PATTERN, PAUSED_PATTERN and DONE_PATTERN.
+projects_patterns_set() {
+    local p nl=$'\n'
+    PROJECT_PATTERNS=""
+    for p in "$ACTIVE_PATTERN" "$PAUSED_PATTERN" "$DONE_PATTERN"; do
+        [[ -n "$p" ]] || continue
+        case "$nl$PROJECT_PATTERNS$nl" in *"$nl$p$nl"*) continue ;; esac
+        PROJECT_PATTERNS="${PROJECT_PATTERNS:+$PROJECT_PATTERNS$nl}$p"
+    done
 }
 
 # projects_conventions_records <file>
@@ -123,7 +148,9 @@ projects_pattern() {
 
 # projects_match <pattern> <relative path>
 # Echoes the leading part of the path that the pattern names — the project folder —
-# or nothing when the path is not inside one.
+# or nothing when the path is not inside one. A placeholder segment never matches a
+# name starting with "." or "_": those folders are reserved (projects/_done holds
+# finished projects, _delete holds removals), and are not projects themselves.
 projects_match() {
     local pattern="$1" rel="$2" out="" p r
     local IFS=/
@@ -134,11 +161,31 @@ projects_match() {
     while [[ $i -lt ${#pp[@]} ]]; do
         p="${pp[$i]}"; r="${rr[$i]}"
         case "$p" in
-            "<"*">") [[ -n "$r" && "$r" != .* ]] || return 0 ;;
+            "<"*">") [[ -n "$r" && "$r" != .* && "$r" != _* ]] || return 0 ;;
             *) [[ "$p" == "$r" ]] || return 0 ;;
         esac
         out="${out:+$out/}$r"
         i=$((i + 1))
     done
     printf '%s' "$out"
+}
+
+# projects_not_adopted <project folder, root-relative>
+# Succeeds when the folder is named on the conventions' **Not adopted:** line, by its
+# path or by its slug (the last segment). Such a folder's entry point is someone
+# else's page (a published site's home page, say), so /projects:adopt is not offered
+# there unprompted. Call projects_config first.
+projects_not_adopted() {
+    local want="${1%/}" rest="$NOT_ADOPTED" item
+    while [[ -n "$rest" ]]; do
+        item="${rest%%,*}"
+        if [[ "$rest" == *,* ]]; then rest="${rest#*,}"; else rest=""; fi
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+        item="${item#./}"
+        item="${item%/}"
+        [[ -n "$item" ]] || continue
+        [[ "$item" == "$want" || "$item" == "${want##*/}" ]] && return 0
+    done
+    return 1
 }

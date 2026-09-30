@@ -1,0 +1,13 @@
+name: stay private
+on: [push]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: This workspace repository is private
+        if: ${{ github.event.repository.private == false }}
+        run: |
+          echo "::error::This workspace repository is public. A workspace holds project data; make it private in the repository settings."
+          exit 1

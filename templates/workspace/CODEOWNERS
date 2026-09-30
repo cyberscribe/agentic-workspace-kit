@@ -1,0 +1,10 @@
+# The always-loaded tier, the conventions the kit's commands read, and the settings that keep the
+# workspace private are reviewed by the standards owner. Everything else lands in the normal way.
+# GitLab reads this file from the repository root, `docs/` or `.gitlab/` instead of `.github/` — move
+# it if that is your host.
+/CLAUDE.md                  __OWNER_HANDLE__
+/AGENTS.md                  __OWNER_HANDLE__
+/.claude/closeout.md        __OWNER_HANDLE__
+/.claude/projects.md        __OWNER_HANDLE__
+/.claude/workspace.md       __OWNER_HANDLE__
+/.gitignore                 __OWNER_HANDLE__

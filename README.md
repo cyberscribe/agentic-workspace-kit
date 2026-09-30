@@ -110,7 +110,7 @@ thing lives in version control.
 
 ```
 workspace/
-  MANIFEST.md            ← the always-loaded file (CLAUDE.md, AGENTS.md — whatever your surface reads)
+  CLAUDE.md              ← the always-loaded file; its first line imports the kit's standards
   docs/                  ← general reference, loaded on demand
     memory-layers.md     ← the taxonomy above, as it applies to your setup
     workspace-map.md     ← the canonical-fact table and where new files go
@@ -548,43 +548,46 @@ A team needs more than that: one always-loaded file that every person *and* ever
 a rule for how the shared layer and each person's own layer are arbitrated, a review path for the
 always-loaded tier, and — for a pilot — a way to show afterwards what changed.
 
-`install.sh` lays all of that down in one command, into the team's shared repository:
+`kit/setup.sh` lays all of that down, with the kit as a submodule of the team's private repository at
+`kit/`, read in place:
 
 ```bash
-./install.sh --target ../team-workspace --init \
-  --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
+git clone https://github.com/cyberscribe/agentic-workspace-kit.git /tmp/agentic-workspace-kit
+bash /tmp/agentic-workspace-kit/setup.sh new ../team-workspace --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
 ```
 
-- **`AGENTS.md` is the one manifest.** Claude Code reads it through a one-line `CLAUDE.md` import,
-  and tools that look for `AGENTS.md` by convention find it directly. The file is portable even
-  where a filename is not.
-- **Two kinds of surface are supported.** An agent that loads plugins and session hooks — Claude
-  Code, where the three plugins below install — and an assistant that loads skills from a folder,
-  such as claude.ai, which gets the same commands as skills (`--skills-dir`, below). Both run from the
-  same command files.
-- **§1 becomes a team rather than a person**, with a named standards owner and the arbitration rule:
-  the team layer governs whatever touches someone else's work, the personal layer governs your own
-  sessions, and a personal practice reaches the team by pull request.
-- **Three plugins, nine commands, are wired in**, vendored by default so they are pinned, reviewable
-  by a security team, and installed without network access:
+- **`CLAUDE.md` is the team's always-loaded file.** Its first line, `@kit/CLAUDE.kit.md`, imports the
+  kit's working standards, which update with the kit; everything below it is the team's own and wins
+  where the two differ. `AGENTS.md` routes tools that look for that name to the same two files.
+- **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
+  `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
+  diff to apply or skip. Files the team owns are created once and never overwritten.
+- **Three plugins, ten commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
-    `docs/memory-layers.md`, so there is one taxonomy in the repository rather than the plugin's and
-    the kit's side by side.
-  - **projects** — `/projects:new`, `adopt`, `board`, `close` and `pickup`, the life of a project
-    from its first interview to done, kept in each project's README, with a session-start line that
-    says where the folder's project stands. `.claude/projects.md` holds the team's own conventions.
+    `kit/docs/memory-layers.md`, so there is one taxonomy.
+  - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close` and `pickup`, the life of a
+    project from its first interview to done, kept in each project's README, with a session-start
+    line that says where the folder's project stands. `.claude/projects.md` holds the team's own
+    conventions.
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
-    `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check.
-- **`--skills-dir <path>` writes one skill per command** for people who work in an assistant that
-  loads skills rather than plugins, such as claude.ai or Cowork — `projects-board`, `closeout`,
-  `workspace-quick-start` and the rest. Each points at its command file, so every procedure keeps one
-  source, and each description says when to offer it unprompted, since such surfaces run no session
-  hooks. `--skills-only` writes just the skills, for a repository that already has the kit.
-- **`--pilot` adds `pilot/`**: a protocol, the team's own build list as the primary measure, and a
-  script that reads every other number from git history — counts only, safe to share outside the team.
+    `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check;
+    and a session-start summary of what is out of step.
+- **Git hooks keep the workspace private and the kit clean.** `kit/setup.sh hooks` sets them in the
+  workspace, the kit and each project repository. A hook the person already had runs after the kit's.
+- **`kit/setup.sh skills` writes one `kit-` skill per command** into `.claude/skills/`, beside the
+  team's own skills, for surfaces that load skills rather than plugins, such as Cowork.
+- **`--pilot` adds `pilot/build-list.md`**; the protocol and `kit/pilot/measure.sh` stay in the kit,
+  and the script reads every other number from git history — counts only, safe to share outside the
+  team.
 
-It never overwrites a file; a differing one gets the kit's version beside it as `.kit-incoming`.
-Settings JSON is merged additively. Running it twice is safe.
+A 2.x workspace moves to this layout with `kit/setup.sh migrate --dry-run`, then without
+`--dry-run`; `docs/migration.md` describes it.
+
+The scripts run under macOS's own `/bin/bash` (3.2). That bash ignores `TMPDIR` for a here-document's
+temporary file and tries `/var/tmp`, then `/tmp`, then the current folder. In a sandbox where neither
+of the first two is writable, such as an agent's, the file lands for a moment in the folder the script
+was started from, and in a read-only folder the script stops. Start the scripts from a writable
+folder there, or with a newer bash first on `PATH`.
 
 What it does not do: install into the team's code repositories. The pilot is one shared workspace
 repository; carrying the practice into code repositories — the plugin alone is one command there — is
@@ -637,9 +640,8 @@ something.
 
 | File | What it is |
 |---|---|
-| `MANIFEST.md` | Skeleton for the always-loaded file — stance, conventions, map, log formats |
-| `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion |
-| `docs/workspace-map.md` | Canonical-fact table and the conventions for where new files go |
+| `CLAUDE.kit.md` | The kit's working standards — stance, conventions, map, log formats — imported by the first line of a workspace's `CLAUDE.md` |
+| `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion; §3 pre-filled for a team sharing one repository |
 | `docs/documentation-register.md` | The register rule, the translation table, and how to scan for drift |
 | `rituals/closeout.md` | The end-of-session pass, as a procedure an agent can follow |
 | `rituals/weekly-hygiene.md` | The weekly placement-and-budget pass |
@@ -650,12 +652,43 @@ something.
 | `templates/catalogue.md` | What the team has built and would reuse |
 | `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
-| `plugins/projects/` | Projects from start to done — five commands and a session-start line |
-| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, and `bin/state.sh`, the read-only state check |
-| `install.sh` | Deploys the kit into a team repository, with the three plugins, skills for desktop assistants, surface shims and pilot layer |
-| `team/` | The installer's team overlay — see `team/README.md` |
+| `plugins/projects/` | Projects from start to done — six commands and a session-start line |
+| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `bin/state.sh` (the read-only state check), the session-start summary and the git guard |
+| `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
+| `install.sh` | The engine setup runs: creates the files a workspace owns, once, and records them in `.claude/kit-templates.lock` |
+| `lib/` | The shared shell library and the scripts behind setup's subcommands (`lib/setup/`) |
+| `githooks/`, `scripts/check-paths.sh` | The git hooks and the one checker of paths and content they, and CI, run |
+| `scripts/skills-bridge.sh`, `scripts/build-template.sh` | The skills bridge, and the builder of the template repository |
+| `docs/migration.md` | Moving a 2.x workspace to the 3.0 layout, and the map file format |
+| `templates/workspace/` | The files a workspace starts from and then owns — see the table below |
 | `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
 | `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |
+
+The files in `templates/workspace/` are sources for the installer, not files to copy by hand. Each lands
+once in the workspace and is the workspace's from then on:
+
+| File | Lands at | What it does |
+|---|---|---|
+| `CLAUDE.md` | `CLAUDE.md` | The team's always-loaded file: who the team is, its standards owner, and the rule that arbitrates the team layer against each person's own |
+| `workspace-map.md` | `docs/workspace-map.md` | The workspace's canonical-fact table and the conventions for where new files go |
+| `AGENTS.md` | `AGENTS.md` | A router: the kit's standards, then the team's `CLAUDE.md` |
+| `README.md` | `README.md` | The workspace's own README, opening with how it started |
+| `workspace.md` | `.claude/workspace.md` | Confirmed private remotes, published public ones, the private word list, and the skills the bridge leaves out |
+| `INDEX.md`, `decisions.md`, `glossary.md`, `people-README.md`, `audits-README.md` | `projects/INDEX.md`, `logs/decisions.md`, `memory/glossary.md`, `memory/people/README.md`, `audits/README.md` | The register, the decisions log, the glossary and the starting notes for people and audits |
+| `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public |
+| `closeout.md` | `.claude/closeout.md` | Points the closeout plugin (and the `kit-closeout` skill) at `kit/docs/memory-layers.md`, so there is one taxonomy rather than two |
+| `projects.md` | `.claude/projects.md` | The team's project conventions — where projects live, register sections, naming, in-flight limit, staleness — read first by every projects command |
+| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
+| `gemini-settings.json` | `.gemini/settings.json` (merged) | With `--surfaces claude,gemini` only: makes Gemini CLI load `AGENTS.md` as its context file |
+| `CODEOWNERS` | `.github/CODEOWNERS` | Routes changes to the always-loaded tier through the standards owner |
+| `pull_request_template.md` | `.github/pull_request_template.md` | Asks a documentation PR which tier it touches, and what it displaces |
+
+`templates/workspace.gitignore` becomes the workspace's `.gitignore`; a later kit's new lines are
+offered by `kit/setup.sh update`, and none is removed.
+
+Commands for other surfaces are generated, not kept here: `kit/setup.sh skills` writes a thin form of
+each `plugins/<plugin>/commands/<command>.md` as a `kit-` skill, and `install.sh --surfaces
+claude,gemini` writes a Gemini CLI wrapper, so each procedure has one source.
 
 Every one is a starting point rather than a standard. The system works because the conventions match
 the work, and yours will differ.
@@ -684,7 +717,9 @@ workspace teaches something. Issues are read; there is no support commitment.
 
 ---
 
-*Version 2.2 — 2026-09-29: context ablations, the state check, a validation gate, a lighter
+*Version 3.0 — 2026-09-30: the kit is a submodule of the workspace at `kit/`, read in place; setup,
+the engine and the migration; git hooks for privacy; versioning, sensitivity and resources for
+projects; the skills bridge (see CHANGELOG). Version 2.2 — 2026-09-29: context ablations, the state check, a validation gate, a lighter
 quick-start and closeout, and a who-needs-to-know setting with a team roster (see CHANGELOG).
 Version 2.1 — 2026-09-29: the Current state block, Planned and five project states; nine commands
 across three plugins (see CHANGELOG). Version 2.0 — 2026-09-29: the tracking axis, skills, and the

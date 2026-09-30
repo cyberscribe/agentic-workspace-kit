@@ -1,7 +1,0 @@
-# The always-loaded tier and the taxonomy it rests on are reviewed by the standards owner.
-# Everything else lands in the normal way. GitLab reads this file from the repository root, `docs/`
-# or `.gitlab/` instead of `.github/` — move it if that is your host.
-/AGENTS.md                  __OWNER_HANDLE__
-/CLAUDE.md                  __OWNER_HANDLE__
-/docs/memory-layers.md      __OWNER_HANDLE__
-/.claude/closeout.md        __OWNER_HANDLE__

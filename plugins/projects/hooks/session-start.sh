@@ -5,10 +5,15 @@
 # Inside a project folder whose entry point carries a Current state block, it
 # gives the session three lines — the desired outcome, Done when progress, and the
 # state with its owner (and what blocks it, when something does) — so the person
-# and the agent start from where the project stands. Anywhere else it says
-# nothing, except at most once a day per repository: one line when an active
-# project has been blocked for more than 14 days. A clean day prints nothing and
-# records nothing.
+# and the agent start from where the project stands. When the README names
+# resources (a "Resources" section) that this machine has not mapped in
+# .claude/resources.local.md, a fourth line says which, once per set of unmapped
+# names per machine. A folder the conventions list under "Not adopted" (a published
+# site's home page, say) and whose entry point has no Current state block gets a
+# note for the agent only: it is not offered /projects:adopt unprompted. Anywhere
+# else it says nothing, except at most once a day per repository: one line when an
+# active project has been blocked for more than 14 days. A clean day prints nothing
+# and records nothing.
 #
 # The lines go out twice: as systemMessage, which the person sees, and as
 # additionalContext, which the agent reads. Only SessionStart accepts the latter.
@@ -21,7 +26,7 @@
 # Environment:
 #   PROJECTS_HOOK_DISABLED=1     turn the hook off
 #   AW_HEADLESS_RUN=1            a headless run (an ablation arm): say nothing and record nothing
-#   PROJECTS_HOOK_STATE_DIR      where the once-a-day stamps live
+#   PROJECTS_HOOK_STATE_DIR      where the once-a-day and resource stamps live
 #                                (default ~/.claude/projects-hook; outside any repo)
 #   PROJECTS_HOOK_TODAY          YYYY-MM-DD to use as today (for tests)
 #
@@ -75,12 +80,15 @@ rel=""
 [[ "$cwd" == "$root" ]] || rel="${cwd#"$root"/}"
 project=""
 if [[ -n "$rel" ]]; then
-    # The longest match wins, so work/_paused/<slug> beats work/<slug>.
-    for pattern in "$ACTIVE_PATTERN" "$PAUSED_PATTERN" "$DONE_PATTERN"; do
+    # The longest match wins, so work/_paused/<slug> beats work/<slug>. Each distinct pattern is
+    # tried once (PROJECT_PATTERNS, from projects_config).
+    while IFS= read -r pattern; do
         [[ -n "$pattern" ]] || continue
         m="$(projects_match "$pattern" "$rel")"
         [[ ${#m} -gt ${#project} ]] && project="$m"
-    done
+    done <<EOF
+$PROJECT_PATTERNS
+EOF
 fi
 
 if [[ -n "$project" ]]; then
@@ -100,10 +108,20 @@ EOF
     done <<EOF
 $(parse "${files[@]}")
 EOF
-    [[ -n "$record" ]] || exit 0
+    if [[ -z "$record" ]]; then
+        # No Current state block. A folder the conventions list as not adopted says so to the agent,
+        # which would otherwise read the adopt command's offer as due here; the person needs no line.
+        projects_not_adopted "$project" || exit 0
+        jq -nc --arg c "This session opened in ${project}, which .claude/projects.md lists under Not adopted: its ${files[0]##*/} is not a project README (a published page, or a file another tool owns). /projects:adopt is not offered here unless the person asks for it, and it asks before writing to that file." \
+            '{hookSpecificOutput:{hookEventName:"SessionStart", additionalContext:$c}}'
+        exit 0
+    fi
 
+    # Fields are read by position (readme.awk): the first fifteen, then versioned, sensitivity,
+    # resources and resources_generated; _rest takes whatever follows, so each flag stays a flag
+    # however many fields a later version appends.
     IFS=$'\x1f' read -r file _has state outcome done_found done_total done_ticked owner proposed title people_found \
-        blocked_by _since updated old_format <<EOF
+        blocked_by _since updated old_format _versioned _sensitivity resources resources_generated _rest <<EOF
 $record
 EOF
     name="${title:-${project##*/}}"
@@ -162,10 +180,39 @@ EOF
     lines="$line1
 $line2
 $line3"
+
+    # Resources the README names that this machine has not mapped. A generated resource with no
+    # mapping lives inside the project folder and needs none. The stamp holds the sorted list last
+    # offered, so the same set is offered once per machine, and a changed set is offered again.
+    slug="${project##*/}"
+    unmapped=""
+    if [[ -n "$resources" ]]; then
+        mapped="$(awk '/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*[ \t]+[^ \t]/ { print $1 }' \
+            "$root/.claude/resources.local.md" 2>/dev/null)"
+        unmapped="$(printf '%s\n' "$resources" | tr ',' '\n' \
+            | PROJECTS_MAPPED="$mapped" awk -v slug="$slug" -v gen=",$resources_generated," '
+                BEGIN { n = split(ENVIRON["PROJECTS_MAPPED"], m, "\n"); for (i = 1; i <= n; i++) have[m[i]] = 1 }
+                $0 != "" && !((slug "/" $0) in have) && index(gen, "," $0 ",") == 0' | sort -u)"
+    fi
+    resource_context=""
+    if [[ -n "$unmapped" ]]; then
+        key="${root//\//-}"
+        rstamp="${PROJECTS_HOOK_STATE_DIR:-$HOME/.claude/projects-hook}/${key#-}.$slug.resources"
+        if [[ "$(cat "$rstamp" 2>/dev/null)" != "$unmapped" ]]; then
+            names="$(printf '%s\n' "$unmapped" | paste -sd, - | sed 's/,/, /g')"
+            lines="$lines
+Resources not mapped on this machine: $names — kit/setup.sh link $slug maps them."
+            resource_context="The README names resources that are not mapped on this machine ($names). Offer once to map them: ask the person for the path of each on this machine, and never guess one; append each answer to .claude/resources.local.md as a line \"$slug/<name>  <path>\"; then run kit/setup.sh link $slug. A resource the person leaves unmapped stays that way, which is fine."
+            mkdir -p "${rstamp%/*}" && printf '%s\n' "$unmapped" > "$rstamp"
+        fi
+    fi
+
     context="Where this session's project stands, from the projects plugin's session-start line (read from ${file#"$root"/}; the file is canonical, and this is a summary of it):
 $lines"
     [[ "$proposed" == "1" ]] && context="$context
 Sections marked \"proposed\" were drafted by /projects:adopt and are still for the person to confirm or edit."
+    [[ -n "$resource_context" ]] && context="$context
+$resource_context"
     emit "$lines" "$context"
 fi
 
@@ -183,6 +230,8 @@ glob="$(printf '%s' "$ACTIVE_PATTERN" | sed 's/<[^>]*>/*/g')"
 files=()
 for dir in "$root"/$glob; do
     [[ -d "$dir" && ! -e "$dir/.git" ]] || continue
+    # Reserved folders (_done, _delete, a dot-folder) are not projects; projects_match says so.
+    [[ -n "$(projects_match "$ACTIVE_PATTERN" "${dir#"$root"/}")" ]] || continue
     for f in "$ENTRY_POINT" README.md CLAUDE.md; do
         [[ -f "$dir/$f" ]] && files+=("$dir/$f")
     done

@@ -13,15 +13,20 @@ work well:
 - **Only what differs.** Anything you leave out falls back to the plugin default, so
   a three-line file is a perfectly good one.
 
-The defaults, for comparison: active projects in `projects/<slug>/`; paused and
-finished projects stay where they are and move sections in `projects/INDEX.md`
-(Active / Paused / Done); lowercase hyphenated slugs with no prefix; an in-flight
+The defaults, for comparison: active projects in `projects/<slug>/`; a paused
+project stays where it is, still versioned, and its register row moves to Paused;
+a finished project moves to `projects/_done/<slug>/`, with `git mv` so its history
+follows; the register is `projects/INDEX.md` (Active / Paused / Done); the command
+makes the folder moves it shows, on a yes; a new project is tracked by the
+workspace unless it says otherwise; folders under `projects/` starting with `_` or
+`.` are not projects; lowercase hyphenated slugs with no prefix; an in-flight
 limit of 3; a project flagged stale when its `Updated:` date is more than a week
-old; the README from `templates/project-readme.md`.
+old; the README from `kit/templates/project-readme.md`.
 
 Everything below the line is the example itself — a team that files work by status
-folder, uses a priority prefix, and lets a project go two weeks between updates.
-The quoted notes explain each choice; delete them in your copy.
+folder, moves folders by hand, keeps its published site in the work folder, uses a
+priority prefix, and lets a project go two weeks between updates. The quoted notes
+explain each choice; delete them in your copy.
 
 ---
 
@@ -31,13 +36,16 @@ The quoted notes explain each choice; delete them in your copy.
 
 - **Active:** `work/<slug>/`
 - **Paused:** `work/_paused/<slug>/` — the folder moves, so a paused project is
-  out of sight in everyday listings.
-- **Done:** `archive/<year>/<slug>/` — moved when the project closes, by the
-  person closing it.
+  out of sight in everyday listings. It stays tracked by the repository.
+- **Done:** `archive/<year>/<slug>/` — moved when the project closes.
+- **Folder moves:** `the person` — `/projects:hold` and `/projects:close` print
+  the move for the person closing it to run, and make no move themselves.
 - **Register:** `work/README.md`, with the sections `In flight`, `On hold` and
   `Shipped`.
 - **Section names:** the Done when list is headed `Exit criteria` in older
   READMEs.
+- **Not adopted:** `site` — the team's published site, whose `README.md` is its
+  home page.
 
 > Name your register's own sections here, and the commands use them rather than
 > Active / Paused / Done. The same goes for a README section your team calls
@@ -46,7 +54,22 @@ The quoted notes explain each choice; delete them in your copy.
 > sentence names the section it is about and backticks only heading names, since
 > every backticked word in it is read as one. Moving folders between states is a
 > choice; leaving them in place and moving only the register row keeps every
-> link working.
+> link working. A paused location has to stay tracked: a folder git ignores stops
+> being versioned the moment a project is put on hold there. A folder whose name
+> starts with `_` or `.` is never read as a project, so `work/_paused/` is not
+> one. Not adopted names folders the projects commands leave alone unless asked.
+
+## How projects are kept
+
+- **Versioned default:** `workspace`
+- **Sensitive projects:** anything holding a client's personal details is
+  `Sensitivity: sensitive`, and `untracked` unless it has its own private
+  repository.
+
+> Each README says how it is kept, on its `Versioned:` line under the title:
+> `workspace`, `own-repo` (its own repository, a submodule here) or `untracked`
+> (listed in `.gitignore`). The default is what `/projects:new` offers first. A
+> sensitive project is never tracked by the workspace repository.
 
 ## Names
 
@@ -72,7 +95,8 @@ The quoted notes explain each choice; delete them in your copy.
 
 ## Where things go
 
-- **Project template:** `.github/templates/project.md`
+- **Project template:** `.github/templates/project.md`, a copy of
+  `kit/templates/project-readme.md` with the team's own sections
 - **People:** `team/<name>.md`
 - **Catalogue of reusable work:** `docs/catalogue.md`
 - **What counts as checked:** `docs/verification.md`

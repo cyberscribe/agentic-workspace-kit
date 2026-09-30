@@ -32,23 +32,26 @@ bash "${CLAUDE_PLUGIN_ROOT}/bin/state.sh"
 
 Where that path has not been filled in, as when this file is read as a skill,
 the script is `bin/state.sh` beside the `commands/` folder this file sits in:
-`.claude/plugins/workspace/bin/state.sh` where the kit is vendored. With no
+`kit/plugins/workspace/bin/state.sh` in a workspace built on the kit. With no
 shell at all, read `state.sh` as a file instead: the comment beside each check
 names what it reads, so the same keys come from reading those files yourself.
 
 | Key | What it means for the conversation |
 |---|---|
 | `mode` | Which mode this is: see the next section |
-| `always_loaded` | The file every session here loads. Judge stand-ins and fill the team part there; when it is `CLAUDE.md`, leave `AGENTS.md` as it is. If the file cannot be read from this shell, what this surface actually loaded decides |
+| `always_loaded` | The file every session here loads: `CLAUDE.md`, whose first line imports the kit's standards, `kit/CLAUDE.kit.md`. Judge stand-ins and fill the team part there, below the import; `kit/CLAUDE.kit.md` is the kit's and changes only by pull request to the kit, and `AGENTS.md`, a router for other tools, stays as it is. If the file cannot be read from this shell, what this surface actually loaded decides |
 | `standins_remaining`, `surface_standins` | Angle-bracketed stand-ins left in §1–§3, and rows to fill or remove in the §4 surface table. Above 0, the team part is open |
 | `person`, `person_profile`, `person_profile_candidates` | The person in front of you, from `git config user.name`, to confirm rather than assume; whether their profile is in `people_dir`; and profiles that may be theirs under another name |
-| `authors`, `author_names`, `readme`, `codeowners`, `kit_incoming` | What the repository already says about the team: offer it as suggested answers, so people confirm rather than compose. One author is the cue for a Default owner line |
+| `authors`, `author_names`, `readme`, `codeowners` | What the repository already says about the team: offer it as suggested answers, so people confirm rather than compose. One author is the cue for a Default owner line |
 | `conventions_not_set`, `in_flight_limit`, `staleness`, `default_owner` | The settings in `.claude/projects.md`. Each one still reading "not set yet" is a question for the team part |
 | `register_rows`, `glossary_terms`, `build_list`, `verification`, `catalogue` | What an earlier run already answered: offer only the questions still open |
-| `signs` | What says a system was here first, by key. The kit's own files, as installed or filled in, and a `.kit-incoming` beside one, are never signs |
+| `signs` | What says a system was here first, by key. The files the kit created, as created or as filled in, are never signs |
+| `legacy` | Traces of a 2.x install. They are the migration's, not this interview's: `kit/setup.sh migrate --dry-run` shows what moves, and the person runs it |
+| `kit_import`, `hooks`, `origin_visibility` | Whether the workspace is wired: the kit's standards imported, the git hooks active, the origin confirmed private. Anything else is `kit/setup.sh`'s to set: name the command, and leave running it to the person |
 | `own_skills`, `foreign_skills`, `decisions_log_other` | The team's own skills and commands, the ones whose names say they do a kit command's job, and decisions logs kept elsewhere. The name match is a first pass: read `own_skills` for the rest |
 | `adopt_proposals`, `projects_without_current_state` | Step 3 of fitting the kit to a system already in place |
-| `plugins_registered`, `surfaces`, `gemini_commands` | Step 1 of reachable and running |
+| `external_paths`, `external_paths_missing` | Material projects name outside the repository, and what is not reachable on this machine: the offer after projects are listed |
+| `plugins_registered`, `surfaces`, `gemini_commands`, `skills_bridge` | Step 1 of reachable and running |
 | `commits`, `measure_script`, `metrics_csv` | Step 3 of reachable and running |
 
 ## Which mode this is
@@ -56,9 +59,8 @@ names what it reads, so the same keys come from reading those files yourself.
 Decide from `mode=` rather than asking, then say in two lines what you found and
 which parts you will offer. The script takes the first that fits, in this order:
 
-- **`joining`** — the kit's always-loaded file (the `Team Manifest` the installer
-  wrote) has no stand-ins left, and this person has no profile: the personal
-  part only. This is what most people after the first will see; whatever the
+- **`joining`** — the always-loaded file, `CLAUDE.md`, has no stand-ins left in
+  its own §1–§3, and this person has no profile: the personal part only. This is what most people after the first will see; whatever the
   first person mapped or left beside the kit's files is already settled, and so
   is the metrics baseline (see the last section).
 - **`existing-system`** — `signs` names at least one. The kit adopts rather than
@@ -75,8 +77,8 @@ Every mode ends with "Reachable and running".
 
 ## The team part — once, ideally with the standards owner
 
-Fill `AGENTS.md` §1–§3 from the answers, and check the surface table in §4
-against what is actually installed. A stand-in row there
+Fill `CLAUDE.md` §1–§3 from the answers, below its import line, and check the
+surface table in §4 against what is actually installed. A stand-in row there
 (`<second surface>`) is filled with the other surface the team uses — a desktop
 assistant with the kit's skills, say — or removed when there is none, on their
 yes. It is the always-loaded file, so every line is paid for by every future
@@ -84,7 +86,7 @@ session: keep answers to a line each, and move anything longer to a `docs/`
 file with a one-line pointer.
 
 1. **What the team does**, at the level that stays true for months.
-2. **The standards owner** — confirm the name the installer recorded.
+2. **The standards owner** — confirm the name setup recorded in §1.
 3. **Output preferences** — formats, length, tone, spelling.
 4. **Working conventions** that change how work should be shaped.
 5. **How the agent should show up** (§2) — keep the defaults unless something
@@ -96,7 +98,7 @@ file with a one-line pointer.
    someone outside the team, writing to a system of record, publishing. Name
    theirs precisely; everything short of that line can proceed.
 
-The rest of the team part lives in its own files rather than in `AGENTS.md`, so
+The rest of the team part lives in its own files rather than in `CLAUDE.md`, so
 none of it costs the always-loaded budget.
 
 7. *Optional* — **Five glossary terms** a newcomer or an agent would stumble on,
@@ -116,25 +118,31 @@ none of it costs the always-loaded budget.
    with its name and owner. Once this interview closes, they run `/projects:new`
    for each one; the close names the first of them as the first thing to do. A register row goes
    in together with its README, when that command writes both, not before it.
+   Once projects are listed, ask whether any uses material kept outside the
+   repository — large media, a data extract, a shared-drive folder. Each goes
+   into the project's README under `## Resources` by name only, and
+   `kit/setup.sh link <slug>`, run from a terminal, maps each name to its path on
+   this machine in `.claude/resources.local.md`, which is never committed. Ask
+   for each path; never guess one.
 10. *Optional* — **The team roster.** Offer to start `team/people.md` from
-    `templates/team-roster.md`, if the repository has it, so closeout knows who to tell.
+    `templates/team-roster.md` in the kit (`kit/templates/team-roster.md`), so
+    closeout knows who to tell.
 11. *Optional* — **What counts as checked.** Offer to adopt a verification
     standard into `docs/verification.md`: a short table, one row per kind of work
     the team does — code, analysis, client-facing writing, figures — with what
     is checked, by whom or what, and what evidence is kept. Start from
-    `templates/verification-standard.md` if the repository has it. Closeout's
+    `kit/templates/verification-standard.md`. Closeout's
     "verify before you record" step and the close of a project point at it once
     it exists.
 12. *Optional* — **The catalogue.** Seed `docs/catalogue.md` with what the team
     has already built and would reuse — one line each: name — what it does —
-    where it lives — owner — starting from `templates/catalogue.md` if the
-    repository has it. Three honest lines beat a complete list; finished
+    where it lives — owner — starting from `kit/templates/catalogue.md`. Three honest lines beat a complete list; finished
     projects add to it from then on.
 13. *Optional, pilot only* — **The build list.** Transfer the team's own list of
     what it means to build into `pilot/build-list.md`, one owner and one date per
     row.
 
-`AGENTS.md` is shown first, since it is the one everyone pays for. Suggest
+`CLAUDE.md` is shown first, since it is the one everyone pays for. Suggest
 committing on a branch and opening a pull request, so the standards owner's
 review is the first use of the process rather than an exception to it. Where
 the team is one person, the author and the reviewer are the same: skip the pull
@@ -143,8 +151,8 @@ their yes.
 
 ## The personal part — each person, on their first session
 
-1. **Their profile**, from `templates/person-profile.md` into the people
-   directory, named as `.claude/projects.md` says (by default their full name,
+1. **Their profile**, from `kit/templates/person-profile.md` (or the template
+   `.claude/projects.md` names) into the people directory, named as `.claude/projects.md` says (by default their full name,
    lowercase, joined by hyphens: `memory/people/priya-shah.md`): role, what they own, what to come to them for, what
    not to, how they like requests. Written with them, in their words; it is the
    "who to go to" directory for the team and for every agent.
@@ -168,7 +176,7 @@ often under other names. The aim is one system, theirs, that the kit's commands
 can read — not a second one beside it. Nothing existing is moved or renamed.
 
 1. **The mapping.** Show a short table of what exists against the kit's
-   taxonomy (`docs/memory-layers.md`), one line per thing found:
+   taxonomy (`kit/docs/memory-layers.md`), one line per thing found:
 
    | Yours | In the kit's terms | What happens |
    |---|---|---|
@@ -187,12 +195,14 @@ can read — not a second one beside it. Nothing existing is moved or renamed.
    author in `git shortlog -sn`, or their file says so), offer a
    `` - **Default owner:** `<name>` `` line in `.claude/projects.md`. Each of those
    edits is shown before it is made.
-2. **Their always-loaded file** stays theirs. If the installer laid the kit's
-   `AGENTS.md` down beside it — a `.kit-incoming` beside theirs, or a
-   `Team Manifest` heading on a file that was not there before — offer to fold
-   in only what theirs lacks and the team would miss, a line at a time; the rest
-   of that kit file can go. An `AGENTS.md` of their own, such as a router for
-   other tools, stays as it is.
+2. **Their always-loaded file** stays theirs; the kit keeps a `CLAUDE.md` it
+   found as it was. The kit's working standards reach it by one line: offer to
+   add `@kit/CLAUDE.kit.md` as its first line, with the fallback line the
+   kit's starter carries under it (`kit/templates/workspace/CLAUDE.md` shows
+   both), shown first and made on a yes. Point out any heading of theirs that
+   repeats one in `kit/CLAUDE.kit.md`, since both would then load in every
+   session, and offer to fold theirs down to what the kit's lacks. An
+   `AGENTS.md` of their own, such as a router for other tools, stays as it is.
 3. **Proposals left in their projects.** Find the blocks `/projects:adopt`
    left marked `proposed by /projects:adopt` in project READMEs, and walk them
    project by project: for each Done when, Current state block and owner's
@@ -218,11 +228,12 @@ can read — not a second one beside it. Nothing existing is moved or renamed.
    ritual or skill only on their yes. Where the retired one kept a prose status
    section current, name it: offer to retire it into the Current state block's
    dated line, or record in `.claude/closeout.md` that closeout refreshes it too.
-5. **What is left over.** List every `.kit-incoming` file, and every kit file a
-   confirmed line made redundant — `AGENTS.md` when their own file stays, a
-   generated skill folded into their own, `.github/` for one person. Say what
-   each is, and give the list
-   as commands they can run; deleting is theirs.
+5. **What is left over.** List every file the kit created that a confirmed
+   line made redundant — the starter `AGENTS.md` when a router of their own
+   stays, a `kit-` skill whose job a skill of theirs does (the `Kit skills not
+   bridged` line in `.claude/workspace.md` leaves it out of the bridge),
+   `.github/` for one person. Say what each is, and give the list as commands
+   they can run; deleting is theirs.
 
 ## Reachable and running — the end of every mode
 
@@ -230,41 +241,46 @@ Each step is optional, and each is shown before it is done. Offer them in this
 order, and take a "not now" as an answer.
 
 1. **Surface parity.** Confirm the commands are reachable on every surface this
-   person actually works in: the plugins in Claude Code; the generated wrappers
-   under `.gemini/commands/` where the team installed for Gemini CLI; and for a
-   desktop assistant that loads skills from a folder, one thin skill per command
-   (`projects-board`, `closeout`, `workspace-quick-start` and the rest), which
-   the kit's installer writes with `--skills-dir <folder>` — or, in a repository
-   that already has the kit, `--skills-only --skills-dir <folder>`.
+   person actually works in: the plugins in Claude Code, from `kit/`; the
+   generated wrappers under `.gemini/commands/` where the team installed for
+   Gemini CLI; and for a desktop assistant that loads skills from a folder, such
+   as Cowork, the skills bridge. `kit/setup.sh skills`, run from a terminal,
+   writes one `kit-` skill per command (`kit-projects-board`, `kit-closeout`,
+   `kit-workspace-quick-start` and the rest) into `.claude/skills/`, copies the
+   team's own skills from `skills/` beside them, and records what it wrote in
+   `.claude/skills/.kit-generated`; it refreshes only what that manifest lists,
+   and reports a name clash rather than overwriting. `skills_bridge` says
+   whether it has run here.
 
    For the desktop assistant, check where it actually scans, not only where the
    skills were written. Find the folder it loads skills from — the surface
    table in the always-loaded file, the repository's own notes on its skills,
-   or the person's answer — and for each generated skill (a `SKILL.md` carrying
-   the `Generated by install.sh` comment) check that a real folder of that name
-   is there, not a link, since some scanners do not follow links, and that its
-   `SKILL.md` matches the generated one. Where the skills were written to one
-   folder and the assistant scans another — a canonical skills folder that the
-   repository mirrors into the scanned one, say — list what is missing and give
-   the step that brings it across: the repository's own sync script where it
-   has one, named by its path; otherwise the installer line with
-   `--skills-only --skills-dir <the scanned folder>`. Then say plainly that the
-   assistant reads its skills when a session starts, so skills added or synced
-   now appear only in the next session, this one included. For any other
-   missing surface, say so and give the installer line that adds it.
+   or the person's answer — and check that each folder the manifest lists is
+   there as a real folder, not a link, since some scanners do not follow links.
+   Where the assistant scans a folder other than `.claude/skills/`, list what is
+   missing and say where it would need to come from. The bridge writes
+   `.claude/skills/`, which an agent's sandbox may refuse to write: give
+   `kit/setup.sh skills` as the command for the person to run, and
+   `kit/setup.sh skills --check` to see whether a refresh is due. Then say
+   plainly that the assistant reads its skills when a session starts, so skills
+   added or refreshed now appear only in the next session, this one included.
+   For any other missing surface, say so and give the command that adds it.
 2. **Session start.** Ask them to open a new session in one project folder and
    check that the projects plugin's session-start line appears: the outcome,
    done-when progress, and the project's state and owner, with what it is
-   blocked by when that is set. On a surface without session hooks, the skills' descriptions
+   blocked by when that is set. The workspace plugin adds its own lines only
+   when something is out of step — hooks, the kit import, a submodule, a
+   resource, the origin — so a clean workspace shows none. On a surface without session hooks, the skills' descriptions
    carry the same prompt. With no project yet, leave this for the first session
    after `/projects:new`, and say so in the close.
 3. **Measure yourself.** The script reads committed history, so the baseline
    comes after the first commit: with `commits=0`, say "commit first, then run
-   it" and leave it. Run the script `measure_script` names with `--backfill 8`;
-   when it names none, say where the kit's `pilot/measure.sh` would come from.
-   Where it is the kit checkout's rather than the repository's, add `--out` for
-   where the CSV goes and `MEASURE_ALWAYS_LOADED` naming the files the team's
-   agents load at every session. Leave the CSV for them to commit, and add the
+   it" and leave it. Run the script `measure_script` names with `--backfill 8`,
+   from the repository root: in a workspace built on the kit that is
+   `bash kit/pilot/measure.sh --backfill 8`, which writes `pilot/metrics.csv`
+   here and counts `CLAUDE.md`, `AGENTS.md`, `kit/CLAUDE.kit.md` and what they
+   import as the always-loaded tier. Add `MEASURE_ALWAYS_LOADED` only where the
+   team's agents load something else at every session. Leave the CSV for them to commit, and add the
    weekly run to the hygiene pass. Say the honesty check
    plainly: a month with no closeout artefacts and no Current state updates
    means the system is a plan, not a practice. The baseline is team-level: when

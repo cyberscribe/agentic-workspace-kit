@@ -119,6 +119,9 @@ The scan reads this list. Add a line when a false positive turns out to be struc
 so the next run does not argue it again.
 
 - **Directories left out:** `audits/` (reports quote what they found), `drafts/` (not yet addressed
-  to anyone), `.claude/plugins/` (vendored; its register is kept upstream), `.git/`
+  to anyone), `kit/` (the kit, read in place; its register is audited in the kit's own repository),
+  the folders `.claude/skills/.kit-generated` lists (the skills bridge's copies, read at their
+  sources), `.claude/plugins/` (a copy vendored by a 2.x install; its register is kept upstream),
+  `_delete/` (staged for removal), `.git/`
 - **Exempt phrases:** `` `ALWAYS` `` written as a code span — the load label in
   `docs/memory-layers.md`, a named value in a model rather than an instruction

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
+# githooks/pre-commit: the kit's pre-commit hook, reached through the stub that kit/setup.sh hooks
+# writes into each repository's git directory.
+#
+#   kit        the kit's own repository: every staged path and added line through
+#              scripts/check-paths.sh (allow-list, private names, the workspace's .gitignore, binary
+#              and size, the private word list, names derived from the workspace, copies of workspace
+#              files). A change to the guard files themselves needs AW_GUARD_CHANGE=1.
+#   workspace  a sensitive project's files are not staged; no file over AW_MAX_FILE_MB (25) goes in;
+#              a file added with git add -f over .gitignore is named, and allowed.
+#   project    the project's own hook only.
+#
+# Then the user's own pre-commit runs, with the same arguments and stdin (githooks/lib/common.sh).
+set -uo pipefail
+hook_name="${AWH_AS:-pre-commit}"
+# shellcheck source=lib/common.sh
+if ! . "$(dirname "$0")/lib/common.sh"; then
+    printf 'aw %s: could-not-run: githooks/lib/common.sh cannot be read.\nNothing was committed.\n' "$hook_name" >&2
+    exit 1
+fi
+awh_start "$hook_name" "$@"
+case "$AWH_CONTEXT" in
+    kit)
+        awh_guard_paths
+        awh_checkpaths --staged --content --workspace "$AWH_WS" ;;
+    workspace)
+        awh_workspace_precommit ;;
+esac
+awh_verdict
+awh_chain

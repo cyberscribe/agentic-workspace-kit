@@ -10,14 +10,15 @@
 
 ## Stage 1 — the mechanical pass
 
-Eight checks. Each is deterministic, and each answers a question a person would otherwise have to
+Nine checks. Each is deterministic, and each answers a question a person would otherwise have to
 remember to ask.
 
 | Check | What it looks at |
 |---|---|
-| **Always-loaded budget** | Bytes in each always-loaded file, and the change since the last run |
+| **Always-loaded budget** | Bytes in each always-loaded file and each file it imports, the kit's bytes and the workspace's on two lines, and the change since the last run |
+| **Submodules** | Every submodule — the kit, projects that are their own repositories, and any other — with its changed files, commits not pushed, pointer, distance behind its remote and branch; then whether the git hooks are active, the kit's standards are imported, the origin is confirmed private, and the privacy and resource checks are clear |
 | **Strays** | Durable-looking files outside the conventions — loose at the root, loose in `projects/`, or sitting in a scratch directory long enough to have stopped being scratch |
-| **Registers** | Project folders against the rows in the index, in both directions |
+| **Registers** | Project folders against the rows in the index, in both directions: active and paused folders against their sections, and `projects/_done/<slug>/` against the Done section |
 | **Promised, absent** | Paths the canonical-fact table names that do not exist on disk |
 | **Promotion candidates** | Project decisions carrying a *Generalises as* field that have not reached the cross-project log |
 | **Staleness** | Guidance whose own "last updated" line has gone quiet |
@@ -25,16 +26,34 @@ remember to ask.
 | **Drafts sweep** | Closeout's drafts for this repository and each project folder, oldest first: drafts not yet promoted, and the files of other kinds and subdirectories that the drafts' retention never touches |
 
 Add version-control state and any bridge or mirror your setup keeps in sync. If the repository keeps
-metrics with `pilot/measure.sh`, its weekly run belongs to this pass, and its row goes in the report.
+metrics, the kit's `kit/pilot/measure.sh` run from the workspace root is its weekly run; it belongs to
+this pass, and its row goes in the report.
 If it keeps ablations in `pilot/ablations/`, the pass offers to run them after `measure.sh`
-(`pilot/ablate.sh --target <repository>`, from the kit checkout), with the number of runs and their
-API-equivalent cost stated first; the person decides, and `measure.sh` runs again afterwards so the
+(`bash kit/pilot/ablate.sh`, whose default target is the workspace around the kit), with the number
+of runs and their API-equivalent cost stated first; the person decides, and `measure.sh` runs again afterwards so the
 week's row counts the new results. Run or not, the report carries each ablation's latest flag, and lists demotion
 candidates and checks that need revision under pending work.
 Write the report to a dated file, keep it, and **commit it** — the trail is what lets you tell a clean
 week from a broken check, and a trail on one machine reaches nobody. Excluding audit output from
 version control is a common reflex because it looks like noise; it is the record of whether the noise
 means anything.
+
+**The budget is read in two parts.** `CLAUDE.md` imports `kit/CLAUDE.kit.md`, so the kit's working
+standards load in every session and count in the budget. They change when the kit is updated, not when
+the team edits its own file, so the report gives the kit's bytes and the workspace's bytes as two
+lines: growth that arrived with a kit update is not the team's drift, and the team's own growth is not
+hidden by a smaller kit file. The comparison is with the most recent earlier report whose name ends
+`hygiene-YYYY-MM-DD.md`, whatever comes before that, so renaming the series does not reset it.
+
+**Submodules are listed, clean ones included.** The kit's state check (`kit/plugins/workspace/bin/state.sh
+--quick`) reports each submodule on one line; the report turns those into a table — path, role,
+changed files, commits not pushed, pointer, commits behind, branch — so a submodule that has gone out
+of step is seen beside the ones that have not. Submodules outside the kit's concern (a store another
+tool writes, say) are listed with the role `outside`; the kit changes nothing in them. One line each
+follows for the git hooks, the kit's own hooks, the kit import in `CLAUDE.md`, whether the origin is
+confirmed private and how that was recorded, gitlinks with no `.gitmodules` entry, resources not
+reachable on this machine, sensitive projects the workspace tracks, projects whose versioning
+disagrees with their README, and skills-bridge folders that have gone missing.
 
 **The drafts sweep proposes; it never deletes.** Closeout prunes a draft only after it has been shown
 in a session opened in the same folder, and only a top-level Markdown draft. A transcript left beside
@@ -54,7 +73,7 @@ that mutates the system it observes reports itself, and the first run is where y
 Work the report top to bottom.
 
 **1. Classify every stray by content type before moving it.** The four types and their destinations
-are in `docs/memory-layers.md`. A file that resists classification is usually tracking or scratch, and
+are in `kit/docs/memory-layers.md`. A file that resists classification is usually tracking or scratch, and
 belongs in neither store.
 
 **2. Apply the uncontested moves; propose the rest.** Moving a stray draft into the drafts folder is
@@ -65,8 +84,9 @@ every session — that one comes back as a proposal.
 pointer and keeps its name. Where something genuinely needs removing, stage it somewhere obvious and
 say so.
 
-**4. Read the budget line even when it has not moved.** If it grew, name what grew and whether the
-addition named what it replaced. If it is flat, say so in one line — the trend is the finding.
+**4. Read the budget lines even when they have not moved.** If one grew, name what grew and whether
+the addition named what it replaced; growth in the kit's line came with a kit update and is reviewed
+upstream, by pull request to the kit. If both are flat, say so in one line — the trend is the finding.
 
 **5. Treat a promised-but-absent file as a question, not a fault.** If this week supplied a first use,
 create it. Otherwise note that it is still waiting.
@@ -90,7 +110,8 @@ access to gets read in the same pass. Project-scoped material held as content ra
 is the drift the taxonomy exists to prevent.
 
 **10. Leave version control alone.** List the files touched, new against modified, and let a human
-commit.
+commit. A submodule out of step is reported with the commands that bring it back — commit and push
+inside it, then commit its pointer in the workspace — for the person to run.
 
 ## What this pass does not do
 
@@ -98,5 +119,8 @@ commit.
   this one asks whether a file is in the right place, that one asks how it reads.
 - **Touch project content.** A project's own files are its business. This pass looks at where things
   live and whether the registers agree with the disk.
+- **Touch the kit.** `kit/` is read in place and changes by pull request to the kit. Folders under
+  `projects/` whose names start with `_` or `.` (`_done`, `_delete`) are reserved, not projects or
+  strays, and `_delete/` is staging for a person to empty.
 - **Reorganise on taste.** A convention that keeps being broken is evidence about the convention.
   Bring that back as a proposal rather than enforcing it a fourth time.

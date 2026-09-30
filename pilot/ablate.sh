@@ -8,7 +8,8 @@
 #
 #   pilot/ablate.sh                    run every ablation in <target>/pilot/ablations/
 #   pilot/ablate.sh <id> [<id>...]     run the named ablations
-#   --target DIR                       the repository to test (default: the one this script sits in)
+#   --target DIR                       the repository to test (default: the workspace around the kit
+#                                      checkout this script sits in; a kit checkout is not a target)
 #   --runs K                           runs per arm for this invocation (default: the file's runs, else 3)
 #   --max-budget-usd N                 usage guard per run, on its API-equivalent cost (default: the
 #                                      file's max_budget_usd, else 1.00)
@@ -26,8 +27,10 @@
 #
 # It writes only <target>/pilot/ablation-results.csv and <target>/pilot/ablation-report.md in the
 # target. It never commits, pushes, or moves a branch: worktrees are detached at HEAD and removed on
-# exit, and an ablation that pre-approves a commit or a push is refused. Run from a kit checkout, the
-# default target is the kit itself; name a team's repository with --target.
+# exit, and an ablation that pre-approves a commit or a push is refused. The runner is the kit's, run in
+# place as bash kit/pilot/ablate.sh: its default target is the workspace that holds that kit checkout
+# as a submodule, and --target names another repository. A kit checkout is refused as a target: its
+# files reach a session only through a workspace, so the workspace is what an ablation runs against.
 #
 # Two modes, chosen by the environment. With CLAUDE_CODE_OAUTH_TOKEN set (a token from
 # `claude setup-token`), each run gets its own CLAUDE_CONFIG_DIR, a temporary copy of the minimum
@@ -76,7 +79,7 @@
 # with it, the comparator's config directory is empty.
 set -uo pipefail
 
-usage() { sed -n '2,30p' "$0" >&2; exit 64; }
+usage() { sed -n '2,33p' "$0" >&2; exit 64; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 target="" runs_override="" budget_override="" dry=0 keep=0 report_only=0 bare=0 judge_kept="" no_judge=0 outcomes=""
@@ -103,9 +106,25 @@ for tool in git jq python3; do
     command -v "$tool" >/dev/null 2>&1 || { echo "ablate.sh needs $tool on PATH" >&2; exit 2; }
 done
 
-target="${target:-$here}"
-target="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || { echo "ablate.sh: not a git repository: ${target}" >&2; exit 2; }
+# is_kit <dir>: status 0 when the folder is a kit checkout (its marketplace names agentic-workspace).
+is_kit() { grep -q '"agentic-workspace"' "$1/.claude-plugin/marketplace.json" 2>/dev/null; }
+# The default target: the workspace around the kit checkout this script sits in. A copy of the script
+# kept inside a team's own repository (a 2.x install) tests that repository, as it always has.
+if [[ -z "$target" ]]; then
+    here_top="$(git --no-optional-locks -C "$here" rev-parse --show-toplevel 2>/dev/null || true)"
+    if [[ -n "$here_top" ]] && is_kit "$here_top"; then
+        target="$(git --no-optional-locks -C "$here_top" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
+        [[ -n "$target" || -n "$outcomes" ]] || { echo "ablate.sh: this kit checkout is not inside a workspace; name the repository to test with --target" >&2; exit 2; }
+    fi
+    target="${target:-$here}"
+fi
+target="$(git --no-optional-locks -C "$target" rev-parse --show-toplevel 2>/dev/null)" || { echo "ablate.sh: not a git repository: ${target}" >&2; exit 2; }
 target="$(cd "$target" && pwd -P)"
+# --outcomes reads only the file it is given, so it runs wherever the script is.
+if [[ -z "$outcomes" ]] && is_kit "$target"; then
+    echo "ablate.sh: $target is a kit checkout, and a kit checkout is not a target: its files reach a session only through a workspace, so name the workspace with --target" >&2
+    exit 2
+fi
 abl_dir="$target/pilot/ablations"
 csv="$target/pilot/ablation-results.csv"
 report="$target/pilot/ablation-report.md"
@@ -607,7 +626,7 @@ src_cfg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 bare_arm="bare-repo"
 [[ $token_mode -eq 1 ]] && bare_arm=bare
 always_loaded=()
-read -r -a always_loaded <<< "${MEASURE_ALWAYS_LOADED:-AGENTS.md CLAUDE.md}"
+read -r -a always_loaded <<< "${MEASURE_ALWAYS_LOADED:-CLAUDE.md AGENTS.md kit/CLAUDE.kit.md}"
 
 # --- Billing ---------------------------------------------------------------------------------------
 # Runs are meant to use a subscription login. Claude Code prefers an API key to a login when it finds

@@ -1,6 +1,6 @@
 ---
 description: Close a finished project — show the evidence for each Done when item, hold a three-question retrospective, promote what the next similar project should know, mark it done and say who needs to hear
-offer-unprompted: Offer it when every Done when box in a project is ticked, or someone says a project is finished or stopping.
+offer-unprompted: Offer it when every Done when box in a project is ticked, or someone says a project is finished or stopping for good.
 argument-hint: [folder or slug]
 ---
 
@@ -25,7 +25,8 @@ promotes what one session learned; this closes the whole piece of work.
 
 If `.claude/projects.md` exists in this repository, read it before anything else,
 and follow it over the defaults here: where active and finished projects live and
-who moves a folder, what the register and its sections are called, any other
+who moves a folder (its **Done** and **Folder moves** lines), what the register
+and its sections are called, any other
 ends a finished project can reach, a project's entry point if it is not
 `README.md`, what a Done when or People section is headed here (its **Section
 names** line), and where the catalogue and the verification standard are kept.
@@ -97,8 +98,9 @@ A project with no Done when list cannot be walked, but it can still be closed:
 write one with them now, as three to five lines stating what was actually
 delivered, each with its evidence, and add it where the template puts it. A
 Done when still carrying a `proposed by /projects:adopt` marker is confirmed or
-edited here, and the marker removed. A project being stopped rather than
-finished closes the same way: each open item waived, the reason stated once, and
+edited here, and the marker removed. A project being stopped for good rather
+than finished closes the same way (one set aside to come back to is
+`/projects:hold`'s): each open item waived, the reason stated once, and
 the retrospective matters all the more.
 
 Once every item is ticked, changed-and-met or waived, read back the tally in one
@@ -141,7 +143,7 @@ survives.
 
 - **Something survives.** Draft the general-form rewrite and propose a home: the
   cross-project decisions log (`logs/decisions.md`, in the format of its existing
-  entries or `templates/project-decisions.md`) when it is a choice and the option
+  entries or `kit/templates/project-decisions.md`) when it is a choice and the option
   it beat, or the general reference in `docs/<topic>.md` when it is know-how.
   Show the text and the destination, and write it only on a yes.
 - **Nothing survives.** It is project reference, and the Retrospective section
@@ -155,8 +157,8 @@ Then the catalogue. If the project built something another project could reuse �
 a tool, a template, a dataset, a procedure — offer a line for the team's
 catalogue (`docs/catalogue.md`, or where the conventions file says the catalogue
 lives): ``- **<name>** — <what it does> — `<where it lives>` — <owner>``. If
-there is no catalogue yet, offer to start one from `templates/catalogue.md` when
-the repository has it. One line per thing, only on a yes.
+there is no catalogue yet, offer to start one from `kit/templates/catalogue.md`
+(or the repository's own `templates/catalogue.md`). One line per thing, only on a yes.
 
 ## 4. Mark it done
 
@@ -172,20 +174,51 @@ the repository has it. One line per thing, only on a yes.
   retrospective below."
 - **Unconfirmed proposals.** Any other `proposed by /projects:adopt` marker left
   in the README is confirmed or edited now, and its marker removed.
-- **Where it goes.** By default the folder stays where it is, so every link keeps
-  working, and its register row moves to the Done section (`projects/INDEX.md`),
-  with its State column, if the table has one, set to `done`; a Done section
-  with no table yet gets one with the same columns as the active table. The
-  conventions file may say otherwise: a finished-projects folder the project moves to, other
-  ends it can reach (a promoted-to-reference row, a project that leaves the
-  repository), or that moving a folder is one named person's to do. Offer those
-  ends as the conventions file names them; where the move is the agent's to
-  make, make it with the person's yes, with `git mv` where git is in use (it
-  stages the rename so history follows; the commit stays theirs), then correct
-  the register link and list any other files that
-  still link the old path. Where the move is someone else's, say which move is
-  due and leave it. If the project has no register row, offer to add one in the
-  finished section.
+- **Where it goes.** The folder moves to the conventions' **Done** location,
+  by default `projects/_done/<slug>/`, which keeps its history and keeps finished
+  work out of everyday listings; a folder under `projects/` whose name starts
+  with `_` is never read as a project. Where the conventions keep finished
+  projects in place, or name other ends a project can reach (a
+  promoted-to-reference row, a project that leaves the repository), offer those
+  as they name them. How the move is made depends on how the project is kept —
+  its `Versioned:` line, checked against the folder itself: a gitlink
+  (`git ls-files -s -- <folder>` shows mode `160000`) is `own-repo`, a folder
+  `git check-ignore -q <folder>/` matches is `untracked`, and anything else is
+  `workspace`. Where the line and the folder disagree, say so and go by the
+  folder.
+  - **`workspace`.** `mkdir -p projects/_done`, then
+    `git mv projects/<slug> projects/_done/<slug>`. The rename is staged, so
+    history follows the files.
+  - **`own-repo`.** The same `git mv`, which also updates the submodule's path
+    in `.gitmodules`. If the submodule's `.git` is a directory rather than a
+    file, run `git submodule absorbgitdirs projects/<slug>` first. The move ends
+    with `kit/setup.sh hooks`, so the project's git hooks run from its new
+    place.
+  - **`untracked`.** A plain move, `mkdir -p projects/_done` and
+    `mv projects/<slug> projects/_done/<slug>`, with the `.gitignore` line
+    `projects/<slug>/` rewritten to `projects/_done/<slug>/` around it so the
+    folder is ignored at every moment: the new line is added before the move,
+    and the old one removed after it.
+  - **Other `.gitignore` lines.** Any other line naming `projects/<slug>` — an
+    exception such as `!projects/<slug>/**/*.pptx`, say — is listed with its
+    rewrite to `projects/_done/<slug>`, and changed on a yes.
+  - **The register.** The row moves to the conventions' Done section, whatever
+    it is called there, with its folder link pointing at `_done/<slug>/`
+    (relative to the register) and its State cell, if the table has one, set to
+    `done`. A Done section with no table yet gets one with the same columns as
+    the active table. If the project has no register row, offer to add one
+    there.
+  - **Other files that name the old path** are listed —
+    `grep -rl "projects/<slug>" . --exclude-dir=.git --exclude-dir=kit` — and
+    not rewritten: a dated record keeps its wording, and the rest is the
+    person's call.
+
+  With **Folder moves** set to the command (the default), everything above is
+  shown first and done on a yes. With **Folder moves** set to the person, print
+  the same commands, in the same order, for them to run, and make no move. The
+  register row and the new `.gitignore` lines are still edits this command
+  offers; removing an old `.gitignore` line waits for the move, so it is in the
+  person's list. Either way, the commit is left to the person.
 - **In flight.** If the owner was doing this project, finishing it frees a place
   under their in-flight limit; say so in a line if they are at or over it.
 
@@ -213,7 +246,8 @@ without comment.
 Summarise in a few lines: the tally (met, changed, waived, left open); what the
 leftover Planned steps became; what was promoted and where, and what was
 proposed and still needs someone's yes; the catalogue line, if any; where the
-project now sits and any move still due; who needs to hear. List the files
+project now sits, and any move, `.gitignore` line or `kit/setup.sh hooks` run
+still due; who needs to hear. List the files
 changed, new against modified.
 
 Leave the commit to them — they write the message, and writing it is their check
@@ -227,7 +261,7 @@ the session's own `/closeout` still applies to it.
 - **The person decides; the README remembers.** Waivers and changed criteria are
   fine, and common. Leaving no trace of them is what this command prevents.
 - **Surgical edits.** Tick, append, move a row, rewrite the Current state block
-  and its dated line, add the Retrospective. The rest of the README stays as its authors
+  and its dated line, add the Retrospective, move the folder. The rest of the README stays as its authors
   wrote it.
 - **Show, then write.** Each edit to the README, the register and the logs is
   shown before it is made; the quick path batches them, it does not skip them.

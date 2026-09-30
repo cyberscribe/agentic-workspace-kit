@@ -1,0 +1,16 @@
+{
+  "extraKnownMarketplaces": {
+    "agentic-workspace": { "source": { "source": "directory", "path": "kit" } }
+  },
+  "enabledPlugins": {
+    "closeout@agentic-workspace": true,
+    "projects@agentic-workspace": true,
+    "workspace@agentic-workspace": true
+  },
+  "permissions": {
+    "allow": ["Bash(rm *closeout-drafts*)"],
+    "ask": ["Edit(./kit/**)", "Write(./kit/**)", "Edit(./.claude/workspace.md)", "Write(./.claude/workspace.md)"]
+  },
+  "attribution": { "commit": "", "pr": "" },
+  "sandbox": { "filesystem": { "allowWrite": ["~/.claude/closeout-drafts"] } }
+}

@@ -1,0 +1,1 @@
+| Cowork | `CLAUDE.md`, and `kit/CLAUDE.kit.md` through its second line where the import is not expanded | The kit's commands as `kit-` skills in `.claude/skills/`, written by `kit/setup.sh skills` (the skills bridge); no session hooks, so the skills say when to offer the board and closeout |
