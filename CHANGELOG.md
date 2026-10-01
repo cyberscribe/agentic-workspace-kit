@@ -5,6 +5,64 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.0.1 — 2026-09-30
+
+**Fixes found in the first migrations and review, before a team's first install.**
+
+- **Bridge skills and the plugins.** In Claude Code a `kit-` skill hands over to the plugin's command
+  where that is loaded; where it is not, the skill says so, names `claude plugin install
+  <plugin>@agentic-workspace` or `/plugin`, and then runs the procedure. On a surface where plugins do
+  not load, the skill runs in full. `state.sh` reports `plugins_loaded` (`yes`, `no` or `unknown`) and
+  `plugins_not_loaded`, read from the settings and the installed-plugins registry, and the session-start
+  summary names a plugin that is not enabled or not installed while the bridge's skills are there.
+- **After a migration**, each person points Claude Code at the marketplace in `kit/` with `--scope user`
+  on both `claude plugin marketplace remove` and `add` (without it, `remove` takes the marketplace out of
+  every scope, the project's `.claude/settings.json` and its plugin enables included), then installs the
+  three plugins (`claude plugin install closeout@agentic-workspace`, then `projects@` and `workspace@`).
+  `git diff -- .claude/settings.json` is empty afterwards; the migration's and setup's closing text say
+  so.
+- **Migration.** A `header <folder> Versioned=… [Sensitivity=…]` map verb writes or updates a project
+  README's two lines, dry-run aware. The dry run's commit plan leaves out the paths the same run adds to
+  `.gitignore`, as the real run does. A kit checkout with its own `.git` is absorbed and moved with its
+  hooks path set to the folder that exists afterwards, and the dry run prints that path.
+  A `historical <glob>` map verb marks dated records outside `logs/` (handoff notes, specs): M7, `rewrite`
+  and M18 leave them as written, and the run lists them. M7 honours `keep` literals as `rewrite` does.
+- **closeout 1.4.1.** The command and the ritual carry the sensitive-projects rule (learnings stay in
+  the project's own folder; a stripped version is offered, and the person decides whether it travels),
+  the cross-project filter for a decisions log, the precedence of the person's own `Who needs to know:`
+  line, the roster rows left out for contact details, and what to say for an untracked project and for
+  a project folder that is a repository of its own but not a submodule.
+- **workspace 2.0.1**: the `plugins_loaded` keys and the session-start line above.
+
+**Docs.** Every command has a page in `docs/commands/` and every hook a page in `docs/hooks/`, and
+`docs/setup.md` covers setup and its modes, each in the same four parts: what it does, when to reach
+for it, common questions, and how to tell it is working. `CONTRIBUTING.md` gives the contributor flow
+(fork the kit, `git submodule set-url kit <fork>`, commit in `kit/`, push, pull request) with the tests
+and shellcheck. The README starts a workspace two ways, from the template repository or with
+`setup.sh new`, and links each command's page. Test section 12 checks the pages and the README rows.
+
+**Tests.** Section 13's terminal check keeps its pseudo-terminal open, so it passes on macOS however the
+suite is started. A check that hides a tool builds a `PATH` folder holding only the tools it needs
+(`mkpath`), rather than `PATH=/bin`, which still finds the tool on a merged-`/usr` Linux. The suite reads
+no stdin, so a hook that reads its input does not wait on a background job's open stdin.
+
+**Speed on macOS.** The kit pre-commit's copy check (`scripts/check-paths.sh`, R5) matches whole lines
+against the workspace's files in one `awk` pass rather than `grep -F -x -f`, which the BSD grep macOS
+ships runs for minutes with a list that long. The kit needs no GNU grep. The hook says on stderr how many
+lines it checks against how many files, and section 13 times 1,000 lines against 3,000 files with
+`/usr/bin/grep`.
+
+### Template changes
+
+Changed: `templates/workspace.gitignore` ignores macOS folder-icon files (`Icon` and a carriage
+return), and not files named `Icon` or `Icons`; the engine's `.gitignore` merge and the migration keep
+the line's carriage returns.
+
+From 3.0 on, each version's entry carries this list, so `kit/setup.sh update` shows what changed in the
+templates before it offers each diff.
+
+---
+
 ## v3.0.0 — 2026-09-30
 
 **The kit is a submodule of the workspace, at `kit/`, and is read in place. Nothing kit-owned is copied

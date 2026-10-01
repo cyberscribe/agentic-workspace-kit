@@ -393,7 +393,7 @@ s16_keys() { printf '%s\n' "$1" | sed 's/=.*//' | sed -e 's/^submodule\..*/submo
 s16_quick_want="$(printf '%s\n' state_version target in_git hooks kit_hooks kit_path kit_submodule kit_commit kit_version \
     kit_branch kit_behind kit_import origin origin_visibility origin_confirmed submodules submodule_recurse 'submodule.*' \
     submodules_attention orphan_gitlinks sensitive_projects sensitive_tracked versioned_mismatch external_paths \
-    external_paths_missing 'resource.*' quick | sort -u | paste -sd' ' -)"
+    external_paths_missing 'resource.*' skills_bridge plugins_loaded plugins_not_loaded quick | sort -u | paste -sd' ' -)"
 [[ "$(s16_keys "$rq")" == "$s16_quick_want" ]] && ok "16 --quick emits exactly its key set" \
     || ko "16 --quick emits exactly its key set" "got:  $(s16_keys "$rq")"$'\n'"want: $s16_quick_want"
 s16_bad=""
@@ -427,6 +427,38 @@ printf '# Written by kit/scripts/skills-bridge.sh.\n# origin\tfolder\tsource\nki
     > "$s16_K/.claude/skills/.kit-generated"
 st_expect "16 the bridge manifest: lines counted, a missing listed folder stale, bridged copies not own skills" "$(st_run "$s16_K")" \
     skills_bridge=present skills_bridge_count=3 skills_bridge_stale=1 own_skills=skills/daily-notes
+
+# ---- plugins_loaded: the settings' enabledPlugins and the installed-plugins registry --------------------
+# Each run names its own CLAUDE_CONFIG_DIR, so the runner's own Claude Code setup is never read.
+s16_PL="$s16_S/plugins-loaded"
+s16_copy "$s16_W" "$s16_PL"
+s16_PLt="$(cd "$s16_PL" && pwd -P)"
+s16_cfg="$s16_S/cc-config"
+mkdir -p "$s16_cfg/plugins"
+# s16_reg <json for .plugins>: the registry in the scratch config folder.
+s16_reg() { printf '{"version":2,"plugins":%s}\n' "$1" > "$s16_cfg/plugins/installed_plugins.json"; }
+s16_pl() { CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_PL" "$@"; }
+st_expect "16 plugins_loaded unknown with no registry to read, and nothing named" "$(s16_pl)" plugins_loaded=unknown plugins_not_loaded=
+s16_reg '{"closeout@agentic-workspace":[{"scope":"user"}],"projects@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}'
+st_expect "16 plugins_loaded yes when every kit plugin is enabled and installed for the user" "$(s16_pl)" plugins_loaded=yes plugins_not_loaded=
+s16_reg '{"closeout@agentic-workspace":[{"scope":"project","projectPath":"'"$s16_PLt"'"}],"projects@agentic-workspace":[{"scope":"project","projectPath":"/elsewhere"}],"workspace@agentic-workspace":[{"scope":"user"}],"projects@another-market":[{"scope":"user"}]}'
+st_expect "16 a project-scope install counts for its own repository only; another marketplace's is not the kit's" "$(s16_pl --quick)" \
+    plugins_loaded=no plugins_not_loaded=projects:not-installed
+printf '{"enabledPlugins":{"projects@agentic-workspace":false}}\n' > "$s16_PL/.claude/settings.local.json"
+jq 'del(.enabledPlugins["closeout@agentic-workspace"])' "$s16_W/.claude/settings.json" > "$s16_PL/.claude/settings.json"
+st_expect "16 settings.local.json wins over settings.json, and a plugin no settings file names is not enabled" "$(s16_pl)" \
+    plugins_loaded=no plugins_not_loaded=closeout:not-enabled,projects:disabled
+printf '{"enabledPlugins":{"closeout@agentic-workspace":true}}\n' > "$s16_cfg/settings.json"
+st_expect "16 the user's settings.json enables what the workspace's leaves out" "$(s16_pl)" plugins_loaded=no plugins_not_loaded=projects:disabled
+printf '{"enabledPlugins":{"closeout@agentic-workspace":false}}\n' > "$s16_cfg/settings.json"
+st_expect "16 the user's settings.json disables it" "$(s16_pl)" plugins_not_loaded=closeout:disabled,projects:disabled
+st_expect "16 a plugin whose hook runs the check (CLAUDE_PLUGIN_ROOT) is loaded" \
+    "$(CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/closeout" s16_pl)" plugins_not_loaded=projects:disabled
+printf 'not json\n' > "$s16_cfg/plugins/installed_plugins.json"
+cp "$s16_W/.claude/settings.json" "$s16_PL/.claude/settings.json"
+printf '{}\n' > "$s16_PL/.claude/settings.local.json"; printf '{}\n' > "$s16_cfg/settings.json"
+st_expect "16 a registry that does not parse reads unknown" "$(s16_pl)" plugins_loaded=unknown plugins_not_loaded=
+st_expect "16 no kit checkout: unknown" "$(CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_S/plain")" plugins_loaded=unknown
 
 # ---- A 2.2.0 workspace ------------------------------------------------------------------------------------
 s16_X="$s16_S/two-x"
@@ -546,7 +578,14 @@ s16_bad=""
 [[ -z "$(s16_hookrun "$s16_Z" WORKSPACE_HOOK_DISABLED=1)" ]] || s16_bad+="WORKSPACE_HOOK_DISABLED=1 got output"$'\n'
 [[ -z "$(s16_hookrun "$s16_Z" AW_HEADLESS_RUN=1)" ]] || s16_bad+="AW_HEADLESS_RUN=1 got output"$'\n'
 [[ -z "$(s16_hookrun "$s16_Z" CLOSEOUT_HOOK_CHILD=1)" ]] || s16_bad+="CLOSEOUT_HOOK_CHILD got output"$'\n'
-[[ -z "$(s16_hookrun "$s16_Z" PATH=/bin)" ]] || s16_bad+="with no jq on PATH it got output"$'\n'
+# Without jq: a PATH of the tools the hook and state.sh call, jq left out. The same folder with jq
+# added does report, so it is jq's absence that silences the hook.
+s16_tools=(bash cat dirname basename git awk grep sed tr ls find date sort head wc stat paste cut timeout)
+mkpath "$s16_S/path-nojq" "${s16_tools[@]}"
+mkpath "$s16_S/path-jq" "${s16_tools[@]}" jq
+PATH="$s16_S/path-nojq" command -v jq >/dev/null 2>&1 && s16_bad+="jq is still found on the PATH meant to hide it"$'\n'
+[[ -z "$(s16_hookrun "$s16_Z" PATH="$s16_S/path-nojq")" ]] || s16_bad+="with no jq on PATH it got output"$'\n'
+[[ -n "$(s16_hookrun "$s16_Z" PATH="$s16_S/path-jq")" ]] || s16_bad+="with the same PATH and jq it got no output"$'\n'
 [[ -z "$(s16_hookrun "$s16_S/no-such-folder")" ]] || s16_bad+="a missing folder got output"$'\n'
 empty "16 hook: silent in an unrelated repository, a plain folder, when disabled, headless, as closeout's child, and without jq" "$s16_bad"
 printf 'x\n' > "$s16_C/.claude/kit-templates.lock"
@@ -563,6 +602,24 @@ s16_o="$(s16_hookrun "$s16_D" | s16_msg)"
 [[ "$s16_o" == *"Workspace: projects/site: "* && "$s16_o" == *"; projects/_done/site: 1 changed file"* ]] \
     && ok "16 hook: two submodules with the same last name are named by their paths" \
     || ko "16 hook: two submodules with the same last name are named by their paths" "$s16_o"
+# A kit plugin not loaded beside the bridge's kit-* skills: one line naming it and the fix. A plugin set
+# false is a choice, and the plugin whose hook is running (CLAUDE_PLUGIN_ROOT) is loaded.
+s16_reg '{"workspace@agentic-workspace":[{"scope":"user"}],"closeout@agentic-workspace":[{"scope":"user"}]}'
+s16_hb() { s16_hookrun "$s16_PL" CLAUDE_CONFIG_DIR="$s16_cfg" "$@" | s16_msg; }
+s16_bad=""
+[[ -z "$(s16_hb)" ]] || s16_bad+="with no bridge manifest: $(s16_hb)"$'\n'
+mkdir -p "$s16_PL/.claude/skills"
+printf '# Written by kit/scripts/skills-bridge.sh.\nkit\tkit-projects-board\tplugins/projects/commands/board.md\n' > "$s16_PL/.claude/skills/.kit-generated"
+s16_o="$(s16_hb)"
+[[ "$s16_o" == "Workspace: the kit's projects plugin is not loaded, so its kit-* skills stand in for it — claude plugin install projects@agentic-workspace, or /plugin." ]] \
+    || s16_bad+="one plugin missing: $s16_o"$'\n'
+s16_reg '{}'
+s16_o="$(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")"
+[[ "$s16_o" == "Workspace: the kit's plugins closeout, projects are not loaded, so their kit-* skills stand in for them — claude plugin install <name>@agentic-workspace for each, or /plugin." ]] \
+    || s16_bad+="two missing, the hook's own plugin loaded: $s16_o"$'\n'
+printf '{"enabledPlugins":{"closeout@agentic-workspace":false,"projects@agentic-workspace":false}}\n' > "$s16_PL/.claude/settings.local.json"
+[[ -z "$(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")" ]] || s16_bad+="plugins set false got a line: $(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")"$'\n'
+empty "16 hook: a kit plugin not loaded while bridge skills exist gets one line with the fix; none without the bridge, or for a plugin set false" "$s16_bad"
 empty "16 hook: exit 0 and nothing on stderr in every run above" "$s16_hook_err"
 empty "16 state.sh: silent on stderr in every run above" "$st_err"
 

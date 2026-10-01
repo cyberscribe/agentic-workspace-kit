@@ -45,9 +45,10 @@
 #                                               prepared CSV
 #                                            11 the state check: modes, keys, no lock left; the setup
 #                                               scripts parse and lint clean
-# and then, from tests/sections/: 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state
-# check's 3.0 keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout,
-# hygiene and the pilot in a 3.0 workspace (12, the docs, arrives with them).
+# and then, from tests/sections/: 12 the docs (a page per command and hook, in four parts, and a README
+# row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
+# keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
+# pilot in a 3.0 workspace.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -67,6 +68,10 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME="Test Runner" GIT_AUTHOR_EMAIL="runner@example.test"
 export GIT_COMMITTER_NAME="Test Runner" GIT_COMMITTER_EMAIL="runner@example.test"
 for v in $(compgen -v | grep '^CLOSEOUT_' || true); do unset "$v"; done
+# No stdin: the checks call hooks directly, and a hook reads all of its stdin as git would feed it.
+# Launched with a stdin that never closes (a background job, a CI runner), that read would wait for
+# ever; a check that wants stdin, or a terminal, sets it up itself.
+exec </dev/null
 
 # macOS mktemp ignores TMPDIR unless given a template, so a template is always passed.
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/aw-tests.XXXXXX")"
@@ -170,6 +175,16 @@ printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" >> "${AW_GITCOUNT_LOG:-/dev/null}"
 chmod +x "$SCRATCH/gitcount/git"
 gitcount_run() { local log="$1"; shift; : > "$log"; AW_GITCOUNT_LOG="$log" PATH="$SCRATCH/gitcount:$PATH" "$@"; }
 aw_count() { awk 'END { print NR }'; }
+
+# mkpath <dir> <tool>...: a folder holding a link to each named tool this PATH finds, to use as the
+# whole PATH when a check hides a tool. A system folder cannot stand in: with /bin a link to /usr/bin
+# (usrmerge Linux), PATH=/bin still finds everything. A tool not found here is left out.
+mkpath() {
+    local d="$1" t p; shift
+    mkdir -p "$d"
+    for t in "$@"; do p="$(command -v "$t")" && [[ -n "$p" && ! -e "$d/$t" ]] && ln -s "$p" "$d/$t"; done
+    return 0
+}
 
 # No fixture's pre-push can reach a real gh (and the network): the hooks ask the command named by AW_GH,
 # which is a path that does not exist unless a check points it at a stub of its own.

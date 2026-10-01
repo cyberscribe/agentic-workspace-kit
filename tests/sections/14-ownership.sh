@@ -373,6 +373,10 @@ while IFS= read -r s14_p; do grep -qxF -- "$s14_p" "$s14_G/.gitignore" || s14_ba
 grep -qxF '*.pptx' "$s14_G/.gitignore" && s14_bad+="the optional *.pptx line was added"$'\n'
 grep -A3 -xF 'Added to .gitignore:' <<<"$s14_out" | grep -qxF '  .secrets/' || s14_bad+="the report does not list the added lines"$'\n'
 empty "14 --gitignore merge appends the missing template lines once, under one header, keeping the person's lines" "$s14_bad"
+[[ "$(grep -c "^Icon$(printf '\r\r')\$" "$s14_G/.gitignore")" == 1 ]] && git -C "$s14_G" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
+    && ! git -C "$s14_G" check-ignore -q --no-index -- Icons \
+    && ok "14 --gitignore merge writes the macOS Icon line with both carriage returns, and it ignores Icon<CR> and not Icons" \
+    || ko "14 --gitignore merge writes the macOS Icon line with both carriage returns, and it ignores Icon<CR> and not Icons" "$(grep -n Icon "$s14_G/.gitignore" | od -c | head -n 3)"
 s14_tree="$(st_tree "$s14_G")"
 s14_run "$s14_G" --gitignore merge >/dev/null 2>&1
 [[ "$s14_tree" == "$(st_tree "$s14_G")" ]] && ok "14 a second merge adds nothing" || ko "14 a second merge adds nothing"

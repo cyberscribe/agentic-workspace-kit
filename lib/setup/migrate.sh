@@ -283,10 +283,22 @@ mg_touches_opaque() {
     done
     return 1
 }
-# Dated records keep their wording: logs/, _delete/, projects/_done/, and any file named for decisions.
+# Dated records keep their wording: logs/, _delete/, projects/_done/, any file named for decisions, and
+# what a map's historical lines name.
+MG_HIST_GLOBS=()
 mg_is_historical() {
     case "$1" in logs/*|_delete/*|projects/_done/*) return 0 ;; esac
     case "${1##*/}" in *decisions*) return 0 ;; esac
+    mg_map_historical "$1"
+}
+# A path a map's historical line names: its glob matches the path, or a folder it matches holds it.
+# Glob matching as git's default pathspec does it: * crosses folders.
+mg_map_historical() {
+    local g
+    for g in ${MG_HIST_GLOBS[@]+"${MG_HIST_GLOBS[@]}"}; do
+        # shellcheck disable=SC2053
+        [[ "$1" == $g || "$1" == $g/* ]] && return 0
+    done
     return 1
 }
 
@@ -566,7 +578,7 @@ if [[ -n "$MAP" ]]; then
             git-mv|submodule-mv|mv|gitignore-rewrite)
                 [[ ${#mg_f[@]} -eq 3 ]] || mg_map_bad "$mg_n" "$mg_verb takes two fields"
                 mg_a="${mg_f[1]}" mg_b="${mg_f[2]}" ;;
-            retire|untrack|gitignore-add)
+            retire|untrack|gitignore-add|historical)
                 [[ ${#mg_f[@]} -eq 2 ]] || mg_map_bad "$mg_n" "$mg_verb takes one field"
                 mg_a="${mg_f[1]}" ;;
             rewrite)
@@ -577,6 +589,21 @@ if [[ -n "$MAP" ]]; then
             submodule-register)
                 [[ ${#mg_f[@]} -eq 3 || ${#mg_f[@]} -eq 4 ]] || mg_map_bad "$mg_n" "submodule-register takes a path, a URL and an optional branch"
                 mg_a="${mg_f[1]}" mg_b="${mg_f[2]}"; [[ ${#mg_f[@]} -eq 4 ]] && mg_more="${mg_f[3]}" ;;
+            header)
+                # header <project folder> Versioned=<v> [Sensitivity=<s>]: the README's versioning lines.
+                # The pairs are kept in mg_more, tab-separated, Versioned first.
+                [[ ${#mg_f[@]} -eq 3 || ${#mg_f[@]} -eq 4 ]] || mg_map_bad "$mg_n" "header takes a project folder and one or two of Versioned=<value> Sensitivity=<value>"
+                mg_a="${mg_f[1]}" mg_hv="" mg_hs=""
+                mg_i=2
+                while [[ $mg_i -lt ${#mg_f[@]} ]]; do
+                    case "${mg_f[$mg_i]}" in
+                        Versioned=workspace|Versioned=own-repo|Versioned=untracked) [[ -z "$mg_hv" ]] || mg_map_bad "$mg_n" "header names Versioned twice"; mg_hv="${mg_f[$mg_i]}" ;;
+                        Sensitivity=normal|Sensitivity=sensitive) [[ -z "$mg_hs" ]] || mg_map_bad "$mg_n" "header names Sensitivity twice"; mg_hs="${mg_f[$mg_i]}" ;;
+                        *) mg_map_bad "$mg_n" "header takes Versioned=workspace|own-repo|untracked and Sensitivity=normal|sensitive, not '${mg_f[$mg_i]}'" ;;
+                    esac
+                    mg_i=$((mg_i + 1))
+                done
+                mg_more="$mg_hv${mg_hv:+${mg_hs:+	}}$mg_hs" ;;
             keep|note|private-term)
                 [[ -n "$mg_rest" ]] || mg_map_bad "$mg_n" "$mg_verb takes text"
                 mg_a="$mg_rest"
@@ -586,7 +613,7 @@ if [[ -n "$MAP" ]]; then
             *) mg_map_bad "$mg_n" "unknown verb '$mg_verb'" ;;
         esac
         case "$mg_verb" in
-            git-mv|submodule-mv|mv|retire|untrack|submodule-register)
+            git-mv|submodule-mv|mv|retire|untrack|submodule-register|header)
                 mg_a="$(mg_norm_path "$mg_a")"
                 mg_path_ok "$mg_a" || mg_map_bad "$mg_n" "paths are workspace-relative, with no leading / and no .."
                 case "$mg_verb" in git-mv|submodule-mv|mv)
@@ -597,9 +624,12 @@ if [[ -n "$MAP" ]]; then
                 # A rewrite keeps its text as written: a trailing / is part of what it matches.
                 { mg_path_ok "${mg_a#./}" && mg_path_ok "${mg_b#./}"; } \
                     || mg_map_bad "$mg_n" "paths are workspace-relative, with no leading / and no .." ;;
+            historical)
+                mg_a="$(mg_norm_path "$mg_a")"
+                mg_path_ok "$mg_a" || mg_map_bad "$mg_n" "paths are workspace-relative, with no leading / and no .." ;;
         esac
         case "$mg_verb" in
-            git-mv|submodule-mv|mv|retire|untrack)
+            git-mv|submodule-mv|mv|retire|untrack|header)
                 for mg_p in "$mg_a" ${mg_b:+"$mg_b"}; do
                     case "$mg_p" in kit|kit/*) mg_map_bad "$mg_n" "the kit checkout is not moved by a map line" ;; esac
                     if [[ -n "$OLD" ]]; then case "$mg_p" in "$OLD"|"$OLD"/*) mg_map_bad "$mg_n" "the kit checkout is not moved by a map line" ;; esac; fi
@@ -620,12 +650,14 @@ if [[ -n "$MAP" ]]; then
         MAP_LN+=("$mg_n") MAP_VERB+=("$mg_verb") MAP_A+=("$mg_a") MAP_B+=("$mg_b") MAP_REST+=("$mg_more") MAP_DONE+=(0)
     done < "$MAP"
 fi
-# The keep literals, one per line, for every rewrite.
+# The keep literals, one per line, for every rewrite (M7's included), and the historical globs, which
+# join the dated records before any step reads them.
 MG_KEEP="$MG_TMP/keep"
 : > "$MG_KEEP"
 mg_i=0
 while [[ $mg_i -lt ${#MAP_VERB[@]} ]]; do
     [[ "${MAP_VERB[$mg_i]}" == keep ]] && printf '%s\n' "${MAP_A[$mg_i]}" >> "$MG_KEEP"
+    [[ "${MAP_VERB[$mg_i]}" == historical ]] && MG_HIST_GLOBS+=("${MAP_A[$mg_i]}")
     mg_i=$((mg_i + 1))
 done
 
@@ -708,8 +740,11 @@ if [[ -n "$OLD" && $MG_DRY_SELF -eq 0 ]]; then MG_KIT="$WS/$OLD"; else MG_KIT="$
 
 # M0: a kit checkout with a .git folder of its own (made with git clone, then git submodule add) is
 # absorbed into the workspace's .git/modules, so git mv can move it.
+# The kit's hooks path moves with its .git, so M8 always runs after an absorb.
+MG_M0_ACTED=0
 if [[ -n "$OLD" && -d "$WS/$OLD/.git" ]]; then
     mg_act run "git submodule absorbgitdirs -- $OLD"
+    MG_M0_ACTED=1
     if [[ $DRY -eq 0 ]]; then
         mg_child mg_gw submodule absorbgitdirs -- "$OLD" || mg_stop M0 "git submodule absorbgitdirs $OLD failed"
     fi
@@ -773,6 +808,92 @@ mg_untrack() {  # PATH
         mg_act edit ".gitignore: + /$p"
         mg_ignore_add "/$p"
     fi
+}
+
+# mg_vignored PATH: 0 when the .gitignore this run has written so far ignores PATH. A dry run reads its
+# edited copy too (as core.excludesFile), since the real file is not changed yet. A folder is named
+# with a trailing /, because one a dry run has only pretended to move is not on disk for git to see.
+mg_vignored() {
+    local p="$1" ph
+    ph="$(mg_vphys "$p" 2>/dev/null)" && [[ -d "$ph" ]] && p="$p/"
+    if [[ $DRY -eq 1 && -f "$SHADOW/.gitignore" ]]; then
+        mg_g -c core.excludesFile="$SHADOW/.gitignore" check-ignore -q --no-index -- "$p" 2>/dev/null
+    else
+        mg_g check-ignore -q --no-index -- "$p" 2>/dev/null
+    fi
+}
+
+# mg_header DIR PAIRS: the versioning lines of DIR/README.md, from PAIRS (Label=value, tab-separated).
+# A line that is there with another value is rewritten; a missing one is written as "- **Label:**
+# value", beside the other versioning line when there is one, else directly under the title.
+mg_header() {
+    local dir="$1" rd="$1/README.md" kv lab val ph scan n cur title other at out="$MG_TMP/header" changed=0
+    if ! mg_vexists "$rd"; then mg_act skip "header $dir (no README.md here)"; return 0; fi
+    for kv in $(printf '%s' "$2" | tr '\t' ' '); do
+        lab="${kv%%=*}" val="${kv#*=}"
+        ph="$(mg_vphys "$rd")" || return 0
+        # One pass: "L n value" for this label's first line, "O n" for the other label's, "T n" for the
+        # title, all outside fences and HTML comments; labels match bold or plain, in any case.
+        scan="$(awk -v lab="$(printf '%s' "$lab" | tr '[:upper:]' '[:lower:]')" '
+            BEGIN { oth = (lab == "versioned") ? "sensitivity" : "versioned" }
+            /^[ \t]*(```|~~~)/ { fence = !fence; next }
+            fence { next }
+            /<!--/ { com = 1 } com { if (/-->/) com = 0; next }
+            !t && /^# / { print "T " NR; t = 1; next }
+            {
+                l = tolower($0); sub(/^[ \t]*([-*+][ \t]+)?/, "", l); gsub(/\*\*|__/, "", l)
+                if (!f && index(l, lab ":") == 1) {
+                    v = substr(l, length(lab) + 2); sub(/^[ \t]+/, "", v); sub(/[ \t].*$/, "", v); gsub(/[`*_.,;]/, "", v)
+                    print "L " NR " " v; f = 1
+                } else if (!o && index(l, oth ":") == 1) { print "O " NR; o = 1 }
+            }' "$ph")"
+        n="$(printf '%s\n' "$scan" | awk '$1 == "L" { print $2 }')"
+        cur="$(printf '%s\n' "$scan" | awk '$1 == "L" { print $3 }')"
+        title="$(printf '%s\n' "$scan" | awk '$1 == "T" { print $2 }')"
+        other="$(printf '%s\n' "$scan" | awk '$1 == "O" { print $2 }')"
+        if [[ -n "$n" && "$cur" == "$val" ]]; then
+            mg_act skip "header $rd $lab: $val (there already)"
+            continue
+        fi
+        if [[ -n "$n" ]]; then
+            mg_act edit "$rd:$n $lab: ${cur:-(empty)} -> $val"
+            awk -v n="$n" -v lab="$lab" -v val="$val" 'NR == n { print "- **" lab ":** " val; next } { print }' "$ph" > "$out"
+        else
+            # Versioned goes above a Sensitivity line, Sensitivity below a Versioned one.
+            if [[ -n "$other" && "$lab" == Versioned ]]; then at=$((other - 1))
+            elif [[ -n "$other" ]]; then at="$other"
+            else at="${title:-0}"; fi
+            if [[ -n "$other" ]]; then
+                mg_act edit "$rd:$((at + 1)) + $lab: $val"
+                awk -v at="$at" -v nl="- **$lab:** $val" 'at == 0 && NR == 1 { print nl } { print } NR == at { print nl }' "$ph" > "$out"
+            else
+                # Under the title, with a blank line either side; a blank line already there is reused.
+                if [[ "$at" -gt 0 ]]; then mg_act edit "$rd:$((at + 2)) + $lab: $val"; else mg_act edit "$rd:1 + $lab: $val"; fi
+                awk -v at="$at" -v nl="- **$lab:** $val" '
+                    { L[NR] = $0 }
+                    END {
+                        for (i = 1; i <= at; i++) print L[i]
+                        i = at + 1
+                        if (at > 0) { if (i <= NR && L[i] ~ /^[ \t]*$/) { print L[i]; i++ } else print "" }
+                        print nl
+                        if (i <= NR && L[i] !~ /^[ \t]*$/) print ""
+                        for (; i <= NR; i++) print L[i]
+                    }' "$ph" > "$out"
+            fi
+        fi
+        mg_vwrite "$rd" < "$out"
+        changed=1
+    done
+    if [[ $changed -eq 1 ]]; then MG_EDITED+=("$rd"); mg_plan "$rd"; fi
+    case "$2" in *Versioned=untracked*)
+        mg_vignored "$dir" || mg_act note "$dir is Versioned: untracked and .gitignore does not list it yet: a gitignore-add /$dir/ line before this one keeps it out of the repository" ;;
+    esac
+    case "$2" in *Sensitivity=sensitive*)
+        if mg_vtracked "$dir" && ! mg_vignored "$dir"; then
+            mg_act note "$dir is sensitive and tracked by the workspace, whose hooks refuse its files: an untrack $dir line keeps it on disk and out of the repository"
+        fi ;;
+    esac
+    return 0
 }
 
 mg_resolved=0
@@ -946,7 +1067,8 @@ if [[ $mg_m6_any -eq 0 ]]; then
     else mg_act skip "M6 unchanged copies of kit files (none)"; fi
 fi
 
-# M7: references to the old kit path, outside the kit, opaque files and dated records, now name kit/.
+# M7: references to the old kit path, outside the kit, opaque files and dated records (the map's
+# historical lines included), now name kit/. An occurrence inside a map's keep literal stays.
 if [[ -n "$MG_OLD_KIT_PATH" ]]; then
     mg_from="$MG_OLD_KIT_PATH/"
     mg_hist=() mg_edit=()
@@ -954,15 +1076,18 @@ if [[ -n "$MG_OLD_KIT_PATH" ]]; then
         [[ -n "$mg_vp" ]] || continue
         if mg_is_historical "$mg_vp"; then mg_hist+=("$mg_vp"); else mg_edit+=("$mg_vp"); fi
     done < <(mg_candidates "$mg_from" ext)
-    for mg_vp in ${mg_edit[@]+"${mg_edit[@]}"}; do mg_rewrite_in "$mg_vp" "$mg_from" "kit/" any; done
-    if [[ ${#mg_edit[@]} -gt 0 || $MG_LEDGER -eq 0 ]]; then
+    # A file whose only occurrences are kept literals is a candidate that M7 leaves as it is.
+    mg_before=${#MG_EDITED[@]}
+    for mg_vp in ${mg_edit[@]+"${mg_edit[@]}"}; do mg_rewrite_in "$mg_vp" "$mg_from" "kit/" any "$MG_KEEP"; done
+    mg_m7_did=0; [[ ${#MG_EDITED[@]} -gt $mg_before ]] && mg_m7_did=1
+    if [[ $mg_m7_did -eq 1 || $MG_LEDGER -eq 0 ]]; then
         for mg_vp in ${mg_hist[@]+"${mg_hist[@]}"}; do
-            for mg_n in $(mg_replace "$(mg_vphys "$mg_vp")" "" "$mg_from" "kit/" any); do
+            for mg_n in $(mg_replace "$(mg_vphys "$mg_vp")" "" "$mg_from" "kit/" any "$MG_KEEP"); do
                 mg_act note "$mg_vp:$mg_n names $mg_from (a dated record keeps its wording)"
             done
         done
     fi
-    if [[ ${#mg_edit[@]} -eq 0 && ( ${#mg_hist[@]} -eq 0 || $MG_LEDGER -eq 1 ) ]]; then
+    if [[ $mg_m7_did -eq 0 && ( ${#mg_hist[@]} -eq 0 || $MG_LEDGER -eq 1 ) ]]; then
         mg_act skip "M7 references to $mg_from (none left${mg_hist[0]:+; ${#mg_hist[@]} dated records keep theirs})"
     fi
 else
@@ -996,7 +1121,7 @@ mg_h="$(mg_key hooks)" mg_kh="$(mg_key kit_hooks)"
 if [[ "$mg_h" == $'\001' ]]; then
     bash "$MG_KIT/lib/setup/gitconfig.sh" --target "$WS" --hooks --check >/dev/null 2>&1 && mg_h=active mg_kh=active
 fi
-if [[ "$mg_h" == active && ( "$mg_kh" == active || "$mg_kh" == $'\001' ) ]]; then
+if [[ $MG_M0_ACTED -eq 0 && "$mg_h" == active && ( "$mg_kh" == active || "$mg_kh" == $'\001' ) ]]; then
     mg_act skip "M8 hooks (active)"
 else
     mg_act run "kit/lib/setup/gitconfig.sh --target $WS --hooks"
@@ -1006,6 +1131,17 @@ else
         # The kit checkout is populated only by the real run, so its hooks are named, not read.
         mg_preview bash "$MG_KIT/lib/setup/gitconfig.sh" --target "$WS" --hooks --check --kit-at "$OLD" \
             | sed 's/^    skip kit (not initialised.*/    would set kit aw-hooks, aw.chainHooksPath (when a hooks path is in effect there) and core.hooksPath, once --kit-from has populated it/'
+    elif [[ $MG_M0_ACTED -eq 1 ]]; then
+        # M0 has not absorbed the kit's .git in a dry run, so gitconfig.sh sees the folder inside the
+        # checkout. The real run's M8 finds it where absorbgitdirs puts it, under the workspace's
+        # .git/modules/<submodule name>, and the kit's hooks path is named as it will be there.
+        mg_kgd_old="$WS/$OLD/.git/aw-hooks"
+        mg_kgd_new="$(mg_g rev-parse --absolute-git-dir 2>/dev/null)/modules/$KNAME/aw-hooks"
+        mg_preview bash "$MG_KIT/lib/setup/gitconfig.sh" --target "$WS" --hooks --check --kit-at "$OLD" \
+            | awk -v from="$mg_kgd_old" -v to="$mg_kgd_new" '{
+                while ((i = index($0, from)) > 0) $0 = substr($0, 1, i - 1) to substr($0, i + length(from))
+                if ($0 == "    ok kit core.hooksPath") $0 = "    would set kit core.hooksPath=" to
+                print }'
     else
         mg_preview bash "$MG_KIT/lib/setup/gitconfig.sh" --target "$WS" --hooks --check ${OLD:+--kit-at "$OLD"}
     fi
@@ -1036,12 +1172,15 @@ else
     mg_declined="$MG_TMP/declined"
     mg_vread .claude/kit-templates.lock 2>/dev/null | awk -F '\t' '$1 == "!declined" && $2 == ".gitignore" { print $3 }' > "$mg_declined"
     mg_added=0
+    # Only spaces and tabs are trimmed: a carriage return can be part of a pattern (macOS names its
+    # folder-icon file Icon followed by one, and the template's line ends in two, since git drops one).
+    mg_blank=$' \t'
     while IFS= read -r mg_l || [[ -n "$mg_l" ]]; do
-        mg_l="${mg_l%"${mg_l##*[![:space:]]}"}"
+        mg_l="${mg_l%"${mg_l##*[!"$mg_blank"]}"}"
         [[ -z "$mg_l" || "$mg_l" == \#* ]] && continue
         mg_ignore_has "$mg_l" && continue
         grep -qxF -- "$mg_l" "$mg_declined" && continue
-        mg_act edit ".gitignore: + $mg_l"
+        mg_act edit ".gitignore: + ${mg_l//$'\r'/\\r}"
         mg_ignore_add "$mg_l" kit
         mg_added=1
     done < "$mg_tpl"
@@ -1384,6 +1523,7 @@ while [[ $mg_i -lt ${#MAP_VERB[@]} ]]; do
         retire) mg_retire M16 "$mg_a" ;;
         untrack) mg_untrack "$mg_a" ;;
         submodule-register) mg_register "$mg_a" "$mg_b" "$mg_more" ;;
+        header) mg_header "$mg_a" "$mg_more" ;;
         gitignore-add)
             if mg_ignore_has "$mg_a"; then mg_act skip "gitignore-add $mg_a (in .gitignore already)"
             else mg_act edit ".gitignore: + $mg_a"; mg_ignore_add "$mg_a"; fi ;;
@@ -1414,13 +1554,27 @@ while [[ $mg_i -lt ${#MAP_VERB[@]} ]]; do
             mg_hits=0
             while IFS=$'\t' read -r mg_vp mg_ph; do
                 [[ -n "$mg_vp" ]] || continue
+                # Globs reach into the default dated records when they name them; a historical line
+                # holds in either scope.
                 [[ "$mg_scope" == all ]] && mg_is_historical "$mg_vp" && continue
+                mg_map_historical "$mg_vp" && continue
                 mg_before=${#MG_EDITED[@]}
                 mg_rewrite_in "$mg_vp" "$mg_a" "$mg_b" path "$MG_KEEP"
                 [[ ${#MG_EDITED[@]} -gt $mg_before ]] && mg_hits=1
             done < <(mg_candidates "$mg_a" "$mg_scope")
             [[ $mg_hits -eq 1 ]] || mg_act skip "rewrite $mg_a -> $mg_b (nothing left to rewrite)" ;;
         keep) mg_act skip "keep $mg_a (protects the literal in every rewrite)" ;;
+        historical)
+            # The files it names, listed under its line: M7, rewrite and M18 leave them as written.
+            mg_hn=0 mg_hl=""
+            while IFS=$'\t' read -r mg_vp mg_ph; do
+                case "$mg_vp" in kit|kit/*) continue ;; esac
+                # shellcheck disable=SC2053
+                [[ "$mg_vp" == $mg_a || "$mg_vp" == $mg_a/* ]] || continue
+                mg_hn=$((mg_hn + 1)); mg_hl+="    $mg_vp"$'\n'
+            done < <(mg_vlist)
+            mg_act skip "historical $mg_a (dated records: $mg_hn, kept as written)"
+            printf '%s' "$mg_hl" ;;
         private-term)
             # The term itself is not printed: the run's output may be kept or shared.
             if mg_vread .claude/private-terms.local 2>/dev/null | grep -qxF -- "$mg_a"; then
@@ -1526,6 +1680,10 @@ for mg_p in .gitmodules kit .claude/settings.json .gitignore CLAUDE.md .claude/k
     if [[ $DRY -eq 0 ]]; then
         [[ -e "$WS/$mg_p" ]] || continue
         mg_g check-ignore -q --no-index -- "$mg_p" 2>/dev/null && ! mg_g ls-files --error-unmatch -- "$mg_p" >/dev/null 2>&1 && continue
+    else
+        # The dry run has not written its .gitignore lines, so it reads its own copy of the file: a
+        # path the run is about to ignore (an untracked project, say) would make git add refuse the line.
+        mg_vignored "$mg_p" && ! mg_vtracked "$mg_p" && continue
     fi
     mg_add+=("$mg_p")
 done
@@ -1550,6 +1708,20 @@ echo
 echo "Next:"
 echo "  1. Run kit/setup.sh. Its stage 4 confirms the origin is private and records it."
 echo "  2. Restart Claude Code and approve the plugins."
-echo "  3. Check that /plugin shows agentic-workspace at $WS/kit."
+echo "  3. Once the commit is made, check that /plugin shows agentic-workspace at"
+echo "       $WS/kit"
+echo "     If it shows the old path, your user settings still name it there. Re-point the user entry alone:"
+echo "     a remove without --scope user also takes the marketplace and the three plugins out of the"
+echo "     workspace's .claude/settings.json, and uninstalls them. Quit Claude Code, then run these one at"
+echo "     a time:"
+echo "       claude plugin marketplace remove --scope user agentic-workspace"
+echo "       claude plugin marketplace add --scope user $(mg_q "$WS/kit")"
+echo "       claude plugin install closeout@agentic-workspace"
+echo "       claude plugin install projects@agentic-workspace"
+echo "       claude plugin install workspace@agentic-workspace"
+echo "       git -C $(mg_q "$WS") diff -- .claude/settings.json"
+echo "     The last one prints nothing when the workspace's settings are as committed. If it prints a"
+echo "     change, put the file back:"
+echo "       git -C $(mg_q "$WS") checkout -- .claude/settings.json"
 echo "  4. Look in _delete/ and delete what you do not want back."
 exit 0

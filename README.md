@@ -549,12 +549,27 @@ a rule for how the shared layer and each person's own layer are arbitrated, a re
 always-loaded tier, and — for a pilot — a way to show afterwards what changed.
 
 `kit/setup.sh` lays all of that down, with the kit as a submodule of the team's private repository at
-`kit/`, read in place:
+`kit/`, read in place. There are two ways to start, and both end in the same workspace:
+
+**From the template repository.** On GitHub, choose *Use this template* on
+`cyberscribe/agentic-workspace-template` and pick Private. A fork of a public repository cannot be
+made private, so the template is used, not forked. Then clone it with its submodule and run setup:
 
 ```bash
-git clone https://github.com/cyberscribe/agentic-workspace-kit.git /tmp/agentic-workspace-kit
-bash /tmp/agentic-workspace-kit/setup.sh new ../team-workspace --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
+git clone --recurse-submodules <your private repository URL> team-workspace
+cd team-workspace && kit/setup.sh --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
 ```
+
+**With `setup.sh new`.** Clone the kit anywhere, and let it start the workspace in a new folder, with
+no GitHub needed. Add a private remote as `origin` later, and run `kit/setup.sh` again to confirm it:
+
+```bash
+git clone https://github.com/cyberscribe/agentic-workspace-kit.git agentic-workspace-kit
+bash agentic-workspace-kit/setup.sh new team-workspace --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
+```
+
+Either way, setup runs the same ten stages, changes nothing it has already done when run again, and
+commits nothing: it ends by printing the commit to make. `docs/setup.md` describes each stage and mode.
 
 - **`CLAUDE.md` is the team's always-loaded file.** Its first line, `@kit/CLAUDE.kit.md`, imports the
   kit's working standards, which update with the kit; everything below it is the team's own and wins
@@ -636,6 +651,32 @@ description says when to offer it unprompted: the board when someone asks where 
 own line when a session opens in its folder, the closeout near the end of a session that decided
 something.
 
+### Commands and hooks, one page each
+
+Each command and hook has a page in `docs/`, in the same four parts: what it does, when to reach for
+it, common questions, and how to tell it is working.
+
+| Command | Plugin | For | Page |
+|---|---|---|---|
+| `/closeout` | closeout | The end of a working session: learnings promoted, tracking reconciled | [docs/commands/closeout.md](docs/commands/closeout.md) |
+| `/projects:new` | projects | Starting a project with a checkable finish line | [docs/commands/projects-new.md](docs/commands/projects-new.md) |
+| `/projects:adopt` | projects | A project that already exists, or a change to how one is versioned | [docs/commands/projects-adopt.md](docs/commands/projects-adopt.md) |
+| `/projects:board` | projects | Every project in flight on one page, with flags | [docs/commands/projects-board.md](docs/commands/projects-board.md) |
+| `/projects:hold` | projects | Pausing a project with its reason and a look-again date | [docs/commands/projects-hold.md](docs/commands/projects-hold.md) |
+| `/projects:pickup` | projects | A cold-start brief, and resuming a paused project | [docs/commands/projects-pickup.md](docs/commands/projects-pickup.md) |
+| `/projects:close` | projects | Finishing: evidence, retrospective, archive | [docs/commands/projects-close.md](docs/commands/projects-close.md) |
+| `/workspace:quick-start` | workspace | The first-time interview, and the check that the kit is reachable | [docs/commands/workspace-quick-start.md](docs/commands/workspace-quick-start.md) |
+| `/workspace:hygiene` | workspace | The weekly pass over where context lives | [docs/commands/workspace-hygiene.md](docs/commands/workspace-hygiene.md) |
+| `/workspace:register-audit` | workspace | The monthly pass over how guidance reads | [docs/commands/workspace-register-audit.md](docs/commands/workspace-register-audit.md) |
+
+The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.md) and
+[closeout-review](docs/hooks/closeout-review.md); the projects plugin's
+[session-start line](docs/hooks/projects-session-start.md); the workspace plugin's
+[session-start summary](docs/hooks/workspace-session-start.md) and
+[git guard](docs/hooks/workspace-guard-git.md); and the git hooks in `githooks/`,
+[pre-commit](docs/hooks/pre-commit.md), [pre-merge-commit](docs/hooks/pre-merge-commit.md),
+[commit-msg](docs/hooks/commit-msg.md) and [pre-push](docs/hooks/pre-push.md).
+
 ## The files in this kit
 
 | File | What it is |
@@ -660,6 +701,9 @@ something.
 | `githooks/`, `scripts/check-paths.sh` | The git hooks and the one checker of paths and content they, and CI, run |
 | `scripts/skills-bridge.sh`, `scripts/build-template.sh` | The skills bridge, and the builder of the template repository |
 | `docs/migration.md` | Moving a 2.x workspace to the 3.0 layout, and the map file format |
+| `docs/setup.md` | `kit/setup.sh`: the ten stages and every mode |
+| `docs/commands/`, `docs/hooks/` | One page per command and per hook, in four parts: what it does, when to reach for it, common questions, how to tell it is working |
+| `CONTRIBUTING.md` | Changing the kit: fork it, point the workspace's `kit/` at the fork, commit there, and open a pull request; running the tests and shellcheck |
 | `templates/workspace/` | The files a workspace starts from and then owns — see the table below |
 | `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
 | `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |

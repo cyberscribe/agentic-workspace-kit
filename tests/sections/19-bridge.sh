@@ -150,6 +150,38 @@ else
     skp "19 each kit-* skill passes section 9's skill_ok — skill_ok is defined in section 9 (run with AW_SECTIONS=\"9 19\")"
 fi
 
+# In Claude Code the plugin's command is the way in: each kit-* skill names its surface test, hands over
+# to the plugin command when it is available, and otherwise names the plugin and the command that loads it.
+s19_bad=""
+while IFS=$'\t' read -r s19_o s19_n s19_src; do
+    [[ "$s19_o" == kit && -f "$s19_sk/$s19_n/SKILL.md" ]] || continue
+    s19_p="${s19_src#plugins/}"; s19_p="${s19_p%%/*}"; s19_c="$(basename "$s19_src" .md)"
+    s19_t="/$s19_p:$s19_c"; [[ "$s19_p" == "$s19_c" ]] && s19_t="/$s19_c"
+    s19_flat="$(tr '\n' ' ' < "$s19_sk/$s19_n/SKILL.md")"
+    for s19_w in '`CLAUDECODE=1`' "\`$s19_p:$s19_c\` is among the commands or skills available to you" \
+        "type \`$s19_t\`, and go no further here" "the $s19_p plugin is not loaded" \
+        "\`claude plugin install $s19_p@agentic-workspace\`, or \`/plugin\`" 'then carry on here'; do
+        [[ "$s19_flat" == *"$s19_w"* ]] || s19_bad+="$s19_n: no $s19_w"$'\n'
+    done
+done < "$s19_man"
+empty "19 each kit-* skill hands over to its plugin command in Claude Code, and names the plugin and its fix when that is not loaded" "$s19_bad"
+
+# With the bridge's skills there and a kit plugin Claude Code would not load, the state check says so and
+# the workspace session-start summary names the plugin and the fix. A scratch config folder stands in for
+# the person's own.
+s19_cfg="$SCRATCH/s19-cc-config"
+mkdir -p "$s19_cfg/plugins"
+printf '{"version":2,"plugins":{"closeout@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}}\n' \
+    > "$s19_cfg/plugins/installed_plugins.json"
+s19_st="$(CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/bin/state.sh" --quick "$s19_w1" 2>&1)"
+s19_hk="$(printf '{"cwd":"%s"}' "$s19_w1" | CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/hooks/session-start.sh" 2>&1 \
+    | jq -r '.systemMessage // empty' 2>/dev/null)"
+[[ "$s19_st" == *$'\nskills_bridge=present\n'* && "$s19_st" == *$'\nplugins_loaded=no\n'* \
+   && "$s19_st" == *$'\nplugins_not_loaded=projects:not-installed\n'* \
+   && "$s19_hk" == *"the kit's projects plugin is not loaded, so its kit-* skills stand in for it — claude plugin install projects@agentic-workspace, or /plugin."* ]] \
+    && ok "19 a kit plugin not loaded beside the bridge: state.sh --quick names it, and the session-start summary gives the fix" \
+    || ko "19 a kit plugin not loaded beside the bridge: state.sh --quick names it, and the session-start summary gives the fix" "$s19_st"$'\n'"$s19_hk"
+
 # A second run changes nothing, and --check agrees.
 s19_before="$(st_tree "$s19_w1")"
 s19_run "$s19_w1"

@@ -155,6 +155,12 @@ PY
     empty "20 nothing is deleted: the vendored plugins, the generated skills and the unchanged copies are under _delete/" "$s20_d"
     git -C "$s20_ws" check-ignore -q _delete/x && ok "20 _delete/ is ignored before anything moves into it" \
         || ko "20 _delete/ is ignored before anything moves into it"
+    if [[ -z "$s20_wait" ]]; then
+        [[ "$(grep -c "^Icon$(printf '\r\r')\$" "$s20_ws/.gitignore")" == 1 ]] && git -C "$s20_ws" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
+            && grep -q '^edit \.gitignore: + Icon\\r\\r$' "$s20_scr/real.act" \
+            && ok "20 M10 writes the template's macOS Icon line with both carriage returns, and prints them as \\r" \
+            || ko "20 M10 writes the template's macOS Icon line with both carriage returns, and prints them as \\r" "$(grep -n Icon "$s20_ws/.gitignore" | od -c | head -n 3)"
+    fi
     [[ -f "$s20_ws/skills/field-notes/SKILL.md" ]] && ! grep -q 'skills/field-notes' "$s20_scr/real.act" \
         && ok "20 a skill without the generator's marker stays in skills/" || ko "20 a skill without the generator's marker stays in skills/"
     [[ -f "$s20_ws/kit/CLAUDE.kit.md" && ! -e "$s20_ws/templates/agentic-workspace" ]] \
@@ -295,6 +301,62 @@ else
     ko "20 the 2.x fixture for the stopped run builds" "$(tail -n 5 "$s20_r.log" 2>/dev/null)"
 fi
 
+# A map's historical line, and keep in M7: a dated handoff note outside logs/ keeps the old kit path
+# through M7, a rewrite whose glob reaches it, and M18; the project README beside it is rewritten, with
+# a kept lookalike left as written. The dry run lists the note under the historical line.
+s20_hi="$s20_scr/historical-2x"
+if [[ -n "$s20_wait" ]]; then
+    skp "20 a map's historical line keeps a dated record as written through M7, rewrite and M18, and keep holds in M7 — waits for $s20_wait"
+elif mkws2x "$s20_hi"; then
+    s20_note=projects/field-study/handoff/2026-01-05-note.md
+    s20_note_text='On 2026-01-05 the ritual was templates/agentic-workspace/rituals/closeout.md, drafts in field-notes/plan.md.'
+    mkdir -p "$s20_hi/projects/field-study/handoff"
+    printf '%s\n' "$s20_note_text" > "$s20_hi/$s20_note"
+    printf '# Field study\n\nThe ritual is templates/agentic-workspace/rituals/closeout.md, drafts in field-notes/plan.md; the vendor copy is old/templates/agentic-workspace/x.md.\n' \
+        > "$s20_hi/projects/field-study/README.md"
+    s20_commit "$s20_hi" "A handoff note and a project README"
+    s20_advance "$s20_hi/templates/agentic-workspace"
+    cat > "$s20_scr/historical.map" <<'MAP'
+historical	projects/*/handoff/*
+keep	old/templates/agentic-workspace/
+rewrite	field-notes/	notes/field/	projects/*
+MAP
+    s20_run "$s20_hi/templates/agentic-workspace" "$s20_hi" --dry-run --map "$s20_scr/historical.map"; s20_rc=$?
+    cp "$s20_out" "$s20_scr/historical-dry.out"
+    s20_actions "$s20_scr/historical-dry.out" | sed 's/^would //' > "$s20_scr/historical-dry.act"
+    s20_run "$s20_hi/templates/agentic-workspace" "$s20_hi" --map "$s20_scr/historical.map"; s20_rc2=$?
+    cp "$s20_out" "$s20_scr/historical-real.out"; cp "$s20_err" "$s20_scr/historical-real.err"
+    s20_actions "$s20_scr/historical-real.out" > "$s20_scr/historical-real.act"
+    s20_d=""
+    [[ $s20_rc -eq 0 && $s20_rc2 -eq 0 ]] || s20_d+="rc $s20_rc/$s20_rc2: $(cat "$s20_scr/historical-real.err")"$'\n'
+    s20_d+="$(diff "$s20_scr/historical-dry.act" "$s20_scr/historical-real.act" 2>&1)"
+    grep -qxF 'would skip historical projects/*/handoff/* (dated records: 1, kept as written)' "$s20_scr/historical-dry.out" \
+        || s20_d+="the dry run has no historical line with its count"$'\n'
+    grep -qxF "    $s20_note" "$s20_scr/historical-dry.out" || s20_d+="the dry run does not list $s20_note under the historical line"$'\n'
+    empty "20 a map's historical line: the dry run lists the files it keeps, and its action lines are the real run's" "$s20_d"
+
+    s20_d=""
+    [[ "$(cat "$s20_hi/$s20_note")" == "$s20_note_text" ]] || s20_d+="the handoff note changed: $(cat "$s20_hi/$s20_note")"$'\n'
+    grep -q "^edit $s20_note:" "$s20_scr/historical-real.act" && s20_d+="an edit line names the handoff note"$'\n'
+    grep -qF "note $s20_note:1 names templates/agentic-workspace/ (a dated record keeps its wording)" "$s20_scr/historical-real.act" \
+        || s20_d+="M7 does not note the handoff note's reference"$'\n'
+    grep -q "^note $s20_note:[0-9]* still names" "$s20_scr/historical-real.act" && s20_d+="M18 names the handoff note"$'\n'
+    empty "20 a file a historical line names keeps the old kit path through M7, a rewrite whose glob reaches it, and M18" "$s20_d"
+
+    s20_d=""
+    [[ "$(cat "$s20_hi/projects/field-study/README.md")" == "# Field study"$'\n\n''The ritual is kit/rituals/closeout.md, drafts in notes/field/plan.md; the vendor copy is old/templates/agentic-workspace/x.md.' ]] \
+        || s20_d+="README: $(cat "$s20_hi/projects/field-study/README.md")"$'\n'
+    grep -q '^note projects/field-study/README.md:[0-9]* still names' "$s20_scr/historical-real.act" && s20_d+="M18 names the kept literal in the README"$'\n'
+    empty "20 a file no historical line names is rewritten by M7 and the map's rewrite, and M7 leaves a keep literal as written" "$s20_d"
+
+    s20_run "$s20_hi/kit" "$s20_hi" --map "$s20_scr/historical.map"; s20_rc=$?
+    s20_d="$(s20_actions "$s20_out" | grep -vE '^(skip|note) ')"
+    [[ $s20_rc -eq 0 && -z "$s20_d" ]] && ok "20 the same historical map run again changes nothing" \
+        || ko "20 the same historical map run again changes nothing" "rc $s20_rc; $s20_d$(cat "$s20_err")"
+else
+    ko "20 the 2.x fixture for the historical line builds" "$(tail -n 5 "$s20_hi.log" 2>/dev/null)"
+fi
+
 # M0: a kit checkout with a .git folder of its own, on a cp -R copy (a clone always absorbs).
 if [[ $kitsrc_ok -eq 1 ]]; then
     s20_e="$s20_scr/embedded"
@@ -312,6 +374,37 @@ if [[ $kitsrc_ok -eq 1 ]]; then
         && [[ -f "$s20_scr/embedded-copy/kit/.git" ]] && ! printf '%s\n' "$s20_st" | grep -q '^-' \
         && ok "20 M0 absorbs an embedded kit .git, then M1 moves the kit to kit/" \
         || ko "20 M0 absorbs an embedded kit .git, then M1 moves the kit to kit/" "rc $s20_rc; $s20_st; $(cat "$s20_err")"
+
+    # The same, with the kit's hooks already set inside its own .git, as a 2.x setup can leave them.
+    # Absorbing moves that folder, so the dry run names the kit's hooks path as it will be after the
+    # move, and the real run leaves the kit's hooks path pointing at a folder that exists.
+    if [[ -n "$s20_wait" ]]; then
+        skp "20 a populated kit with its own .git and hooks: absorb, move and hooks leave its hooks path resolving — waits for $s20_wait"
+    else
+        s20_eh="$s20_scr/embedded-hooks"
+        cp -R "$s20_e" "$s20_eh"
+        s20_eh_k="$s20_eh/templates/agentic-workspace"
+        s20_eh_gd="$(cd "$s20_eh_k/.git" && pwd -P)"
+        mkdir -p "$s20_eh_gd/aw-hooks"
+        git -C "$s20_eh_k" config core.hooksPath "$s20_eh_gd/aw-hooks"
+        s20_run "$s20_eh_k" "$s20_eh" --dry-run; s20_rc=$?
+        cp "$s20_out" "$s20_scr/eh-dry.out"
+        s20_actions "$s20_scr/eh-dry.out" | sed 's/^would //' > "$s20_scr/eh-dry.act"
+        s20_run "$s20_eh_k" "$s20_eh"; s20_rc2=$?
+        cp "$s20_out" "$s20_scr/eh-real.out"; cp "$s20_err" "$s20_scr/eh-real.err"
+        s20_actions "$s20_scr/eh-real.out" > "$s20_scr/eh-real.act"
+        s20_hp="$(git -C "$s20_eh/kit" config --get core.hooksPath)"
+        s20_d=""
+        [[ $s20_rc -eq 0 && $s20_rc2 -eq 0 ]] || s20_d+="rc $s20_rc/$s20_rc2: $(cat "$s20_scr/eh-real.err")"$'\n'
+        [[ -f "$s20_eh/kit/.git" ]] || s20_d+="kit/.git is not a gitfile after M0 and M1"$'\n'
+        [[ -n "$s20_hp" && -d "$s20_hp" && -x "$s20_hp/pre-commit" ]] || s20_d+="the kit's hooks path ($s20_hp) is not a folder holding the stubs"$'\n'
+        [[ "$s20_hp" == "$(git -C "$s20_eh/kit" rev-parse --absolute-git-dir)/aw-hooks" ]] || s20_d+="the kit's hooks path ($s20_hp) is not in its git dir"$'\n'
+        grep -qxF "    would set kit core.hooksPath=$s20_hp" "$s20_scr/eh-dry.out" \
+            || s20_d+="the dry run does not name the path after the move: $(grep 'kit core.hooksPath' "$s20_scr/eh-dry.out")"$'\n'
+        grep -qF 'templates/agentic-workspace/.git/aw-hooks' "$s20_scr/eh-dry.out" && s20_d+="the dry run names the kit's .git inside the old checkout"$'\n'
+        s20_d+="$(diff "$s20_scr/eh-dry.act" "$s20_scr/eh-real.act" 2>&1)"
+        empty "20 a populated kit with its own .git and hooks: absorb, move and hooks leave its hooks path resolving, and the dry run names that path" "$s20_d"
+    fi
 fi
 
 # Preconditions and the orphan gitlink, on a 3.0 workspace (mkws_min), where every step before M8 is
@@ -340,6 +433,70 @@ if mkws_min "$s20_m"; then
         || ko "20 with submodule-register in the map, the orphan gitlink is registered and the run goes on" "rc $s20_rc; $(cat "$s20_err")"
 else
     ko "20 the 3.0 fixture (mkws_min) builds"
+fi
+
+# The header verb, and a commit plan that leaves out what the run's own .gitignore lines ignore: a
+# paused project moved in and kept untracked, a tracked project taken out of the index, and a tracked
+# one that stays. The dry run's git add line is the real run's, and git add accepts it.
+s20_h="$s20_scr/header"
+if [[ -n "$s20_wait" ]]; then
+    skp "20 the header verb and a commit plan without ignored paths — waits for $s20_wait"
+elif mkws_min "$s20_h"; then
+    mkdir -p "$s20_h/on-hold/grant" "$s20_h/projects/office" "$s20_h/projects/plain" "$s20_h/docs"
+    printf '# Grant\n\nA budget.\n' > "$s20_h/on-hold/grant/README.md"
+    printf '# Office\n\n- **Versioned:** workspace\n\nThe office network.\n' > "$s20_h/projects/office/README.md"
+    printf '# Plain\nNothing private.\n' > "$s20_h/projects/plain/README.md"
+    printf 'Notes.\n' > "$s20_h/docs/notes.md"
+    printf '/on-hold/\n' >> "$s20_h/.gitignore"
+    s20_commit "$s20_h" "Projects to classify"
+    printf 'header\tprojects/plain\tVersioned=maybe\n' > "$s20_scr/header-bad.map"
+    s20_run "$s20_h/kit" "$s20_h" --map "$s20_scr/header-bad.map"; s20_rc=$?
+    [[ $s20_rc -eq 2 ]] && grep -q 'line 1' "$s20_err" && ok "20 a header line with a value it does not know is malformed (exit 2)" \
+        || ko "20 a header line with a value it does not know is malformed (exit 2)" "rc $s20_rc; $(cat "$s20_err")"
+    cat > "$s20_scr/header.map" <<'MAP'
+gitignore-add	/projects/grant/
+mv	on-hold/grant	projects/grant
+header	projects/grant	Versioned=untracked	Sensitivity=sensitive
+untrack	projects/office
+header	projects/office	Versioned=untracked	Sensitivity=sensitive
+header	projects/plain	Versioned=workspace	Sensitivity=normal
+header	projects/absent	Versioned=workspace
+git-mv	docs/notes.md	docs/moved.md
+MAP
+    s20_run "$s20_h/kit" "$s20_h" --dry-run --map "$s20_scr/header.map"; s20_rc=$?
+    cp "$s20_out" "$s20_scr/header-dry.out"
+    s20_actions "$s20_scr/header-dry.out" | sed 's/^would //' > "$s20_scr/header-dry.act"
+    s20_run "$s20_h/kit" "$s20_h" --map "$s20_scr/header.map"; s20_rc2=$?
+    cp "$s20_out" "$s20_scr/header-real.out"; cp "$s20_err" "$s20_scr/header-real.err"
+    s20_actions "$s20_scr/header-real.out" > "$s20_scr/header-real.act"
+    s20_add_dry="$(grep '^  git add ' "$s20_scr/header-dry.out")"
+    s20_add_real="$(grep '^  git add ' "$s20_scr/header-real.out")"
+    s20_d=""
+    [[ $s20_rc -eq 0 && $s20_rc2 -eq 0 ]] || s20_d+="rc $s20_rc/$s20_rc2: $(cat "$s20_scr/header-real.err")"$'\n'
+    s20_d+="$(diff "$s20_scr/header-dry.act" "$s20_scr/header-real.act" 2>&1)"
+    [[ "$s20_add_dry" == "$s20_add_real" ]] || s20_d+="the git add lines differ:"$'\n'"  dry:  $s20_add_dry"$'\n'"  real: $s20_add_real"$'\n'
+    case " $s20_add_dry " in *" projects/grant"*|*" projects/office"*) s20_d+="the dry run's git add line names an ignored project: $s20_add_dry"$'\n' ;; esac
+    case " $s20_add_dry " in *" projects/plain/README.md "*) ;; *) s20_d+="the dry run's git add line leaves out projects/plain/README.md"$'\n' ;; esac
+    (cd "$s20_h" && eval "${s20_add_dry#  }") >/dev/null 2>"$s20_scr/header-add.err" || s20_d+="git add refuses the dry run's line: $(cat "$s20_scr/header-add.err")"$'\n'
+    empty "20 a dry run's commit plan leaves out the paths the run's own .gitignore lines ignore, as the real run's does, and git add accepts it" "$s20_d"
+
+    s20_d=""
+    [[ "$(cat "$s20_h/projects/grant/README.md")" == "# Grant"$'\n\n'"- **Versioned:** untracked"$'\n'"- **Sensitivity:** sensitive"$'\n\n'"A budget." ]] \
+        || s20_d+="grant (inserted under the title): $(cat "$s20_h/projects/grant/README.md")"$'\n'
+    [[ "$(cat "$s20_h/projects/office/README.md")" == "# Office"$'\n\n'"- **Versioned:** untracked"$'\n'"- **Sensitivity:** sensitive"$'\n\n'"The office network." ]] \
+        || s20_d+="office (one rewritten, one added beside it): $(cat "$s20_h/projects/office/README.md")"$'\n'
+    [[ "$(cat "$s20_h/projects/plain/README.md")" == "# Plain"$'\n\n'"- **Versioned:** workspace"$'\n'"- **Sensitivity:** normal"$'\n\n'"Nothing private." ]] \
+        || s20_d+="plain (blank lines either side): $(cat "$s20_h/projects/plain/README.md")"$'\n'
+    grep -q '^edit projects/office/README.md:3 Versioned: workspace -> untracked$' "$s20_scr/header-real.act" || s20_d+="no edit line for the rewritten value"$'\n'
+    grep -q '^skip header projects/absent (no README.md here)$' "$s20_scr/header-real.act" || s20_d+="the absent project was not skipped"$'\n'
+    empty "20 the header verb writes Versioned and Sensitivity under the title, rewrites a line with another value, and skips a folder with no README" "$s20_d"
+    # The index now holds the git add above as well as the run's own staging, hence --allow-staged.
+    s20_run "$s20_h/kit" "$s20_h" --allow-staged --map "$s20_scr/header.map"; s20_rc=$?
+    s20_d="$(s20_actions "$s20_out" | grep -E '^(edit|move|run|retire|config) ')"
+    [[ $s20_rc -eq 0 && -z "$s20_d" ]] && grep -q '^skip header projects/plain/README.md Versioned: workspace (there already)$' "$s20_out" \
+        && ok "20 the same header lines run again change nothing" || ko "20 the same header lines run again change nothing" "rc $s20_rc; $s20_d"
+else
+    ko "20 the 3.0 fixture for the header verb (mkws_min) builds"
 fi
 
 # The map, every verb, on a migrated workspace: a dry run and a real run, compared, then checked.

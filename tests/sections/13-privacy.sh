@@ -211,6 +211,23 @@ printf 'Intake\n\n%s\n' "$s13_priv" > "$s13_W/projects/$s13_slug/private/intake.
 s13_kitpc "$(s13_stage "$s13_K" 100644 docs/intake-copy.md "$(s13_file intake-copy.md "Notes.\n$s13_priv\n")")"
 s13_expect "13 kit pre-commit: a long line copied from an ignored file in a project's private/ folder is refused" 1 \
     "a copy of projects/$s13_slug/private/intake.md (line 2)"
+# At workspace size, under the grep macOS ships: about 3,000 small files and 1,000 long candidate lines,
+# one of them a real copy. BSD grep's -F -x -f with a list that long ran for minutes; the scan has to
+# finish in seconds with /usr/bin/grep first on PATH, and still find the copy.
+s13_bulk="$s13_W/projects/$s13_slug/private/bulk"
+mkdir -p "$s13_bulk"
+awk -v d="$s13_bulk" 'BEGIN { for (i = 1; i <= 3000; i++) { f = d "/note-" i ".md"
+    printf "# Note %d\n\nThe note numbered %d records a session that ran long and ended with a summary.\n", i, i > f; close(f) } }'
+awk 'BEGIN { for (i = 1; i <= 999; i++) printf "Line %d of a long page that no workspace file holds word for word, padded out.\n", i }' > "$s13_S/bulk-page.md"
+printf 'The note numbered 1234 records a session that ran long and ended with a summary.\n' >> "$s13_S/bulk-page.md"
+s13_t0=$(date +%s)
+s13_kitpc "$(s13_stage "$s13_K" 100644 docs/bulk-page.md "$s13_S/bulk-page.md")" PATH="/usr/bin:$PATH"
+s13_t=$(( $(date +%s) - s13_t0 ))
+s13_expect "13 kit pre-commit: 1,000 long lines against 3,000 workspace files with /usr/bin/grep finds the one copy" 1 \
+    "a copy of projects/$s13_slug/private/bulk/note-1234.md (line 1000)"
+[[ $s13_t -lt 10 ]] && ok "13 ... in under 10 seconds (${s13_t} s)" || ko "13 ... in under 10 seconds" "${s13_t} s"
+s13_has "checking 1000 new lines against" && ok "13 ... and says on stderr how many lines and files it checks" \
+    || ko "13 ... and says on stderr how many lines and files it checks" "$(cat "$s13_out")"
 # The people folder is the one the conventions name, and a short own-repo project folder counts.
 cp "$s13_W/.claude/projects.md" "$s13_S/projects.md.orig"; cp "$s13_W/.gitmodules" "$s13_S/gitmodules.orig"
 sed 's#^- \*\*People:\*\* `memory/people/<name>.md`#- **People:** `memory/team-notes/<name>.md`#' "$s13_S/projects.md.orig" > "$s13_W/.claude/projects.md"
@@ -470,21 +487,22 @@ sys.exit(os.WEXITSTATUS(st) if os.WIFEXITED(st) else 1)' "$@"; }
 s13_run s13_notty env AW_GH="$s13_S/no-such/gh" bash -c 'cd "$1" && exec "$2" "$3" origin "$4" < "$5"' _ \
     "$s13_W" "$st_bash" "$s13_K/githooks/pre-push" "git@github.com:example-owner/person-ws.git" "$s13_S/ws-stdin"
 s13_expect "13 workspace pre-push: a Private remote confirmed via person is not trusted with no terminal" 1 "no one is at a terminal"
+# s13_withtty: the command in a new session whose controlling terminal is a fresh pty, with stdin and
+# output redirected as git gives a hook. The child keeps the pty slave open on fd 9: macOS drops a
+# session's controlling terminal once no descriptor holds it, and /dev/tty then fails, where Linux
+# keeps it. The parent waits rather than reading the pty to its end, which fd 9 would hold open.
 s13_withtty() { S13_TTY_IN="$s13_S/ws-stdin" S13_TTY_OUT="$s13_out" python3 -c 'import os, pty, sys
 try:
     pid, fd = pty.fork()
 except OSError:
     sys.exit(97)
 if pid == 0:
+    os.dup2(0, 9)
     i = os.open(os.environ["S13_TTY_IN"], os.O_RDONLY); os.dup2(i, 0)
     o = os.open(os.environ["S13_TTY_OUT"], os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644); os.dup2(o, 1); os.dup2(o, 2)
     os.execvp(sys.argv[1], sys.argv[1:])
-try:
-    while os.read(fd, 1024):
-        pass
-except OSError:
-    pass
 _, st = os.waitpid(pid, 0)
+os.close(fd)
 sys.exit(os.WEXITSTATUS(st) if os.WIFEXITED(st) else 1)' "$@"; s13_rc=$?; }
 s13_withtty env AW_GH="$s13_S/no-such/gh" bash -c 'cd "$1" && exec "$2" "$3" origin "$4"' _ \
     "$s13_W" "$st_bash" "$s13_K/githooks/pre-push" "git@github.com:example-owner/person-ws.git"

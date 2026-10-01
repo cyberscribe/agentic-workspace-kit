@@ -610,7 +610,7 @@ EOF
                 g grep -h -F -f "$tmp/cand" "$CP_LINE_BASE" -- 2>/dev/null \
                     | awk 'FNR == NR { c[$0] = 1; next } ($0 in c)' "$tmp/cand" - | sort -u > "$tmp/known"
                 if [[ -s "$tmp/known" ]]; then
-                    grep -vxF -f "$tmp/known" "$tmp/cand" > "$tmp/cand2"; cat "$tmp/cand2" > "$tmp/cand"
+                    awk 'FNR == NR { k[$0] = 1; next } !($0 in k)' "$tmp/known" "$tmp/cand" > "$tmp/cand2"; cat "$tmp/cand2" > "$tmp/cand"
                 fi
             fi
             if [[ -s "$tmp/cand" ]]; then
@@ -632,9 +632,19 @@ ${PROJECT_PATTERNS:-}
 EOF
                 [[ -d "$ws/.secrets" && ! -L "$ws/.secrets" ]] && printf '.secrets\n' >> "$tmp/roots"
                 if [[ -s "$tmp/roots" ]]; then
+                    # The exact-line match is one awk pass: the candidates in a hash, then every file
+                    # streamed through it. grep -F -x -f with a long list is fast in GNU grep and far too
+                    # slow in the BSD grep macOS ships, and the kit relies on nothing beyond the system's
+                    # tools. grep -I -l with an empty pattern (one pattern, cheap everywhere) first drops
+                    # binary and empty files, as grep -I did.
                     ( cd "$ws" && sort -u "$tmp/roots" | awk '{ for (r in R) if (index($0, r "/") == 1) next; R[$0] = 1; print }' | while IFS= read -r r; do
                           find "$r" -name .git -prune -o -type f -size -1025k -print0 2>/dev/null
-                      done | xargs -0 grep -I -H -F -x -f "$tmp/cand" -- /dev/null 2>/dev/null ) >> "$tmp/wsg"
+                      done > "$tmp/files" )
+                    printf 'aw pre-commit: checking %s new lines against %s workspace files…\n' \
+                        "$(aw_count < "$tmp/cand")" "$(tr -cd '\000' < "$tmp/files" | wc -c | tr -d ' ')" >&2
+                    # shellcheck disable=SC2016 # the awk program's $0 is awk's, not the shell's
+                    ( cd "$ws" && xargs -0 grep -I -l --null -e '' -- /dev/null < "$tmp/files" 2>/dev/null \
+                          | xargs -0 awk 'FNR == NR { c[$0] = 1; next } ($0 in c) { print FILENAME ":" $0 }' "$tmp/cand" /dev/null 2>/dev/null ) >> "$tmp/wsg"
                 fi
                 if [[ -s "$tmp/wsg" ]]; then
                     # file:line, with a file name that may itself hold a colon: the split is the one whose

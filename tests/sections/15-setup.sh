@@ -666,6 +666,12 @@ if s15_need kitsrc engine; then
     [[ "$(head -n 1 "$s15_t/CLAUDE.md" 2>/dev/null)" == "@kit/CLAUDE.kit.md" ]] || s15_bad+="CLAUDE.md does not start with the import"$'\n'
     grep -rqs 'Machine Person\|machine@example' "$s15_t/.git/config" "$s15_t/.git/logs" && s15_bad+="the machine identity reached .git"$'\n'
     empty "15 build-template.sh: the exact file list, one commit on main as the kit, no identity from the machine" "$s15_bad"
+    # macOS writes a folder's icon as a file named Icon and a carriage return. The template's line keeps
+    # it out, and leaves files named Icon or Icons alone.
+    git -C "$s15_t" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
+        && ! git -C "$s15_t" check-ignore -q --no-index -- Icons && ! git -C "$s15_t" check-ignore -q --no-index -- Icon \
+        && ok "15 the template repository's .gitignore ignores a macOS Icon file, and not Icon or Icons" \
+        || ko "15 the template repository's .gitignore ignores a macOS Icon file, and not Icon or Icons" "$(grep -n Icon "$s15_t/.gitignore" | od -c | head -n 3)"
     # A word from the private list stops the build before the commit, and the word is never printed.
     printf '%s\n' '# a comment line is not a word' '' 'standards' >"$SCRATCH/s15-words.txt"
     s15_t2="$SCRATCH/s15-template-words"

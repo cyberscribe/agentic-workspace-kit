@@ -55,6 +55,19 @@ edit inside `kit/` happens only with a person approving it. Where `.claude/skill
 exists, `.claude/skills/` is the skills bridge's generated copy, rewritten on its next run, so general
 reference goes to `skills/`.
 
+**Sensitive projects.** A project whose README reads `Sensitivity: sensitive` is kept untracked or as
+its own private repository, and learnings from it land in its own folder only. Nothing from it — a
+name, a figure, a finding, a quotation — is promoted into a file the workspace tracks or shares: not
+`CLAUDE.md`, `docs/`, `skills/`, the cross-project log, a people profile, nor a kit pull request. Where a
+learning generalises, the report offers a stripped version and says it came from a sensitive project;
+the person decides whether it travels.
+
+**The cross-project filter.** Where the repository keeps a cross-project decisions log
+(`logs/decisions.md`, or the one its conventions name), a decision goes there only if it still means
+something with every reference to the project, technology, file path and stakeholder stripped out;
+otherwise it stays in the project. When it is unclear, it stays in the project — promotion is cheap,
+demotion is not.
+
 ### 3. Verify before recording
 
 Check each technical claim against the current state of the code or file. A behaviour that changed
@@ -111,7 +124,9 @@ People or Team section in the project's README or in the local closeout conventi
 team list in the configuration. With one person or none, skip it without comment. The line
 `Who needs to know: auto | ask | off` in the local closeout conventions sets it — `ask` offers it in
 one line, `off` leaves it out — and the same line in a project README's People section overrides that
-for the project.*
+for the project. With neither, the line in the person's own conventions applies; that file sets the
+step but adds nobody to a project. A roster row with an email address, or a phone number outside its
+channel and handle cells, is left out, and the report says whose.*
 
 A project's People section wins over the roster: the role it gives a person stands. The roster adds
 anyone the project does not name whose default relationship matches what changed — a scoped one,
@@ -175,6 +190,11 @@ commit that the submodule's remote lacks, and `push.recurseSubmodules=check` ref
 anyway. With a submodule inside a submodule, the innermost repository comes first, and each pointer is
 added in the repository around it. Every `git add` names its paths exactly, and no command carries a
 comment. The ritual itself commits nothing and pushes nothing.
+
+A project marked `Versioned: untracked` has nothing to commit in the workspace; say so rather than
+listing its files. A project folder that is a repository of its own but not a submodule of the
+workspace commits inside itself only: the workspace does not `git add` it, which would record an
+embedded repository, and the report suggests `/projects:adopt` to make it `own-repo` or `untracked`.
 
 ## The backstop
 

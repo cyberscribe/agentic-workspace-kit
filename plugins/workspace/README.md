@@ -98,8 +98,9 @@ It covers the git hooks, the `@kit/CLAUDE.kit.md` import in `CLAUDE.md`, the kit
 off `main` in developer mode, submodules out of step (the kit and projects that
 are their own repository; other submodules are left alone), gitlinks with no
 `.gitmodules` entry, resources absent on this machine, sensitive projects with
-files the workspace tracks, an origin not confirmed private, and the kit behind
-its remote. It finds the workspace from the session's folder, so a session opened
+files the workspace tracks, an origin not confirmed private, the kit behind
+its remote, and a kit plugin Claude Code would not load while the skills bridge's
+`kit-` skills stand in for it. It finds the workspace from the session's folder, so a session opened
 inside `kit/` or inside a project that is its own repository reports on the
 workspace around it, and one opened anywhere else reports nothing.
 
@@ -129,7 +130,8 @@ tracks, projects whose `Versioned:` line disagrees with the folder, each resourc
 (`resource.<slug>/<name>`), the skills bridge, and traces of a 2.x layout. For the
 people in it: the always-loaded file and the stand-ins left in it, the person's
 profile, the project conventions, the register, the decisions log, the team's own
-skills, the plugins registered, and a closing `mode=` line (`fresh`, `joining`,
+skills, the plugins registered and whether Claude Code here would load them (read
+from its settings and plugin registry, not from a running session), and a closing `mode=` line (`fresh`, `joining`,
 `existing-system` or `nothing-left`). It is written for the quick-start, the
 setup wizard, the session-start summary and the board to branch on, and the tests
 assert against it. Run it from the workspace, or name another folder:

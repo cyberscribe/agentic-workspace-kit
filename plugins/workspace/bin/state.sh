@@ -25,7 +25,8 @@
 # --quick emits only: state_version target in_git hooks kit_hooks kit_path kit_submodule kit_commit
 # kit_version kit_branch kit_behind kit_import origin origin_visibility origin_confirmed submodules
 # submodule_recurse submodule.* submodules_attention orphan_gitlinks sensitive_projects
-# sensitive_tracked versioned_mismatch external_paths external_paths_missing resource.* quick=1.
+# sensitive_tracked versioned_mismatch external_paths external_paths_missing resource.* skills_bridge
+# plugins_loaded plugins_not_loaded quick=1.
 # Its git calls do not grow with the number of project folders, and it never lists a resource folder
 # (ls on a cloud-drive folder can stall a session hook): a resource is tested with -e and -d only.
 #
@@ -38,7 +39,8 @@
 #   register register_path register_rows project_folders projects_without_current_state
 #   adopt_proposals glossary glossary_terms build_list verification catalogue readme codeowners
 #   decisions_log decisions_log_other own_skills foreign_skills kit_incoming
-#   settings plugins_registered plugins_mode plugins_path vendored_commit kit_checkout
+#   settings plugins_registered plugins_mode plugins_path plugins_loaded plugins_not_loaded
+#   vendored_commit kit_checkout
 #   closeout_conventions surfaces gemini_commands measure_script metrics_csv
 #   closeout_drafts_pending
 #   hooks hooks_chain kit_path kit_submodule kit_commit kit_version kit_branch kit_behind kit_hooks
@@ -129,6 +131,7 @@ emit() {
             kit_branch|kit_behind|kit_import|origin|origin_visibility|origin_confirmed|submodules) ;;
             submodule_recurse|submodule.*|submodules_attention|orphan_gitlinks|sensitive_projects) ;;
             sensitive_tracked|versioned_mismatch|external_paths|external_paths_missing|resource.*|quick) ;;
+            skills_bridge|plugins_loaded|plugins_not_loaded) ;;
             *) return 0 ;;
         esac
     fi
@@ -908,6 +911,65 @@ emit external_paths "${ext%,}"
 # projects hook's to offer, once, when a session opens the project.
 emit external_paths_missing "${ext_missing%,}"
 
+# ---- The skills bridge, and whether Claude Code would load the kit's plugins ----------------------------
+manifest="$T/.claude/skills/.kit-generated"
+# skills_bridge: present | missing — .claude/skills/.kit-generated, written by kit/scripts/skills-bridge.sh.
+if [[ -f "$manifest" ]]; then emit skills_bridge present; else emit skills_bridge missing; fi
+# A shell cannot ask a running Claude Code what it loaded, so this reads the same files Claude Code reads
+# at startup: enabledPlugins in .claude/settings.local.json, then .claude/settings.json, then the user's
+# settings.json (the first that names a plugin decides), and the installed-plugins registry, both under
+# ${CLAUDE_CONFIG_DIR:-~/.claude}, read-only. A plugin whose hook runs this (CLAUDE_PLUGIN_ROOT) is loaded.
+cfg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+registry="$cfg/plugins/installed_plugins.json"
+kit_plugins=""
+if [[ $kit_path != none && $kit_path != /* ]]; then
+    for pj in "$T/$kit_path"/plugins/*/.claude-plugin/plugin.json; do
+        [[ -f "$pj" ]] && kit_plugins+="$(basename "$(dirname "$(dirname "$pj")")")"$'\n'
+    done
+fi
+p_loaded=unknown p_not=""
+if [[ -n "$kit_plugins" && $have_jq == yes ]]; then
+    # name<TAB>true|false from each settings file, highest precedence first; awk keeps the first per name.
+    enabled="$(for f in "$T/.claude/settings.local.json" "$settings" "$cfg/settings.json"; do
+                   [[ -f "$f" ]] && jq -r '(.enabledPlugins // {}) | to_entries[] | select(.key | endswith("@agentic-workspace"))
+                                           | "\(.key | sub("@agentic-workspace$"; ""))\t\(.value == true)"' "$f" 2>/dev/null
+               done | awk -F '\t' '!($1 in seen) { seen[$1] = 1; print }')"
+    installed="" have_registry=no
+    if [[ -f "$registry" ]]; then
+        # Installed for the user, or for this repository (project and local scope carry its path).
+        installed="$(jq -r --arg t "$T" '(.plugins // {}) | to_entries[] | select(.key | endswith("@agentic-workspace"))
+                         | select(any(.value | if type == "array" then .[] else . end; .scope == "user" or .projectPath == $t))
+                         | .key | sub("@agentic-workspace$"; "")' "$registry" 2>/dev/null)" && have_registry=yes
+        installed="$(printf '%s\n' "$installed" | join)"
+    fi
+    here_plugin=""
+    [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && here_plugin="$(jq -r '.name // empty' "$CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
+    while IFS= read -r p; do
+        [[ -n "$p" && "$p" != "$here_plugin" ]] || continue
+        case "$(printf '%s\n' "$enabled" | awk -F '\t' -v p="$p" '$1 == p { print $2; exit }')" in
+            false) p_not+="$p:disabled," ;;
+            true) [[ $have_registry == yes ]] && ! in_list "$p" "$installed" && p_not+="$p:not-installed," ;;
+            *) p_not+="$p:not-enabled," ;;
+        esac
+    done <<EOF
+$kit_plugins
+EOF
+    if [[ -n "$p_not" ]]; then p_loaded=no; elif [[ $have_registry == yes ]]; then p_loaded=yes; fi
+fi
+# plugins_loaded: yes | no | unknown — whether Claude Code on this machine, opened here, would load every
+# plugin in the kit checkout: each enabled by the settings above and installed in the registry. It reads
+# configuration, not the running session, so a plugin that is set up but fails to load still reads yes,
+# and one loaded for a session only (claude --plugin-dir) reads no. Managed settings are not read.
+# unknown: no jq, no kit checkout, or no registry to read (a machine where Claude Code has installed no
+# plugins, or another surface's shell).
+emit plugins_loaded "$p_loaded"
+# plugins_not_loaded: each kit plugin not loaded, as <plugin>:<why> — not-enabled (no settings file enables
+# it), disabled (the first settings file to name it sets it false: a choice, which the session-start
+# summary leaves alone) or not-installed (enabled, but not in the registry for the user or this
+# repository). The fix for the first and last is claude plugin install <plugin>@agentic-workspace, or
+# /plugin.
+emit plugins_not_loaded "${p_not%,}"
+
 if [[ $QUICK -eq 1 ]]; then
     # quick: 1 when the report is the --quick subset.
     emit quick 1
@@ -946,8 +1008,7 @@ if [[ $wl -eq 2 ]]; then emit word_list unreadable; elif [[ -n "$wlp" ]]; then e
 if [[ -f "$T/.claude/kit-templates.lock" ]]; then emit ledger present; else emit ledger missing; fi
 # resources_file: present | missing — .claude/resources.local.md, this machine's resource paths.
 if [[ -f "$T/.claude/resources.local.md" ]]; then emit resources_file present; else emit resources_file missing; fi
-# The skills bridge's manifest: origin<TAB>folder<TAB>source per folder it wrote.
-manifest="$T/.claude/skills/.kit-generated"
+# The skills bridge's manifest (read above): origin<TAB>folder<TAB>source per folder it wrote.
 bridged="" nb=0 nstale=0
 if [[ -f "$manifest" ]]; then
     bridged="$(awk -F '\t' '!/^#/ && NF >= 2 && $2 != "" && $1 != "skip" { print $2 }' "$manifest" 2>/dev/null)"
@@ -956,8 +1017,6 @@ if [[ -f "$manifest" ]]; then
 $bridged
 EOF
 fi
-# skills_bridge: present | missing — .claude/skills/.kit-generated, written by kit/scripts/skills-bridge.sh.
-if [[ -f "$manifest" ]]; then emit skills_bridge present; else emit skills_bridge missing; fi
 # skills_bridge_count: the manifest's lines (kit and user folders written, and skip lines).
 emit skills_bridge_count "$nb"
 # skills_bridge_stale: listed kit and user folders that are missing (kit/setup.sh skills writes them

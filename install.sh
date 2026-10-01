@@ -155,6 +155,7 @@ r_created=() r_merged=() r_gitignore=() r_regen=() r_same=() r_kept=() r_changed
 #   gemini   .gemini/commands/<plugin>/<command>.toml: the description, and the body as the prompt.
 #   skills   <skills dir>/<prefix><name>/SKILL.md, a thin pointer at the command file with a
 #            description that says when to offer it, and procedure.md beside it, the body as it stands.
+#            Where the plugin's own command is loaded, the skill hands over to it.
 # A generated file carries a marker naming its source, so a changed command replaces it; a file at
 # that path without the marker is someone's own and is left alone.
 
@@ -228,7 +229,14 @@ generate_commands() { # <format> <plugins dir> <repository root, resolved>
                     printf '<!-- %s%s/commands/%s.md: edit that file, then re-run the installer. -->\n\n' "$GEN_MARK" "$plugin" "$cmd"
                     printf '# %s\n\n' "$name"
                     printf "This is the kit's \`/%s\` command as a skill, for an assistant that loads skills from a folder\n" "${ns:+$ns:}$cmd"
-                    printf 'rather than plugins. Its procedure has one source, and this skill points at it.\n\n'
+                    printf 'rather than plugins. Its procedure has one source, and this skill points at it. Claude Code names\n'
+                    # Where the plugin can load, the skill hands over rather than giving a second route to one
+                    # command; in Claude Code without the plugin it says so, with the fix, and then runs.
+                    printf 'itself in your instructions and sets `CLAUDECODE=1` in its shell; there, the plugin'"'"'s command is\n'
+                    printf 'the way in. When `%s:%s` is among the commands or skills available to you, on any surface,\n' "$plugin" "$cmd"
+                    printf 'hand over: invoke it, or ask the person to type `/%s`, and go no further here. In Claude\n' "${ns:+$ns:}$cmd"
+                    printf 'Code without it, the %s plugin is not loaded: say so in one line, with the fix (`claude\n' "$plugin"
+                    printf 'plugin install %s@agentic-workspace`, or `/plugin`, then a new session), then carry on here.\n\n' "$plugin"
                     if [[ -n "$ptr" ]]; then
                         printf 'Follow the procedure in `%s` in this repository, reading it in full\n' "$ptr"
                         printf 'before acting. When that file cannot be reached from here, follow `procedure.md` beside\n'
@@ -366,13 +374,15 @@ GI_HEADER='# Added by the agentic workspace kit (kit/templates/workspace.gitigno
 
 # gi_missing <.gitignore or /dev/null> <declined list or /dev/null>: the template's lines (not blank,
 # not a # line) that the file does not have and the person has not declined, in template order. Lines
-# compare after trailing spaces are trimmed.
+# compare after one carriage return (a CRLF file's) and then trailing spaces are trimmed. A template
+# line is written with only its trailing spaces trimmed: the macOS Icon line ends in two carriage
+# returns, which are the pattern.
 gi_missing() {
     awk '
-        { l = $0; sub(/[ \t\r]+$/, "", l) }
-        FILENAME == ARGV[1] { if (l == "" || l ~ /^#/) next; if (!(l in seen)) { seen[l] = 1; order[++n] = l }; next }
+        { l = $0; sub(/\r$/, "", l); sub(/[ \t]+$/, "", l); o = $0; sub(/[ \t]+$/, "", o) }
+        FILENAME == ARGV[1] { if (l == "" || l ~ /^#/) next; if (!(l in seen)) { seen[l] = 1; order[++n] = l; line[n] = o }; next }
         { have[l] = 1 }
-        END { for (i = 1; i <= n; i++) if (!(order[i] in have)) print order[i] }' "$KIT/$GI_TPL" "$1" "$2"
+        END { for (i = 1; i <= n; i++) if (!(order[i] in have)) print line[i] }' "$KIT/$GI_TPL" "$1" "$2"
 }
 # gi_new_content <.gitignore> <missing lines file>: the file as it is, then the header (once) and the lines.
 gi_new_content() {

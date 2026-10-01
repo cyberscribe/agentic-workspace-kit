@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SessionStart summary for the workspace plugin: one line for each thing about the workspace that is
 # out of step — the git hooks, the kit import, a submodule, an orphan gitlink, a resource, a sensitive
-# project, the origin, the kit's distance from its remote — each naming the command that fixes it. A
-# workspace in step gets nothing.
+# project, the origin, the kit's distance from its remote, a kit plugin not loaded while the skills
+# bridge's kit-* skills stand in for it — each naming the command that fixes it. A workspace in step gets
+# nothing.
 #
 # It finds the workspace from the session's folder: the nearest ancestor (the folder itself included)
 # holding kit/CLAUDE.kit.md or .claude/kit-templates.lock. So a session opened inside kit/, or inside a
@@ -183,6 +184,20 @@ fi
 n="$(key kit_behind)"
 if isnum "$n" && [[ "$n" -gt 0 ]]; then
     lines+=("Workspace: the kit is $(plural "$n" "commit" "commits") behind its remote — kit/setup.sh update.")
+fi
+
+# Kit plugins not loaded while the skills bridge's kit-* skills are there: the skills would stand in for
+# the plugin's commands and hide that it is missing. A plugin set false in settings is a choice, not named.
+if [[ "$(key skills_bridge)" == present && "$(key plugins_loaded)" == no ]]; then
+    v="$(key plugins_not_loaded | tr ',' '\n' | awk -F: '$2 == "not-enabled" || $2 == "not-installed" { print $1 }' | paste -sd, -)"
+    if [[ -n "$v" ]]; then
+        n="$(ncount "$v")" nm="$(names "$v")"
+        if [[ "$n" == 1 ]]; then
+            lines+=("Workspace: the kit's $v plugin is not loaded, so its kit-* skills stand in for it — claude plugin install $v@agentic-workspace, or /plugin.")
+        else
+            lines+=("Workspace: the kit's plugins $nm are not loaded, so their kit-* skills stand in for them — claude plugin install <name>@agentic-workspace for each, or /plugin.")
+        fi
+    fi
 fi
 
 [[ ${#lines[@]} -gt 0 ]] || exit 0

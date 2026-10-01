@@ -51,7 +51,7 @@ names what it reads, so the same keys come from reading those files yourself.
 | `own_skills`, `foreign_skills`, `decisions_log_other` | The team's own skills and commands, the ones whose names say they do a kit command's job, and decisions logs kept elsewhere. The name match is a first pass: read `own_skills` for the rest |
 | `adopt_proposals`, `projects_without_current_state` | Step 3 of fitting the kit to a system already in place |
 | `external_paths`, `external_paths_missing` | Material projects name outside the repository, and what is not reachable on this machine: the offer after projects are listed |
-| `plugins_registered`, `surfaces`, `gemini_commands`, `skills_bridge` | Step 1 of reachable and running |
+| `plugins_registered`, `plugins_loaded`, `plugins_not_loaded`, `surfaces`, `gemini_commands`, `skills_bridge` | Step 1 of reachable and running |
 | `commits`, `measure_script`, `metrics_csv` | Step 3 of reachable and running |
 
 ## Which mode this is
@@ -250,7 +250,10 @@ order, and take a "not now" as an answer.
    team's own skills from `skills/` beside them, and records what it wrote in
    `.claude/skills/.kit-generated`; it refreshes only what that manifest lists,
    and reports a name clash rather than overwriting. `skills_bridge` says
-   whether it has run here.
+   whether it has run here. In Claude Code the `kit-` skills hand over to the
+   plugin commands, so check the plugins there too: `plugins_loaded=no` names
+   each missing one in `plugins_not_loaded`, and `claude plugin install
+   <plugin>@agentic-workspace` (or `/plugin`) is the fix.
 
    For the desktop assistant, check where it actually scans, not only where the
    skills were written. Find the folder it loads skills from — the surface

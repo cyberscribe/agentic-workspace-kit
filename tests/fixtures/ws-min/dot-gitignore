@@ -27,6 +27,8 @@ _delete/
 
 # Operating-system and tool clutter
 .DS_Store
+# A macOS folder icon is a file named Icon and a carriage return; git drops one from the line's end.
+Icon
 __pycache__/
 *.pyc
 .venv/
