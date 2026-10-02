@@ -942,22 +942,36 @@ if [[ -n "$kit_plugins" && $have_jq == yes ]]; then
                          | .key | sub("@agentic-workspace$"; "")' "$registry" 2>/dev/null)" && have_registry=yes
         installed="$(printf '%s\n' "$installed" | join)"
     fi
+    # The workspace's own settings registering the kit as a directory marketplace (the 3.0 layout:
+    # extraKnownMarketplaces.agentic-workspace, source directory, path kit). Claude Code loads the plugins
+    # those settings enable straight from that folder, without writing them to the registry, so the
+    # registry is not consulted for them.
+    dir_mkt=no
+    for f in "$T/.claude/settings.local.json" "$settings"; do
+        [[ -f "$f" ]] || continue
+        mp="$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source // empty | select(.source == "directory") | .path // empty' "$f" 2>/dev/null)"
+        [[ -n "$mp" ]] || continue
+        case "$mp" in /*) ;; *) mp="$T/$mp" ;; esac
+        [[ -f "$mp/.claude-plugin/marketplace.json" ]] && dir_mkt=yes
+        break
+    done
     here_plugin=""
     [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && here_plugin="$(jq -r '.name // empty' "$CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
     while IFS= read -r p; do
         [[ -n "$p" && "$p" != "$here_plugin" ]] || continue
         case "$(printf '%s\n' "$enabled" | awk -F '\t' -v p="$p" '$1 == p { print $2; exit }')" in
             false) p_not+="$p:disabled," ;;
-            true) [[ $have_registry == yes ]] && ! in_list "$p" "$installed" && p_not+="$p:not-installed," ;;
+            true) [[ $dir_mkt == no && $have_registry == yes ]] && ! in_list "$p" "$installed" && p_not+="$p:not-installed," ;;
             *) p_not+="$p:not-enabled," ;;
         esac
     done <<EOF
 $kit_plugins
 EOF
-    if [[ -n "$p_not" ]]; then p_loaded=no; elif [[ $have_registry == yes ]]; then p_loaded=yes; fi
+    if [[ -n "$p_not" ]]; then p_loaded=no; elif [[ $have_registry == yes || $dir_mkt == yes ]]; then p_loaded=yes; fi
 fi
 # plugins_loaded: yes | no | unknown — whether Claude Code on this machine, opened here, would load every
-# plugin in the kit checkout: each enabled by the settings above and installed in the registry. It reads
+# plugin in the kit checkout: each enabled by the settings above, and either served by the directory
+# marketplace the workspace's own settings register (a kit/ that exists) or installed in the registry. It reads
 # configuration, not the running session, so a plugin that is set up but fails to load still reads yes,
 # and one loaded for a session only (claude --plugin-dir) reads no. Managed settings are not read.
 # unknown: no jq, no kit checkout, or no registry to read (a machine where Claude Code has installed no
@@ -966,7 +980,7 @@ emit plugins_loaded "$p_loaded"
 # plugins_not_loaded: each kit plugin not loaded, as <plugin>:<why> — not-enabled (no settings file enables
 # it), disabled (the first settings file to name it sets it false: a choice, which the session-start
 # summary leaves alone) or not-installed (enabled, but not in the registry for the user or this
-# repository). The fix for the first and last is claude plugin install <plugin>@agentic-workspace, or
+# repository, and no directory marketplace in the workspace's settings serves it). The fix for the first and last is claude plugin install <plugin>@agentic-workspace, or
 # /plugin.
 emit plugins_not_loaded "${p_not%,}"
 

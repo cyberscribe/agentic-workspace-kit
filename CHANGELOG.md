@@ -5,6 +5,27 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.0.2 — 2026-10-02
+
+**Fixes from the first clean install from GitHub, with a fresh Claude Code config.**
+
+- **The plugins read as loaded when they are.** Claude Code loads the plugins a workspace's own
+  settings enable from the directory marketplace at `kit/`, without writing them to its
+  installed-plugins registry. `state.sh` now counts a plugin as loaded when it is enabled and that
+  marketplace's folder exists, so the quick-start no longer reports the three plugins as not installed
+  while they are running. workspace 2.0.2.
+- **No warnings at launch.** The settings template's ask rules for `kit/` and `.claude/workspace.md` are
+  `Edit(…)` only. Claude Code applies `Edit` rules to every file-editing tool, and it warned on each
+  start about the `Write(…)` rules beside them.
+
+### Template changes
+
+Changed: `templates/workspace/settings.json` drops `Write(./kit/**)` and `Write(./.claude/workspace.md)`
+from `permissions.ask`; the `Edit(…)` rules beside them cover the same tools. `kit/setup.sh update`
+offers this as a diff to an existing workspace's `.claude/settings.json`.
+
+---
+
 ## v3.0.1 — 2026-09-30
 
 **Fixes found in the first migrations and review, before a team's first install.**
