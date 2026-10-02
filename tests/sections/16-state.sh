@@ -438,6 +438,11 @@ mkdir -p "$s16_cfg/plugins"
 # s16_reg <json for .plugins>: the registry in the scratch config folder.
 s16_reg() { printf '{"version":2,"plugins":%s}\n' "$1" > "$s16_cfg/plugins/installed_plugins.json"; }
 s16_pl() { CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_PL" "$@"; }
+# The registry checks run on settings without the workspace's directory marketplace (a kit reached
+# through a marketplace added for the user); the directory marketplace has its own checks below.
+s16_nomkt="$s16_S/settings-nomkt.json"
+jq 'del(.extraKnownMarketplaces)' "$s16_W/.claude/settings.json" > "$s16_nomkt"
+cp "$s16_nomkt" "$s16_PL/.claude/settings.json"
 st_expect "16 plugins_loaded unknown with no registry to read, and nothing named" "$(s16_pl)" plugins_loaded=unknown plugins_not_loaded=
 s16_reg '{"closeout@agentic-workspace":[{"scope":"user"}],"projects@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}'
 st_expect "16 plugins_loaded yes when every kit plugin is enabled and installed for the user" "$(s16_pl)" plugins_loaded=yes plugins_not_loaded=
@@ -445,7 +450,7 @@ s16_reg '{"closeout@agentic-workspace":[{"scope":"project","projectPath":"'"$s16
 st_expect "16 a project-scope install counts for its own repository only; another marketplace's is not the kit's" "$(s16_pl --quick)" \
     plugins_loaded=no plugins_not_loaded=projects:not-installed
 printf '{"enabledPlugins":{"projects@agentic-workspace":false}}\n' > "$s16_PL/.claude/settings.local.json"
-jq 'del(.enabledPlugins["closeout@agentic-workspace"])' "$s16_W/.claude/settings.json" > "$s16_PL/.claude/settings.json"
+jq 'del(.enabledPlugins["closeout@agentic-workspace"])' "$s16_nomkt" > "$s16_PL/.claude/settings.json"
 st_expect "16 settings.local.json wins over settings.json, and a plugin no settings file names is not enabled" "$(s16_pl)" \
     plugins_loaded=no plugins_not_loaded=closeout:not-enabled,projects:disabled
 printf '{"enabledPlugins":{"closeout@agentic-workspace":true}}\n' > "$s16_cfg/settings.json"
@@ -455,9 +460,20 @@ st_expect "16 the user's settings.json disables it" "$(s16_pl)" plugins_not_load
 st_expect "16 a plugin whose hook runs the check (CLAUDE_PLUGIN_ROOT) is loaded" \
     "$(CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/closeout" s16_pl)" plugins_not_loaded=projects:disabled
 printf 'not json\n' > "$s16_cfg/plugins/installed_plugins.json"
-cp "$s16_W/.claude/settings.json" "$s16_PL/.claude/settings.json"
+cp "$s16_nomkt" "$s16_PL/.claude/settings.json"
 printf '{}\n' > "$s16_PL/.claude/settings.local.json"; printf '{}\n' > "$s16_cfg/settings.json"
 st_expect "16 a registry that does not parse reads unknown" "$(s16_pl)" plugins_loaded=unknown plugins_not_loaded=
+# The 3.0 layout: the workspace's settings register kit/ as a directory marketplace, and Claude Code loads
+# the enabled plugins from it without writing them to the registry (seen with a fresh CLAUDE_CONFIG_DIR).
+cp "$s16_W/.claude/settings.json" "$s16_PL/.claude/settings.json"
+s16_reg '{}'
+st_expect "16 a directory marketplace at kit/ in the workspace's settings serves its enabled plugins, with an empty registry" \
+    "$(s16_pl)" plugins_loaded=yes plugins_not_loaded=
+st_expect "16 ... and --quick agrees" "$(s16_pl --quick)" plugins_loaded=yes plugins_not_loaded=
+jq '.extraKnownMarketplaces["agentic-workspace"].source.path = "no-such-kit"' "$s16_W/.claude/settings.json" > "$s16_PL/.claude/settings.json"
+st_expect "16 a directory marketplace whose folder does not exist serves nothing" "$(s16_pl)" \
+    plugins_loaded=no plugins_not_loaded=closeout:not-installed,projects:not-installed,workspace:not-installed
+cp "$s16_nomkt" "$s16_PL/.claude/settings.json"
 st_expect "16 no kit checkout: unknown" "$(CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_S/plain")" plugins_loaded=unknown
 
 # ---- A 2.2.0 workspace ------------------------------------------------------------------------------------

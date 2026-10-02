@@ -9,7 +9,7 @@
   },
   "permissions": {
     "allow": ["Bash(rm *closeout-drafts*)"],
-    "ask": ["Edit(./kit/**)", "Write(./kit/**)", "Edit(./.claude/workspace.md)", "Write(./.claude/workspace.md)"]
+    "ask": ["Edit(./kit/**)", "Edit(./.claude/workspace.md)"]
   },
   "attribution": { "commit": "", "pr": "" },
   "sandbox": { "filesystem": { "allowWrite": ["~/.claude/closeout-drafts"] } }

@@ -173,9 +173,15 @@ s19_cfg="$SCRATCH/s19-cc-config"
 mkdir -p "$s19_cfg/plugins"
 printf '{"version":2,"plugins":{"closeout@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}}\n' \
     > "$s19_cfg/plugins/installed_plugins.json"
+# The kit is reached through a marketplace added for the user here, not the workspace's own directory
+# marketplace (which serves its enabled plugins without the registry), so its entry is taken out for
+# these two runs and put back after.
+cp "$s19_w1/.claude/settings.json" "$SCRATCH/s19-settings.json"
+jq 'del(.extraKnownMarketplaces)' "$SCRATCH/s19-settings.json" > "$s19_w1/.claude/settings.json"
 s19_st="$(CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/bin/state.sh" --quick "$s19_w1" 2>&1)"
 s19_hk="$(printf '{"cwd":"%s"}' "$s19_w1" | CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/hooks/session-start.sh" 2>&1 \
     | jq -r '.systemMessage // empty' 2>/dev/null)"
+cp "$SCRATCH/s19-settings.json" "$s19_w1/.claude/settings.json"
 [[ "$s19_st" == *$'\nskills_bridge=present\n'* && "$s19_st" == *$'\nplugins_loaded=no\n'* \
    && "$s19_st" == *$'\nplugins_not_loaded=projects:not-installed\n'* \
    && "$s19_hk" == *"the kit's projects plugin is not loaded, so its kit-* skills stand in for it — claude plugin install projects@agentic-workspace, or /plugin."* ]] \
