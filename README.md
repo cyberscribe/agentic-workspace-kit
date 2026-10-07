@@ -719,7 +719,7 @@ once in the workspace and is the workspace's from then on:
 | `README.md` | `README.md` | The workspace's own README, opening with how it started |
 | `workspace.md` | `.claude/workspace.md` | Confirmed private remotes, published public ones, the private word list, and the skills the bridge leaves out |
 | `INDEX.md`, `decisions.md`, `glossary.md`, `people-README.md`, `audits-README.md` | `projects/INDEX.md`, `logs/decisions.md`, `memory/glossary.md`, `memory/people/README.md`, `audits/README.md` | The register, the decisions log, the glossary and the starting notes for people and audits |
-| `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public |
+| `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public (a repository marked as a template, as the published one is, is skipped) |
 | `closeout.md` | `.claude/closeout.md` | Points the closeout plugin (and the `kit-closeout` skill) at `kit/docs/memory-layers.md`, so there is one taxonomy rather than two |
 | `projects.md` | `.claude/projects.md` | The team's project conventions — where projects live, register sections, naming, in-flight limit, staleness — read first by every projects command |
 | `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |

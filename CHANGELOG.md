@@ -5,6 +5,16 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.0.4 — 2026-10-07
+
+- **The template repository passes its own `stay private` check.** The published template
+  (`cyberscribe/agentic-workspace-template`) is public and carries the workflow, so every push to it
+  failed with "This workspace repository is public". The step now runs when the repository is public
+  and is not marked as a template (`github.event.repository.is_template != true`): the template is
+  skipped, and a workspace made from it, which is not marked, is still checked. A test holds the
+  condition in `templates/workspace/stay-private.yml` and in the template `build-template.sh` builds.
+  A workspace that already has the workflow keeps its copy; `kit/setup.sh update` shows the difference.
+
 ## v3.0.3 — 2026-10-07
 
 - **The state check reads the repository from inside Claude Code's sandbox.** The Bash sandbox denies

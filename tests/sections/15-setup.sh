@@ -641,6 +641,14 @@ else
 fi
 
 # --- scripts/build-template.sh ----------------------------------------------------------------------
+# The template repository is public and carries this workflow, so the workflow has to let a repository
+# marked as a template through, and nothing else: without the guard every push to the template fails,
+# and with a looser one a public workspace would pass.
+s15_sp="$KIT/templates/workspace/stay-private.yml"
+s15_if="$(grep -E '^[[:space:]]*if:' "$s15_sp")"
+empty "15 stay-private.yml fails a public repository unless it is marked as a template" \
+    "$([[ "$(printf '%s\n' "$s15_if" | grep -c .)" == 1 && "$s15_if" == *'github.event.repository.private == false && github.event.repository.is_template != true'* ]] \
+        || printf 'the step condition: %s\n' "${s15_if:-none}")"
 if s15_need kitsrc; then
     s15_ne="$SCRATCH/s15-template-nonempty"; mkdir -p "$s15_ne"; : >"$s15_ne/x"
     "$st_bash" "$KIT/scripts/build-template.sh" "$s15_ne" --kit-url "$KITSRC" >/dev/null 2>&1; s15_rc=$?
@@ -665,6 +673,9 @@ if s15_need kitsrc engine; then
     [[ "$(git config -f "$s15_t/.gitmodules" submodule.kit.url)" == "$KITSRC" ]] || s15_bad+=".gitmodules url: $(git config -f "$s15_t/.gitmodules" submodule.kit.url)"$'\n'
     [[ "$(head -n 1 "$s15_t/CLAUDE.md" 2>/dev/null)" == "@kit/CLAUDE.kit.md" ]] || s15_bad+="CLAUDE.md does not start with the import"$'\n'
     grep -rqs 'Machine Person\|machine@example' "$s15_t/.git/config" "$s15_t/.git/logs" && s15_bad+="the machine identity reached .git"$'\n'
+    # What the template ships is the workflow as the kit has it, guard included.
+    cmp -s "$s15_t/.github/workflows/stay-private.yml" "$s15_sp" && grep -q 'is_template != true' "$s15_t/.github/workflows/stay-private.yml" \
+        || s15_bad+="the built stay-private.yml is not the kit's, or lacks the is_template guard"$'\n'
     empty "15 build-template.sh: the exact file list, one commit on main as the kit, no identity from the machine" "$s15_bad"
     # macOS writes a folder's icon as a file named Icon and a carriage return. The template's line keeps
     # it out, and leaves files named Icon or Icons alone.

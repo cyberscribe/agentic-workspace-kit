@@ -6,8 +6,11 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      # A workspace holds project data, so a public one fails. The template repository the kit
+      # publishes is public on purpose and holds none: it is marked as a template, and skipped.
+      # A workspace made from it is not marked, so it is checked.
       - name: This workspace repository is private
-        if: ${{ github.event.repository.private == false }}
+        if: ${{ github.event.repository.private == false && github.event.repository.is_template != true }}
         run: |
           echo "::error::This workspace repository is public. A workspace holds project data; make it private in the repository settings."
           exit 1
