@@ -223,6 +223,9 @@ st_expect "16 hooks other when set to another folder; the kit's missing when uns
 st_expect "16 hooks other when only a global hooks path is in effect" "$(GIT_CONFIG_GLOBAL="$s16_S/global.gitconfig" st_run "$s16_O")" kit_hooks=other
 git -C "$s16_O" config aw.chainHooksPath "$s16_S/elsewhere-hooks"
 st_expect "16 hooks_chain reads aw.chainHooksPath" "$(st_run "$s16_O")" "hooks_chain=$s16_S/elsewhere-hooks"
+mkdir -p "$s16_S/unreadable-system-config"
+st_expect "16 a system git config git cannot read (a sandbox denying /etc) still reads the repository" \
+    "$(GIT_CONFIG_SYSTEM="$s16_S/unreadable-system-config" st_run "$s16_O")" in_git=yes kit_path=kit
 mkdir -p "$s16_S/plain"
 st_expect "16 a plain folder: hooks none, kit none" "$(st_run "$s16_S/plain")" in_git=no hooks=none kit_hooks=none \
     kit_path=none kit_submodule=none kit_behind=none kit_import=missing origin_visibility=unknown submodules=

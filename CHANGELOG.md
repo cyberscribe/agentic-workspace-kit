@@ -5,6 +5,14 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.0.3 — 2026-10-07
+
+- **The state check reads the repository from inside Claude Code's sandbox.** The Bash sandbox denies
+  `/etc`, and git stops on a system config it cannot read, so every git call in `state.sh` failed:
+  `/workspace:quick-start` saw `in_git=no`, no commits and no owner, and flagged every untracked
+  project as a mismatch. `state.sh` now sets `GIT_CONFIG_NOSYSTEM=1`; nothing it reports lives in the
+  system config. A test runs it against an unreadable system config. workspace 2.0.3.
+
 ## v3.0.2 — 2026-10-02
 
 **Fixes from the first clean install from GitHub, with a fresh Claude Code config.**

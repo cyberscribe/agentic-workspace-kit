@@ -107,6 +107,10 @@ note() { [[ $VERBOSE -eq 1 ]] && printf 'state.sh: %s\n' "$*" >&2; return 0; }
 
 dir="${dir:-$PWD}"
 if [[ ! -d "$dir" ]]; then printf 'error=not a directory: %s\n' "$dir"; exit 2; fi
+# Claude Code's Bash sandbox denies /etc, and git stops outright on a system config it cannot read, so
+# every call here would fail and the report would read in_git=no. Nothing this report needs lives in the
+# system config, so it is not read; gx inherits this too.
+export GIT_CONFIG_NOSYSTEM=1
 # The one door to git for this repository. Optional locks off, so even `status` never refreshes and
 # rewrites the index.
 g() { git --no-optional-locks -C "$T" "$@" 2>/dev/null; }
