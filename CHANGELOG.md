@@ -12,6 +12,8 @@ rewriting — the record of what a version claimed is part of what the version i
   `/workspace:quick-start` saw `in_git=no`, no commits and no owner, and flagged every untracked
   project as a mismatch. `state.sh` now sets `GIT_CONFIG_NOSYSTEM=1`; nothing it reports lives in the
   system config. A test runs it against an unreadable system config. workspace 2.0.3.
+- **The footer of `CLAUDE.kit.md` names 3.0.3.** It still read 3.0.2; a docs test now holds it to the
+  CHANGELOG's latest version.
 
 ## v3.0.2 — 2026-10-02
 

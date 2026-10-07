@@ -99,4 +99,4 @@ The workspace is private and the kit is public, and the git hooks in `kit/githoo
 - A commit or push the hooks refuse is reported to the person with the hook's reason. Retrying with
   `--no-verify`, or any other bypass, is not part of this workflow.
 
-*Kit 3.0.2*
+*Kit 3.0.3*

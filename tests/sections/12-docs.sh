@@ -101,3 +101,10 @@ printf '# p\n\n## What it does\n\n```\n## Not a heading\n```\n\n## Common questi
 [[ "$(s12_h2 "$s12_probe")" == "What it does|Common questions|When to reach for it|It's working if" ]] \
     && ok "12 the shape check skips fenced code and sees sections out of order" \
     || ko "12 the shape check skips fenced code and sees sections out of order" "$(s12_h2 "$s12_probe")"
+
+# The footer of CLAUDE.kit.md is the version an agent reads in every session, so it has to move with
+# the CHANGELOG; a release that forgets it shows the old version to every workspace.
+s12_v="$(awk '/^## v[0-9]/ { v = $2; sub(/^v/, "", v); print v; exit }' "$KIT/CHANGELOG.md")"
+s12_f="$(awk '/^\*Kit [0-9]/ { f = $2; sub(/\*$/, "", f) } END { print f }' "$KIT/CLAUDE.kit.md")"
+empty "12 CLAUDE.kit.md ends naming the CHANGELOG's latest version" \
+    "$([[ "$s12_f" == "$s12_v" ]] || printf 'footer %s, CHANGELOG %s\n' "${s12_f:-none}" "$s12_v")"
