@@ -602,7 +602,9 @@ s16_bad=""
 s16_tools=(bash cat dirname basename git awk grep sed tr ls find date sort head wc stat paste cut timeout)
 mkpath "$s16_S/path-nojq" "${s16_tools[@]}"
 mkpath "$s16_S/path-jq" "${s16_tools[@]}" jq
-PATH="$s16_S/path-nojq" command -v jq >/dev/null 2>&1 && s16_bad+="jq is still found on the PATH meant to hide it"$'\n'
+# In a subshell with its remembered paths dropped: bash 3.2 answers command -v from the jq it has
+# already run, whatever PATH is set to for the one command.
+(hash -r; PATH="$s16_S/path-nojq" command -v jq >/dev/null 2>&1) && s16_bad+="jq is still found on the PATH meant to hide it"$'\n'
 [[ -z "$(s16_hookrun "$s16_Z" PATH="$s16_S/path-nojq")" ]] || s16_bad+="with no jq on PATH it got output"$'\n'
 [[ -n "$(s16_hookrun "$s16_Z" PATH="$s16_S/path-jq")" ]] || s16_bad+="with the same PATH and jq it got no output"$'\n'
 [[ -z "$(s16_hookrun "$s16_S/no-such-folder")" ]] || s16_bad+="a missing folder got output"$'\n'

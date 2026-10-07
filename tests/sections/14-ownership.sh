@@ -130,7 +130,8 @@ empty "14 each ledger hash is the blob hash of the file the engine wrote" "$s14_
 s14_bad=""
 jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "directory", "path": "kit"}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="marketplace path"$'\n'
 jq -e '.attribution == {"commit": "", "pr": ""}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="attribution"$'\n'
-jq -e '[.enabledPlugins[]] == [true, true, true]' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="plugins"$'\n'
+# The kit's three on, and since 3.0.4 the standalone closeout off beside them.
+jq -e '.enabledPlugins == {"closeout@agentic-workspace": true, "projects@agentic-workspace": true, "workspace@agentic-workspace": true, "closeout@closeout-marketplace": false}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="plugins"$'\n'
 jq -e '.permissions.ask | index("Edit(./kit/**)") != null' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="ask rule for kit/"$'\n'
 empty "14 .claude/settings.json: the marketplace at kit, the three plugins, empty attribution, and ask on kit/" "$s14_bad"
 

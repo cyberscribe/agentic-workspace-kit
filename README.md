@@ -705,7 +705,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `docs/commands/`, `docs/hooks/` | One page per command and per hook, in four parts: what it does, when to reach for it, common questions, how to tell it is working |
 | `CONTRIBUTING.md` | Changing the kit: fork it, point the workspace's `kit/` at the fork, commit there, and open a pull request; running the tests and shellcheck |
 | `templates/workspace/` | The files a workspace starts from and then owns — see the table below |
-| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
+| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, `reads.sh` for agent reads from Claude Code's transcripts, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
 | `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |
 
 The files in `templates/workspace/` are sources for the installer, not files to copy by hand. Each lands

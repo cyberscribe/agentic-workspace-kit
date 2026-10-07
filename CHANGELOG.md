@@ -5,6 +5,42 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.0.5 — 2026-10-07
+
+- **The pilot counts whether agents read the reference material.** `measure.sh` counted what people
+  write and `ablate.sh` tested always-loaded lines on a set task; nothing showed whether agents, in
+  real sessions, went and read `docs/`, `memory/`, the logs and the project READMEs. `pilot/reads.sh`
+  counts it from Claude Code's own transcripts, read only: sessions started in the workspace, those
+  with at least one reference read, reads, searches, distinct files read, and the reference files
+  there are. `--print` gives the week's counts, each with what it is out of; `--report` adds the
+  per-file detail, and the files never read, in `pilot/reads.local.md`, which git ignores.
+- **Seven columns in `metrics.csv`,** filled by `reads.sh` in the daily row and in `--backfill`:
+  `agent_sessions_7d`, `sessions_reading_reference_7d`, `reference_reads_7d`,
+  `reference_searches_7d`, `reference_files_read_7d`, `reference_files_total` and `transcripts_from`.
+  They follow the ablation columns; a CSV with the older columns is recomputed for its dates the next
+  time a row is added, as before. Counts and dates only: no path, file name, prompt or command.
+- **A pruned week is empty, not zero.** Claude Code removes a transcript `cleanupPeriodDays` after it
+  was last written (30 by default). A window that does not start after the oldest transcript left has
+  the five counts empty. `setup.sh --pilot` and the pilot README ask each person to raise
+  `cleanupPeriodDays` in their own settings for the pilot's length; the kit does not write
+  `~/.claude`.
+- **The limits are in the pilot README:** a read shows the agent looked, not that it acted; Cowork and
+  claude.ai leave no transcript, so the count is Claude Code only, on the machine that ran it; and it
+  is a floor, since a read through a script or a nested shell is not seen.
+- **The pilot scripts run inside Claude Code's sandbox.** The Bash sandbox denies `/etc`, and git stops
+  on a system config it cannot read, so `measure.sh` failed at its first git call when the weekly
+  hygiene pass ran it from a session, the same cause 3.0.3 fixed in `state.sh`. `measure.sh` and
+  `reads.sh` now set `GIT_CONFIG_NOSYSTEM=1`; `ablate.sh` sets it for its own git calls only, so the
+  runs it grades keep their environment. Nothing these scripts read lives in the system config. A
+  test runs each against an unreadable system config. They set `GIT_ATTR_NOSYSTEM=1` beside it, and
+  so does `state.sh`: an unreadable `/etc/gitattributes` cost a git warning on stderr, and a weekly
+  run that prints warnings teaches people to ignore them. workspace 2.0.5.
+- **`READS_EXCLUDE` leaves folders or files out of the agent-read measure:** out of the reference
+  files, their reads and searches not counted. For a project about the tooling itself, whose README
+  and decisions get read all day by whoever develops it.
+- `measure.sh --print` no longer creates `pilot/`; it said it wrote nothing. `READS_AREAS` names the
+  reference folders, `READS_TRANSCRIPTS` another transcripts folder. Tests: `tests/sections/22-reads.sh`.
+
 ## v3.0.4 — 2026-10-07
 
 - **The template repository passes its own `stay private` check.** The published template

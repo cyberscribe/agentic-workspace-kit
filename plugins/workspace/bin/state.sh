@@ -111,6 +111,8 @@ if [[ ! -d "$dir" ]]; then printf 'error=not a directory: %s\n' "$dir"; exit 2; 
 # every call here would fail and the report would read in_git=no. Nothing this report needs lives in the
 # system config, so it is not read; gx inherits this too.
 export GIT_CONFIG_NOSYSTEM=1
+# The same for the system attributes file: unreadable, it costs a warning on every call that looks.
+export GIT_ATTR_NOSYSTEM=1
 # The one door to git for this repository. Optional locks off, so even `status` never refreshes and
 # rewrites the index.
 g() { git --no-optional-locks -C "$T" "$@" 2>/dev/null; }

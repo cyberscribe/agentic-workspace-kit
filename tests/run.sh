@@ -48,7 +48,7 @@
 # and then, from tests/sections/: 12 the docs (a page per command and hook, in four parts, and a README
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
-# pilot in a 3.0 workspace.
+# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -76,6 +76,9 @@ exec </dev/null
 # macOS mktemp ignores TMPDIR unless given a template, so a template is always passed.
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/aw-tests.XXXXXX")"
 SCRATCH="$(cd "$SCRATCH" && pwd -P)"
+# measure.sh's agent-read columns come from Claude Code's transcripts. No check reads the real ones:
+# every run is pointed at a folder that does not exist, and section 22 brings its own.
+export READS_TRANSCRIPTS="$SCRATCH/no-transcripts"
 if [[ "${AW_KEEP:-}" == "1" ]]; then
     trap 'echo "Scratch kept at $SCRATCH"' EXIT
 else
@@ -1322,8 +1325,8 @@ bad="$(
     expect 3 audit_reports 1; expect 3 doc_commits_7d 2; expect 3 doc_contributors_7d 2
 )"
 empty "5 every established column counts the fixture history correctly, week by week" "$bad"
-empty "5 metrics.csv holds counts only — a date, fifteen integers, the median days (empty until a project is done), and the three ablation counts" \
-    "$(tail -n +2 "$CSV" | grep -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]+){15},[0-9]*,[0-9]+,[0-9]*,[0-9]*$' || true)"
+empty "5 metrics.csv holds counts only — a date, fifteen integers, the median days (empty until a project is done), the three ablation counts, and the agent-read counts with their date" \
+    "$(tail -n +2 "$CSV" | grep -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]+){15},[0-9]*,[0-9]+,[0-9]*,[0-9]*(,[0-9]*){6},([0-9]{4}-[0-9]{2}-[0-9]{2})?$' || true)"
 
 # --- F12: the project columns ---------------------------------------------------------------------
 # In the fixture above, alpha is created 18 days ago in state doing and set to done 4 days ago (14
@@ -1332,10 +1335,12 @@ empty "5 metrics.csv holds counts only — a date, fifteen integers, the median 
 # project reaches done.
 known="$(printf '%s\n' ${base//,/ } projects_active projects_blocked projects_with_done_when \
     projects_done blocked_over_14d max_in_flight_per_person median_days_to_done \
-    ablations_named ablations_discriminating ablations_no_difference)"
-[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done,ablations_named,ablations_discriminating,ablations_no_difference" ]] \
-    && ok "5 F12 the header carries the seven project columns, then the three ablation columns, in order" \
-    || ko "5 F12 the header carries the seven project columns, then the three ablation columns, in order" "$(head -n 1 "$CSV")"
+    ablations_named ablations_discriminating ablations_no_difference \
+    agent_sessions_7d sessions_reading_reference_7d reference_reads_7d reference_searches_7d \
+    reference_files_read_7d reference_files_total transcripts_from)"
+[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done,ablations_named,ablations_discriminating,ablations_no_difference,agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from" ]] \
+    && ok "5 F12 the header carries the seven project columns, the three ablation columns, then the seven agent-read columns, in order" \
+    || ko "5 F12 the header carries the seven project columns, the three ablation columns, then the seven agent-read columns, in order" "$(head -n 1 "$CSV")"
 bad=""
 for c in $(head -n 1 "$CSV" | tr , ' '); do grep -qxF "$c" <<<"$known" || bad+="unknown column $c"$'\n'; done
 empty "5 every metrics.csv column is a known one" "$bad"
@@ -1397,7 +1402,9 @@ empty "5 F12 the data-model rules hold (locations, aliases, gaps, blocked, in fl
 # --target measures another repository from anywhere; a relative --out stays relative to where it was typed.
 tcsv="$SCRATCH/measure-out/t.csv"
 tout="$(cd "$SCRATCH" && MEASURE_ALWAYS_LOADED="CLAUDE.md" bash "$KIT/pilot/measure.sh" --target "$G/work" --backfill 0 --out measure-out/t.csv 2>&1)"; trc=$?
-[[ $trc -eq 0 && "$(cat "$tcsv" 2>/dev/null)" == "$(cat "$gcsv")" && ! -e "$G/pilot/metrics.csv" ]] \
+# The repository's own copy of measure.sh has no reads.sh to call and the kit's does, so the rows are
+# compared up to the agent-read columns.
+[[ $trc -eq 0 && "$(cut -d, -f1-20 "$tcsv" 2>/dev/null)" == "$(cut -d, -f1-20 "$gcsv")" && ! -e "$G/pilot/metrics.csv" ]] \
     && ok "5 --target measures that repository from another directory, the same rows as from inside it" \
     || ko "5 --target measures that repository from another directory, the same rows as from inside it" "rc=$trc $tout"
 
@@ -1531,12 +1538,12 @@ aflags="$(cd "$A" && bash pilot/ablate.sh --target "$A" --report 2>&1 | awk -F'|
 # Without the runner beside it, measure.sh counts the files and leaves the two result counts empty; a
 # kit checkout named in .claude/plugins/VENDORED supplies the runner.
 mkdir -p "$SCRATCH/measure-lone"; cp "$KIT/pilot/measure.sh" "$SCRATCH/measure-lone/measure.sh"
-lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-)"
+lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
 [[ "$lrow" == "4,," ]] && ok "5 without the runner, ablations_named is counted and the other two are empty" \
     || ko "5 without the runner, ablations_named is counted and the other two are empty" "got $lrow"
 mkdir -p "$A/.claude/plugins"
 printf 'Vendored from github.com/example/kit (plugins/)\nkit commit: 0000000\nkit checkout: %s (on the machine that ran the installer)\n' "$KIT" > "$A/.claude/plugins/VENDORED"
-lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-)"
+lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
 [[ "$lrow" == "4,3,0" ]] && ok "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" \
     || ko "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" "got $lrow"
 
@@ -2446,7 +2453,7 @@ early="$(grep -F '| early | 2026-09-21 |' <<<"$aout")"
 # measure.sh counts by the same rule: only `discriminates` as discriminating, only `no difference (both
 # pass)` as no difference; a lean and a check failing both arms count in neither.
 for x in gap3 gap2 gap2low gap1 gap1low weak same; do printf -- '---\nfile: CLAUDE.md\nablate:\n  - "A line."\n---\n' > "$AF/pilot/ablations/$x.md"; done
-mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -n 1 | awk -F, '{ print $(NF-2) "," $(NF-1) "," $NF }')"
+mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
 [[ "$mrow" == "9,3,1" ]] \
     && ok "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" \
     || ko "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" "got $mrow"
@@ -2664,7 +2671,7 @@ SETUP="$KIT/setup.sh" WZLIB="$KIT/lib/wizard.sh"
 check "11 setup.sh parses under $st_bash" "$st_bash" -n "$SETUP"
 check "11 lib/wizard.sh parses under $st_bash" "$st_bash" -n "$WZLIB"
 sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugins/workspace/bin/state.sh
-    pilot/ablate.sh pilot/measure.sh plugins/closeout/hooks/lib/config.sh
+    pilot/ablate.sh pilot/measure.sh pilot/reads.sh plugins/closeout/hooks/lib/config.sh
     githooks/pre-commit githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh
     githooks/lib/common.sh)
 for f in "$KIT"/scripts/*.sh "$KIT"/lib/setup/*.sh "$KIT"/plugins/workspace/hooks/*.sh; do sc_list+=("${f#"$KIT"/}"); done

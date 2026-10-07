@@ -11,28 +11,49 @@
 #   MEASURE_ALWAYS_LOADED="CLAUDE.md" pilot/measure.sh
 #                                    the files counted as always loaded (default: CLAUDE.md AGENTS.md
 #                                    kit/CLAUDE.kit.md), with every file they import by an @path line
+#   READS_AREAS="docs memory logs" pilot/measure.sh
+#                                    the folders whose tracked Markdown counts as reference, for the
+#                                    agent-read columns (project READMEs, decisions files and the
+#                                    register are always added; see pilot/reads.sh)
+#   READS_EXCLUDE="projects/tooling/" pilot/measure.sh
+#                                    folders or files, by path from the root, left out of the reference:
+#                                    out of the denominator, their reads and searches not counted
 #
 # Each row is a snapshot of the repository as it stood at the end of that day, plus activity in the
 # seven days up to it. Backfill works because every number is recomputed from a past commit rather
 # than remembered — which is also why the numbers can be trusted in a write-up. It reads committed
 # history only: before the first commit there is nothing to write, and backfill starts at the week
 # of the first commit rather than inventing zero rows for the weeks before it.
+#
+# The last seven columns are the exception: they are counted by pilot/reads.sh from Claude Code's
+# transcripts on this machine, which are kept for a limited time. A window that starts before the
+# oldest transcript is left empty rather than written as zero.
 set -euo pipefail
 
+# Claude Code's Bash sandbox denies /etc, and git stops outright on a system config it cannot read, so
+# a run from inside a session would fail at its first git call. Nothing counted here lives in the
+# system config, so it is not read; ablate.sh and reads.sh, run from here, inherit this.
+export GIT_CONFIG_NOSYSTEM=1
+# The same for the system attributes file: unreadable, it costs a warning on every call that looks,
+# and a weekly run that prints warnings teaches people to ignore them.
+export GIT_ATTR_NOSYSTEM=1
 # Every git call reads only: optional locks off, so a run beside a live session never leaves an
 # index.lock behind.
 git() { command git --no-optional-locks "$@"; }
 
-usage() { sed -n '2,19p' "$0"; exit 1; }
+usage() { sed -n '2,30p' "$0"; exit 1; }
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
-mode=append weeks="" out="" target=""
+mode=append weeks="" out="" target="" lists_day=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --print) mode=print; shift ;;
         --backfill) mode=backfill; weeks="${2:-}"; [[ "$weeks" =~ ^[0-9]+$ ]] || usage; shift 2 ;;
         --out) out="${2:-}"; [[ -n "$out" ]] || usage; shift 2 ;;
         --target) target="${2:-}"; [[ -n "$target" ]] || usage; shift 2 ;;
+        # reads.sh's call: the reference files, the always-loaded files and the reference folders as
+        # they stood at the end of that day, one "kind<TAB>path" line each. Nothing is written.
+        --reads-lists) mode=lists; lists_day="${2:-}"; [[ "$lists_day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || usage; shift 2 ;;
         *) usage ;;
     esac
 done
@@ -51,11 +72,12 @@ if ! git rev-parse -q --verify HEAD >/dev/null 2>&1; then
 fi
 # awk rather than head, so git log is read to the end and never meets a closed pipe.
 first_day="$(TZ=UTC git log --reverse --format=%cd --date=format-local:%F 2>/dev/null | awk 'NR == 1' || true)"
-mkdir -p "$(dirname "$out")"
+[[ "$mode" == print || "$mode" == lists ]] || mkdir -p "$(dirname "$out")"
 
 header="date,always_loaded_bytes,decisions_logged,doc_files,people_profiles,audit_reports,build_items_named,build_items_exist,doc_commits_7d,doc_contributors_7d"
 header+=",projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done"
 header+=",ablations_named,ablations_discriminating,ablations_no_difference"
+header+=",agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from"
 
 # The always-loaded tier. In a workspace built on the kit, CLAUDE.md starts with an import of the kit's
 # working standards, kit/CLAUDE.kit.md, and AGENTS.md routes other tools to the same file; a 2.x install
@@ -227,9 +249,12 @@ days_to_done() {
     if [[ $still -eq 0 && -n "$done_ct" ]]; then echo $(( (done_ct - created + 43200) / 86400 )); fi
 }
 
-projects_row() {
-    local rev="$1" day="$2" conv settings register entry_name default_owner dirs dir entry f kind rec state owners records="" durations=""
-    conv="$(conventions "$rev")"
+# project_settings <rev>: the conventions at that revision, as the settings the project columns and the
+# reference list read. They are set for the caller: the locations as folder patterns, the register,
+# the entry point's name, the default owner and the section aliases.
+project_settings() {
+    local conv settings
+    conv="$(conventions "$1")"
     settings="$(printf '%s\n' "$conv" | awk "$settings_awk")"
     loc_active="$(awk '$1 == "active" { print $2; exit }' <<< "$settings")"; loc_active="${loc_active:-^projects/[^/_.][^/]*\$}"
     loc_paused="$(awk '$1 == "paused" { print $2; exit }' <<< "$settings")"
@@ -243,10 +268,19 @@ projects_row() {
     done_names="done when$done_names"
     people_names="$(awk '$1 == "alias" && $2 == "people" { $1 = $2 = ""; sub(/^ +/, ""); printf "|%s", $0 }' <<< "$settings")"
     people_names="people$people_names"
+}
 
-    # Project folders: any folder matching a location that holds an entry point.
-    dirs="$(git ls-tree -r --name-only "$rev" | { grep -E "/(README|CLAUDE)\\.md\$|/${entry_name//./\\.}\$" || true; } | sed 's#/[^/]*$##' | sort -u \
-        | { grep -E "$loc_active${loc_paused:+|$loc_paused}${loc_done:+|$loc_done}" || true; })"
+# project_dirs <rev>: the project folders at that revision, one per line: any folder matching a
+# location that holds an entry point. Reads the settings project_settings left.
+project_dirs() {
+    git ls-tree -r --name-only "$1" | { grep -E "/(README|CLAUDE)\\.md\$|/${entry_name//./\\.}\$" || true; } | sed 's#/[^/]*$##' | sort -u \
+        | { grep -E "$loc_active${loc_paused:+|$loc_paused}${loc_done:+|$loc_done}" || true; }
+}
+
+projects_row() {
+    local rev="$1" day="$2" dirs dir entry f kind rec state owners records="" durations=""
+    project_settings "$rev"
+    dirs="$(project_dirs "$rev")"
 
     while IFS= read -r dir; do
         [[ -n "$dir" ]] || continue
@@ -315,15 +349,22 @@ projects_row() {
 # with the row, and the weekly pass measures again after it runs the ablations.
 # The runner is the kit's: beside this script in a kit checkout, else in the workspace's kit/, else
 # (a 2.x install) in the checkout the installer recorded when it vendored the plugins here.
-ablate_sh="$here/ablate.sh"
-[[ -f "$ablate_sh" ]] || ablate_sh="$root/kit/pilot/ablate.sh"
-if [[ ! -f "$ablate_sh" ]]; then
-    kit_checkout="$(sed -n 's/^kit checkout: \(.*\) (on the machine that ran the installer)$/\1/p' .claude/plugins/VENDORED 2>/dev/null | awk 'NR == 1' || true)"
-    ablate_sh="${kit_checkout:+$kit_checkout/pilot/ablate.sh}"
-fi
+# pilot_script <name>: that script of the kit's by the same search, or nothing.
+pilot_script() {
+    local f="$here/$1" kit_checkout
+    [[ -f "$f" ]] || f="$root/kit/pilot/$1"
+    if [[ ! -f "$f" ]]; then
+        kit_checkout="$(sed -n 's/^kit checkout: \(.*\) (on the machine that ran the installer)$/\1/p' .claude/plugins/VENDORED 2>/dev/null | awk 'NR == 1' || true)"
+        f="${kit_checkout:+$kit_checkout/pilot/$1}"
+    fi
+    printf '%s' "$f"
+}
+ablate_sh="$(pilot_script ablate.sh)"
+reads_sh="$(pilot_script reads.sh)"
 results_tmp="$(mktemp "${TMPDIR:-/tmp}/measure.XXXXXX")"
 blob_tmp="$(mktemp "${TMPDIR:-/tmp}/measure.XXXXXX")"
-trap 'rm -f "$results_tmp" "$results_tmp.day" "$blob_tmp"' EXIT
+reads_tmp="$(mktemp "${TMPDIR:-/tmp}/measure.XXXXXX")"
+trap 'rm -f "$results_tmp" "$results_tmp.day" "$blob_tmp" "$reads_tmp"' EXIT
 
 ablations_row() {
     local rev="$1" day="$2" names outcomes
@@ -422,20 +463,20 @@ resolve() {
     printf '%s' "$out"
 }
 
-# always_bytes <rev>: the bytes of the always-loaded files and everything they import, each file once,
-# imports followed up to five deep as Claude Code follows them.
-always_bytes() {
-    local rev="$1" bytes=0 seen=" " queue=() depth=() i=0 f d s imp p
+# always_walk <rev>: the always-loaded files and everything they import, each file once, imports
+# followed up to five deep as Claude Code follows them. One "bytes<TAB>path" line per file.
+always_walk() {
+    local rev="$1" seen=" " queue=() depth=() i=0 f d s imp p
     for f in "${always_loaded[@]}"; do queue+=("$f"); depth+=(0); done
     while [[ $i -lt ${#queue[@]} ]]; do
         f="${queue[$i]}" d="${depth[$i]}"; i=$((i + 1))
         case "$seen" in *" $f "*) continue ;; esac
         seen+="$f "
         if is_opaque "$f"; then
-            s="$(git cat-file -s "$rev:$f" 2>/dev/null || echo 0)"; bytes=$((bytes + s)); continue
+            s="$(git cat-file -s "$rev:$f" 2>/dev/null || echo 0)"; printf '%d\t%s\n' "$s" "$f"; continue
         fi
         blob_at "$rev" "$f" || continue
-        bytes=$((bytes + $(wc -c < "$blob_tmp")))
+        printf '%d\t%s\n' "$(wc -c < "$blob_tmp")" "$f"
         [[ $d -lt 5 ]] || continue
         while IFS= read -r imp; do
             p="$(resolve "$f" "$imp")"
@@ -443,15 +484,66 @@ always_bytes() {
             queue+=("$p"); depth+=($((d + 1)))
         done < <(awk "$imports_awk" "$blob_tmp")
     done
-    echo "$bytes"
 }
+
+# always_bytes <rev>: the bytes of that set.
+always_bytes() { always_walk "$1" | awk -F'\t' '{ n += $1 } END { print n + 0 }'; }
+
+# --- Agent reads ----------------------------------------------------------------------------------
+# The seven agent-read columns are counted by reads.sh, the kit's, found as the ablation runner is.
+# It reads Claude Code's transcripts once for every date asked of it, so the dates are handed over
+# together before the rows are written. Without reads.sh, without jq, or with no transcripts on this
+# machine, the columns are left empty rather than guessed.
+
+# reads_lists <rev>: what reads.sh needs to know about the repository at that revision, one
+# "kind<TAB>path" line each. always: the always-loaded set, which loads with no tool call and so is
+# never a reference read. area: a READS_AREAS folder, which a search can be aimed at; a project folder
+# is not one, since most of what it holds is the work itself. ref: a reference file, the denominator —
+# tracked Markdown under the READS_AREAS folders, each project's README (and the entry point the
+# conventions name) and decisions files, and the register, less the always-loaded set. exclude: a
+# READS_EXCLUDE path, a folder or a file; nothing at or under one is an area or a reference file.
+reads_lists() {
+    local rev="$1" areas=() excludes=() a dir
+    project_settings "$rev"
+    read -r -a areas <<< "${READS_AREAS-docs memory logs}"
+    read -r -a excludes <<< "${READS_EXCLUDE-}"
+    {
+        for a in ${excludes[@]+"${excludes[@]}"}; do a="${a#./}"; printf 'exclude\t%s\n' "${a%/}"; done
+        always_walk "$rev" | awk -F'\t' '{ print "always\t" $2 }'
+        for a in ${areas[@]+"${areas[@]}"}; do printf 'area\t%s\n' "${a%/}"; done
+        if [[ ${#areas[@]} -gt 0 ]]; then
+            git -c core.quotepath=off ls-tree -r --name-only "$rev" -- "${areas[@]}" 2>/dev/null | awk '/\.md$/ { print "file\t" $0 }' || true
+        fi
+        ! git cat-file -e "$rev:$register" 2>/dev/null || printf 'file\t%s\n' "$register"
+        project_dirs "$rev" | while IFS= read -r dir; do
+            git -c core.quotepath=off ls-tree --name-only "$rev" -- "$dir/" 2>/dev/null | awk -v e="$entry_name" '
+                { b = $0; sub(/.*\//, "", b) }
+                b == "README.md" || (b == e && e ~ /\.md$/) || tolower(b) ~ /^decisions.*\.md$/ { print "file\t" $0 }' || true
+        done
+    } | awk -F'\t' '
+        function excluded(p,   x) { for (x in ex) if (p == x || substr(p, 1, length(x) + 1) == x "/") return 1; return 0 }
+        $1 == "exclude" { if ($2 != "") { ex[$2] = 1; print } next }
+        $1 == "always" { al[$2] = 1; print; next }
+        $1 == "area" { if ($2 != "" && !($2 in ar) && !excluded($2)) { ar[$2] = 1; print } next }
+        $1 == "file" && !($2 in al) && !($2 in seen) && !excluded($2) { seen[$2] = 1; print "ref\t" $2 }'
+}
+
+# reads_prepare <day>...: the agent-read columns for those days, into $reads_tmp.
+reads_prepare() {
+    : > "$reads_tmp"
+    [[ -n "$reads_sh" && -f "$reads_sh" ]] || return 0
+    bash "$reads_sh" --target "$root" --rows "$@" > "$reads_tmp" || : > "$reads_tmp"
+}
+
+# reads_cols <day>: that day's seven columns, empty when reads_prepare had nothing for it.
+reads_cols() { awk -F, -v d="$1" '$1 == d { sub(/^[^,]*,/, ""); print; f = 1; exit } END { if (!f) print ",,,,,," }' "$reads_tmp"; }
 
 # --------------------------------------------------------------------------------------------------
 
 row_for() {
     local day="$1" rev bytes=0 decisions doc_files people audits named exist commits authors since
     rev="$(git rev-list -1 --before="$day 23:59:59" HEAD 2>/dev/null || true)"
-    if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0"; return; fi
+    if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0,$(reads_cols "$day")"; return; fi
 
     bytes="$(always_bytes "$rev")"
 
@@ -479,19 +571,26 @@ row_for() {
     commits="$(git log --since="$since 23:59:59" --until="$day 23:59:59" --format=%H -- "${doc_paths[@]}" | wc -l | tr -d ' ')"
     authors="$(git log --since="$since 23:59:59" --until="$day 23:59:59" --format=%ae -- "${doc_paths[@]}" | sort -u | grep -c . || true)"
 
-    echo "$day,$bytes,$decisions,$doc_files,$people,$audits,$named,$exist,$commits,$authors,$(projects_row "$rev" "$day"),$(ablations_row "$rev" "$day")"
+    echo "$day,$bytes,$decisions,$doc_files,$people,$audits,$named,$exist,$commits,$authors,$(projects_row "$rev" "$day"),$(ablations_row "$rev" "$day"),$(reads_cols "$day")"
 }
 
+days=()
 case "$mode" in
+    lists)
+        rev="$(git rev-list -1 --before="$lists_day 23:59:59" HEAD 2>/dev/null || true)"
+        [[ -z "$rev" ]] || reads_lists "$rev" ;;
     print)
+        reads_prepare "$(days_ago 0)"
         echo "$header"; row_for "$(days_ago 0)" ;;
     backfill)
         # Weeks ending before the first commit are left out, not written as zeros.
-        { echo "$header"; for ((w = weeks; w >= 0; w--)); do
+        for ((w = weeks; w >= 0; w--)); do
             d="$(days_ago $((w * 7)))"
             [[ -z "$first_day" || "$w" -eq 0 || ! "$d" < "$first_day" ]] || continue
-            row_for "$d"
-        done; } > "$out"
+            days+=("$d")
+        done
+        reads_prepare "${days[@]}"
+        { echo "$header"; for d in "${days[@]}"; do row_for "$d"; done; } > "$out"
         cat "$out" ;;
     append)
         today="$(days_ago 0)"
@@ -499,8 +598,12 @@ case "$mode" in
             # Written by an older version with fewer columns: every row is recomputed from history, so
             # the file is rebuilt for the same dates rather than left with rows of two shapes.
             echo "measure.sh: $out has older columns; recomputing its rows" >&2
-            { echo "$header"; tail -n +2 "$out" | cut -d, -f1 | grep -E '^[0-9]{4}-' | while read -r d; do row_for "$d"; done; } > "$out.tmp"
+            while read -r d; do days+=("$d"); done < <(tail -n +2 "$out" | cut -d, -f1 | grep -E '^[0-9]{4}-' || true)
+            reads_prepare ${days[@]+"${days[@]}"} "$today"
+            { echo "$header"; for d in ${days[@]+"${days[@]}"}; do row_for "$d"; done; } > "$out.tmp"
             mv "$out.tmp" "$out"
+        else
+            reads_prepare "$today"
         fi
         [[ -f "$out" ]] || echo "$header" > "$out"
         grep -v "^$today," "$out" > "$out.tmp" || true

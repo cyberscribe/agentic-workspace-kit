@@ -683,6 +683,7 @@ case "$(state_key mode)" in
 esac
 if [[ $PILOT -eq 1 ]]; then
     say "Pilot: put the team's build list into pilot/build-list.md, commit, then run bash kit/pilot/measure.sh."
+    say "Pilot: each person raises cleanupPeriodDays in their own Claude Code settings to the pilot's length in days (30 is the default), so the agent-read counts keep their transcripts. The kit does not write there."
 fi
 echo
 say "Nothing is committed."

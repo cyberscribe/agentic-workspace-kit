@@ -79,6 +79,13 @@
 # with it, the comparator's config directory is empty.
 set -uo pipefail
 
+# Claude Code's Bash sandbox denies /etc, and git stops outright on a system config it cannot read.
+# The runner's own git calls leave the system config out; nothing they read lives in it. The system
+# attributes file goes the same way: unreadable, it costs a warning on every call that looks. It is a
+# function rather than an export so that the runs under test and their Checks keep the environment
+# they were given.
+git() { GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 command git "$@"; }
+
 usage() { sed -n '2,33p' "$0" >&2; exit 64; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"

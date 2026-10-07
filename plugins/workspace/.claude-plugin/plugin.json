@@ -1,6 +1,6 @@
 {
   "name": "workspace",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Set up and look after a shared agentic workspace: a first-time interview that makes the kit the team's own and checks it is reachable on every surface people use, a weekly tidy of where context lives, an audit of the register guidance is written in, and a session-start summary of what is out of step (git hooks, submodules, resources, the privacy of the remote), with a guard that keeps agents from bypassing the git hooks.",
   "author": {
     "name": "Robert Peake",

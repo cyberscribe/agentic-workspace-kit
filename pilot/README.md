@@ -3,7 +3,7 @@
 *How to run a workspace as a time-boxed pilot of shared standards and documentation — across the
 team, and with the team's agents — so that at the end there is something countable to say about it.*
 
-> This page and the two scripts beside it are the kit's, read and run in place from `kit/pilot/` in a
+> This page and the three scripts beside it are the kit's, read and run in place from `kit/pilot/` in a
 > workspace built on the kit. What the pilot produces — `pilot/build-list.md`, `pilot/metrics.csv`,
 > `pilot/ablations/` and their results — lives in the workspace's own `pilot/` folder.
 
@@ -57,15 +57,23 @@ kit/setup.sh --pilot
 
 - **Claude Code**: open the workspace, accept the folder trust prompt, and approve the kit's plugins
   when asked (`kit/setup.sh` names this step). Needs `jq` on the machine.
+- **Transcript retention**: set `cleanupPeriodDays` in your own Claude Code settings to at least the
+  pilot's length in days — 70 covers eight weeks with room to spare. Claude Code removes a session's
+  transcript 30 days after it was last written by default, and the agent-read counts below can only
+  be recomputed while the transcripts exist. The kit never writes those settings; each person sets
+  it.
 
 ## What gets measured
 
-Every number is read from git history, so it can be recomputed for any past date and checked by
-anyone with read access. `metrics.csv` contains counts only.
+Every number but the last seven is read from git history, so it can be recomputed for any past date
+and checked by anyone with read access. The last seven, the agent-read columns, are counted from Claude
+Code's transcripts on the machine that runs `measure.sh`, and can be recomputed for as long as those are
+kept ([Agent reads](#agent-reads), below). `metrics.csv` contains counts only.
 
 | Column | What it shows | Why it matters |
 |---|---|---|
 | `build_items_named`, `build_items_exist` | The team's own list, and how much of it exists | **The primary measure.** "Of the N things this team said it would build, M exist after eight weeks." |
+| `sessions_reading_reference_7d` | Of the week's Claude Code sessions in the workspace (`agent_sessions_7d`), those in which the agent read at least one reference file | **The measure the readout leads with, alongside the build list.** "In M of N sessions that week, the agent went and read what the team had written down." |
 | `doc_contributors_7d` | Distinct people who changed documentation that week | Whether this is a team practice or one enthusiast's. The most important secondary number. |
 | `doc_commits_7d` | Documentation commits that week | Activity. Read alongside contributors, never alone. |
 | `decisions_logged` | Entries in the decisions logs | Whether reasoning is being kept, not just outcomes |
@@ -80,8 +88,14 @@ anyone with read access. `metrics.csv` contains counts only.
 | `max_in_flight_per_person` | The most projects any one person is doing at once | Compare with the in-flight limit in `.claude/projects.md`. Above it, work is started faster than it is finished. |
 | `median_days_to_done` | Median whole days from the commit that created a project's README to the one that set it done | How long finishing takes. Empty until a project finishes; a project that arrived already done is left out. |
 | `ablations_named` | Ablation files in `pilot/ablations/` | How much of the context the team keeps has a test at all. The denominator for the two columns below it. |
-| `ablations_discriminating` | Of those, the ablations whose latest result is `discriminates` | The number the readout leads with, as a share of `ablations_named`: lines shown to change what the agent does on the task written for them. |
+| `ablations_discriminating` | Of those, the ablations whose latest result is `discriminates` | The ablations' headline number, as a share of `ablations_named`: lines shown to change what the agent does on the task written for them. |
 | `ablations_no_difference` | Of those, the ablations whose latest result is `no difference (both pass)` | Lines not pulling their weight at their tier, on that task; three weeks of it makes a demotion candidate. A lean by one run and a check that fails both arms count in neither column. |
+| `agent_sessions_7d` | Claude Code sessions started in the workspace in which the agent answered that week; sessions started in `kit/` are kit development and are left out | The denominator for `sessions_reading_reference_7d`. |
+| `reference_reads_7d` | Reads of reference files that week: one per tool call and file | Volume. Read alongside the sessions, never alone: one long session can account for most of it. |
+| `reference_searches_7d` | Searches aimed at a reference folder (`docs/`, `memory/`, `logs/`) that week: a `Grep` or `Glob` call, or a Bash `grep`, `rg`, `find` or `ls` on the folder | Activity at the reference folders. It includes a plain listing (`ls`, `find`), so it does not say the agent looked something up; read it beside the reads, never in place of them. |
+| `reference_files_read_7d` | Distinct reference files read that week | Breadth, as a share of `reference_files_total`. |
+| `reference_files_total` | Reference files at that row's commit | The denominator for the column before it. What was never read is this less that. |
+| `transcripts_from` | How far back the transcripts on that machine reach | Shows the window is real. A window that does not start after this date has the five counts empty, not zero. |
 
 The project columns read each project's README as the projects commands write it — the Current state
 block, Done when and People — and follow `.claude/projects.md` for where projects live, the entry point,
@@ -104,6 +118,75 @@ kit's working standards through the import in `CLAUDE.md` rather than a copy in 
 `doc_files` stops counting the copies of the kit's templates, rituals and docs the migration retires,
 since those are read from `kit/` now. Rows before the migration keep their old values; read the step
 between them as the layout change, not as the team's doing.
+
+## Agent reads
+
+The kit's claim is that context written down gets used. `measure.sh` counts what people write, and the
+ablations test single lines on a set task; `reads.sh` counts whether agents, in the team's real
+sessions, go and read the reference material. From the workspace root:
+
+```bash
+bash kit/pilot/reads.sh --print
+bash kit/pilot/reads.sh --report
+```
+
+`--print` gives the week's counts, each with what it is out of, and writes nothing. `--report` prints
+the same and puts the per-file detail in `pilot/reads.local.md`. `measure.sh` runs `reads.sh` itself
+and fills the seven agent-read columns, in the daily row and in `--backfill` alike, so the weekly
+pass needs no extra step.
+
+**What is read.** Claude Code keeps a transcript of every session under
+`${CLAUDE_CONFIG_DIR:-~/.claude}/projects/`, with its subagents' transcripts beside it. `reads.sh` reads
+them and never writes, moves or touches anything there. `READS_TRANSCRIPTS=<dir>` reads from another
+folder, for someone who keeps copies.
+
+**Which sessions.** A session counts when it was started inside the workspace and the agent answered
+in it during the window. A subagent's work counts toward the session that started it. A session
+started inside the workspace's `kit/` is kit development: left out, with the number left out printed.
+
+**Which files.** The reference files are the denominator: tracked Markdown under `docs/`, `memory/`
+and `logs/` (`READS_AREAS="docs memory logs"` names other folders), each project's `README.md` and
+decisions files, and the register, found through `.claude/projects.md` as the project columns find
+them. The always-loaded files (`MEASURE_ALWAYS_LOADED` and everything they import) are not reference:
+they load with no tool call. Reads of the kit's own Markdown under `kit/` are counted apart and shown
+by `--print`; they are in none of the columns.
+
+**Leaving something out.** `READS_EXCLUDE="projects/tooling/"` names folders or files, by path from
+the workspace root and separated by spaces. Files at or under them leave the denominator, and reads
+and searches of them are not counted. It is the way to keep a project about the tooling itself out
+of the measure: someone who develops the kit, or the workspace's own scripts, from sessions in the
+workspace reads that project's README and decisions all day, and those reads say nothing about
+whether the team's reference gets used. Set it the same way for `measure.sh`, and say in the readout
+that it was set.
+
+**What a read is.** One tool call opening one reference file: the `Read` tool, or a Bash `cat`,
+`head`, `tail`, `less`, `sed -n`, `awk`, `grep` or `rg` that names the file, by a relative path (from
+the folder the command ran in, following a `cd` inside the command), an absolute one, or a shell
+pattern such as `docs/*.md`. A call that names three files is three reads. A search is a `Grep` or
+`Glob` call, or a Bash `grep`, `rg`, `find` or `ls`, aimed at a reference folder; it is a separate
+number, and since it includes a plain `ls` or `find` of the folder it shows the agent was there, not
+that it looked something up. An edit or a write is not a read, nor is a file a command redirects into.
+
+**The window** is the seven days ending on the row's date, in UTC, as for the other `_7d` columns.
+
+**The limits, to state in any readout:**
+
+- A read shows the agent looked, not that it acted on what it read. The ablations cover that half.
+- Cowork and claude.ai sessions leave no transcript on the machine, so the count is Claude Code only.
+- It is one person's machine. Each row counts the sessions of whoever ran `measure.sh`; a team's
+  figure is each person's `--print` for the same week, added up by hand.
+- The count is a floor. A read through a command `reads.sh` does not parse is not seen: a script that opens
+  the file itself, `git show`, a loop over a variable, a command handed to another shell.
+- Retention. Claude Code prunes a transcript `cleanupPeriodDays` after it was last written, 30 by
+  default. A window that does not start after the oldest transcript left is written empty rather than
+  as zero, so a pruned week never reads as a week without reads. For a pilot longer than the
+  retention, each person raises `cleanupPeriodDays` in their own Claude Code settings (see Install).
+  The kit never writes `~/.claude`.
+
+**Privacy.** `metrics.csv` gets counts and dates. Which files were read, and which reference files
+were never read in the window, go only to `pilot/reads.local.md`, which the workspace's `.gitignore`
+keeps out of git (`*.local.*`); `--report` writes nothing where that line is missing. No prompt,
+command or file content leaves a transcript.
 
 ## Context ablations
 
@@ -216,6 +299,9 @@ which.
 It can claim what it counted: how many named items exist, how many people contributed, whether the
 rituals ran. With one team, no comparison group and eight weeks, it cannot claim that the practice
 caused a change in effectiveness, and a write-up that says so will not survive a sceptical reader.
+With agent reads it can say in how many of its Claude Code sessions the agent consulted the reference
+material, and how much of that material was never opened; that is evidence of looking, on one
+machine, not of acting.
 With ablations it can also say, line by line and at a stated n, which lines of its context changed
 what the agent did on the task written for them. An ablation tests what its author thought the line
 was for, the same limit a unit test has, and the demotion rule only ever proposes.
@@ -229,4 +315,4 @@ so at the week-4 check and adjust — that is a finding, not a failure.
 
 `metrics.csv` is safe to share outside the team: it holds dates and counts. `build-list.md`, the
 profiles and everything else in this repository are the team's own and stay where the team keeps
-them. A case study quotes counts and, with permission, the team's own words.
+them; `pilot/reads.local.md` names files and stays on the machine that wrote it. A case study quotes counts and, with permission, the team's own words.

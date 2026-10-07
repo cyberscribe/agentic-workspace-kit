@@ -203,8 +203,8 @@ printf 'file: CLAUDE.md\nablate:\n  - "# Test Team"\n' > "$s21_w/pilot/ablations
   for s21_i in 1 2 3; do printf '%s,x,without,%s,0,,100,50,0,1000,0.01,2,ok\n' "$(days_ago 0)" "$s21_i"; done
 } > "$s21_w/pilot/ablation-results.csv"
 cp "$KIT/pilot/measure.sh" "$s21_dir/lone/measure.sh"
-s21_a="$(cd "$s21_w" && bash kit/pilot/measure.sh --print 2>/dev/null | tail -n 1 | cut -d, -f18-)"
-s21_l="$(bash "$s21_dir/lone/measure.sh" --target "$s21_w" --print 2>/dev/null | tail -n 1 | cut -d, -f18-)"
+s21_a="$(cd "$s21_w" && bash kit/pilot/measure.sh --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+s21_l="$(bash "$s21_dir/lone/measure.sh" --target "$s21_w" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
 [[ "$s21_a" == "1,1,0" && "$s21_l" == "1,1,0" ]] \
     && ok "21 measure.sh finds the runner beside it in kit/pilot/, and a copy elsewhere finds it in the workspace's kit/" \
     || ko "21 measure.sh finds the runner beside it in kit/pilot/, and a copy elsewhere finds it in the workspace's kit/" "kit/pilot: $s21_a, lone copy: $s21_l"
