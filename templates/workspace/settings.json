@@ -5,7 +5,8 @@
   "enabledPlugins": {
     "closeout@agentic-workspace": true,
     "projects@agentic-workspace": true,
-    "workspace@agentic-workspace": true
+    "workspace@agentic-workspace": true,
+    "closeout@closeout-marketplace": false
   },
   "permissions": {
     "allow": ["Bash(rm *closeout-drafts*)"],

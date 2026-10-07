@@ -253,3 +253,17 @@ if command -v shellcheck >/dev/null 2>&1; then
 else
     skp "21 shellcheck not on PATH; the pilot scripts, the closeout config and this section not linted"
 fi
+
+# Where the team is one person, quick-start offers to remove the review files. It names the two files and
+# never the folder, because .github/workflows/stay-private.yml lives there too.
+s21_bad="$(s21_needs "$s21_qs" '`.github/CODEOWNERS` and' '`.github/pull_request_template.md`, on their yes' \
+    '`.github/workflows/stay-private.yml` lives there too' '(never `.github/workflows/`)')"
+grep -qF 'remove `.github/`' "$KIT/$s21_qs" && s21_bad+="$s21_qs: offers to remove the whole .github/ folder"$'\n'
+grep -qF '`.github/` for one person' "$KIT/$s21_qs" && s21_bad+="$s21_qs: lists .github/ as left over"$'\n'
+empty "21 quick-start: the one-person offer names CODEOWNERS and the PR template, never .github/ or its workflow" "$s21_bad"
+
+# A person who installed the standalone closeout for their user must not get it beside the kit's copy in a
+# workspace: the workspace's settings, which outrank the user's, turn it off.
+s21_v="$(jq -r '.enabledPlugins["closeout@closeout-marketplace"]' "$KIT/templates/workspace/settings.json" 2>/dev/null)"
+[[ "$s21_v" == false ]] && ok "21 the workspace settings turn the standalone closeout off, so the kit's copy runs alone" \
+    || ko "21 the workspace settings turn the standalone closeout off, so the kit's copy runs alone" "closeout@closeout-marketplace: ${s21_v:-absent}"

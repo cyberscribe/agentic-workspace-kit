@@ -14,6 +14,17 @@ rewriting — the record of what a version claimed is part of what the version i
   skipped, and a workspace made from it, which is not marked, is still checked. A test holds the
   condition in `templates/workspace/stay-private.yml` and in the template `build-template.sh` builds.
   A workspace that already has the workflow keeps its copy; `kit/setup.sh update` shows the difference.
+- **A standalone closeout no longer runs beside the kit's.** Someone who installed
+  `closeout@closeout-marketplace` for their user got both copies in a kit workspace, so every hook ran
+  twice: two drafts at session end, two offers at the next start. The workspace's `.claude/settings.json`
+  now sets that plugin to false; settings in the repository outrank the user's, so the kit's copy is
+  the one that runs there and the standalone carries on everywhere else. A workspace made before this
+  gets the line as a diff from `kit/setup.sh update`.
+- **Quick-start's one-person offer names two files, not `.github/`.** It offered to remove the folder
+  for its `CODEOWNERS` and pull request template, but `.github/workflows/stay-private.yml` lives there
+  too, and a literal yes deleted the check that keeps the repository private. It now names
+  `.github/CODEOWNERS` and `.github/pull_request_template.md`, and says why the workflow stays.
+  workspace 2.0.4.
 
 ## v3.0.3 — 2026-10-07
 

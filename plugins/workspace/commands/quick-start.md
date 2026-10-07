@@ -146,8 +146,10 @@ none of it costs the always-loaded budget.
 committing on a branch and opening a pull request, so the standards owner's
 review is the first use of the process rather than an exception to it. Where
 the team is one person, the author and the reviewer are the same: skip the pull
-request, and offer to remove `.github/` (its `CODEOWNERS` and template), on
-their yes.
+request, and offer to remove `.github/CODEOWNERS` and
+`.github/pull_request_template.md`, on their yes. Name those two files, never the
+folder: `.github/workflows/stay-private.yml` lives there too, and the check that
+keeps the repository private matters as much to one person as to a team.
 
 ## The personal part — each person, on their first session
 
@@ -232,7 +234,8 @@ can read — not a second one beside it. Nothing existing is moved or renamed.
    line made redundant — the starter `AGENTS.md` when a router of their own
    stays, a `kit-` skill whose job a skill of theirs does (the `Kit skills not
    bridged` line in `.claude/workspace.md` leaves it out of the bridge),
-   `.github/` for one person. Say what each is, and give the list as commands
+   `.github/CODEOWNERS` and `.github/pull_request_template.md` for one person
+   (never `.github/workflows/`). Say what each is, and give the list as commands
    they can run; deleting is theirs.
 
 ## Reachable and running — the end of every mode

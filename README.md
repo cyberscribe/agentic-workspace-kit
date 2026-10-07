@@ -745,6 +745,10 @@ published standalone at `github.com/cyberscribe/closeout-plugin`:
 /plugin install closeout@closeout-marketplace
 ```
 
+A kit workspace's own `.claude/settings.json` sets `closeout@closeout-marketplace` to false, so a person
+who installed the standalone plugin for their user gets the kit's copy alone there, and its hooks do not
+run twice.
+
 `plugins/closeout/` is the source of truth; the standalone repository is a mirror of it, published
 with `git subtree push --prefix=plugins/closeout closeout main` (where `closeout` is a remote for
 `closeout-plugin`). Edit here, then push the subtree — an edit made directly in the standalone
