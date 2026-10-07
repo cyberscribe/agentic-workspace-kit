@@ -549,21 +549,27 @@ a rule for how the shared layer and each person's own layer are arbitrated, a re
 always-loaded tier, and — for a pilot — a way to show afterwards what changed.
 
 `kit/setup.sh` lays all of that down, with the kit as a submodule of the team's private repository at
-`kit/`, read in place. Start with `setup.sh new`: clone the kit anywhere, and let it start the
-workspace in a new folder, with no GitHub needed. Add a private remote as `origin` later, and run
-`kit/setup.sh` again to confirm it:
+`kit/`, read in place. There are two ways to start, and both end in the same workspace:
+
+**From the template repository.** On GitHub, choose *Use this template* on
+`cyberscribe/agentic-workspace-template` and pick Private. A fork of a public repository cannot be
+made private, so the template is used, not forked. Then clone it with its submodule and run setup:
+
+```bash
+git clone --recurse-submodules <your private repository URL> team-workspace
+cd team-workspace && kit/setup.sh --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
+```
+
+**With `setup.sh new`.** Clone the kit anywhere, and let it start the workspace in a new folder, with
+no GitHub needed. Add a private remote as `origin` later, and run `kit/setup.sh` again to confirm it:
 
 ```bash
 git clone https://github.com/cyberscribe/agentic-workspace-kit.git agentic-workspace-kit
 bash agentic-workspace-kit/setup.sh new team-workspace --team "Data Platform" --owner "Sam" --owner-handle "@sam" --pilot
 ```
 
-A template repository for GitHub's *Use this template* is built from the same files by
-`scripts/build-template.sh`. It is not published yet; until it is, `setup.sh new` is the way in, and it
-ends in the same workspace.
-
-Setup runs ten stages, changes nothing it has already done when run again, and commits nothing: it
-ends by printing the commit to make. `docs/setup.md` describes each stage and mode.
+Either way, setup runs the same ten stages, changes nothing it has already done when run again, and
+commits nothing: it ends by printing the commit to make. `docs/setup.md` describes each stage and mode.
 
 - **`CLAUDE.md` is the team's always-loaded file.** Its first line, `@kit/CLAUDE.kit.md`, imports the
   kit's working standards, which update with the kit; everything below it is the team's own and wins
