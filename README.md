@@ -577,10 +577,10 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
 - **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
   `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
   diff to apply or skip. Files the team owns are created once and never overwritten.
-- **Three plugins, ten commands, are wired in** from the directory marketplace at `kit`:
+- **Three plugins, eleven commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `kit/docs/memory-layers.md`, so there is one taxonomy.
-  - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close` and `pickup`, the life of a
+  - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close`, `pickup` and `pair`, the life of a
     project from its first interview to done, kept in each project's README, with a session-start
     line that says where the folder's project stands. `.claude/projects.md` holds the team's own
     conventions.
@@ -643,6 +643,7 @@ The **projects** plugin keeps the §1.3 tracking axis, one command per moment:
 | Any time | `/projects:board` | Every project in flight, grouped by state, with one-line flags: no owner, no Done when, a stale `Updated:`, blocked for more than 14 days, someone over their in-flight limit, the register out of step, adopt proposals unconfirmed, a project ready to close |
 | End of a session | `/closeout` | Learnings promoted; Done when and the Current state block brought up to date, reported apart |
 | Handing over | `/projects:pickup` | A cold-start brief for whoever takes the project on |
+| Building | `/projects:pair` | One session as product manager and tester, one Claude Code session as engineer, talking through a mailbox |
 | Finishing | `/projects:close` | Each Done-when box checked against the verification standard, a short retrospective, the register row moved to Done |
 
 The **workspace** plugin holds the upkeep: `/workspace:hygiene` weekly and `/workspace:register-audit`
@@ -664,6 +665,7 @@ it, common questions, and how to tell it is working.
 | `/projects:board` | projects | Every project in flight on one page, with flags | [docs/commands/projects-board.md](docs/commands/projects-board.md) |
 | `/projects:hold` | projects | Pausing a project with its reason and a look-again date | [docs/commands/projects-hold.md](docs/commands/projects-hold.md) |
 | `/projects:pickup` | projects | A cold-start brief, and resuming a paused project | [docs/commands/projects-pickup.md](docs/commands/projects-pickup.md) |
+| `/projects:pair` | projects | A PM session and a Claude Code engineer working a project through a mailbox | [docs/commands/projects-pair.md](docs/commands/projects-pair.md) |
 | `/projects:close` | projects | Finishing: evidence, retrospective, archive | [docs/commands/projects-close.md](docs/commands/projects-close.md) |
 | `/workspace:quick-start` | workspace | The first-time interview, and the check that the kit is reachable | [docs/commands/workspace-quick-start.md](docs/commands/workspace-quick-start.md) |
 | `/workspace:hygiene` | workspace | The weekly pass over where context lives | [docs/commands/workspace-hygiene.md](docs/commands/workspace-hygiene.md) |
@@ -671,7 +673,7 @@ it, common questions, and how to tell it is working.
 
 The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.md) and
 [closeout-review](docs/hooks/closeout-review.md); the projects plugin's
-[session-start line](docs/hooks/projects-session-start.md); the workspace plugin's
+[session-start line](docs/hooks/projects-session-start.md) and [pairing hooks](docs/hooks/projects-pair.md); the workspace plugin's
 [session-start summary](docs/hooks/workspace-session-start.md) and
 [git guard](docs/hooks/workspace-guard-git.md); and the git hooks in `githooks/`,
 [pre-commit](docs/hooks/pre-commit.md), [pre-merge-commit](docs/hooks/pre-merge-commit.md),
@@ -693,7 +695,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `templates/catalogue.md` | What the team has built and would reuse |
 | `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
-| `plugins/projects/` | Projects from start to done — six commands and a session-start line |
+| `plugins/projects/` | Projects from start to done — seven commands, a session-start line and the pairing hooks |
 | `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `bin/state.sh` (the read-only state check), the session-start summary and the git guard |
 | `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
 | `install.sh` | The engine setup runs: creates the files a workspace owns, once, and records them in `.claude/kit-templates.lock` |

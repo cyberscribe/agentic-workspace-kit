@@ -15,7 +15,7 @@
     },
     {
       "name": "projects",
-      "description": "The life of a project, kept in its README: /projects:new interviews for the finish line, the people, how it is versioned and whether it is sensitive; /projects:adopt adds what an existing project is missing and changes how it is versioned; hold, board, pickup and close pause, show, resume and archive the work. A session-start line says where the folder's project stands, and which of its resources this machine has not mapped.",
+      "description": "The life of a project, kept in its README: /projects:new interviews for the finish line, the people, how it is versioned and whether it is sensitive; /projects:adopt adds what an existing project is missing and changes how it is versioned; hold, board, pickup and close pause, show, resume and archive the work; /projects:pair runs a product-manager session and a Claude Code engineer through a mailbox. A session-start line says where the folder's project stands, and which of its resources this machine has not mapped.",
       "source": "./plugins/projects",
       "category": "productivity",
       "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"

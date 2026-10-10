@@ -37,7 +37,7 @@
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook       9 the ten commands, on Claude Code and as skills; the
+#   4b the projects session-start hook       9 the eleven commands, on Claude Code and as skills; the
 #                                               closeout command and ritual carry the same core rules
 #                                            10 ablations: pilot/ablate.sh against a stub claude; the
 #                                               blind comparator, the bare arm, the login-token switch,
@@ -48,7 +48,7 @@
 # and then, from tests/sections/: 12 the docs (a page per command and hook, in four parts, and a README
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
-# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts.
+# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -1706,15 +1706,15 @@ fi
 # ---------------------------------------------------------------------------------------------------
 if aw_want 9; then
 echo
-echo "9 · The ten commands, on Claude Code and as skills, from one source each"
+echo "9 · The eleven commands, on Claude Code and as skills, from one source each"
 
 # The command set is fixed by the contract's command list; an eleventh, or a missing one, fails here
 # so the plugins, the skills and this list move together.
-commands="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pickup
+commands="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup
 workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the ten commands" \
-    || ko "9 the kit has exactly the ten commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the eleven commands" \
+    || ko "9 the kit has exactly the eleven commands" "has: $have"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }

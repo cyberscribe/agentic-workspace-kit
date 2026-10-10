@@ -5,6 +5,28 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.1.0 — 2026-10-10
+
+- **`/projects:pair`: a product manager and an engineer, through a mailbox.** The session that runs it
+  (Cowork, usually) becomes the project's product manager and end-to-end tester; one Claude Code
+  session becomes its engineer. They talk through `<project>/mailbox/`: `to-cc.md` and `to-pm.md`,
+  append only, ids `PM-NNN` and `CC-NNN`, and a `Status:` line that only a message's reader edits.
+  The command reads the workspace's own rules and quotes them into the brief, writes the first brief
+  from the README with no interview, and continues a mailbox already in this format. As the
+  `kit-projects-pair` skill it runs in Cowork.
+- **One command starts or resumes the engineer.** `plugins/projects/bin/pair.sh <project folder>`
+  runs on the person's machine, where the transcripts are: it resumes the session the engineer last
+  recorded in the mailbox when its transcript is still there, and starts a new one, named
+  `<slug>-cc`, otherwise; auto permission mode, `--ultracode` for a phase that fans out, `--print`
+  to see the command.
+- **The engineer's session keeps up with the mailbox.** A session that had ended its turn read nothing
+  until someone typed into it, so a message written after its last turn waited for the person to relay
+  it. `hooks/pair.sh` is a Stop hook that sends the agent back to an open message (twice at most per
+  message, so it cannot loop) and otherwise watches `to-cc.md` for up to 50 minutes, polling, before
+  letting the session stop. It costs no tokens while it waits. It and its SessionStart half are inert
+  unless the launcher set `PAIR_ROLE` and `PAIR_MAILBOX`. projects 3.1.0.
+- Tests: section 23.
+
 ## v3.0.5 — 2026-10-07
 
 - **The pilot counts whether agents read the reference material.** `measure.sh` counted what people
