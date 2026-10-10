@@ -1,7 +1,7 @@
 # projects — start a project right for agentic co-working
 
 A Claude Code plugin for the life of a project, kept in the project's own
-README so that people and agents read the same thing. Six commands, one
+README so that people and agents read the same thing. Seven commands, one
 session-start line:
 
 | Command | What it is for |
@@ -12,6 +12,7 @@ session-start line:
 | **`/projects:board`** | Everything in flight on one page, with one-line flags for what needs attention. |
 | **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear, and the folder archived to `projects/_done/`. |
 | **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it; it offers to resume a paused one. |
+| **`/projects:pair [slug]`** | Build with a split: this session is product manager and end-to-end tester, a Claude Code session is the engineer, and they talk through a mailbox in the project folder. |
 
 Most of it is optional. What it insists on, kindly, is the part that decides
 whether the work ever finishes:
@@ -211,6 +212,27 @@ date, and moves the register row to the paused section, whatever your register
 calls it. The folder stays where it is and stays versioned, so resting never
 means losing history. The board flags the project once its look-again date has
 passed, and `/projects:pickup` resumes it.
+
+## Pair
+
+**`/projects:pair <slug>`** splits building from directing. The session that runs
+it — Cowork is the natural home — becomes the project's product manager and
+end-to-end tester; one Claude Code session becomes its engineer. They talk
+through a mailbox in the project folder: `to-cc.md` and `to-pm.md`, append only,
+each message with a `Status:` line that only its reader edits. The command reads
+the workspace's own rules and quotes them into the brief, writes the first brief
+from the README with no interview, and gives you one command:
+
+```
+kit/plugins/projects/bin/pair.sh <project folder>
+```
+
+On your machine that resumes the engineer's last session if its transcript is
+still there, or starts a new one, in auto permission mode, with the pairing hooks
+loaded for that session only. Between turns the engineer's Stop hook waits on the
+mailbox, so a message written while it was idle is picked up without you relaying
+it. The PM checks back every 30 minutes, tests what is reported against evidence,
+and accepts it or writes the next brief; `close` ends the pairing.
 
 ## Pick up
 

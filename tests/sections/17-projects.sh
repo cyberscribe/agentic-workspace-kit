@@ -270,11 +270,11 @@ empty "17 hook: every run exits quietly (nothing on stderr)" \
 
 # ---- The ten commands ----------------------------------------------------------------------------
 
-s17_want="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pickup workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup workspace/hygiene workspace/quick-start workspace/register-audit"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the ten commands, /projects:hold among them" \
-    || ko "17 the kit has exactly the ten commands, /projects:hold among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the eleven commands, /projects:hold among them" \
+    || ko "17 the kit has exactly the eleven commands, /projects:hold among them" "has: $s17_got"
 
 # ---- What each projects command says -------------------------------------------------------------
 
@@ -346,7 +346,7 @@ s17_bad+="$(s17_has "$s17_c" "Done section, whatever it is called there")"
 s17_bad+="$(s17_has "$s17_p" "both as the conventions file names them")"
 empty "17 hold, close and pickup move register rows to the sections the conventions name" "$s17_bad"
 
-s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Six commands' '/projects:hold' 'projects/_done/<slug>/' \
+s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Seven commands' '/projects:hold' 'projects/_done/<slug>/' \
     '## How a project is kept' '## Resources' 'Folder moves' 'Not adopted')"
 s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" 'Folder moves' 'Versioned default' \
     'Not adopted' 'projects/_done/<slug>/' 'kit/templates/project-readme.md')"
