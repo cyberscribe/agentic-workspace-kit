@@ -589,8 +589,10 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
     and a session-start summary of what is out of step.
 - **Git hooks keep the workspace private and the kit clean.** `kit/setup.sh hooks` sets them in the
   workspace, the kit and each project repository. A hook the person already had runs after the kit's.
-- **`kit/setup.sh skills` writes one `kit-` skill per command** into `.claude/skills/`, beside the
-  team's own skills, for surfaces that load skills rather than plugins, such as Cowork.
+- **Cowork gets the plugins as files.** It does not read the marketplace in `kit/`: `kit/setup.sh cowork`
+  packages each plugin as a `.plugin` file to upload in Claude's plugin settings, and its commands then
+  appear in Cowork as skills. `kit/setup.sh skills` copies the team's own skills, and a `kit-` skill per
+  command, into `.claude/skills/` for surfaces that load skills from a folder.
 - **`--pilot` adds `pilot/build-list.md`**; the protocol and `kit/pilot/measure.sh` stay in the kit,
   and the script reads every other number from git history — counts only, safe to share outside the
   team.
@@ -696,7 +698,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
 | `plugins/projects/` | Projects from start to done — seven commands, a session-start line and the pairing hooks |
-| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `bin/state.sh` (the read-only state check), the session-start summary and the git guard |
+| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `scripts/state.sh` (the read-only state check), the session-start summary and the git guard |
 | `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
 | `install.sh` | The engine setup runs: creates the files a workspace owns, once, and records them in `.claude/kit-templates.lock` |
 | `lib/` | The shared shell library and the scripts behind setup's subcommands (`lib/setup/`) |

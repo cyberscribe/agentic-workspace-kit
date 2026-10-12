@@ -80,7 +80,7 @@ empty "12 every hook script has docs/hooks/<name>.md, with the four sections in 
 empty "12 docs/setup.md has the four sections in order, 25 to 70 lines, and names setup.sh" \
     "$(s12_page "$KIT/docs/setup.md" "setup.sh")"
 s12_bad=""
-for s12_m in new update --developer link hooks skills migrate; do
+for s12_m in new update --developer link hooks skills cowork migrate; do
     grep -qF -- "kit/setup.sh $s12_m" "$KIT/docs/setup.md" || s12_bad+="docs/setup.md does not name kit/setup.sh $s12_m"$'\n'
 done
 empty "12 docs/setup.md names every mode setup.sh dispatches" "$s12_bad"
