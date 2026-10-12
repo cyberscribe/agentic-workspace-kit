@@ -229,9 +229,9 @@ kit/plugins/projects/scripts/pair.sh <project folder>
 
 On your machine that resumes the engineer's last session if its transcript is
 still there, or starts a new one, in auto permission mode, with the pairing hooks
-loaded for that session only. Between turns the engineer's Stop hook waits on the
-mailbox, so a message written while it was idle is picked up without you relaying
-it. The PM checks back every 30 minutes, tests what is reported against evidence,
+loaded for that session only. Between turns a background watch the engineer starts
+wakes it when a message arrives, so one written while it was idle is picked up
+without you relaying it, and the session stays free for you to type into. The PM checks back every 30 minutes, tests what is reported against evidence,
 and accepts it or writes the next brief; `close` ends the pairing.
 
 ## Pick up

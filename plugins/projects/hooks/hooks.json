@@ -1,5 +1,5 @@
 {
-  "description": "Projects plugin — SessionStart line: where this folder's project stands, or once a day which projects have been blocked for more than 14 days. The /projects:pair engineer's hooks, inert unless scripts/pair.sh launched the session: record the session and watch the mailbox between turns.",
+  "description": "Projects plugin — SessionStart line: where this folder's project stands, or once a day which projects have been blocked for more than 14 days. The /projects:pair engineer's hooks, inert unless scripts/pair.sh launched the session: record the session and point it at open mailbox messages; both return at once.",
   "hooks": {
     "SessionStart": [
       {
@@ -24,7 +24,7 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pair.sh\" stop",
-            "timeout": 3600
+            "timeout": 5
           }
         ]
       }

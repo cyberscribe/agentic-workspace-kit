@@ -1,9 +1,8 @@
 # projects pair (SessionStart, Stop)
 
-*The engineer's side of a `/projects:pair` pairing: it records the session and keeps it with the
-mailbox between turns. Source: `plugins/projects/hooks/pair.sh`, wired in
-`plugins/projects/hooks/hooks.json` (SessionStart `startup|resume`, timeout 5 seconds; Stop, timeout
-3600 seconds).*
+*The engineer's side of a `/projects:pair` pairing: it records the session and points it at open
+mailbox messages, and never holds a turn. Source: `plugins/projects/hooks/pair.sh`, wired in
+`plugins/projects/hooks/hooks.json` (SessionStart `startup|resume` and Stop, timeout 5 seconds each).*
 
 ## What it does
 
@@ -11,21 +10,21 @@ It does nothing unless `PAIR_ROLE=cc` and `PAIR_MAILBOX` are set, which only
 `plugins/projects/scripts/pair.sh` does when it launches the engineer. Every other session passes through.
 
 **At session start** it writes the session id to `.cc-session` in the mailbox, so the launcher can
-resume it later, sets `.cc-state` to `working`, and tells the agent which PM messages are open for it.
+resume it later, sets `.cc-state` to `working`, and tells the agent which PM messages are open for it
+and the command that starts the watch.
 
 **At the end of each turn:**
 
 - A PM message with `Status: open` that the agent has not yet been pointed at twice sends it back to
   work: exit 2, with the ids and the file on stderr.
-- Otherwise it sets `.cc-state` to `waiting` and reads `to-cc.md` every 20 seconds. A new open message
-  sends the agent back to work; after 50 minutes with none, it sets `stopped` and lets the session end.
-- `.closed` in the mailbox, written when the PM closes the pairing, lets the session stop at once.
-- A session closed in the middle of a wait signals the hook, which sets `stopped` on its way out. A
-  wait that is killed outright cannot, so a `waiting` older than the wait limit (55 minutes at most)
-  reads as stopped.
+- Otherwise it returns at once, setting `.cc-state` to `waiting` when a watch is running and
+  `stopped` when none is. `.closed`, written when the PM closes the pairing, always reads `stopped`.
+- `Status:` is read wherever it sits in a line, and the last one in a message holds.
 
-`PAIR_WAIT_MINUTES` (0 to 55) and `PAIR_POLL_SECONDS` change the wait. It runs under bash 3.2 and needs
-no jq.
+**The watch** (`pair.sh watch`) is a background command the agent runs, not a hook. It reads
+`to-cc.md` every 20 seconds (`PAIR_POLL_SECONDS`) and ends, naming the message, when a new open one
+arrives or `.closed` appears; a background command ending is what wakes a session between turns. One
+watch runs at a time (`.cc-watch` holds its process id). It runs under bash 3.2 and needs no jq.
 
 ## When to reach for it
 
@@ -34,17 +33,18 @@ ignoring the mailbox, or will not stop.
 
 ## Common questions
 
-**The session looks busy but is doing nothing.** It is watching the mailbox. Press Esc to type into
-it; it waits again at the end of its next turn.
+**Why is the watch not in the Stop hook?** A hook that waits holds the session: it takes no other
+notification and the person has to interrupt it to type. The hooks check once; the watch waits.
 
 **Why at most two nudges per message?** A message the agent cannot finish would otherwise loop. After
-two, it waits for new messages only; the agent marks the stuck one `waiting <on what>` for the PM.
+two, only new messages wake it; the agent marks the stuck one `waiting <on what>` for the PM.
 
-**Does waiting cost tokens?** No. The hook is a shell loop; the model is not called until a message
+**Does watching cost tokens?** No. The watch is a shell loop; the model is not called until a message
 arrives.
 
 ## It's working if
 
 - A PM message written while the engineer was between turns is picked up within a poll.
+- The session is never busy with nothing to do: the person can type into it at any time.
 - Sessions not started by the launcher show no sign of the hook.
 - `.cc-state` names the state and the time it began.

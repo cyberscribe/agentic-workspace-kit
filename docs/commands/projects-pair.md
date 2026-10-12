@@ -34,8 +34,8 @@ windows: one session holds the outcome and tests, the other does. One engineer p
 line as the only edit, mean neither side ever edits the other's words, and "what is open" is one
 line per message.
 
-**What keeps the engineer reading the mailbox?** Its Stop hook. When a turn ends with nothing open, the
-session waits for the next PM message (up to 50 minutes) instead of going idle. See
+**What keeps the engineer reading the mailbox?** A background watch it starts, which wakes it when a
+PM message arrives, and a Stop hook that points it at anything still open. Neither holds the session. See
 [the pairing hooks](../hooks/projects-pair.md).
 
 **Can the engineer use ultracode?** Yes, when a phase fans out: it asks in its report, and the person

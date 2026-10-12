@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
-# The engineer's side of a /projects:pair pairing, as two hooks:
+# The engineer's side of a /projects:pair pairing: two hooks, and the watch the agent runs.
 #
 #   pair.sh start   SessionStart: records this session's id in the mailbox (so the launcher can
-#                   resume it) and tells the agent which messages are open for it.
-#   pair.sh stop    Stop: keeps the session with the mailbox. An open PM message it has not yet been
-#                   pointed at sends it back to work (exit 2, the reason on stderr). With nothing open,
-#                   it waits for the next message, polling to-cc.md, and then lets the session stop.
+#                   resume it) and tells the agent which messages are open for it, and the command
+#                   that starts the watch.
+#   pair.sh stop    Stop: an open PM message the agent has not yet been pointed at twice sends it back
+#                   to work (exit 2, the reason on stderr). Otherwise it returns at once.
+#   pair.sh watch   Run by the agent as a background command, not by a hook. It ends, with one line
+#                   naming the message, when a new open PM message arrives or the pairing is closed;
+#                   a background command that ends is what wakes a session between turns.
 #
 # Inert unless PAIR_ROLE=cc and PAIR_MAILBOX names a mailbox folder: scripts/pair.sh sets both when it
 # launches the engineer, so every other session that loads this plugin passes straight through.
 #
-# Why a waiting Stop hook: a session that has ended its turn reads nothing until someone types into
-# it, so a PM message written after the engineer's last turn used to sit unread until the person
-# relayed it. A hook that sleeps costs no tokens; the session stays attentive to the mailbox and
-# nothing else. Esc interrupts the wait when the person wants to type into the session.
+# Why the watch is not in the Stop hook: a hook that waits holds the session. While it sleeps the
+# session takes no other notification and looks busy to the person, who has to interrupt it to type.
+# The hooks therefore check once and return, and the waiting happens in a background command, which
+# holds nothing.
 #
 # Settings, from the environment:
-#   PAIR_WAIT_MINUTES   how long to wait for a message before letting the session stop (default 50;
-#                       capped at 55 to stay inside the hook's 3600-second timeout; 0 = do not wait)
-#   PAIR_POLL_SECONDS   how often to-cc.md is read while waiting (default 20)
+#   PAIR_POLL_SECONDS   how often the watch reads to-cc.md (default 20)
 #
 # State it writes, all in the mailbox: .cc-session (the session id), .cc-state (working, waiting or
-# stopped, since when; a wait that is killed outright cannot write stopped, so a reader treats a
-# waiting older than the wait limit as stopped) and .cc-nudged (each message id it has pointed the agent at, with a count).
-# An id is pointed at no more than twice, so a message the agent cannot finish leads to a stop, not a
-# loop; the agent marks such a message `waiting <on what>`, and the PM picks it up.
+# stopped, since when; waiting means a watch is running), .cc-watch (the running watch's process id)
+# and .cc-nudged (each message id it has pointed the agent at, with a count). An id is pointed at no
+# more than twice, so a message the agent cannot finish leads to a stop, not a loop; the agent marks
+# such a message `waiting <on what>`, and the PM picks it up.
 #
 # Written for bash 3.2 (macOS /bin/bash) and POSIX awk; no jq.
 set -u
@@ -36,19 +37,29 @@ mb="${PAIR_MAILBOX:-}"
 cc_file="$mb/to-cc.md"
 nudged="$mb/.cc-nudged"
 
-input="$(cat 2>/dev/null || true)"
-sid="$(printf '%s' "$input" | tr '\n' ' ' \
-    | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+watch_pid="$mb/.cc-watch"
+
+# The hooks are handed the session as JSON on stdin; the watch is run by the agent and reads the
+# session id the start hook recorded.
+if [ "$mode" = "watch" ]; then
+    sid="$(head -n 1 "$mb/.cc-session" 2>/dev/null | tr -d '[:space:]')"
+else
+    input="$(cat 2>/dev/null || true)"
+    sid="$(printf '%s' "$input" | tr '\n' ' ' \
+        | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+fi
 
 stamp() { date '+%Y-%m-%d %H:%M'; }
 set_state() { printf 'state: %s\nsince: %s\nsession: %s\n' "$1" "$(stamp)" "$sid" > "$mb/.cc-state" 2>/dev/null; }
 
-# The ids of messages in to-cc.md whose last Status line begins "open" (bold labels allowed).
+# The ids of messages in to-cc.md whose last Status begins "open" (bold labels allowed). The label
+# counts wherever it sits in a line, since a writer may end a sentence with it; the last one in the
+# message is the one that holds.
 open_ids() {
     [ -f "$cc_file" ] || return 0
     awk '
         /^## [A-Za-z]+-[0-9]+/ { if (id != "" && st ~ /^open/) print id; id = $2; st = ""; next }
-        /^\**Status:\**/ { s = $0; sub(/^\**Status:\**[ \t]*/, "", s); st = tolower(s) }
+        /Status:/ { s = $0; while (match(s, /Status:\**[ \t]*/)) s = substr(s, RSTART + RLENGTH); st = tolower(s) }
         END { if (id != "" && st ~ /^open/) print id }
     ' "$cc_file"
 }
@@ -65,6 +76,7 @@ due() {
     for id in $(open_ids); do [ "$(times_nudged "$id")" -lt "$limit" ] && out="$out $id"; done
     printf '%s' "${out# }"
 }
+watching() { [ -f "$watch_pid" ] && kill -0 "$(head -n 1 "$watch_pid" 2>/dev/null)" 2>/dev/null; }
 send_back() {
     local id
     for id in $1; do mark_nudged "$id"; done
@@ -80,38 +92,48 @@ case "$mode" in
         set_state working
         ids="$(open_ids | paste -sd' ' -)"
         printf 'This session is the engineer in a /projects:pair pairing. Mailbox: %s (protocol in its README.md). ' "$mb"
-        if [ -n "$ids" ]; then printf 'Open for you in to-cc.md: %s.\n' "$ids"; else printf 'Nothing is open for you in to-cc.md.\n'; fi
+        if [ -n "$ids" ]; then printf 'Open for you in to-cc.md: %s. ' "$ids"; else printf 'Nothing is open for you in to-cc.md. ' ; fi
+        printf 'To hear of a new message between turns, run this as a background command and start it again each time it ends: PAIR_ROLE=cc PAIR_MAILBOX=%q bash %q watch\n' \
+            "$mb" "$(cd "$(dirname "$0")" && pwd -P)/pair.sh"
         exit 0
         ;;
     stop)
         if [ -f "$mb/.closed" ]; then set_state stopped; exit 0; fi
         ids="$(due 2)"
         [ -n "$ids" ] && send_back "$ids"
-
-        wait_min="${PAIR_WAIT_MINUTES:-50}"
-        case "$wait_min" in ''|*[!0-9]*) wait_min=50 ;; esac
-        [ "$wait_min" -gt 55 ] && wait_min=55
+        if watching; then set_state waiting; else set_state stopped; fi
+        exit 0
+        ;;
+    watch)
+        if watching; then printf 'Mailbox: a watch is already running (process %s).\n' "$(head -n 1 "$watch_pid")"; exit 0; fi
         poll="${PAIR_POLL_SECONDS:-20}"
         case "$poll" in ''|*[!0-9]*|0) poll=20 ;; esac
-        if [ "$wait_min" -eq 0 ]; then set_state stopped; exit 0; fi
-
-        set_state waiting
-        # A session closed in the middle of a wait signals this hook. It says stopped on the way out,
-        # so the state file does not go on reading waiting with nothing watching. The sleep runs in
-        # the background because bash holds a trap until a foreground command returns.
+        printf '%s\n' "$$" > "$watch_pid" 2>/dev/null
+        # The sleep runs in the background because bash holds a trap until a foreground command returns.
         nap=""
-        trap '[ -n "$nap" ] && kill "$nap" 2>/dev/null; set_state stopped; exit 0' HUP INT TERM
-        end=$(( $(date +%s) + wait_min * 60 ))
-        while [ "$(date +%s)" -lt "$end" ]; do
+        trap '[ -n "$nap" ] && kill "$nap" 2>/dev/null; rm -f "$watch_pid"; set_state stopped; exit 0' HUP INT TERM
+        while :; do
+            if [ -f "$mb/.closed" ]; then
+                rm -f "$watch_pid"; set_state stopped
+                printf 'Mailbox: the PM has closed the pairing. No further watch is needed.\n'
+                exit 0
+            fi
+            # Only messages the agent has never been pointed at end the watch.
+            ids="$(due 1)"
+            if [ -n "$ids" ]; then
+                for id in $ids; do mark_nudged "$id"; done
+                rm -f "$watch_pid"; set_state working
+                printf 'Mailbox: %s open for you in %s. Read it and act on it; then set its Status: line (done, declined or waiting <on what>), report in %s/to-pm.md, and start the watch again.\n' \
+                    "$ids" "$cc_file" "$mb"
+                exit 0
+            fi
+            # The session that started the watch has gone when the mailbox has, or when this process
+            # has been handed to init.
+            [ -d "$mb" ] || exit 0
+            [ "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" = "1" ] && { rm -f "$watch_pid"; set_state stopped; exit 0; }
             sleep "$poll" & nap=$!
             wait "$nap"
-            if [ -f "$mb/.closed" ]; then set_state stopped; exit 0; fi
-            # Only messages the agent has never been pointed at wake it from a wait.
-            ids="$(due 1)"
-            [ -n "$ids" ] && send_back "$ids"
         done
-        set_state stopped
-        exit 0
         ;;
     *)
         exit 0

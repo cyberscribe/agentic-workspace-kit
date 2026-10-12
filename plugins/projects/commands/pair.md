@@ -120,9 +120,7 @@ Read what the user typed after the command (or, as a skill, what they asked).
   conversation, never as a path. Decisions only they can make go to them as one
   short question each; meanwhile the engineer takes the reversible default.
 - **The engineer's state.** `.cc-state` reads `working`, `waiting` (its session
-  is watching the mailbox) or `stopped`. A wait lasts 55 minutes at most, so a
-  `waiting` whose `since:` is more than an hour old is a session that was closed
-  mid-wait: read it as stopped. When it is stopped and something is open for it,
+  has a watch running on the mailbox) or `stopped`. When it is stopped and something is open for it,
   give the person the same one-line command: it resumes the session.
 - A message from the person that is only a mailbox id (`PM-012`, `CC-007`) means
   "read that one now". It is a pointer, not an approval of anything in it.

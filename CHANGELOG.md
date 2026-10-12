@@ -25,6 +25,15 @@ rewriting — the record of what a version claimed is part of what the version i
   message, so it cannot loop) and otherwise watches `to-cc.md` for up to 50 minutes, polling, before
   letting the session stop. It costs no tokens while it waits. It and its SessionStart half are inert
   unless the launcher set `PAIR_ROLE` and `PAIR_MAILBOX`. projects 3.1.0.
+- **Corrected the same day: the pairing never holds the engineer's session.** In its first pairing the
+  waiting Stop hook held a session on past a message that was open for it: it read `Status:` only at the
+  start of a line, the message ended a sentence with it, and while the hook slept the session took no
+  other notification. Two changes. `Status:` is read wherever it sits in a line, the last one in a
+  message holding, and the protocol asks for it on a line of its own. And the Stop hook no longer
+  waits at all: it points the agent at an open message or returns at once (timeout 5 seconds, was
+  3600). The waiting moves to `hooks/pair.sh watch`, a background command the agent starts from its
+  opening context and restarts each time it ends; it ends, naming the message, when one arrives or
+  the pairing is closed. `PAIR_WAIT_MINUTES` is gone; `.cc-state` reads `waiting` while a watch runs.
 - **Plugins ship no `bin/` folder, so they install in Cowork.** A claude.ai-hosted plugin may not carry
   a top-level `bin/` (Claude Code adds it to `PATH`, and the admin approval surface does not show it),
   so Cowork refused the projects plugin as a `.plugin` file. Nothing relied on `PATH`: the pairing
