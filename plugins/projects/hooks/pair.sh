@@ -7,7 +7,7 @@
 #                   pointed at sends it back to work (exit 2, the reason on stderr). With nothing open,
 #                   it waits for the next message, polling to-cc.md, and then lets the session stop.
 #
-# Inert unless PAIR_ROLE=cc and PAIR_MAILBOX names a mailbox folder: bin/pair.sh sets both when it
+# Inert unless PAIR_ROLE=cc and PAIR_MAILBOX names a mailbox folder: scripts/pair.sh sets both when it
 # launches the engineer, so every other session that loads this plugin passes straight through.
 #
 # Why a waiting Stop hook: a session that has ended its turn reads nothing until someone types into

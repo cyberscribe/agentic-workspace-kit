@@ -79,7 +79,7 @@ apart.
   that; on the first run, say it is the first reading. If a line grew, say which
   file grew.
 - **Submodules.** Run the kit's state check in its quick form from the
-  repository root — `bash kit/plugins/workspace/bin/state.sh --quick` — and put
+  repository root — `bash kit/plugins/workspace/scripts/state.sh --quick` — and put
   every `submodule.<path>` line in a table, clean ones included: path · role ·
   changed files · not pushed · pointer · behind · branch. Then one line each,
   from the same output: `hooks` and `kit_hooks` (whether the git hooks are

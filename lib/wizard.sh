@@ -5,7 +5,7 @@
 #
 # The shape follows the wizard pattern in mattpocock/skills (MIT): a fixed library, then one stage per
 # screen for each step a person has to take themselves. What a stage asks is offered with a default;
-# what a stage checks is read from the state check (plugins/workspace/bin/state.sh), so a re-run skips
+# what a stage checks is read from the state check (plugins/workspace/scripts/state.sh), so a re-run skips
 # what is already done, and Ctrl-C then running it again is the way back.
 #
 # Two ways to run:

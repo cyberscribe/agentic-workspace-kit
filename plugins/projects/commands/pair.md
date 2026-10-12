@@ -90,7 +90,7 @@ Read what the user typed after the command (or, as a skill, what they asked).
    machine sees it, with the project folder:
 
    ```
-   kit/plugins/projects/bin/pair.sh <project folder>
+   kit/plugins/projects/scripts/pair.sh <project folder>
    ```
 
    Add `--new` to start fresh rather than resume, `--ultracode` for a wide

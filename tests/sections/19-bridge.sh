@@ -178,7 +178,7 @@ printf '{"version":2,"plugins":{"closeout@agentic-workspace":[{"scope":"user"}],
 # these two runs and put back after.
 cp "$s19_w1/.claude/settings.json" "$SCRATCH/s19-settings.json"
 jq 'del(.extraKnownMarketplaces)' "$SCRATCH/s19-settings.json" > "$s19_w1/.claude/settings.json"
-s19_st="$(CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/bin/state.sh" --quick "$s19_w1" 2>&1)"
+s19_st="$(CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/scripts/state.sh" --quick "$s19_w1" 2>&1)"
 s19_hk="$(printf '{"cwd":"%s"}' "$s19_w1" | CLAUDE_CONFIG_DIR="$s19_cfg" "$st_bash" "$s19_w1/kit/plugins/workspace/hooks/session-start.sh" 2>&1 \
     | jq -r '.systemMessage // empty' 2>/dev/null)"
 cp "$SCRATCH/s19-settings.json" "$s19_w1/.claude/settings.json"

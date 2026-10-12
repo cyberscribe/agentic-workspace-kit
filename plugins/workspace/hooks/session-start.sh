@@ -8,7 +8,7 @@
 # It finds the workspace from the session's folder: the nearest ancestor (the folder itself included)
 # holding kit/CLAUDE.kit.md or .claude/kit-templates.lock. So a session opened inside kit/, or inside a
 # project that is its own repository, reports on the workspace around it, and one opened anywhere else
-# reports nothing. It reads the workspace through bin/state.sh --quick, which makes no network call,
+# reports nothing. It reads the workspace through scripts/state.sh --quick, which makes no network call,
 # takes no lock and never lists a resource folder.
 #
 # The lines go out twice, as the projects hook's do: as systemMessage, which the person sees, and as
@@ -52,7 +52,7 @@ while [[ -n "$d" ]]; do
 done
 [[ -n "$root" ]] || exit 0
 
-rep="$(bash "$here/../bin/state.sh" --quick --target "$root" 2>/dev/null)" || exit 0
+rep="$(bash "$here/../scripts/state.sh" --quick --target "$root" 2>/dev/null)" || exit 0
 [[ -n "$rep" ]] || exit 0
 # key <name>: one value from the report; per-item keys carry slashes and dots, so an index() match.
 key() { printf '%s\n' "$rep" | awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }'; }
@@ -202,7 +202,7 @@ fi
 
 [[ ${#lines[@]} -gt 0 ]] || exit 0
 msg="$(printf '%s\n' "${lines[@]}")"
-context="What is out of step in this workspace, from the workspace plugin's session-start check (kit/plugins/workspace/bin/state.sh --quick, read from ${root}):
+context="What is out of step in this workspace, from the workspace plugin's session-start check (kit/plugins/workspace/scripts/state.sh --quick, read from ${root}):
 $msg
 Mention these when the person's first request leaves room. Each line names its fix; setup and git commands are the person's to run, or yours on their yes."
 jq -nc --arg m "$msg" --arg c "$context" \

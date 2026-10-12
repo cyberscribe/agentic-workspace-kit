@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start, or resume, the engineer's Claude Code session for a /projects:pair pairing.
 #
-#   kit/plugins/projects/bin/pair.sh <project folder> [--mailbox DIR] [--new] [--ultracode]
+#   kit/plugins/projects/scripts/pair.sh <project folder> [--mailbox DIR] [--new] [--ultracode]
 #                                    [--mode MODE] [--print]
 #
 #   --mailbox DIR   the mailbox, when it is not <project folder>/mailbox

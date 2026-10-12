@@ -44,7 +44,7 @@ skill, it is what they asked for).
 ## What the workspace can tell you
 
 Where the repository has the kit's state check,
-`kit/plugins/workspace/bin/state.sh --quick`, run it once and read its
+`kit/plugins/workspace/scripts/state.sh --quick`, run it once and read its
 `key=value` lines: they say how each project is versioned, which submodules are
 out of step and which resources this machine cannot reach, without a network
 call. Where it is not there, the same facts come from git and the files, as each

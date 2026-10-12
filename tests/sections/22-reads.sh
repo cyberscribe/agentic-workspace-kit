@@ -355,7 +355,7 @@ s22_got="$(grep -cE '^export GIT_CONFIG_NOSYSTEM=1$' "$KIT/pilot/ablate.sh")"
 
 # The system attributes file goes the same way, so a run in the sandbox prints no git warning.
 s22_bad=""
-for s22_f in pilot/measure.sh pilot/reads.sh plugins/workspace/bin/state.sh; do
+for s22_f in pilot/measure.sh pilot/reads.sh plugins/workspace/scripts/state.sh; do
     grep -qxF 'export GIT_ATTR_NOSYSTEM=1' "$KIT/$s22_f" || s22_bad+="$s22_f does not set GIT_ATTR_NOSYSTEM"$'\n'
 done
 empty "22 measure.sh, reads.sh and state.sh leave the system attributes file out as well" "$s22_bad"

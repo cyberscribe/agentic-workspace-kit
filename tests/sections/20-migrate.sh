@@ -22,7 +22,7 @@ s20_built lib/setup/gitconfig.sh || s20_wait+="${s20_wait:+, }lib/setup/gitconfi
 grep -q 'kit-templates.lock' "$KIT/install.sh" 2>/dev/null || s20_wait+="${s20_wait:+, }the 3.0 install.sh engine (C2)"
 s20_built scripts/skills-bridge.sh || s20_wait+="${s20_wait:+, }scripts/skills-bridge.sh (C7)"
 s20_wait_state=""
-grep -q 'state_version 2' "$STATE" 2>/dev/null || s20_wait_state="plugins/workspace/bin/state.sh 3.0 keys (C4)"
+grep -q 'state_version 2' "$STATE" 2>/dev/null || s20_wait_state="plugins/workspace/scripts/state.sh 3.0 keys (C4)"
 
 # s20_run <kit checkout> <workspace> [args...]: the migration from that kit checkout, the way a person
 # runs it: kit/setup.sh migrate once setup.sh dispatches it, else the script itself. Output goes to

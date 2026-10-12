@@ -12,7 +12,7 @@ echo
 echo "23 · /projects:pair: the engineer's hooks and the launcher"
 
 s23_hook="$KIT/plugins/projects/hooks/pair.sh"
-s23_launch="$KIT/plugins/projects/bin/pair.sh"
+s23_launch="$KIT/plugins/projects/scripts/pair.sh"
 s23_p="$SCRATCH/s23/projects/00-demo"
 s23_mb="$s23_p/mailbox"
 mkdir -p "$s23_mb"

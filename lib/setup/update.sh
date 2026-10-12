@@ -26,7 +26,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 # shellcheck source=lib/common.sh
 . "$KIT/lib/common.sh"
 # shellcheck disable=SC2034  # read by lib/wizard.sh
-WZ_STATE_SH="$KIT/plugins/workspace/bin/state.sh"
+WZ_STATE_SH="$KIT/plugins/workspace/scripts/state.sh"
 
 WS="" NO_FETCH=0 AFTER=0 OLD=""
 while [[ $# -gt 0 ]]; do

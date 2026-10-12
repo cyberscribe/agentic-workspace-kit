@@ -8,7 +8,7 @@ mailbox between turns. Source: `plugins/projects/hooks/pair.sh`, wired in
 ## What it does
 
 It does nothing unless `PAIR_ROLE=cc` and `PAIR_MAILBOX` are set, which only
-`plugins/projects/bin/pair.sh` does when it launches the engineer. Every other session passes through.
+`plugins/projects/scripts/pair.sh` does when it launches the engineer. Every other session passes through.
 
 **At session start** it writes the session id to `.cc-session` in the mailbox, so the launcher can
 resume it later, sets `.cc-state` to `working`, and tells the agent which PM messages are open for it.

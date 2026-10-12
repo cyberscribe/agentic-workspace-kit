@@ -27,12 +27,12 @@ Before asking anything, run the state check from the repository root. It prints
 one `key=value` per line, writes nothing, and leaves no git lock behind:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/bin/state.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/state.sh"
 ```
 
 Where that path has not been filled in, as when this file is read as a skill,
-the script is `bin/state.sh` beside the `commands/` folder this file sits in:
-`kit/plugins/workspace/bin/state.sh` in a workspace built on the kit. With no
+the script is `scripts/state.sh` beside the `commands/` folder this file sits in:
+`kit/plugins/workspace/scripts/state.sh` in a workspace built on the kit. With no
 shell at all, read `state.sh` as a file instead: the comment beside each check
 names what it reads, so the same keys come from reading those files yourself.
 

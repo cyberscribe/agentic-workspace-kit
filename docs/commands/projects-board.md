@@ -7,7 +7,7 @@ Source: `plugins/projects/commands/board.md`.*
 
 - Reads `.claude/projects.md` first, then each active project's README. The READMEs are the truth;
   the board is a view of them.
-- Where the kit's state check is there, runs `kit/plugins/workspace/bin/state.sh --quick` once for
+- Where the kit's state check is there, runs `kit/plugins/workspace/scripts/state.sh --quick` once for
   versioning, submodules and resources. It makes no network call and writes nothing.
 - Lays out cards in columns by state, in the order the work flows: ready, doing, blocked, paused,
   done, then "no Current state block". One line per card: name, owner, Done when progress, and days

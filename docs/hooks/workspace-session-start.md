@@ -9,7 +9,7 @@ naming the command that fixes it. Source: `plugins/workspace/hooks/session-start
 It finds the workspace from the session's folder: the nearest folder, upward, that holds
 `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. A session opened inside `kit/`, or inside a project
 that is its own repository, reports on the workspace around it; one opened anywhere else reports
-nothing. It reads the workspace through `kit/plugins/workspace/bin/state.sh --quick`, which makes no
+nothing. It reads the workspace through `kit/plugins/workspace/scripts/state.sh --quick`, which makes no
 network call and takes no lock, and prints a line only for what is off:
 
 ```
@@ -45,7 +45,7 @@ inside the submodule first, then commit its pointer in the workspace.
 (`AW_HEADLESS_RUN=1`) and inside the closeout capture child (`CLOSEOUT_HOOK_CHILD`).
 
 **It said nothing, but I expected a warning.** It needs `jq`, and any failure is silent by design:
-the summary is a convenience, never a gate. `bash kit/plugins/workspace/bin/state.sh --quick` shows the
+the summary is a convenience, never a gate. `bash kit/plugins/workspace/scripts/state.sh --quick` shows the
 keys it reads.
 
 ## It's working if

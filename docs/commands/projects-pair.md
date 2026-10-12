@@ -16,7 +16,7 @@ Source: `plugins/projects/commands/pair.md`.*
   the README, this phase's checks, the order of work with the person's gates, ownership, and how to
   report with evidence. It says which reading of "this phase" it took.
 - Writes `KICKOFF.md` and gives the person one command, with the prompt it sends shown beneath:
-  `kit/plugins/projects/bin/pair.sh <project folder>`. On the person's machine that resumes the
+  `kit/plugins/projects/scripts/pair.sh <project folder>`. On the person's machine that resumes the
   engineer's last session if its transcript is still there, and starts a new one otherwise, in auto
   permission mode, with the pairing hooks loaded for that session only.
 - Comes back every 30 minutes while anything is open, tests what the engineer reports end to end, and

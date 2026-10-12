@@ -323,7 +323,7 @@ s17_bad+="$(s17_before "$s17_a" 'git rm -r --cached projects/<slug>` — the wor
 empty "17 adopt: the six transitions, history listed before subtree split, subtree -h, the modules folder, the link offer, Not adopted" "$s17_bad"
 
 s17_b="$s17_cmd/board.md"
-s17_bad="$(s17_has "$s17_b" 'kit/plugins/workspace/bin/state.sh --quick' '`sensitive_tracked`' '`versioned_mismatch`' \
+s17_bad="$(s17_has "$s17_b" 'kit/plugins/workspace/scripts/state.sh --quick' '`sensitive_tracked`' '`versioned_mismatch`' \
     '`submodules_attention`' '`resource.<slug>/<name>`' 'not on this machine' 'look again on <date>' 'Not adopted')"
 s17_bad+="$(s17_before "$s17_b" '8. **Ready to close**' '9. **Sensitive and tracked**')"
 s17_bad+="$(s17_before "$s17_b" '9. **Sensitive and tracked**' '10. **Versioning disagrees**')"
