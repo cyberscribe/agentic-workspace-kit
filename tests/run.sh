@@ -2647,7 +2647,7 @@ git -C "$SL" status --porcelain >/dev/null 2>&1
 # emits, names the kit path for a surface that does not fill the placeholder in, keeps a fallback
 # for a surface with no shell, and offers the team roster in the team part.
 QS="$KIT/plugins/workspace/commands/quick-start.md"
-qs_cmd="$(awk '/^```/ { f = !f; next } f && /bin\/state\.sh/ { print; exit }' "$QS")"
+qs_cmd="$(awk '/^```/ { f = !f; next } f && /scripts\/state\.sh/ { print; exit }' "$QS")"
 bad=""
 [[ "$qs_cmd" == *'${CLAUDE_PLUGIN_ROOT}/scripts/state.sh'* ]] || bad+="no state-check command in a fence: $qs_cmd"$'\n'
 for pair in "$SF:fresh" "$SJ:joining" "$SE:existing-system" "$SN:nothing-left"; do

@@ -64,6 +64,20 @@ wait
 [[ "$s23_out" == 2\|*PM-003* && $s23_dt -lt 15 ]] && ok "23 hook stop: a message written while waiting wakes the session (${s23_dt}s)" \
     || ko "23 hook stop: a message written while waiting wakes the session" "$s23_out after ${s23_dt}s"
 
+# A session closed mid-wait: the hook is signalled, and leaves stopped behind rather than waiting.
+s23_reset
+PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" PAIR_WAIT_MINUTES=1 PAIR_POLL_SECONDS=30 \
+    bash "$KIT/plugins/projects/hooks/pair.sh" stop <<<'{"session_id":"s23-sig"}' >/dev/null 2>&1 &
+s23_pid=$!
+s23_i=0; until grep -q '^state: waiting' "$s23_mb/.cc-state" 2>/dev/null || [[ $s23_i -ge 50 ]]; do sleep 0.1; s23_i=$((s23_i + 1)); done
+s23_was="$(sed -n 1p "$s23_mb/.cc-state" 2>/dev/null)"
+s23_t0=$(date +%s)
+kill -TERM "$s23_pid" 2>/dev/null; wait "$s23_pid"; s23_rc=$?
+s23_dt=$(( $(date +%s) - s23_t0 ))
+[[ "$s23_was" == "state: waiting" && $s23_rc -eq 0 && $s23_dt -lt 5 ]] && grep -q '^state: stopped' "$s23_mb/.cc-state" \
+    && ok "23 hook stop: a wait that is signalled writes stopped and ends at once" \
+    || ko "23 hook stop: a wait that is signalled writes stopped and ends at once" "was '$s23_was', rc=$s23_rc after ${s23_dt}s, now '$(sed -n 1p "$s23_mb/.cc-state" 2>/dev/null)'"
+
 s23_reset
 touch "$s23_mb/.closed"
 s23_add PM-004

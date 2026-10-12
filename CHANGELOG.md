@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## v3.1.0 — 2026-10-10
+## v3.1.0 — 2026-10-12
 
 - **`/projects:pair`: a product manager and an engineer, through a mailbox.** The session that runs it
   (Cowork, usually) becomes the project's product manager and end-to-end tester; one Claude Code
@@ -41,6 +41,10 @@ rewriting — the record of what a version claimed is part of what the version i
   in Cowork this way, and its seven commands appeared as skills. Closeout did not: Cowork refuses a
   plugin named like a skill already on the account, here the account-level Cowork closeout skill, which
   stays the way into closeout there.
+- **A closed session does not go on reading `waiting`.** Seen in the first live pairings: a session
+  closed in the middle of a wait killed the hook before it wrote `stopped`, so `.cc-state` read
+  `waiting` for hours with nothing watching. The hook now writes `stopped` when it is signalled, and the
+  PM reads a `waiting` more than an hour old as stopped, which covers a kill the hook cannot catch.
 - Tests: sections 23 and 24.
 
 ## v3.0.5 — 2026-10-07

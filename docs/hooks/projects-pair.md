@@ -20,6 +20,9 @@ resume it later, sets `.cc-state` to `working`, and tells the agent which PM mes
 - Otherwise it sets `.cc-state` to `waiting` and reads `to-cc.md` every 20 seconds. A new open message
   sends the agent back to work; after 50 minutes with none, it sets `stopped` and lets the session end.
 - `.closed` in the mailbox, written when the PM closes the pairing, lets the session stop at once.
+- A session closed in the middle of a wait signals the hook, which sets `stopped` on its way out. A
+  wait that is killed outright cannot, so a `waiting` older than the wait limit (55 minutes at most)
+  reads as stopped.
 
 `PAIR_WAIT_MINUTES` (0 to 55) and `PAIR_POLL_SECONDS` change the wait. It runs under bash 3.2 and needs
 no jq.

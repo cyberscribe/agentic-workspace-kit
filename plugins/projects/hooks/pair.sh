@@ -21,7 +21,8 @@
 #   PAIR_POLL_SECONDS   how often to-cc.md is read while waiting (default 20)
 #
 # State it writes, all in the mailbox: .cc-session (the session id), .cc-state (working, waiting or
-# stopped, since when) and .cc-nudged (each message id it has pointed the agent at, with a count).
+# stopped, since when; a wait that is killed outright cannot write stopped, so a reader treats a
+# waiting older than the wait limit as stopped) and .cc-nudged (each message id it has pointed the agent at, with a count).
 # An id is pointed at no more than twice, so a message the agent cannot finish leads to a stop, not a
 # loop; the agent marks such a message `waiting <on what>`, and the PM picks it up.
 #
@@ -95,9 +96,15 @@ case "$mode" in
         if [ "$wait_min" -eq 0 ]; then set_state stopped; exit 0; fi
 
         set_state waiting
+        # A session closed in the middle of a wait signals this hook. It says stopped on the way out,
+        # so the state file does not go on reading waiting with nothing watching. The sleep runs in
+        # the background because bash holds a trap until a foreground command returns.
+        nap=""
+        trap '[ -n "$nap" ] && kill "$nap" 2>/dev/null; set_state stopped; exit 0' HUP INT TERM
         end=$(( $(date +%s) + wait_min * 60 ))
         while [ "$(date +%s)" -lt "$end" ]; do
-            sleep "$poll"
+            sleep "$poll" & nap=$!
+            wait "$nap"
             if [ -f "$mb/.closed" ]; then set_state stopped; exit 0; fi
             # Only messages the agent has never been pointed at wake it from a wait.
             ids="$(due 1)"
