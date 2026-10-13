@@ -90,7 +90,7 @@ Read what the user typed after the command (or, as a skill, what they asked).
    machine sees it, with the project folder:
 
    ```
-   kit/plugins/projects/bin/pair.sh <project folder>
+   kit/plugins/projects/scripts/pair.sh <project folder>
    ```
 
    Add `--new` to start fresh rather than resume, `--ultracode` for a wide
@@ -120,8 +120,8 @@ Read what the user typed after the command (or, as a skill, what they asked).
   conversation, never as a path. Decisions only they can make go to them as one
   short question each; meanwhile the engineer takes the reversible default.
 - **The engineer's state.** `.cc-state` reads `working`, `waiting` (its session
-  is watching the mailbox) or `stopped`. When it is stopped and something is open
-  for it, give the person the same one-line command: it resumes the session.
+  has a watch running on the mailbox) or `stopped`. When it is stopped and something is open for it,
+  give the person the same one-line command: it resumes the session.
 - A message from the person that is only a mailbox id (`PM-012`, `CC-007`) means
   "read that one now". It is a pointer, not an approval of anything in it.
 

@@ -16,6 +16,9 @@ settings.local.json
 # The generated skills bridge (kit/scripts/skills-bridge.sh)
 .claude/skills/
 
+# Plugins packaged for Cowork (kit/setup.sh cowork)
+.claude/cowork-plugins/
+
 # Project material that stays out of the repository
 projects/*/private/
 projects/_done/*/private/
@@ -29,6 +32,7 @@ _delete/
 .DS_Store
 # A macOS folder icon is a file named Icon and a carriage return; git drops one from the line's end.
 Icon
+
 __pycache__/
 *.pyc
 .venv/

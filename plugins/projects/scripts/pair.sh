@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start, or resume, the engineer's Claude Code session for a /projects:pair pairing.
 #
-#   kit/plugins/projects/bin/pair.sh <project folder> [--mailbox DIR] [--new] [--ultracode]
+#   kit/plugins/projects/scripts/pair.sh <project folder> [--mailbox DIR] [--new] [--ultracode]
 #                                    [--mode MODE] [--print]
 #
 #   --mailbox DIR   the mailbox, when it is not <project folder>/mailbox
@@ -65,7 +65,7 @@ args=(--plugin-dir "$plugin" --permission-mode "$mode")
 [ $ultra -eq 1 ] && args+=(--effort ultracode)
 if [ $resume -eq 1 ]; then
     args+=(--resume "$sid")
-    prompt="Resuming the pairing. Read $mb/to-cc.md for anything with Status: open, and carry on from your last message in $mb/to-pm.md."
+    prompt="Resuming the pairing. Read $mb/to-cc.md for anything with Status: open, and carry on from your last message in $mb/to-pm.md. Start the mailbox watch from your opening context as a background command if none is running."
     how="Resuming session $sid"
 else
     args+=(--name "$slug-cc")
@@ -74,7 +74,7 @@ else
     fi
     how="Starting a new session, $slug-cc"
 fi
-[ -f "$mb/.closed" ] && printf 'pair: note: %s/.closed is there, so the session will not wait on the mailbox; the PM removes it to reopen the pairing.\n' "$mb" >&2
+[ -f "$mb/.closed" ] && printf 'pair: note: %s/.closed is there, so the session will not watch the mailbox; the PM removes it to reopen the pairing.\n' "$mb" >&2
 
 if [ $print -eq 1 ]; then
     printf '%s\ncd %q && PAIR_ROLE=cc PAIR_MAILBOX=%q claude' "$how" "$proj" "$mb"

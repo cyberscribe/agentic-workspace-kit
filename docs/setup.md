@@ -5,7 +5,7 @@
 
 ## What it does
 
-With no mode, it runs ten stages. Each reads the state check (`kit/plugins/workspace/bin/state.sh`)
+With no mode, it runs ten stages. Each reads the state check (`kit/plugins/workspace/scripts/state.sh`)
 first, so a finished stage is skipped and a second run picks up where Ctrl-C stopped. It overwrites,
 deletes and commits nothing; the last stage prints the commit to make.
 
@@ -18,7 +18,7 @@ deletes and commits nothing; the last stage prints the commit to make.
 | 5 | Submodule configuration | The git settings that keep submodules visible and pushed |
 | 6 | Outside folders | Runs `link` for material projects name under `## Resources` |
 | 7 | Restart Claude Code | How to trust the folder and install the three plugins from the marketplace at `kit/` |
-| 8 | Cowork (with `--cowork`) | Runs the skills bridge, and names the scheduled tasks that fit |
+| 8 | Cowork (with `--cowork`) | Runs the skills bridge, packages the plugins for upload (`cowork`), and names the scheduled tasks that fit |
 | 9 | Verify | Each check, with the command that fixes any that fails |
 | 10 | Finish | What to run next, `/workspace:quick-start`, and the commit to make |
 
@@ -30,6 +30,7 @@ deletes and commits nothing; the last stage prints the commit to make.
 | `kit/setup.sh link [SLUG] [--dry-run]` | Links each resource a project names to its path on this machine, from `.claude/resources.local.md` |
 | `kit/setup.sh hooks [--repo PATH] [--check]` | Sets the git hooks in the workspace, the kit and each project repository |
 | `kit/setup.sh skills [--dry-run] [--check] [--no-user]` | Writes one `kit-` skill per command, and copies the team's `skills/`, into `.claude/skills/` |
+| `kit/setup.sh cowork [PLUGIN…] [--out DIR] [--check]` | Packages each plugin as `<plugin>-<version>.plugin` in `.claude/cowork-plugins/`, after checking what Cowork refuses (a description over 500 characters, a `bin/` folder), for upload in Claude's plugin settings |
 | `kit/setup.sh migrate [--dry-run] [--map FILE] …` | Moves a 2.x workspace to the 3.0 layout; see `docs/migration.md` |
 
 Every mode takes `--target DIR`. Without it, the target is the repository the kit is a submodule of,
@@ -41,8 +42,8 @@ question takes its default, and stages only a person can do are skipped. Exit st
 
 `new` to start a workspace; the plain run after cloning one (`git clone --recurse-submodules`, then
 `kit/setup.sh`), and whenever the session-start summary names it; `update` to take a newer kit; `hooks`
-after a clone or a new project repository; `link` on a new machine; `skills` after an update, when the
-team uses Cowork; `--developer` only when working on the kit itself.
+after a clone or a new project repository; `link` on a new machine; `skills` and `cowork` after an update,
+when the team uses Cowork; `--developer` only when working on the kit itself.
 
 ## Common questions
 

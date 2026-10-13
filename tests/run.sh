@@ -48,7 +48,7 @@
 # and then, from tests/sections/: 12 the docs (a page per command and hook, in four parts, and a README
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
-# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair.
+# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -126,7 +126,7 @@ aw_want() {
 
 # The state check and its helpers, shared by section 11 and the sections in tests/sections/. They run
 # under /bin/bash where there is one (bash 3.2 on macOS), since that is the floor the kit is written for.
-STATE="$KIT/plugins/workspace/bin/state.sh"
+STATE="$KIT/plugins/workspace/scripts/state.sh"
 st_bash=bash; [[ -x /bin/bash ]] && st_bash=/bin/bash
 st_err=""
 # st_run <dir> [option...]: the report on stdout; anything on stderr is collected for the silence check.
@@ -645,6 +645,16 @@ lists_plugins() {
 }
 empty "3 the root marketplace lists all three plugins, and every plugin in plugins/" \
     "$(lists_plugins "$KIT/.claude-plugin/marketplace.json" "./plugins/" "$KIT/plugins")"
+# Cowork installs a plugin as a .plugin file and refuses one that a claude.ai-hosted plugin may not be:
+# a description over 500 characters, or a top-level bin/ (Claude Code puts it on PATH, and the admin
+# approval surface does not show it). Each plugin, and its marketplace entry, stays inside both.
+empty "3 every plugin installs in Cowork: descriptions of 500 characters or fewer, no top-level bin/" \
+    "$(for f in "$KIT"/plugins/*/.claude-plugin/plugin.json; do
+           n="$(jq -r '.description | length' "$f")"; [ "$n" -le 500 ] || echo "${f#"$KIT"/}: description $n characters"
+           d="${f%/.claude-plugin/plugin.json}"; [ ! -e "$d/bin" ] || echo "${d#"$KIT"/}: has bin/"
+       done
+       jq -r '.plugins[] | select((.description | length) > 500) | "marketplace entry \(.name): description \(.description | length) characters"' \
+           "$KIT/.claude-plugin/marketplace.json")"
 # §9.2: the optional "$schema" key is ignored at load time and names a vendor URL, so no marketplace carries it.
 empty "3 no marketplace file carries a \$schema key" \
     "$(for f in "$KIT"/.claude-plugin/marketplace.json "$KIT"/plugins/*/.claude-plugin/marketplace.json; do
@@ -2464,7 +2474,7 @@ if aw_want 11; then
 echo
 echo "11 · The state check: one scratch repository per mode, the other keys, and no lock left behind"
 
-# plugins/workspace/bin/state.sh reads a repository and prints key=value lines; the quick-start and the
+# plugins/workspace/scripts/state.sh reads a repository and prints key=value lines; the quick-start and the
 # setup wizard branch on its mode= line. Each mode is built in scratch from a real install, so the
 # facts it reads are the installer's own. It runs under /bin/bash where there is one (bash 3.2 on
 # macOS), since that is the floor it is written for.
@@ -2637,17 +2647,17 @@ git -C "$SL" status --porcelain >/dev/null 2>&1
 # emits, names the kit path for a surface that does not fill the placeholder in, keeps a fallback
 # for a surface with no shell, and offers the team roster in the team part.
 QS="$KIT/plugins/workspace/commands/quick-start.md"
-qs_cmd="$(awk '/^```/ { f = !f; next } f && /bin\/state\.sh/ { print; exit }' "$QS")"
+qs_cmd="$(awk '/^```/ { f = !f; next } f && /scripts\/state\.sh/ { print; exit }' "$QS")"
 bad=""
-[[ "$qs_cmd" == *'${CLAUDE_PLUGIN_ROOT}/bin/state.sh'* ]] || bad+="no state-check command in a fence: $qs_cmd"$'\n'
+[[ "$qs_cmd" == *'${CLAUDE_PLUGIN_ROOT}/scripts/state.sh'* ]] || bad+="no state-check command in a fence: $qs_cmd"$'\n'
 for pair in "$SF:fresh" "$SJ:joining" "$SE:existing-system" "$SN:nothing-left"; do
     d="${pair%:*}" want="${pair##*:}"
     got="$(cd "$d" && CLAUDE_PLUGIN_ROOT="$d/kit/plugins/workspace" "$st_bash" -c "$qs_cmd" 2>&1 | sed -n 's/^mode=//p')"
     [[ "$got" == "$want" ]] || bad+="$d: the quick-start's command reported mode '$got', wanted '$want'"$'\n'
     grep -qF -- "- **\`$want\`** — " "$QS" || bad+="no branch in the quick-start for mode $want"$'\n'
 done
-[[ -f "$SF/kit/plugins/workspace/bin/state.sh" ]] || bad+="the fallback kit/plugins/workspace/bin/state.sh is not in the workspace"$'\n'
-grep -qF '`kit/plugins/workspace/bin/state.sh`' "$QS" || bad+="the quick-start does not name the path in kit/"$'\n'
+[[ -f "$SF/kit/plugins/workspace/scripts/state.sh" ]] || bad+="the fallback kit/plugins/workspace/scripts/state.sh is not in the workspace"$'\n'
+grep -qF '`kit/plugins/workspace/scripts/state.sh`' "$QS" || bad+="the quick-start does not name the path in kit/"$'\n'
 grep -q 'With no$' "$QS" && grep -q '^shell at all, read `state.sh` as a file' "$QS" || bad+="no fallback for a surface with no shell"$'\n'
 awk '/^## The team part/ { s = 1; next } /^## / { s = 0 } s' "$QS" | tr '\n' ' ' \
     | grep -q 'start `team/people.md` from *`templates/team-roster.md`' || bad+="the team part does not offer the team roster"$'\n'
@@ -2670,7 +2680,7 @@ empty "11 the quick-start's state-check command decides each mode, names only ke
 SETUP="$KIT/setup.sh" WZLIB="$KIT/lib/wizard.sh"
 check "11 setup.sh parses under $st_bash" "$st_bash" -n "$SETUP"
 check "11 lib/wizard.sh parses under $st_bash" "$st_bash" -n "$WZLIB"
-sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugins/workspace/bin/state.sh
+sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugins/workspace/scripts/state.sh
     pilot/ablate.sh pilot/measure.sh pilot/reads.sh plugins/closeout/hooks/lib/config.sh
     githooks/pre-commit githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh
     githooks/lib/common.sh)

@@ -79,7 +79,7 @@ s21_got="$(s21_general "$s21_pb")|$(s21_general "$s21_pn")|$(s21_general "$s21_p
 
 # --- Hygiene, register audit, the quick-start: the 3.0 wording --------------------------------------
 s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'kit/rituals/weekly-hygiene.md' \
-    'bash kit/plugins/workspace/bin/state.sh --quick' '**Submodules.**' \
+    'bash kit/plugins/workspace/scripts/state.sh --quick' '**Submodules.**' \
     'path · role · changed files · not pushed · pointer · behind · branch' \
     '`hooks` and `kit_hooks`' '`kit_import`' '`origin_visibility`, with `origin_confirmed`' '`orphan_gitlinks`' \
     '`external_paths_missing`' '`sensitive_tracked`' '`versioned_mismatch`' '`skills_bridge_stale`' \
@@ -96,7 +96,7 @@ s21_bad="$(s21_needs plugins/workspace/commands/register-audit.md 'kit/docs/docu
 empty "21 register audit: the rule is read from kit/, the kit and the bridge's copies are left out" "$s21_bad"
 
 s21_qs="plugins/workspace/commands/quick-start.md"
-s21_bad="$(s21_needs "$s21_qs" '`kit/plugins/workspace/bin/state.sh`' 'Fill `CLAUDE.md` §1–§3' 'kit/setup.sh link <slug>' \
+s21_bad="$(s21_needs "$s21_qs" '`kit/plugins/workspace/scripts/state.sh`' 'Fill `CLAUDE.md` §1–§3' 'kit/setup.sh link <slug>' \
     'kit/setup.sh skills' '.claude/skills/.kit-generated' 'bash kit/pilot/measure.sh --backfill 8' '`kit_import`')"
 grep -qF '.kit-incoming' "$KIT/$s21_qs" && s21_bad+="$s21_qs: still names .kit-incoming"$'\n'
 grep -qF 'Team Manifest' "$KIT/$s21_qs" && s21_bad+="$s21_qs: still names the Team Manifest"$'\n'

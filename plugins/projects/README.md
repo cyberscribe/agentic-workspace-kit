@@ -177,7 +177,7 @@ Done when is fully ticked but not yet closed, a sensitive project the workspace
 still tracks, a `Versioned:` line that disagrees with the folder, a project
 repository out of step with its pointer, a resource this machine cannot reach,
 and a paused project whose look-again date has come. Where the kit's state
-check is present (`kit/plugins/workspace/bin/state.sh --quick`) it reads those
+check is present (`kit/plugins/workspace/scripts/state.sh --quick`) it reads those
 facts from it. It only reads. Type `write` after the command to
 also save it as `projects/BOARD.md`, whose first line marks it as generated; the
 READMEs stay canonical. On a repository with no projects it says so and suggests
@@ -224,14 +224,14 @@ the workspace's own rules and quotes them into the brief, writes the first brief
 from the README with no interview, and gives you one command:
 
 ```
-kit/plugins/projects/bin/pair.sh <project folder>
+kit/plugins/projects/scripts/pair.sh <project folder>
 ```
 
 On your machine that resumes the engineer's last session if its transcript is
 still there, or starts a new one, in auto permission mode, with the pairing hooks
-loaded for that session only. Between turns the engineer's Stop hook waits on the
-mailbox, so a message written while it was idle is picked up without you relaying
-it. The PM checks back every 30 minutes, tests what is reported against evidence,
+loaded for that session only. Between turns a background watch the engineer starts
+wakes it when a message arrives, so one written while it was idle is picked up
+without you relaying it, and the session stays free for you to type into. The PM checks back every 30 minutes, tests what is reported against evidence,
 and accepts it or writes the next brief; `close` ends the pairing.
 
 ## Pick up

@@ -10,17 +10,19 @@
 #   kit/setup.sh link [SLUG] [--target DIR] [--dry-run]
 #   kit/setup.sh hooks [--target DIR] [--repo PATH] [--check]
 #   kit/setup.sh skills [--target DIR] [--dry-run] [--check] [--no-user]
+#   kit/setup.sh cowork [PLUGIN...] [--target DIR] [--out DIR] [--check]
 #   kit/setup.sh migrate [--target DIR] [--dry-run] [--map FILE] [--kit-from URL] [--kit-ref REF] [--allow-staged] [--developer]
 #   kit/setup.sh -h | --help
 #
 # With no mode it runs the ten stages below on the workspace; new runs them on a folder it starts
 # from nothing. The other modes run as child scripts, each given --target: update, --developer (also
-# accepted as developer), link, hooks and migrate from lib/setup/, skills from scripts/skills-bridge.sh.
+# accepted as developer), link, hooks, migrate and cowork from lib/setup/, skills from
+# scripts/skills-bridge.sh.
 #
 # The target is --target; else DIR for new; else the repository this kit checkout is a submodule of;
 # else the current folder. A target inside the kit's own checkout stops.
 #
-# Each stage reads the state check (plugins/workspace/bin/state.sh) before it acts, so a re-run skips
+# Each stage reads the state check (plugins/workspace/scripts/state.sh) before it acts, so a re-run skips
 # what is done: Ctrl-C and run it again is the way back. Nothing is overwritten, nothing is deleted and
 # nothing is committed. AW_WIZARD_NONINTERACTIVE=1, or no terminal on stdin, runs it unattended: every
 # question takes its default, and the stages only a person can do are skipped.
@@ -47,10 +49,10 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=lib/common.sh
 . "$KIT/lib/common.sh"
 # shellcheck disable=SC2034  # read by lib/wizard.sh
-WZ_STATE_SH="$KIT/plugins/workspace/bin/state.sh"
+WZ_STATE_SH="$KIT/plugins/workspace/scripts/state.sh"
 DEFAULT_KIT_URL="https://github.com/cyberscribe/agentic-workspace-kit.git"
 
-usage() { sed -n '6,14p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '6,15p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # abs_path <path>: an absolute path, resolved through links as far as it exists. A folder that does not
 # exist yet keeps its last name under its resolved parent.
@@ -79,7 +81,7 @@ inside_kit() { case "$1/" in "$KIT"/*) return 0 ;; esac; return 1; }
 MODE=wizard
 case "${1:-}" in
     new) MODE=new; shift ;;
-    update|link|hooks|skills|migrate) MODE="$1"; shift ;;
+    update|link|hooks|skills|migrate|cowork) MODE="$1"; shift ;;
     developer|--developer) MODE=developer; shift ;;
 esac
 
@@ -105,6 +107,7 @@ if [[ $MODE != wizard && $MODE != new ]]; then
         hooks) child="$KIT/lib/setup/gitconfig.sh"; extra=(--hooks) ;;
         migrate) child="$KIT/lib/setup/migrate.sh" ;;
         skills) child="$KIT/scripts/skills-bridge.sh" ;;
+        cowork) child="$KIT/lib/setup/cowork.sh" ;;
     esac
     "${BASH:-bash}" "$child" --target "$T" ${extra[@]+"${extra[@]}"} ${rest[@]+"${rest[@]}"}
     exit $?
@@ -595,8 +598,9 @@ if [[ $COWORK -eq 0 ]]; then
     outcome skipped "off by default; --cowork includes it"
 else
     cw=""
-    say "Cowork does not read this workspace's .claude/settings.json, so the kit's plugins and hooks do"
-    say "not load there. It works in a folder you add, and reads the kit's commands as skills."
+    say "Cowork does not read this workspace's .claude/settings.json or the marketplace in kit/. It works"
+    say "in a folder you add; the kit's plugins reach it as uploaded .plugin files, your own skills by the"
+    say "skills bridge."
     echo
     bold "a. Add the folder"; echo
     step "In the Claude desktop app, open Cowork and add this workspace with Add folder:"
@@ -614,7 +618,15 @@ else
     else note "Cowork reads skills when a session starts: they appear in the next session, not this one."; fi
     note "kit/setup.sh skills refreshes the bridge; run it from a terminal after an update."
     echo
-    bold "c. Scheduled tasks"; echo
+    bold "c. The kit's plugins"; echo
+    say "  One .plugin file per plugin, which Cowork installs from Claude's plugin settings. Its commands"
+    say "  then appear in Cowork as skills (/projects:pair and the rest). Hooks do not run there."
+    packed="$("${BASH:-bash}" "$T/kit/lib/setup/cowork.sh" --target "$T" </dev/null 2>&1)" || cw+="a plugin was not packaged (kit/setup.sh cowork); "
+    printf '%s\n' "$packed" | sed 's/^/    /'
+    step "Upload each file above in Claude's plugin settings (Customize, then Plugins), and again after"
+    step "each kit update: kit/setup.sh cowork rebuilds them, with the version in each file name."
+    echo
+    bold "d. Scheduled tasks"; echo
     step "In Cowork, a scheduled task runs a skill on a cadence. Two fit the kit, both in this folder:"
     step "  weekly    kit-workspace-hygiene"
     step "  monthly   kit-workspace-register-audit"

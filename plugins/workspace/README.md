@@ -104,7 +104,7 @@ its remote, and a kit plugin Claude Code would not load while the skills bridge'
 inside `kit/` or inside a project that is its own repository reports on the
 workspace around it, and one opened anywhere else reports nothing.
 
-It reads `bin/state.sh --quick`, which makes no network call, takes no lock and
+It reads `scripts/state.sh --quick`, which makes no network call, takes no lock and
 never lists a resource folder (listing a cloud-drive folder can stall). It needs
 jq, and it is silent on any failure. `WORKSPACE_HOOK_DISABLED=1` turns it off, and
 a headless run (`AW_HEADLESS_RUN=1`) or closeout's capture child
@@ -121,7 +121,7 @@ person decides. It is silent on every other command, and
 
 ## The state check
 
-`bin/state.sh` reads a repository and reports where it stands against the kit, one
+`scripts/state.sh` reads a repository and reports where it stands against the kit, one
 `key=value` per line. For the workspace: the git hooks, where the kit is and how
 far it is from its remote, the import in `CLAUDE.md`, the origin and whether it is
 recorded as confirmed private, each submodule's state (`submodule.<path>`),
@@ -137,10 +137,10 @@ setup wizard, the session-start summary and the board to branch on, and the test
 assert against it. Run it from the workspace, or name another folder:
 
 ```
-bash kit/plugins/workspace/bin/state.sh
-bash kit/plugins/workspace/bin/state.sh --quick
-bash kit/plugins/workspace/bin/state.sh ../other-repo --json
-bash kit/plugins/workspace/bin/state.sh --explain submodule.kit
+bash kit/plugins/workspace/scripts/state.sh
+bash kit/plugins/workspace/scripts/state.sh --quick
+bash kit/plugins/workspace/scripts/state.sh ../other-repo --json
+bash kit/plugins/workspace/scripts/state.sh --explain submodule.kit
 ```
 
 `--quick` gives only the keys the session-start summary reads, at a cost that

@@ -13,6 +13,7 @@ The PM talks to you through the mailbox at `<mailbox path>`:
 4. When you have dealt with a PM message, set its `Status:` line (`done`, `declined` or
    `waiting <on what>`).
 
-Between turns this session watches `to-cc.md` for you, so finish each turn cleanly; a new message
-arrives as your next instruction. When something is unclear, take the reversible reading, say so in
+Your session's opening context gives a watch command. Run it as a background command before you end
+your first turn, and start it again each time it ends: it ends when a new message arrives, which is
+what brings you back between turns. It holds nothing, so finish each turn cleanly. When something is unclear, take the reversible reading, say so in
 `to-pm.md`, and carry on. Questions for the person go to the PM in the mailbox rather than here.

@@ -1109,7 +1109,7 @@ fi
 MG_STATE=""
 mg_state() {
     [[ -n "$MG_STATE" ]] && return 0
-    MG_STATE="$(bash "$MG_KIT/plugins/workspace/bin/state.sh" --target "$WS" 2>/dev/null)" || MG_STATE=""
+    MG_STATE="$(bash "$MG_KIT/plugins/workspace/scripts/state.sh" --target "$WS" 2>/dev/null)" || MG_STATE=""
     [[ -n "$MG_STATE" ]] || MG_STATE="state_version=unknown"
 }
 mg_key() { printf '%s\n' "$MG_STATE" | awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); f = 1; exit } END { if (!f) print "\001" }'; }

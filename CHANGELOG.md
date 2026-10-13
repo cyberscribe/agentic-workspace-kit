@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## v3.1.0 — 2026-10-10
+## v3.1.0 — 2026-10-12
 
 - **`/projects:pair`: a product manager and an engineer, through a mailbox.** The session that runs it
   (Cowork, usually) becomes the project's product manager and end-to-end tester; one Claude Code
@@ -14,7 +14,7 @@ rewriting — the record of what a version claimed is part of what the version i
   The command reads the workspace's own rules and quotes them into the brief, writes the first brief
   from the README with no interview, and continues a mailbox already in this format. As the
   `kit-projects-pair` skill it runs in Cowork.
-- **One command starts or resumes the engineer.** `plugins/projects/bin/pair.sh <project folder>`
+- **One command starts or resumes the engineer.** `plugins/projects/scripts/pair.sh <project folder>`
   runs on the person's machine, where the transcripts are: it resumes the session the engineer last
   recorded in the mailbox when its transcript is still there, and starts a new one, named
   `<slug>-cc`, otherwise; auto permission mode, `--ultracode` for a phase that fans out, `--print`
@@ -25,7 +25,36 @@ rewriting — the record of what a version claimed is part of what the version i
   message, so it cannot loop) and otherwise watches `to-cc.md` for up to 50 minutes, polling, before
   letting the session stop. It costs no tokens while it waits. It and its SessionStart half are inert
   unless the launcher set `PAIR_ROLE` and `PAIR_MAILBOX`. projects 3.1.0.
-- Tests: section 23.
+- **Corrected the same day: the pairing never holds the engineer's session.** In its first pairing the
+  waiting Stop hook held a session on past a message that was open for it: it read `Status:` only at the
+  start of a line, the message ended a sentence with it, and while the hook slept the session took no
+  other notification. Two changes. `Status:` is read wherever it sits in a line, the last one in a
+  message holding, and the protocol asks for it on a line of its own. And the Stop hook no longer
+  waits at all: it points the agent at an open message or returns at once (timeout 5 seconds, was
+  3600). The waiting moves to `hooks/pair.sh watch`, a background command the agent starts from its
+  opening context and restarts each time it ends; it ends, naming the message, when one arrives or
+  the pairing is closed. `PAIR_WAIT_MINUTES` is gone; `.cc-state` reads `waiting` while a watch runs.
+- **Plugins ship no `bin/` folder, so they install in Cowork.** A claude.ai-hosted plugin may not carry
+  a top-level `bin/` (Claude Code adds it to `PATH`, and the admin approval surface does not show it),
+  so Cowork refused the projects plugin as a `.plugin` file. Nothing relied on `PATH`: the pairing
+  launcher and the state check are always run by their full path. They move to `scripts/`:
+  `plugins/projects/scripts/pair.sh` and `plugins/workspace/scripts/state.sh`, with every reference.
+  workspace 2.1.0. Cowork also refuses a plugin description over 500 characters; the projects
+  description is shortened to 451, and section 3 now checks both rules for every plugin.
+- **`kit/setup.sh cowork` packages the plugins for Cowork.** Cowork does not read the marketplace in
+  `kit/`; it installs a plugin from a `.plugin` file uploaded in Claude's plugin settings, and lists
+  the plugin's commands as skills. The new mode writes `<plugin>-<version>.plugin` for each plugin into
+  `.claude/cowork-plugins/` (a new line in the `.gitignore` template), after the checks Cowork makes,
+  and refuses a plugin that would fail them. Setup's Cowork stage runs it and says to upload each file;
+  the skills bridge stays for the team's own skills. Tried on 2026-10-12: the projects plugin installed
+  in Cowork this way, and its seven commands appeared as skills. Closeout did not: Cowork refuses a
+  plugin named like a skill already on the account, here the account-level Cowork closeout skill, which
+  stays the way into closeout there.
+- **A closed session does not go on reading `waiting`.** Seen in the first live pairings: a session
+  closed in the middle of a wait killed the hook before it wrote `stopped`, so `.cc-state` read
+  `waiting` for hours with nothing watching. The hook now writes `stopped` when it is signalled, and the
+  PM reads a `waiting` more than an hour old as stopped, which covers a kill the hook cannot catch.
+- Tests: sections 23 and 24.
 
 ## v3.0.5 — 2026-10-07
 

@@ -45,7 +45,7 @@ lines: growth that arrived with a kit update is not the team's drift, and the te
 hidden by a smaller kit file. The comparison is with the most recent earlier report whose name ends
 `hygiene-YYYY-MM-DD.md`, whatever comes before that, so renaming the series does not reset it.
 
-**Submodules are listed, clean ones included.** The kit's state check (`kit/plugins/workspace/bin/state.sh
+**Submodules are listed, clean ones included.** The kit's state check (`kit/plugins/workspace/scripts/state.sh
 --quick`) reports each submodule on one line; the report turns those into a table — path, role,
 changed files, commits not pushed, pointer, commits behind, branch — so a submodule that has gone out
 of step is seen beside the ones that have not. Submodules outside the kit's concern (a store another

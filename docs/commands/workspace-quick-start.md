@@ -5,7 +5,7 @@ and running. Source: `plugins/workspace/commands/quick-start.md`.*
 
 ## What it does
 
-It runs the state check first (`kit/plugins/workspace/bin/state.sh`, read-only, no git lock left) and
+It runs the state check first (`kit/plugins/workspace/scripts/state.sh`, read-only, no git lock left) and
 decides its mode from `mode=` rather than asking:
 
 | Mode | When | What it offers |

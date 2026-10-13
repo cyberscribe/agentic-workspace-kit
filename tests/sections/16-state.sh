@@ -2,7 +2,7 @@
 # The prelude defines st_bash, kitsrc_ok and the rest; "check && ok || ko" is the suite's idiom, and ok
 # always succeeds. Single-quoted $ and backticks below are literal text on purpose.
 # shellcheck disable=SC2154,SC2015,SC2016
-# Section 16: the 3.0 state check (plugins/workspace/bin/state.sh) and the workspace plugin's
+# Section 16: the 3.0 state check (plugins/workspace/scripts/state.sh) and the workspace plugin's
 # session-start summary (plugins/workspace/hooks/session-start.sh). Sourced by tests/run.sh after
 # section 11; it uses the prelude's helpers (ok, ko, skp, check, empty, st_*, mkws_min, mkws_hooks,
 # gitcount_run, aw_count) and writes only under $SCRATCH/s16. Every name here starts s16_.
@@ -21,7 +21,7 @@ check "16 state.sh parses under $st_bash" "$st_bash" -n "$STATE"
 check "16 session-start.sh parses under $st_bash" "$st_bash" -n "$s16_hook"
 if command -v shellcheck >/dev/null 2>&1; then
     check "16 shellcheck -x is clean on state.sh and the workspace session-start hook" \
-        bash -c 'cd "$1" && shellcheck -x plugins/workspace/bin/state.sh plugins/workspace/hooks/session-start.sh' _ "$KIT"
+        bash -c 'cd "$1" && shellcheck -x plugins/workspace/scripts/state.sh plugins/workspace/hooks/session-start.sh' _ "$KIT"
 else
     skp "16 shellcheck not on PATH; state.sh and session-start.sh not linted"
 fi
@@ -34,7 +34,7 @@ jq -e '.hooks.SessionStart[0].matcher == "startup"
        and .hooks.PreToolUse[0].matcher == "Bash"
        and .hooks.PreToolUse[0].hooks[0].command == "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-git.sh\""
        and .hooks.PreToolUse[0].hooks[0].timeout == 5' "$s16_hooks_json" >/dev/null 2>&1 || s16_bad+="hooks.json does not register the two hooks as §5.3 says"$'\n'
-[[ -x "$KIT/plugins/workspace/hooks/session-start.sh" && -x "$KIT/plugins/workspace/bin/state.sh" ]] || s16_bad+="state.sh or session-start.sh is not executable"$'\n'
+[[ -x "$KIT/plugins/workspace/hooks/session-start.sh" && -x "$KIT/plugins/workspace/scripts/state.sh" ]] || s16_bad+="state.sh or session-start.sh is not executable"$'\n'
 empty "16 hooks.json registers SessionStart (startup, 10 s) and the PreToolUse Bash guard (5 s)" "$s16_bad"
 
 # ---- The two copies of the shared functions ----------------------------------------------------------
