@@ -5,6 +5,31 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.1.1 — 2026-10-14
+
+- **Setup enables the kit's plugins in a settings file that was there first.** Seen on a first install
+  into a folder that already had `.claude/settings.json`: the engine adds the marketplace to a file that
+  is the person's and leaves the rest, so `enabledPlugins` never arrived, `/closeout` read as unknown,
+  and stage 9's only word on it was to compare the file with the template. Stage 3 now says what is
+  missing and offers to add an entry for each plugin the file does not name (the default, so an
+  unattended run adds them); one set to `false` is a choice and stays off. Where any is still not
+  enabled, stages 3, 7 and 9 print the commands, run in the workspace's folder:
+  `claude plugin enable <name>@agentic-workspace --scope project`.
+- **`plugins_scope`, and stage 9 says where the plugins load.** Claude Code reads
+  `.claude/settings.json` in the folder a session is opened on and not in the folders above it, so
+  plugins the workspace's settings alone enable load in a session opened on the workspace's own folder
+  and not in one opened on a project folder below it, in a terminal or in the desktop app's Code tab.
+  Tried on 2026-10-13 with Claude Code 2.1.296 and the desktop app's own 2.1.295, each under an empty
+  `CLAUDE_CONFIG_DIR`: three plugins and eleven commands at the workspace's folder, none in
+  `projects/<slug>/`, and all of them in both once installed for the person. The state check's new key
+  reads `workspace`, `user`, `none` or `unknown`; on `workspace`, stage 9 prints the four commands that
+  install the plugins for the person and leave the workspace's settings as committed. workspace 2.1.1.
+- **`docs/plugin-scope.md` is new**: the table of where the plugins load, the four commands, and three
+  common questions: `/closeout` unknown after setup, commands present in one session and missing in
+  another, and a first session after trust that lists no plugins (it can register the marketplace
+  without loading them; the next one loads them). `docs/setup.md`'s stage table points at it.
+- Tests: sections 15 and 16.
+
 ## v3.1.0 — 2026-10-12
 
 - **`/projects:pair`: a product manager and an engineer, through a mailbox.** The session that runs it

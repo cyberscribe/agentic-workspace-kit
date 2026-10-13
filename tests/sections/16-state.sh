@@ -477,7 +477,17 @@ jq '.extraKnownMarketplaces["agentic-workspace"].source.path = "no-such-kit"' "$
 st_expect "16 a directory marketplace whose folder does not exist serves nothing" "$(s16_pl)" \
     plugins_loaded=no plugins_not_loaded=closeout:not-installed,projects:not-installed,workspace:not-installed
 cp "$s16_nomkt" "$s16_PL/.claude/settings.json"
-st_expect "16 no kit checkout: unknown" "$(CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_S/plain")" plugins_loaded=unknown
+st_expect "16 no kit checkout: unknown" "$(CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_S/plain")" plugins_loaded=unknown plugins_scope=unknown
+# plugins_scope: whose settings enable every kit plugin, which decides the folders a session loads them in.
+st_expect "16 plugins_scope workspace when the workspace's settings alone enable the kit's plugins" "$(s16_pl)" plugins_scope=workspace
+printf '{"enabledPlugins":{"closeout@agentic-workspace":true,"projects@agentic-workspace":true,"workspace@agentic-workspace":true}}\n' > "$s16_cfg/settings.json"
+st_expect "16 plugins_scope user when the person's own settings.json enables them all" "$(s16_pl)" plugins_scope=user
+printf '{"enabledPlugins":{"closeout@agentic-workspace":true,"projects@agentic-workspace":false}}\n' > "$s16_cfg/settings.json"
+st_expect "16 ... and workspace again when the person's own names only some of them" "$(s16_pl)" plugins_scope=workspace
+jq 'del(.enabledPlugins["closeout@agentic-workspace"])' "$s16_nomkt" > "$s16_PL/.claude/settings.json"
+st_expect "16 plugins_scope none when neither enables them all" "$(s16_pl)" plugins_scope=none
+[[ "$(s16_pl --quick)" != *plugins_scope=* ]] && ok "16 plugins_scope is not in the --quick subset" || ko "16 plugins_scope is not in the --quick subset"
+cp "$s16_nomkt" "$s16_PL/.claude/settings.json"; printf '{}\n' > "$s16_cfg/settings.json"
 
 # ---- A 2.2.0 workspace ------------------------------------------------------------------------------------
 s16_X="$s16_S/two-x"

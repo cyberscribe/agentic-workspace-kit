@@ -688,6 +688,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `CLAUDE.kit.md` | The kit's working standards — stance, conventions, map, log formats — imported by the first line of a workspace's `CLAUDE.md` |
 | `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion; §3 pre-filled for a team sharing one repository |
 | `docs/documentation-register.md` | The register rule, the translation table, and how to scan for drift |
+| `docs/plugin-scope.md` | Where the kit's plugins load, by the folder a session is opened on and the surface, and how to install them for a person |
 | `rituals/closeout.md` | The end-of-session pass, as a procedure an agent can follow |
 | `rituals/weekly-hygiene.md` | The weekly placement-and-budget pass |
 | `templates/project-decisions.md` | Per-project decisions log skeleton |
