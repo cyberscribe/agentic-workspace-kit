@@ -6,7 +6,8 @@
 # every session; their hooks act only inside a kit workspace (hooks/lib/boundary.sh), and each command
 # says where it works. Setup's user-scope step, run against a stub claude: it installs once and a re-run
 # leaves it alone, it keeps the spelling the person reached the workspace by, and it does not re-point
-# the person's marketplace away from another kit checkout unattended. And the plugins_user_kit key.
+# the person's marketplace away from another kit checkout unattended. Stage 7's attended steps, by path,
+# through a pseudo-terminal. And the plugins_user_kit key.
 # Everything here is prefixed s25_, since the sections share one shell.
 
 echo
@@ -221,6 +222,81 @@ if mkws "$s25/setup-ws" >/dev/null 2>&1; then
     grep -q 'plugins_user_kit=elsewhere' "$s25/setup3.log" || s25_bad+="stage 9 does not report plugins_user_kit=elsewhere"$'\n'
     [[ "$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source.path' "$s25_cc/settings.json")" == "$KITSRC" ]] || s25_bad+="the person's marketplace was re-pointed"$'\n'
     empty "25 setup, unattended, with the person's marketplace on another kit checkout: warns, leaves it, stage 9 names the commands" "$s25_bad"
+
+    # Stage 7 attended. A pseudo-terminal makes the run attended; whenever the output stops on an
+    # unfinished line (a question or a pause), the driver answers it: the first rule whose text is in
+    # that line gives the answer, otherwise Enter takes the default.
+    cat > "$s25/pty.py" <<'S25PY'
+import json, os, pty, re, select, sys, time
+rules = json.loads(sys.argv[1])
+try:
+    pid, fd = pty.fork()
+except OSError as e:
+    print("S25-NO-PTY", e); sys.exit(0)
+if pid == 0:
+    os.execvp(sys.argv[2], sys.argv[2:])
+out = b""; answered = 0; deadline = time.time() + 300
+while time.time() < deadline:
+    r, _, _ = select.select([fd], [], [], 0.5)
+    if fd in r:
+        try: data = os.read(fd, 65536)
+        except OSError: break
+        if not data: break
+        out += data; continue
+    text = out.decode("utf-8", "replace").replace("\r", "")
+    if len(text) > answered and not text.endswith("\n"):
+        line = text.rsplit("\n", 1)[-1]
+        os.write(fd, (next((a for t, a in rules if t in line), "") + "\n").encode()); answered = len(text)
+_, st = os.waitpid(pid, 0)
+sys.stdout.write(re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", out.decode("utf-8", "replace")).replace("\r", ""))
+print("S25-RC", os.WEXITSTATUS(st) if os.WIFEXITED(st) else 128)
+S25PY
+    # s25_att <name> <claude> <config dir> <rules>: setup attended from the workspace, entered by its
+    # symlink; stage 7's screen
+    # goes to <name>.7, the claude calls to <name>.calls.
+    s25_att() {
+        : > "$s25/$1.calls"; mkdir -p "$3"
+        (cd "$s25/setup-link" && env -u AW_WIZARD_NONINTERACTIVE AW_CLAUDE="$2" S25_LOG="$s25/$1.calls" CLAUDE_CONFIG_DIR="$3" \
+            python3 -I "$s25/pty.py" "$4" "$st_bash" kit/setup.sh >"$s25/$1.log" 2>&1)
+        sed -n '/Stage 7 of/,/Stage 8 of/p' "$s25/$1.log" > "$s25/$1.7"
+    }
+    s25_offer() {
+        grep -qF "4. Accept the offer to install the agentic-workspace marketplace" "$s25/$1.7" || s25_bad+="$1: no install offer"$'\n'
+        grep -qF "6. If agentic-workspace is listed at another path" "$s25/$1.7" || s25_bad+="$1: no re-pointing step"$'\n'
+        ! grep -qF "Type / and check" "$s25/$1.7" || s25_bad+="$1: the installed-for-you steps"$'\n'
+    }
+    s25_att att-user "$s25_cl" "$s25/cc-att-user" '[["Were all three listed?", "n"]]'
+    if grep -q '^S25-NO-PTY' "$s25/att-user.log"; then
+        skp "25 setup attended, stage 7 by path — no pseudo-terminal here ($(sed -n 's/^S25-NO-PTY //p' "$s25/att-user.log"))"
+    else
+        s25_bad=""
+        grep -q '^S25-RC 0$' "$s25/att-user.log" || s25_bad+="exit: $(grep '^S25-RC' "$s25/att-user.log")"$'\n'
+        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 4 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
+        grep -qF "2. Start a new one there:  cd $(printf '%q' "$s25/setup-link") && claude" "$s25/att-user.7" || s25_bad+="step 2 does not name the folder by the symlink"$'\n'
+        grep -qF "4. Type / and check that /closeout, /projects:new and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
+        grep -qF "start one more new one there" "$s25/att-user.7" || s25_bad+="no second-session step"$'\n'
+        grep -qF "  claude plugin list" "$s25/att-user.7" || s25_bad+="the fallback does not name claude plugin list"$'\n'
+        ! grep -qiF "offer" "$s25/att-user.7" || s25_bad+="names an install offer: $(grep -iF offer "$s25/att-user.7")"$'\n'
+        ! grep -qF "Type /plugin" "$s25/att-user.7" || s25_bad+="names the /plugin check"$'\n'
+        ! grep -qF "marketplace remove" "$s25/att-user.7" || s25_bad+="names the re-pointing steps"$'\n'
+        [[ -z "$s25_bad" ]] || s25_bad+="stage 7:"$'\n'"$(cat "$s25/att-user.7")"
+        empty "25 setup attended, installed for the person: stage 7 asks for a new session there, by the path the person came in by, and a look at /, with no install offer or re-pointing, and its fallback names claude plugin list" "$s25_bad"
+
+        s25_bad=""
+        s25_att att-no "$s25_cl" "$s25/cc-att-no" '[["Install them for you now?", "n"]]'
+        [[ ! -s "$s25/att-no.calls" ]] || s25_bad+="att-no: claude was run"$'\n'
+        s25_offer att-no
+        s25_att att-none "$SCRATCH/no-claude" "$s25/cc-att-none" '[]'
+        grep -qF "claude is not on PATH, so the plugins are not installed for you yet" "$s25/att-none.7" || s25_bad+="att-none: no note"$'\n'
+        s25_offer att-none
+        mkdir -p "$s25/cc-att-else"
+        jq -n --arg p "$KITSRC" '{extraKnownMarketplaces: {"agentic-workspace": {source: {source: "directory", path: $p}}}}' > "$s25/cc-att-else/settings.json"
+        s25_att att-else "$s25_cl" "$s25/cc-att-else" '[]'
+        grep -qF "Point it at this workspace's kit instead? (y/n) [n]" "$s25/att-else.7" || s25_bad+="att-else: not asked to re-point"$'\n'
+        [[ ! -s "$s25/att-else.calls" ]] || s25_bad+="att-else: claude was run"$'\n'
+        s25_offer att-else
+        empty "25 setup attended, install declined, no claude, or the person's marketplace on another checkout: stage 7 keeps the install offer and the re-pointing steps" "$s25_bad"
+    fi
 else
     skp "25 setup's user-scope step — needs a workspace built by setup new"
 fi

@@ -17,7 +17,7 @@ deletes and commits nothing; the last stage prints the commit to make.
 | 4 | Remotes and privacy | Sets the git hooks, and records `origin` as private once GitHub (with `gh`) or the person confirms it |
 | 5 | Submodule configuration | The git settings that keep submodules visible and pushed |
 | 6 | Outside folders | Runs `link` for material projects name under `## Resources` |
-| 7 | Restart Claude Code | Installs the three plugins for the person from the marketplace at `kit/` (asked first; unattended, the default), so a session opened in any folder inside the workspace has them, in a terminal or the desktop app's Code tab; their hooks act only inside a kit workspace. A re-run with them in place runs nothing. Then how to trust the folder: `docs/plugin-scope.md` |
+| 7 | Restart Claude Code | Installs the three plugins for the person from the marketplace at `kit/` (asked first; unattended, the default), so a session opened in any folder inside the workspace has them, in a terminal or the desktop app's Code tab; their hooks act only inside a kit workspace. A re-run with them in place runs nothing. Then one new session: trust the folder and look for the commands; where they were not installed for the person, accept Claude Code's install offer: `docs/plugin-scope.md` |
 | 8 | Cowork (with `--cowork`) | Runs the skills bridge, packages the plugins for upload (`cowork`), and names the scheduled tasks that fit |
 | 9 | Verify | Each check, with the command that fixes any that fails, and where the plugins load (`plugins_scope`, `plugins_user_kit`) with the commands that widen it |
 | 10 | Finish | What to run next, `/workspace:quick-start`, and the commit to make |

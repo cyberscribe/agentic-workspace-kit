@@ -24,6 +24,9 @@ on. A folder reached through a symbolic link is read by its real path, and trust
 that path in `~/.claude.json`, so either way in gives the same result. Cowork reads neither file; the
 plugins reach it as uploaded `.plugin` files (`kit/setup.sh cowork`).
 
+A workspace inside WSL opened from the Windows desktop app is untested. Installed for the person,
+the plugins are in WSL's `~/.claude`, which the Windows app may not read; nothing here says either way.
+
 Tried on 2026-10-13 with Claude Code 2.1.296 and the desktop app's own 2.1.295, each under an empty
 `CLAUDE_CONFIG_DIR`: three plugins and eleven commands at the workspace's folder, none in a folder
 below it, and all of them in both once installed for the person. Seen in the desktop app itself on
@@ -58,7 +61,11 @@ claude plugin marketplace add --scope user <workspace>/kit
 claude plugin install <name>@agentic-workspace --scope user
 ```
 
-the second once for each of `closeout`, `projects` and `workspace`. The workspace path is spelled the way
+the second once for each of `closeout`, `projects` and `workspace`. Its steps then ask for one new
+session in the workspace: trust the folder, type `/`, and look for `/closeout`, `/projects:new` and
+`/workspace:hygiene`, starting one more session if the first after trust has none. Claude Code's own
+install offer, and re-pointing the marketplace, appear in the steps only where the install did not
+happen here: declined, `claude` not on `PATH`, or the person's marketplace on another checkout. The workspace path is spelled the way
 the person reached it, a symbolic link included: Claude Code records that path, and a folder later moved
 to where its link was is still found by it. A re-run with the plugins already installed from this
 workspace's kit runs nothing. Without `claude` on `PATH` the step is skipped and stage 9 prints the
