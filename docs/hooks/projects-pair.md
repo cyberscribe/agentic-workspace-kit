@@ -33,6 +33,11 @@ ignoring the mailbox, or will not stop.
 
 ## Common questions
 
+**Does it run outside a kit workspace?** No. Setup installs the plugins for the person, so they load in
+every session, and the hook first looks for `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock` in the
+session's folder or a folder above it (by its real path, so a symbolic link counts). Finding neither, it
+exits 0 with nothing said. The rule is `hooks/lib/boundary.sh`: `docs/plugin-scope.md`.
+
 **Why is the watch not in the Stop hook?** A hook that waits holds the session: it takes no other
 notification and the person has to interrupt it to type. The hooks check once; the watch waits.
 

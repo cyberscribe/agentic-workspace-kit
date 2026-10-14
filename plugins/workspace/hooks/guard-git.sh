@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # plugins/workspace/hooks/guard-git.sh: a Claude Code PreToolUse hook on Bash. The workspace's git
 # hooks decide what reaches a remote; this keeps an agent from stepping around them. It denies a git
 # commit, push, merge, rebase, cherry-pick, am or pull that also carries a bypass (--no-verify, a
@@ -12,6 +13,11 @@
 [[ "${AW_GIT_GUARD_DISABLED:-}" == 1 ]] && exit 0
 
 input="$(cat 2>/dev/null)" || exit 0
+
+# Outside a kit workspace the plugin is installed but has nothing to do (hooks/lib/boundary.sh).
+# shellcheck source=lib/boundary.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
+[[ -n "$(aw_workspace_root "$input")" ]] || exit 0
 
 # The command string: the first "command" value after "tool_input", with JSON escapes undone. Each
 # shell separator (; & | and newline) then starts a new segment, and each segment is judged on its own.

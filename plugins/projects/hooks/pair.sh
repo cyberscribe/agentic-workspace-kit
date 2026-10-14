@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # The engineer's side of a /projects:pair pairing: two hooks, and the watch the agent runs.
 #
 #   pair.sh start   SessionStart: records this session's id in the mailbox (so the launcher can
@@ -47,6 +48,10 @@ else
     input="$(cat 2>/dev/null || true)"
     sid="$(printf '%s' "$input" | tr '\n' ' ' \
         | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+    # The hooks keep to a kit workspace (lib/boundary.sh); the watch is the agent's own command.
+    # shellcheck source=lib/boundary.sh
+    . "$(dirname "$0")/lib/boundary.sh"
+    [ -n "$(aw_workspace_root "$input")" ] || exit 0
 fi
 
 stamp() { date '+%Y-%m-%d %H:%M'; }

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # SessionStart summary for the workspace plugin: one line for each thing about the workspace that is
 # out of step — the git hooks, the kit import, a submodule, an orphan gitlink, a resource, a sensitive
 # project, the origin, the kit's distance from its remote, a kit plugin not loaded while the skills
 # bridge's kit-* skills stand in for it — each naming the command that fixes it. A workspace in step gets
 # nothing.
 #
-# It finds the workspace from the session's folder: the nearest ancestor (the folder itself included)
-# holding kit/CLAUDE.kit.md or .claude/kit-templates.lock. So a session opened inside kit/, or inside a
+# It finds the workspace from the session's folder with hooks/lib/boundary.sh: the nearest ancestor (the
+# folder itself included) holding kit/CLAUDE.kit.md or .claude/kit-templates.lock. So a session opened inside kit/, or inside a
 # project that is its own repository, reports on the workspace around it, and one opened anywhere else
 # reports nothing. It reads the workspace through scripts/state.sh --quick, which makes no network call,
 # takes no lock and never lists a resource folder.
@@ -38,18 +39,10 @@ input="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" || exit 0
-cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
-cwd="${cwd:-$PWD}"
-cwd="${cwd%/}"
-[[ -d "$cwd" ]] || exit 0
-cwd="$(cd "$cwd" && pwd -P)" || exit 0
-
-root="" d="$cwd"
-while [[ -n "$d" ]]; do
-    if [[ -f "$d/kit/CLAUDE.kit.md" || -f "$d/.claude/kit-templates.lock" ]]; then root="$d"; break; fi
-    [[ "$d" == / ]] && break
-    d="$(dirname "$d")"
-done
+# The workspace around the session's folder, the same walk every kit hook uses; outside one, nothing.
+# shellcheck source=lib/boundary.sh
+source "$here/lib/boundary.sh" || exit 0
+root="$(aw_workspace_root "$input")"
 [[ -n "$root" ]] || exit 0
 
 rep="$(bash "$here/../scripts/state.sh" --quick --target "$root" 2>/dev/null)" || exit 0

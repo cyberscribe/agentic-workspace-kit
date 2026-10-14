@@ -21,6 +21,14 @@ README says so afterwards.
 This is the project-level counterpart of the session closeout. The closeout
 promotes what one session learned; this closes the whole piece of work.
 
+## Where this works
+
+`/projects:close` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/projects:close` works inside a kit workspace, and do nothing
+else.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,

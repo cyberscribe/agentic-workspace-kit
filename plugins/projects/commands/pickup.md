@@ -19,6 +19,14 @@ and it does not fix what it finds; it names it, so the person can decide. After
 the brief there is one offered write, and only for a paused project: resuming
 it, on a yes.
 
+## Where this works
+
+`/projects:pickup` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/projects:pickup` works inside a kit workspace, and do nothing
+else.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,

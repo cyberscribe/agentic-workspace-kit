@@ -40,6 +40,7 @@
 #   adopt_proposals glossary glossary_terms build_list verification catalogue readme codeowners
 #   decisions_log decisions_log_other own_skills foreign_skills kit_incoming
 #   settings plugins_registered plugins_mode plugins_path plugins_loaded plugins_not_loaded plugins_scope
+#   plugins_user_kit
 #   vendored_commit kit_checkout
 #   closeout_conventions surfaces gemini_commands measure_script metrics_csv
 #   closeout_drafts_pending
@@ -1018,6 +1019,21 @@ EOF
     fi
 fi
 emit plugins_scope "$p_scope"
+# plugins_user_kit: this | elsewhere | none | unknown — the kit checkout the person's own settings.json
+# registers the agentic-workspace marketplace from (extraKnownMarketplaces, a directory source): this
+# workspace's kit/, compared by its real path, or another one. Claude Code keeps one path per marketplace
+# name, so two workspaces on one machine share whichever kit checkout it names. none: no such entry, or
+# not a directory source. unknown: no jq, or no kit checkout.
+p_ukit=unknown
+if [[ $have_jq == yes && -n "$KD" ]]; then
+    p_ukit=none
+    up="$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source // empty | select(.source == "directory") | .path // empty'           "$cfg/settings.json" 2>/dev/null)"
+    if [[ -n "$up" ]]; then
+        p_ukit=elsewhere
+        [[ "$(cd "$up" 2>/dev/null && pwd -P)" == "$(cd "$KD" 2>/dev/null && pwd -P)" ]] && p_ukit=this
+    fi
+fi
+emit plugins_user_kit "$p_ukit"
 
 if [[ $QUICK -eq 1 ]]; then
     # quick: 1 when the report is the --quick subset.

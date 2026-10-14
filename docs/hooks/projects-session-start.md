@@ -34,6 +34,11 @@ the line; open one at the repository root for the once-a-day check.
 
 ## Common questions
 
+**Does it run outside a kit workspace?** No. Setup installs the plugins for the person, so they load in
+every session, and the hook first looks for `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock` in the
+session's folder or a folder above it (by its real path, so a symbolic link counts). Finding neither, it
+exits 0 with nothing said. The rule is `hooks/lib/boundary.sh`: `docs/plugin-scope.md`.
+
 **The line says "no Desired outcome section found" or "no checklist found".** It reads what it can
 parse. `/projects:adopt` adds the missing sections, or a **Section names** line in
 `.claude/projects.md` records the team's own heading.

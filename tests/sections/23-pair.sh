@@ -17,6 +17,8 @@ s23_launch="$KIT/plugins/projects/scripts/pair.sh"
 s23_p="$SCRATCH/s23/projects/00-demo"
 s23_mb="$s23_p/mailbox"
 mkdir -p "$s23_mb"
+# The hooks keep to kit workspaces (hooks/lib/boundary.sh): the fixture's root carries a ledger as the marker.
+mkdir -p "$SCRATCH/s23/.claude" && : > "$SCRATCH/s23/.claude/kit-templates.lock"
 
 s23_reset() {
     rm -f "$s23_mb"/.cc-* "$s23_mb/.closed"
@@ -27,7 +29,7 @@ s23_add() { printf '\n## %s · 2026-10-10 12:00 · More\nAnd this.\nStatus: open
 # s23_run <mode> [VAR=value...]: runs the hook with the launcher's variables; prints "<exit>|<stderr>".
 s23_run() {
     local mode="$1" err rc; shift
-    err="$(printf '{"session_id":"sess-123","hook_event_name":"x"}' \
+    err="$(printf '{"session_id":"sess-123","cwd":"%s","hook_event_name":"x"}' "$s23_p" \
         | env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" "$@" bash "$s23_hook" "$mode" 2>&1 >/dev/null)"
     rc=$?
     printf '%s|%s' "$rc" "$err"
@@ -38,7 +40,7 @@ s23_out="$(printf '{"session_id":"x"}' | env -u PAIR_ROLE -u PAIR_MAILBOX bash "
 [[ "$s23_out" == "rc=0" && ! -f "$s23_mb/.cc-state" ]] && ok "23 hook: inert without PAIR_ROLE and PAIR_MAILBOX" \
     || ko "23 hook: inert without PAIR_ROLE and PAIR_MAILBOX" "$s23_out"
 
-s23_ctx="$(printf '{"session_id":"sess-123"}' | PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start)"
+s23_ctx="$(printf '{"session_id":"sess-123","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start)"
 [[ "$(cat "$s23_mb/.cc-session" 2>/dev/null)" == "sess-123" && "$s23_ctx" == *"Nothing is open"* \
     && "$s23_ctx" == *"background command"*"pair.sh watch"* ]] \
     && ok "23 hook start: records the session id, says nothing is open and gives the watch command" \

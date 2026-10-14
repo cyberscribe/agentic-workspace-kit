@@ -34,6 +34,11 @@ or push: the agent reports the refusal and its reason instead of retrying around
 
 ## Common questions
 
+**Does it run outside a kit workspace?** No. Setup installs the plugins for the person, so they load in
+every session, and the hook first looks for `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock` in the
+session's folder or a folder above it (by its real path, so a symbolic link counts). Finding neither, it
+exits 0 with nothing said. The rule is `hooks/lib/boundary.sh`: `docs/plugin-scope.md`.
+
 **Can I still use `--no-verify` myself?** In your own terminal, yes: this hook binds agents in Claude
 Code, not people. The kit's own guidance treats a refused commit as something to report, not bypass.
 

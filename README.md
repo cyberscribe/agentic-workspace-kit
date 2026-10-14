@@ -587,6 +587,8 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
     `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check;
     and a session-start summary of what is out of step.
+  Setup also installs them for the person, so a session opened in any folder inside the workspace has
+  them; their hooks act only inside a kit workspace (`docs/plugin-scope.md`).
 - **Git hooks keep the workspace private and the kit clean.** `kit/setup.sh hooks` sets them in the
   workspace, the kit and each project repository. A hook the person already had runs after the kit's.
 - **Cowork gets the plugins as files.** It does not read the marketplace in `kit/`: `kit/setup.sh cowork`
@@ -688,7 +690,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `CLAUDE.kit.md` | The kit's working standards — stance, conventions, map, log formats — imported by the first line of a workspace's `CLAUDE.md` |
 | `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion; §3 pre-filled for a team sharing one repository |
 | `docs/documentation-register.md` | The register rule, the translation table, and how to scan for drift |
-| `docs/plugin-scope.md` | Where the kit's plugins load, by the folder a session is opened on and the surface, and how to install them for a person |
+| `docs/plugin-scope.md` | Where the kit's plugins load, by the folder a session is opened on and the surface; setup's install for the person, and the workspace boundary their hooks keep to |
 | `rituals/closeout.md` | The end-of-session pass, as a procedure an agent can follow |
 | `rituals/weekly-hygiene.md` | The weekly placement-and-budget pass |
 | `templates/project-decisions.md` | Per-project decisions log skeleton |

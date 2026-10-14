@@ -36,9 +36,10 @@
 #    4 Remotes and privacy       hooks, kit_hooks, origin, origin_visibility, origin_confirmed
 #    5 Submodule configuration   submodule_config
 #    6 Outside folders           external_paths, external_paths_missing, resource.*
-#    7 Restart Claude Code       the person's word; plugins_registered is shown beside it
+#    7 Restart Claude Code       the plugins installed for the person (plugins_scope, plugins_user_kit),
+#                                then the person's word; plugins_registered is shown beside it
 #    8 Cowork (with --cowork)    skills_bridge
-#    9 Verify                    every key above, and plugins_scope
+#    9 Verify                    every key above, and plugins_scope and plugins_user_kit
 #   10 Finish                    mode, which decides what the quick-start does first
 #
 # Exit status: 0 finished (stages may be left open), 1 stopped, 2 usage, 130 interrupted.
@@ -605,8 +606,57 @@ say "Claude Code reads a repository's plugin settings only when a session starts
 say "the person has trusted that folder. It then offers to install the kit's marketplace, from kit/, and"
 say "its three plugins, whose hooks come with them. Each person does this once, in their own first session."
 echo
+# The workspace's settings reach a session opened on its own folder and no other, so the plugins are also
+# installed for the person (user scope): then a session opened anywhere inside the workspace, a project
+# folder included, has them, in a terminal and in the desktop app. Their hooks keep to kit workspaces
+# (plugins/*/hooks/lib/boundary.sh), so outside one they stay quiet. AW_CLAUDE names the claude to run.
+cl="${AW_CLAUDE:-claude}"
+# The kit by the spelling the person reached the workspace by, a symlink included: Claude Code records
+# that path, and a folder later moved to where its symlink was is still found by it.
+reach="$(cd "${given:-${DIR:-.}}" 2>/dev/null && pwd -L)"
+[[ -n "$reach" && "$(cd "$reach" 2>/dev/null && pwd -P)" == "$T" ]] || reach="$T"
+user_kit="$(state_key plugins_user_kit)"
+if key_is plugins_scope user && [[ $user_kit == this ]]; then
+    check "installed for you, from this workspace's kit/ (plugins_scope=user)" true
+elif ! command -v "$cl" >/dev/null 2>&1; then
+    note "claude is not on PATH, so the plugins are not installed for you yet; stage 9 names the commands."
+else
+    go=1
+    if [[ $user_kit == elsewhere ]]; then
+        other="$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source.path // empty' \
+                     "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" 2>/dev/null)"
+        if [[ -f "$other/.claude-plugin/marketplace.json" ]]; then
+            warn "Your own settings already take the kit's plugins from another checkout: $other"
+            say "Claude Code keeps one path per marketplace, so every kit workspace on this machine uses that"
+            say "checkout's plugins. Pointing it here moves the other workspace onto this kit too."
+            if attended; then confirm "Point it at this workspace's kit instead?" n || go=0
+            else go=0; note "Unattended, it is left pointing there; stage 9 names the commands that move it."; fi
+        else
+            note "Your own settings name the kit at $other, which is no longer there; it is pointed here."
+        fi
+    fi
+    if [[ $go -eq 1 ]]; then
+        say "Installing the plugins for you as well lets them load anywhere inside this workspace. Your own"
+        say "Claude Code settings change; the workspace's do not. Outside a kit workspace their hooks stay quiet."
+        if confirm "Install them for you now?" y; then
+            out="$("$cl" plugin marketplace add --scope user "$reach/kit" </dev/null 2>&1)"
+            check "marketplace agentic-workspace, for you, from $reach/kit" test $? -eq 0 \
+                || printf '%s\n' "$out" | tail -n 3 | sed 's/^/    /'
+            for p in $KIT_PLUGINS; do
+                out="$("$cl" plugin install "$p@agentic-workspace" --scope user </dev/null 2>&1)"
+                check "$p, installed for you" test $? -eq 0 || printf '%s\n' "$out" | tail -n 3 | sed 's/^/    /'
+            done
+            state_check "$T"
+        fi
+    fi
+fi
+echo
 if ! attended; then
-    outcome skipped "unattended run; each person does this once, in Claude Code"
+    if key_is plugins_scope user && key_is plugins_user_kit this; then
+        outcome "done" "installed for you; trusting the folder is each person's, in Claude Code"
+    else
+        outcome skipped "unattended run; each person does this once, in Claude Code"
+    fi
 else
     if [[ -n "$(plugins_off)" ]]; then
         not_on="$(plugins_off)"
@@ -747,16 +797,30 @@ if [[ $PILOT -eq 1 ]]; then
     check "the pilot build list, pilot/build-list.md" key_is build_list present || fix "kit/setup.sh --pilot --reinstall"
 fi
 # Where the plugins load is the person's to choose, so it is said, not counted.
-if key_is plugins_scope workspace; then
-    echo
-    note "The plugins load in a session opened on this folder itself (plugins_scope=workspace)."
-    step "A session opened on a folder below it, such as a project folder, reads that folder's settings and"
-    step "not these, so it offers none of the kit's commands: the same in a terminal and in the desktop"
-    step "app's Code tab. To have them in every folder, install them for yourself as well; your own"
-    step "settings change and the workspace's do not:"
-    step "  claude plugin marketplace add --scope user $(printf '%q' "$T/kit")"
+user_steps() {
+    step "  claude plugin marketplace add --scope user $(printf '%q' "${reach:-$T}/kit")"
     for p in $KIT_PLUGINS; do step "  claude plugin install $p@agentic-workspace --scope user"; done
-fi
+}
+echo
+case "$(state_key plugins_scope)/$(state_key plugins_user_kit)" in
+    user/this)
+        note "Installed for you from this workspace's kit/ (plugins_scope=user): the plugins load in every session"
+        step "opened inside the workspace, its own folder or any folder below it, in a terminal and in the"
+        step "desktop app's Code tab. Outside a kit workspace their hooks stay quiet, and each command says"
+        step "in a line that it works inside one." ;;
+    */elsewhere)
+        note "Your own settings take the kit's marketplace from another checkout (plugins_user_kit=elsewhere)."
+        step "Claude Code keeps one path per marketplace, so every kit workspace on this machine that installs"
+        step "the plugins for the person runs that checkout's. To take them from this workspace's kit instead,"
+        step "which moves the other workspace onto it too:"
+        user_steps ;;
+    workspace/*)
+        note "The plugins load in a session opened on this folder itself (plugins_scope=workspace)."
+        step "A session opened on a folder below it, such as a project folder, reads that folder's settings and"
+        step "not these, so it offers none of the kit's commands: the same in a terminal and in the desktop"
+        step "app's Code tab. Running kit/setup.sh again offers to install them for you; or, in a terminal:"
+        user_steps ;;
+esac
 echo
 note "State check: mode=$(state_key mode)"
 if [[ $off -eq 0 ]]; then outcome "done"; else outcome "left open" "$off to look at, named above"; fi

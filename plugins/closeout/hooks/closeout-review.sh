@@ -25,6 +25,11 @@ input="$(cat)"
 # nudge would only cost tokens and invite it to rework earlier drafts.
 [[ -n "${CLOSEOUT_HOOK_CHILD:-}" ]] && exit 0
 
+# Outside a kit workspace the plugin is installed but has nothing to do (hooks/lib/boundary.sh).
+# shellcheck source=lib/boundary.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
+[[ -n "$(aw_workspace_root "$input")" ]] || exit 0
+
 # shellcheck source=lib/config.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/config.sh"
 

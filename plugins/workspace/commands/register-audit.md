@@ -22,6 +22,14 @@ neither exists, use the place where the repository states its own register — a
 section of the always-loaded file, often — and say which; if it states none,
 say so and stop, since the scan needs the rule it is checking against.
 
+## Where this works
+
+`/workspace:register-audit` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/workspace:register-audit` works inside a kit workspace, and do nothing
+else.
+
 ## Conventions come first
 
 - The register file — the rule, and its **Suppressions here** list:

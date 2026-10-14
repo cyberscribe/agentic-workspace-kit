@@ -1,0 +1,226 @@
+# shellcheck shell=bash
+# KIT, SCRATCH and the check helpers come from tests/run.sh (SC2154); checks are "cond && ok || ko"
+# (SC2015); single-quoted JSON and Markdown hold literal $ and backticks (SC2016).
+# shellcheck disable=SC2154,SC2015,SC2016
+# Section 25: the workspace boundary. The kit's plugins are installed for the person, so they load in
+# every session; their hooks act only inside a kit workspace (hooks/lib/boundary.sh), and each command
+# says where it works. Setup's user-scope step, run against a stub claude: it installs once and a re-run
+# leaves it alone, it keeps the spelling the person reached the workspace by, and it does not re-point
+# the person's marketplace away from another kit checkout unattended. And the plugins_user_kit key.
+# Everything here is prefixed s25_, since the sections share one shell.
+
+echo
+echo "25 · The workspace boundary: hooks inside a kit workspace only, and setup's user-scope install"
+
+s25="$SCRATCH/s25"
+mkdir -p "$s25"
+s25_real() { (cd "$1" && pwd -P); }
+
+# --- The helper -------------------------------------------------------------------------------------
+s25_bad=""
+for s25_p in closeout projects; do
+    cmp -s "$KIT/plugins/workspace/hooks/lib/boundary.sh" "$KIT/plugins/$s25_p/hooks/lib/boundary.sh" \
+        || s25_bad+="plugins/$s25_p/hooks/lib/boundary.sh differs from the workspace plugin's"$'\n'
+done
+empty "25 each plugin carries the same hooks/lib/boundary.sh" "$s25_bad"
+
+# Fixtures: a workspace marked by its kit, one marked by the ledger alone, a symlink to the first, and a
+# folder with neither (a git repository with the projects conventions, which the hooks once accepted).
+s25_ws="$s25/ws"; s25_led="$s25/ledger-only"; s25_out="$s25/outside"; s25_link="$s25/ws-link"
+mkdir -p "$s25_ws/kit" "$s25_ws/projects/alpha/notes" "$s25_led/.claude" "$s25_out/projects/alpha/notes" "$s25_out/.claude"
+: > "$s25_ws/kit/CLAUDE.kit.md"; : > "$s25_led/.claude/kit-templates.lock"
+git -C "$s25_out" init -q
+ln -s "$s25_ws" "$s25_link"
+# s25_root <input JSON> [VAR=value...]: what aw_workspace_root prints for it, from the folder $s25.
+s25_root() {
+    local in="$1"; shift
+    (cd "$s25" && env "$@" "$st_bash" -c '. "$1"; aw_workspace_root "$2"' _ "$KIT/plugins/workspace/hooks/lib/boundary.sh" "$in")
+}
+s25_wsr="$(s25_real "$s25_ws")"
+s25_bad=""
+[[ -z "$(s25_root "{\"cwd\":\"$s25_out/projects/alpha\"}" CLAUDE_PROJECT_DIR=)" ]] || s25_bad+="a folder with no marker above it has a root"$'\n'
+[[ "$(s25_root "{\"cwd\":\"$s25_ws\"}")" == "$s25_wsr" ]] || s25_bad+="the workspace's own folder"$'\n'
+[[ "$(s25_root "{\"cwd\":\"$s25_ws/projects/alpha/notes\"}")" == "$s25_wsr" ]] || s25_bad+="two levels down"$'\n'
+[[ "$(s25_root "{\"cwd\":\"$s25_link/projects/alpha\"}")" == "$s25_wsr" ]] || s25_bad+="through a symlink: $(s25_root "{\"cwd\":\"$s25_link/projects/alpha\"}")"$'\n'
+[[ "$(s25_root "{\"cwd\":\"$s25_led\"}")" == "$(s25_real "$s25_led")" ]] || s25_bad+="the ledger alone"$'\n'
+[[ -z "$(s25_root "{\"session_id\":\"x\",\"cwd\":\"$s25_out\",\"tool_input\":{\"cwd\":\"$s25_ws\"}}")" ]] \
+    || s25_bad+="a cwd inside the tool input was read in place of the session's"$'\n'
+[[ "$(s25_root '{"session_id":"x"}' CLAUDE_PROJECT_DIR="$s25_ws/projects")" == "$s25_wsr" ]] || s25_bad+="no cwd: CLAUDE_PROJECT_DIR not used"$'\n'
+[[ -z "$(s25_root '{"cwd":"/no/such/folder"}')" ]] || s25_bad+="a folder that is not there has a root"$'\n'
+empty "25 aw_workspace_root: none outside, the root from itself, two levels down and through a symlink, the ledger alone, the session's cwd and not a tool's" "$s25_bad"
+
+# --- Every hook: silent outside, active inside -------------------------------------------------------
+# guard-git: the bypass is denied inside and passes through outside.
+s25_guard() {
+    printf '{"session_id":"t","cwd":"%s","tool_name":"Bash","tool_input":{"command":"git commit --no''-verify -m x"}}' "$1" \
+        | "$st_bash" "$KIT/plugins/workspace/hooks/guard-git.sh" 2>/dev/null
+}
+s25_bad=""
+for s25_c in "$s25_ws" "$s25_ws/projects/alpha/notes" "$s25_link/projects/alpha"; do
+    [[ "$(s25_guard "$s25_c")" == *'"deny"'* ]] || s25_bad+="not denied in ${s25_c#"$s25"/}"$'\n'
+done
+[[ -z "$(s25_guard "$s25_out/projects/alpha")" ]] || s25_bad+="answered outside: $(s25_guard "$s25_out/projects/alpha")"$'\n'
+empty "25 workspace PreToolUse guard: denies inside (root, two down, by a symlink), silent outside" "$s25_bad"
+
+# projects SessionStart: a project folder with a Current state block speaks, inside; the same folder
+# outside, in a repository with .claude/projects.md, says nothing.
+s25_readme='# Alpha
+
+**Outcome:** A thing, done.
+
+## Done when
+
+- [ ] It is done.
+
+## Current state
+
+<!-- current-state -->
+**Status:** doing · **Updated:** 2026-10-01 · **Owner:** Sam
+**Now:** building it.
+<!-- /current-state -->
+'
+for s25_d in "$s25_ws" "$s25_out"; do
+    printf '%s' "$s25_readme" > "$s25_d/projects/alpha/README.md"
+    mkdir -p "$s25_d/.claude"; printf '# Projects\n' > "$s25_d/.claude/projects.md"
+done
+s25_proj() {
+    jq -nc --arg c "$1" '{cwd: $c, source: "startup"}' \
+        | env PROJECTS_HOOK_STATE_DIR="$s25/stamps" "$st_bash" "$KIT/plugins/projects/hooks/session-start.sh" 2>/dev/null
+}
+s25_bad=""
+[[ -n "$(s25_proj "$s25_ws/projects/alpha")" ]] || s25_bad+="nothing inside"$'\n'
+[[ -n "$(s25_proj "$s25_link/projects/alpha")" ]] || s25_bad+="nothing by the symlink"$'\n'
+[[ -z "$(s25_proj "$s25_out/projects/alpha")" ]] || s25_bad+="spoke outside: $(s25_proj "$s25_out/projects/alpha")"$'\n'
+empty "25 projects SessionStart: the project's line inside (and by a symlink), nothing outside" "$s25_bad"
+
+# projects pair hooks: with the launcher's variables, start records the session inside and not outside.
+s25_bad=""
+for s25_d in "$s25_ws" "$s25_out"; do
+    s25_mb="$s25_d/projects/alpha/mailbox"; mkdir -p "$s25_mb"; rm -f "$s25_mb"/.cc-*
+    printf '# To CC\n' > "$s25_mb/to-cc.md"; printf '# To the PM\n' > "$s25_mb/to-pm.md"
+    printf '{"session_id":"s25","cwd":"%s"}' "$s25_d/projects/alpha" \
+        | PAIR_ROLE=cc PAIR_MAILBOX="$s25_mb" "$st_bash" "$KIT/plugins/projects/hooks/pair.sh" start >/dev/null 2>&1
+done
+[[ -f "$s25_ws/projects/alpha/mailbox/.cc-session" ]] || s25_bad+="start did not record the session inside"$'\n'
+[[ ! -e "$s25_out/projects/alpha/mailbox/.cc-session" ]] || s25_bad+="start recorded the session outside"$'\n'
+s25_rc="$(printf '{"session_id":"s25","cwd":"%s"}' "$s25_out/projects/alpha" \
+    | PAIR_ROLE=cc PAIR_MAILBOX="$s25_out/projects/alpha/mailbox" "$st_bash" "$KIT/plugins/projects/hooks/pair.sh" stop >/dev/null 2>&1; echo $?)"
+[[ "$s25_rc" == 0 && ! -e "$s25_out/projects/alpha/mailbox/.cc-state" ]] || s25_bad+="stop acted outside (exit $s25_rc)"$'\n'
+empty "25 projects pair hooks: start and stop act inside, pass through outside" "$s25_bad"
+
+# closeout SessionStart: a waiting draft is offered inside, not outside (each folder has one).
+s25_drafts="$s25/drafts"
+for s25_d in "$s25_ws" "$s25_out"; do
+    mkdir -p "$s25_drafts/$(basename "$s25_d")"
+    printf '# A draft\n' > "$s25_drafts/$(basename "$s25_d")/2026-10-01-a-draft.md"
+done
+s25_review() {
+    jq -nc --arg c "$1" '{cwd: $c, source: "startup"}' \
+        | env CLOSEOUT_DRAFT_ROOT="$s25_drafts" CLOSEOUT_USER_CONVENTIONS= "$st_bash" "$KIT/plugins/closeout/hooks/closeout-review.sh" 2>/dev/null
+}
+s25_bad=""
+[[ "$(s25_review "$s25_ws")" == *a-draft* ]] || s25_bad+="the draft is not offered inside"$'\n'
+[[ -z "$(s25_review "$s25_out")" ]] || s25_bad+="offered outside: $(s25_review "$s25_out" | head -c 200)"$'\n'
+empty "25 closeout SessionStart: a waiting draft offered inside, nothing outside" "$s25_bad"
+
+# closeout SessionEnd: outside, no capture child is started (a stub claude records any start).
+s25_stub="$s25/stub-bin"; mkdir -p "$s25_stub"
+printf '#!/bin/bash\necho "started $*" >> "%s"\n' "$s25/capture.log" > "$s25_stub/claude"; chmod +x "$s25_stub/claude"
+printf '{"type":"user","message":{"role":"user","content":"hello"}}\n' > "$s25/transcript.jsonl"
+: > "$s25/capture.log"
+jq -nc --arg c "$s25_out" --arg t "$s25/transcript.jsonl" '{cwd: $c, reason: "exit", session_id: "s25", transcript_path: $t}' \
+    | env PATH="$s25_stub:$PATH" CLOSEOUT_DRAFT_ROOT="$s25_drafts" "$st_bash" "$KIT/plugins/closeout/hooks/closeout-capture.sh" >/dev/null 2>&1
+s25_rc=$?
+sleep 1
+[[ $s25_rc -eq 0 && ! -s "$s25/capture.log" ]] && ok "25 closeout SessionEnd: outside, exits 0 and starts no capture" \
+    || ko "25 closeout SessionEnd: outside, exits 0 and starts no capture" "exit $s25_rc; $(cat "$s25/capture.log")"
+
+# workspace SessionStart: the out-of-step summary for a workspace marked by its ledger, nothing outside.
+s25_wss() {
+    jq -nc --arg c "$1" '{cwd: $c, source: "startup"}' | "$st_bash" "$KIT/plugins/workspace/hooks/session-start.sh" 2>/dev/null
+}
+s25_bad=""
+[[ -n "$(s25_wss "$s25_led")" ]] || s25_bad+="nothing for a workspace with only its ledger, which is out of step"$'\n'
+[[ -z "$(s25_wss "$s25_out/projects/alpha")" ]] || s25_bad+="spoke outside"$'\n'
+empty "25 workspace SessionStart: a summary inside, nothing outside" "$s25_bad"
+
+# --- The commands -----------------------------------------------------------------------------------
+s25_bad=""
+for s25_f in "$KIT"/plugins/*/commands/*.md; do
+    s25_pl="$(basename "$(dirname "$(dirname "$s25_f")")")"; s25_n="$(basename "$s25_f" .md)"
+    s25_c="/$s25_pl:$s25_n"; [[ $s25_pl == closeout ]] && s25_c=/closeout
+    awk '/^## Where this works$/ { on = 1; next } on && /^## / { exit } on' "$s25_f" | tr '\n' ' ' \
+        | grep -qF "say in one line that \`$s25_c\` works inside a kit workspace, and do nothing" \
+        || s25_bad+="${s25_f#"$KIT"/}: no outside-a-workspace line naming $s25_c"$'\n'
+done
+empty "25 every command says, outside a kit workspace, in one line that it works inside one, and stops" "$s25_bad"
+
+# --- plugins_user_kit --------------------------------------------------------------------------------
+if [[ $kitsrc_ok -eq 1 ]]; then
+    s25_w="$s25/st-ws"; mkws_min "$s25_w" >/dev/null 2>&1
+    s25_cc="$s25/cc-state"; mkdir -p "$s25_cc"
+    s25_mk() { jq -n --arg p "$1" '{extraKnownMarketplaces: {"agentic-workspace": {source: {source: "directory", path: $p}}}}' > "$s25_cc/settings.json"; }
+    rm -f "$s25_cc/settings.json"
+    st_expect "25 plugins_user_kit=none with no user-scope marketplace" "$(CLAUDE_CONFIG_DIR="$s25_cc" st_run "$s25_w")" plugins_user_kit=none
+    ln -s "$s25_w" "$s25/st-ws-link"
+    s25_mk "$s25/st-ws-link/kit"
+    st_expect "25 plugins_user_kit=this when it names this workspace's kit, by a symlink" "$(CLAUDE_CONFIG_DIR="$s25_cc" st_run "$s25_w")" plugins_user_kit=this
+    s25_mk "$KITSRC"
+    st_expect "25 plugins_user_kit=elsewhere when it names another checkout" "$(CLAUDE_CONFIG_DIR="$s25_cc" st_run "$s25_w")" plugins_user_kit=elsewhere
+else
+    skp "25 plugins_user_kit — needs the kit source repository"
+fi
+
+# --- Setup's user-scope step, against a stub claude ----------------------------------------------------
+# The stub logs each call and writes what the real one writes to the person's settings.json:
+# marketplace add puts the directory source under extraKnownMarketplaces, install sets enabledPlugins.
+s25_cl="$s25/claude-stub"
+cat > "$s25_cl" <<'STUB'
+#!/bin/bash
+printf '%s\n' "$*" >> "$S25_LOG"
+f="$CLAUDE_CONFIG_DIR/settings.json"; [ -f "$f" ] || echo '{}' > "$f"
+case "$1 $2" in
+    "plugin marketplace") for a in "$@"; do p="$a"; done
+        jq --arg p "$p" '.extraKnownMarketplaces["agentic-workspace"] = {source: {source: "directory", path: $p}}' "$f" > "$f.t" && mv "$f.t" "$f" ;;
+    "plugin install") jq --arg k "$3" '.enabledPlugins[$k] = true' "$f" > "$f.t" && mv "$f.t" "$f" ;;
+esac
+STUB
+chmod +x "$s25_cl"
+# s25_setup <log> <calls log> <config dir> <folder to run from>: setup unattended, from that folder, no --target.
+s25_setup() {
+    (cd "$4" && env AW_CLAUDE="$s25_cl" S25_LOG="$2" CLAUDE_CONFIG_DIR="$3" AW_WIZARD_NONINTERACTIVE=1 \
+        "$st_bash" kit/setup.sh </dev/null >"$1" 2>&1)
+}
+if mkws "$s25/setup-ws" >/dev/null 2>&1; then
+    ln -s "$s25/setup-ws" "$s25/setup-link"
+    s25_cc="$s25/cc-setup"; mkdir -p "$s25_cc"; : > "$s25/calls.log"
+    s25_setup "$s25/setup1.log" "$s25/calls.log" "$s25_cc" "$s25/setup-link"
+    s25_bad=""
+    [[ "$(head -n 1 "$s25/calls.log")" == "plugin marketplace add --scope user $s25/setup-link/kit" ]] \
+        || s25_bad+="marketplace add, by the symlink: $(head -n 1 "$s25/calls.log")"$'\n'
+    for s25_p in closeout projects workspace; do
+        grep -qxF "plugin install $s25_p@agentic-workspace --scope user" "$s25/calls.log" || s25_bad+="no user-scope install of $s25_p"$'\n'
+    done
+    grep -q 'plugins_scope=user' "$s25/setup1.log" || s25_bad+="stage 9 does not report plugins_scope=user"$'\n'
+    grep -q '^  7\. [^:]*: done' "$s25/setup1.log" || s25_bad+="stage 7: $(grep '^  7\. ' "$s25/setup1.log" | tail -n 1)"$'\n'
+    empty "25 setup, unattended: the marketplace added for the person by the spelling they came in by, the three plugins installed for them, stage 9 says so" "$s25_bad"
+
+    : > "$s25/calls2.log"
+    s25_setup "$s25/setup2.log" "$s25/calls2.log" "$s25_cc" "$s25/setup-link"
+    [[ ! -s "$s25/calls2.log" ]] && grep -q "installed for you, from this workspace's kit/" "$s25/setup2.log" \
+        && ok "25 setup again: already installed for the person, so claude is not run" \
+        || ko "25 setup again: already installed for the person, so claude is not run" "$(cat "$s25/calls2.log")"
+
+    # Another kit checkout already registered for the person: unattended, it is left where it is.
+    s25_cc="$s25/cc-other"; mkdir -p "$s25_cc"; : > "$s25/calls3.log"
+    jq -n --arg p "$KITSRC" '{extraKnownMarketplaces: {"agentic-workspace": {source: {source: "directory", path: $p}}}}' > "$s25_cc/settings.json"
+    s25_setup "$s25/setup3.log" "$s25/calls3.log" "$s25_cc" "$s25/setup-ws"
+    s25_bad=""
+    [[ ! -s "$s25/calls3.log" ]] || s25_bad+="claude was run: $(cat "$s25/calls3.log")"$'\n'
+    grep -qF "already take the kit's plugins from another checkout: $KITSRC" "$s25/setup3.log" || s25_bad+="no warning naming the other checkout"$'\n'
+    grep -q 'plugins_user_kit=elsewhere' "$s25/setup3.log" || s25_bad+="stage 9 does not report plugins_user_kit=elsewhere"$'\n'
+    [[ "$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source.path' "$s25_cc/settings.json")" == "$KITSRC" ]] || s25_bad+="the person's marketplace was re-pointed"$'\n'
+    empty "25 setup, unattended, with the person's marketplace on another kit checkout: warns, leaves it, stage 9 names the commands" "$s25_bad"
+else
+    skp "25 setup's user-scope step — needs a workspace built by setup new"
+fi

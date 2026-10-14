@@ -20,6 +20,14 @@ with real interest; let everything else be skipped with a word.
 If the user typed a name or description after the command (it follows this
 prompt), start from it.
 
+## Where this works
+
+`/projects:new` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/projects:new` works inside a kit workspace, and do nothing
+else.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else.

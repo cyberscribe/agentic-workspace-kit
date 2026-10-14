@@ -21,6 +21,14 @@ Everything here is optional except the few answers that shape every session. Ask
 for those with real interest; let the rest be skipped with a word, and come back
 another day. Show each change before making it, and change nothing without a yes.
 
+## Where this works
+
+`/workspace:quick-start` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/workspace:quick-start` works inside a kit workspace, and do nothing
+else.
+
 ## Find out where things stand
 
 Before asking anything, run the state check from the repository root. It prints

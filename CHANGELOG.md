@@ -5,8 +5,27 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## v3.1.1 — 2026-10-14
+## v3.2.0 — 2026-10-14
 
+- **Setup installs the kit's plugins for the person, and their hooks keep to kit workspaces.** The
+  workspace's settings reach only a session opened on the workspace's own folder, so a session opened on
+  a project folder offered none of the kit's commands. Stage 7 now installs the three plugins at user
+  scope, from the workspace's `kit/` as the person reached it (a symbolic link kept, since Claude Code
+  records that path): asked first when attended, the default when unattended, and nothing run when they
+  are already installed from this kit. A session opened anywhere inside the workspace then has them, in
+  a terminal and in the desktop app's Code tab. Installed for the person, they load in every session on
+  the machine, so every hook now starts with one shared rule, `hooks/lib/boundary.sh` (a byte-identical
+  copy in each plugin): a session is inside a kit workspace when its folder, by its real path, or a
+  folder above it holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`; outside one the hook exits 0
+  with nothing said. Each command checks the same two files and, finding neither, says in one line that
+  it works inside a kit workspace. The workspace's own `enabledPlugins` stay, so a person who declines
+  still has the plugins at the root. closeout 1.5.0, projects 3.2.0, workspace 2.2.0.
+- **`plugins_user_kit`, and one kit checkout per machine.** Claude Code keeps one path per marketplace
+  name, so two kit workspaces with the plugins installed for the person run one checkout's plugins. The
+  new key reads `this`, `elsewhere`, `none` or `unknown`. On `elsewhere`, with that checkout still
+  there, setup warns; attended it asks whether to point the marketplace here (default no), unattended it
+  leaves it, and stage 9 prints the commands. `AW_CLAUDE` names the `claude` setup runs; the test suite
+  points it at a stub, so no run reaches the runner's own settings.
 - **Setup enables the kit's plugins in a settings file that was there first.** Seen on a first install
   into a folder that already had `.claude/settings.json`: the engine adds the marketplace to a file that
   is the person's and leaves the rest, so `enabledPlugins` never arrived, `/closeout` read as unknown,
@@ -23,12 +42,16 @@ rewriting — the record of what a version claimed is part of what the version i
   `CLAUDE_CONFIG_DIR`: three plugins and eleven commands at the workspace's folder, none in
   `projects/<slug>/`, and all of them in both once installed for the person. The state check's new key
   reads `workspace`, `user`, `none` or `unknown`; on `workspace`, stage 9 prints the four commands that
-  install the plugins for the person and leave the workspace's settings as committed. workspace 2.1.1.
+  install the plugins for the person and leave the workspace's settings as committed.
 - **`docs/plugin-scope.md` is new**: the table of where the plugins load, the four commands, and three
   common questions: `/closeout` unknown after setup, commands present in one session and missing in
   another, and a first session after trust that lists no plugins (it can register the marketplace
   without loading them; the next one loads them). `docs/setup.md`'s stage table points at it.
-- Tests: sections 15 and 16.
+- `docs/plugin-scope.md` also covers the boundary and the one-checkout limit, and each plugin hook's
+  page in `docs/hooks/` says it keeps to kit workspaces.
+- Tests: sections 15 and 16; section 25 (new) for the boundary, the commands' line, `plugins_user_kit`
+  and setup's user-scope step against a stub `claude`; sections 13 and 23 run their hooks inside a
+  marked workspace.
 
 ## v3.1.0 — 2026-10-12
 

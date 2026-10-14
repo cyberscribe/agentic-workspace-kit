@@ -21,6 +21,14 @@ If the user typed anything after the command (it follows this prompt), start fro
 it: it is what they most want kept. With no end-of-session capture behind it — a
 desktop assistant, or hooks turned off — this pass is the whole ritual.
 
+## Where this works
+
+`/closeout` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/closeout` works inside a kit workspace, and do nothing
+else.
+
 ## Conventions come first
 
 Read these before anything else, in this order, and follow them over the defaults

@@ -192,6 +192,12 @@ mkpath() {
 # No fixture's pre-push can reach a real gh (and the network): the hooks ask the command named by AW_GH,
 # which is a path that does not exist unless a check points it at a stub of its own.
 export AW_GH="$SCRATCH/no-gh"
+# Nor can setup reach a real claude, which would install the kit's plugins in the runner's own settings:
+# stage 7 runs the command named by AW_CLAUDE, a path that does not exist unless a check stubs it.
+export AW_CLAUDE="$SCRATCH/no-claude"
+# A hook with no cwd in its input falls back to CLAUDE_PROJECT_DIR; a suite run from inside a Claude Code
+# session inherits that session's, so it is cleared here and set by the checks that want one.
+unset CLAUDE_PROJECT_DIR
 
 # KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
 # and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
@@ -753,9 +759,12 @@ team_of() {
         source "$1/lib/config.sh"; closeout_config "$2"
         printf "%s|%s" "$TEAM_COUNT" "$(printf "%s" "$TEAM_MEMBERS" | paste -sd, -)"' _ "$HOOKS" "$project"
 }
+# The hooks keep to kit workspaces (hooks/lib/boundary.sh), so each fixture carries setup's ledger as
+# the marker; section 25 checks them outside one.
 mkproject() { # <name> <person>...: a project with one profile per person, plus a README to ignore
     local p="$SCRATCH/projects/$1"; shift
     mkdir -p "$p/.claude"
+    : > "$p/.claude/kit-templates.lock"
     if [[ $# -gt 0 ]]; then
         mkdir -p "$p/memory/people"
         printf '# People\n' > "$p/memory/people/README.md"
@@ -1097,6 +1106,7 @@ pmsg() { jq -r '.systemMessage // empty' 2>/dev/null; }
 PF="$SCRATCH/projects-f13"
 mkdir -p "$PF/.claude" "$PF/projects"
 git -C "$PF" init -q
+: > "$PF/.claude/kit-templates.lock"   # inside a kit workspace, where the hook acts
 cp "$KIT/templates/workspace/projects.md" "$PF/.claude/projects.md"
 for i in $(seq -w 1 19); do
     mkdir -p "$PF/projects/p$i"
@@ -1214,6 +1224,7 @@ rm -rf "$PF/projects/legacy"
 PX="$SCRATCH/projects-f13-example"
 mkdir -p "$PX/.claude" "$PX/work/03-vendor-review" "$PX/work/_paused/old"
 git -C "$PX" init -q
+: > "$PX/.claude/kit-templates.lock"
 cp "$KIT/plugins/projects/examples/projects-conventions.md" "$PX/.claude/projects.md"
 printf '# Vendor review\n\n## Exit criteria\n\n- [X] longlist\n- [ ] shortlist\n\n## Current state\n\nState: blocked\nBlocked by: the vendors quotes — since 2026-09-10\n' > "$PX/work/03-vendor-review/README.md"
 printf '# Old\n\n## Current state\n\n- **State:** paused\n' > "$PX/work/_paused/old/README.md"
