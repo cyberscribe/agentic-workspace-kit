@@ -26,7 +26,11 @@ plugins reach it as uploaded `.plugin` files (`kit/setup.sh cowork`).
 
 Tried on 2026-10-13 with Claude Code 2.1.296 and the desktop app's own 2.1.295, each under an empty
 `CLAUDE_CONFIG_DIR`: three plugins and eleven commands at the workspace's folder, none in a folder
-below it, and all of them in both once installed for the person.
+below it, and all of them in both once installed for the person. Seen in the desktop app itself on
+2026-10-14: a new Code-tab session on a workspace's own folder, opened by its real path or by a
+symbolic link, offered the commands its settings alone enabled; one on `projects/demo/` below it
+offered none. With the same plugins enabled for the person and by the workspace, as setup leaves
+them, Claude Code loads each once and runs each hook once.
 
 ## The workspace boundary
 

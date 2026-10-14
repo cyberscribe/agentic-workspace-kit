@@ -50,8 +50,9 @@ rewriting — the record of what a version claimed is part of what the version i
 - `docs/plugin-scope.md` also covers the boundary and the one-checkout limit, and each plugin hook's
   page in `docs/hooks/` says it keeps to kit workspaces.
 - Tests: sections 15 and 16; section 25 (new) for the boundary, the commands' line, `plugins_user_kit`
-  and setup's user-scope step against a stub `claude`; sections 13 and 23 run their hooks inside a
-  marked workspace.
+  and setup's user-scope step against a stub `claude`, and, with `AW_TEST_CLAUDE=1`, a live check that
+  the same plugins enabled for the person and by the workspace load once and run each SessionStart hook
+  once; sections 4, 4b, 13 and 23 run their hooks inside a marked workspace.
 
 ## v3.1.0 — 2026-10-12
 

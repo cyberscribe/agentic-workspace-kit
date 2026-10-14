@@ -224,3 +224,39 @@ if mkws "$s25/setup-ws" >/dev/null 2>&1; then
 else
     skp "25 setup's user-scope step — needs a workspace built by setup new"
 fi
+
+# --- Live: one plugin id at both scopes loads once --------------------------------------------------
+# After setup the workspace's settings and the person's both enable the same three ids. Claude Code
+# loads each once, so each SessionStart hook runs once, not twice. Starts Claude Code (no model call:
+# the hook events and the init message come before one), under a config directory of its own.
+if cc_gate "25 the same plugins enabled for the person and by the workspace load once, each SessionStart hook run once"; then
+    s25_lw="$s25/live-ws"; s25_ccc="$s25/cc-live"; mkdir -p "$s25_ccc"
+    if mkws "$s25_lw" >/dev/null 2>&1; then
+        (cd "$s25_lw" && env -u PAIR_ROLE -u PAIR_MAILBOX AW_CLAUDE=claude CLAUDE_CONFIG_DIR="$s25_ccc" AW_WIZARD_NONINTERACTIVE=1 \
+            "$st_bash" kit/setup.sh </dev/null >"$s25/live-setup.log" 2>&1)
+        jq --arg p "$(s25_real "$s25_lw")" '.projects[$p].hasTrustDialogAccepted = true' "$s25_ccc/.claude.json" > "$s25_ccc/.claude.json.t" 2>/dev/null \
+            || jq -n --arg p "$(s25_real "$s25_lw")" '{projects: {($p): {hasTrustDialogAccepted: true}}}' > "$s25_ccc/.claude.json.t"
+        mv "$s25_ccc/.claude.json.t" "$s25_ccc/.claude.json"
+        # Two sessions, since the first after trust may register the marketplace without loading it.
+        for s25_i in 1 2; do
+            (cd "$s25_lw" && env -u PAIR_ROLE -u PAIR_MAILBOX CLOSEOUT_DRAFT_ROOT="$s25/drafts-live" CLAUDE_CONFIG_DIR="$s25_ccc" \
+                CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_TELEMETRY=1 \
+                claude -p ok --include-hook-events --output-format stream-json --verbose </dev/null 2>/dev/null \
+                | awk '{ print } /"subtype":"init"/ { exit }' > "$s25/live-$s25_i.jsonl")
+            printf -- '- %s tests/run.sh: 25 hooks once, session %s (claude -p, ended at init)\n' "$(date '+%F %H:%M')" "$s25_i" >> "$AW_CC_LOG" 2>/dev/null
+        done
+        s25_want="$(cat "$KIT"/plugins/*/hooks/hooks.json | jq -s '[.[].hooks.SessionStart[]? | select((.matcher // "") | test("startup")) | .hooks[]] | length')"
+        s25_bad=""
+        for s25_f in "$s25_lw/.claude/settings.json" "$s25_ccc/settings.json"; do
+            [[ "$(jq -c '[.enabledPlugins // {} | to_entries[] | select(.key | endswith("@agentic-workspace")) | select(.value)] | length' "$s25_f")" == 3 ]] \
+                || s25_bad+="${s25_f##*/} in $(basename "$(dirname "$s25_f")") does not enable all three"$'\n'
+        done
+        s25_names="$(jq -r 'select(.subtype == "init") | .plugins[] | select(.path != "builtin") | .name' "$s25/live-2.jsonl" | sort | paste -sd, -)"
+        [[ "$s25_names" == closeout,projects,workspace ]] || s25_bad+="the second session loads: ${s25_names:-nothing}"$'\n'
+        s25_got="$(jq -c 'select(.subtype == "hook_started" and .hook_event == "SessionStart")' "$s25/live-2.jsonl" | wc -l | tr -d ' ')"
+        [[ "$s25_got" == "$s25_want" ]] || s25_bad+="$s25_got SessionStart hooks started, against $s25_want in the three hooks.json files"$'\n'
+        empty "25 the same plugins enabled for the person and by the workspace load once, each SessionStart hook run once" "$s25_bad"
+    else
+        ko "25 the same plugins enabled for the person and by the workspace load once — the workspace could not be built"
+    fi
+fi
