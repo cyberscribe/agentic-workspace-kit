@@ -29,7 +29,8 @@ Tried on 2026-10-13 with Claude Code 2.1.296 and the desktop app's own 2.1.295, 
 below it, and all of them in both once installed for the person. Seen in the desktop app itself on
 2026-10-14: a new Code-tab session on a workspace's own folder, opened by its real path or by a
 symbolic link, offered the commands its settings alone enabled; one on `projects/demo/` below it
-offered none. With the same plugins enabled for the person and by the workspace, as setup leaves
+offered none. The first Code-tab session after trusting a new folder offered none, and the next one
+offered them, as in the terminal. With the same plugins enabled for the person and by the workspace, as setup leaves
 them, Claude Code loads each once and runs each hook once.
 
 ## The workspace boundary
@@ -92,7 +93,7 @@ no `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock` in it or above it. Open i
 any folder inside it.
 
 **The first session after trusting the folder lists no plugins.** That session can register the
-marketplace without loading its plugins; the next one loads them. The same holds after the workspace's
+marketplace without loading its plugins; the next one loads them. The desktop app does the same. The same holds after the workspace's
 folder is moved or renamed, since the marketplace is recorded by its full path in
 `~/.claude/plugins/known_marketplaces.json`: the first session there records the new path, and the one
 after it loads them.
