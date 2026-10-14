@@ -5,6 +5,21 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.2.1 — 2026-10-14
+
+- **Stage 7 says what 3.2.0 does.** With the plugins installed for the person from this workspace's kit
+  (`plugins_scope=user`, `plugins_user_kit=this`), stage 7's attended steps still told the person to
+  accept Claude Code's offer to install them and how to re-point the marketplace. They now ask for one
+  new session in the workspace, trust for the folder, and a look at `/` for `/closeout`,
+  `/projects:new` and `/workspace:hygiene`, with one more new session if the first after trust has none;
+  the fallback names `claude plugin list`. The offer and the re-pointing steps stay where the install did
+  not happen: declined, `claude` not on `PATH`, or the person's marketplace on another checkout. The
+  stage is now "Restart Claude Code and check the plugins". `docs/plugin-scope.md` says that a workspace
+  inside WSL opened from the Windows desktop app is untested. No plugin file changed, so no plugin
+  version moved.
+
+---
+
 ## v3.2.0 — 2026-10-14
 
 - **Setup installs the kit's plugins for the person, and their hooks keep to kit workspaces.** The

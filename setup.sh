@@ -37,7 +37,7 @@
 #    5 Submodule configuration   submodule_config
 #    6 Outside folders           external_paths, external_paths_missing, resource.*
 #    7 Restart Claude Code       the plugins installed for the person (plugins_scope, plugins_user_kit),
-#                                then the person's word; plugins_registered is shown beside it
+#                                then the person's word, with steps that depend on the first; plugins_registered is shown beside it
 #    8 Cowork (with --cowork)    skills_bridge
 #    9 Verify                    every key above, and plugins_scope and plugins_user_kit
 #   10 Finish                    mode, which decides what the quick-start does first
@@ -600,11 +600,10 @@ else
     else outcome "left open" "not reachable on this machine: ${unreached%, } — kit/setup.sh link"; fi
 fi
 
-# --- 7 · Restart Claude Code and approve the plugins ------------------------------------------------
-stage 7 $TOTAL "Restart Claude Code and approve the plugins"
-say "Claude Code reads a repository's plugin settings only when a session starts in it, and only once"
-say "the person has trusted that folder. It then offers to install the kit's marketplace, from kit/, and"
-say "its three plugins, whose hooks come with them. Each person does this once, in their own first session."
+# --- 7 · Restart Claude Code and check the plugins --------------------------------------------------
+stage 7 $TOTAL "Restart Claude Code and check the plugins"
+say "Claude Code reads a workspace's plugin settings only in a session started in its own folder, once"
+say "the person has trusted it. One new session there shows whether the kit's three plugins load."
 echo
 # The workspace's settings reach a session opened on its own folder and no other, so the plugins are also
 # installed for the person (user scope): then a session opened anywhere inside the workspace, a project
@@ -658,49 +657,68 @@ if ! attended; then
         outcome skipped "unattended run; each person does this once, in Claude Code"
     fi
 else
-    if [[ -n "$(plugins_off)" ]]; then
-        not_on="$(plugins_off)"
-        warn "This workspace's settings do not enable: ${not_on// /, }. Enable them first, or the steps below list nothing:"
-        enable_steps
-        echo
-    fi
     step "1. Close any Claude Code session already open in this workspace."
     step "2. Start a new one there:  cd $(printf '%q' "$T") && claude"
     step "3. Trust the folder when it asks: this folder itself, not only a folder above it."
-    step "4. Accept the offer to install the agentic-workspace marketplace and its three plugins. Their"
-    step "   hooks come with them. closeout has two: one keeps a draft when a session ends, one offers it"
-    step "   when the next one starts. projects has one: the line that says where a project stands when a"
-    step "   session opens in its folder. workspace has two: the line that names anything out of step when a"
-    step "   session opens, and a guard that keeps an agent from bypassing the git hooks."
-    step "5. Type /plugin and check that closeout, projects and workspace are listed from agentic-workspace,"
-    step "   at $T/kit."
-    step "6. If agentic-workspace is listed at another path, your user settings still name it there (a"
-    step "   workspace moved from the 2.x layout does this). Re-point the user entry alone: a remove without"
-    step "   --scope user also takes the marketplace and the three plugins out of this workspace's"
-    step "   .claude/settings.json, and uninstalls them. Quit Claude Code, then run these one at a time:"
-    step "     claude plugin marketplace remove --scope user agentic-workspace"
-    step "     claude plugin marketplace add --scope user $(printf '%q' "$T/kit")"
-    step "     claude plugin install closeout@agentic-workspace"
-    step "     claude plugin install projects@agentic-workspace"
-    step "     claude plugin install workspace@agentic-workspace"
-    step "     git -C $(printf '%q' "$T") diff -- .claude/settings.json"
-    step "   The last one prints nothing when the workspace's settings are as committed. If it prints a"
-    step "   change, put the file back:"
-    step "     git -C $(printf '%q' "$T") checkout -- .claude/settings.json"
-    step "   Then start Claude Code again in this folder."
-    echo
-    [[ "$optional" != *claude* ]] || warn "claude is not on PATH yet: install Claude Code first (stage 1 has the link)."
-    note "The settings this workspace gives Claude Code register: $(state_key plugins_registered)"
-    echo
-    if confirm "Were all three listed?" y; then
-        outcome "done"
+    # Installed for the person from this kit, there is nothing left to accept: the session only shows
+    # whether they loaded. The offer and the re-pointing steps are for the other paths.
+    if key_is plugins_scope user && key_is plugins_user_kit this; then
+        step "4. Type / and check that /closeout, /projects:new and /workspace:hygiene are listed."
+        step "5. If they are not, leave the session and start one more new one there: the first session after"
+        step "   the folder is trusted can come up without them, and the next one has them."
+        echo
+        if confirm "Were all three listed?" y; then
+            outcome "done"
+        else
+            step "If the second session has none of them either, run this in a terminal and check that"
+            step "closeout, projects and workspace each show Scope: user and enabled:"
+            step "  claude plugin list"
+            step "A plugin listed but disabled is switched on with:"
+            step "  claude plugin enable <name>@agentic-workspace --scope user"
+            outcome "left open" "the plugins were not all listed"
+        fi
     else
-        step "If none are listed: quit Claude Code and start it again in this folder itself, trust it, and"
-        step "accept the install offer. The first session after the folder is trusted can register the"
-        step "marketplace without loading its plugins; the next one loads them. If a plugin is listed but"
-        step "disabled, enable it from /plugin, or in a terminal:"
-        step "  claude plugin enable <name>@agentic-workspace --scope project"
-        outcome "left open" "the plugins were not all listed"
+        if [[ -n "$(plugins_off)" ]]; then
+            not_on="$(plugins_off)"
+            warn "This workspace's settings do not enable: ${not_on// /, }. Enable them first, or the steps below list nothing:"
+            enable_steps
+            echo
+        fi
+        step "4. Accept the offer to install the agentic-workspace marketplace and its three plugins. Their"
+        step "   hooks come with them. closeout has two: one keeps a draft when a session ends, one offers it"
+        step "   when the next one starts. projects has one: the line that says where a project stands when a"
+        step "   session opens in its folder. workspace has two: the line that names anything out of step when a"
+        step "   session opens, and a guard that keeps an agent from bypassing the git hooks."
+        step "5. Type /plugin and check that closeout, projects and workspace are listed from agentic-workspace,"
+        step "   at $T/kit."
+        step "6. If agentic-workspace is listed at another path, your user settings still name it there (a"
+        step "   workspace moved from the 2.x layout does this). Re-point the user entry alone: a remove without"
+        step "   --scope user also takes the marketplace and the three plugins out of this workspace's"
+        step "   .claude/settings.json, and uninstalls them. Quit Claude Code, then run these one at a time:"
+        step "     claude plugin marketplace remove --scope user agentic-workspace"
+        step "     claude plugin marketplace add --scope user $(printf '%q' "$T/kit")"
+        step "     claude plugin install closeout@agentic-workspace"
+        step "     claude plugin install projects@agentic-workspace"
+        step "     claude plugin install workspace@agentic-workspace"
+        step "     git -C $(printf '%q' "$T") diff -- .claude/settings.json"
+        step "   The last one prints nothing when the workspace's settings are as committed. If it prints a"
+        step "   change, put the file back:"
+        step "     git -C $(printf '%q' "$T") checkout -- .claude/settings.json"
+        step "   Then start Claude Code again in this folder."
+        echo
+        [[ "$optional" != *claude* ]] || warn "claude is not on PATH yet: install Claude Code first (stage 1 has the link)."
+        note "The settings this workspace gives Claude Code register: $(state_key plugins_registered)"
+        echo
+        if confirm "Were all three listed?" y; then
+            outcome "done"
+        else
+            step "If none are listed: quit Claude Code and start it again in this folder itself, trust it, and"
+            step "accept the install offer. The first session after the folder is trusted can register the"
+            step "marketplace without loading its plugins; the next one loads them. If a plugin is listed but"
+            step "disabled, enable it from /plugin, or in a terminal:"
+            step "  claude plugin enable <name>@agentic-workspace --scope project"
+            outcome "left open" "the plugins were not all listed"
+        fi
     fi
 fi
 
