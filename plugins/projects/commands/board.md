@@ -16,6 +16,14 @@ The READMEs are the truth; the board is a view of them. It changes no README and
 no register row. The one file it ever writes is `BOARD.md`, and only when
 asked. A flag is an observation for the people who own the work, not a fix.
 
+## Where this works
+
+`/projects:board` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/projects:board` works inside a kit workspace, and do nothing
+else.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,

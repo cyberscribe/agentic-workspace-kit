@@ -13,13 +13,13 @@ deletes and commits nothing; the last stage prints the commit to make.
 |---|---|---|
 | 1 | Prerequisites | bash 3.2 or later, git and jq; claude and gh are optional |
 | 2 | Identity | The team, its standards owner and their handle, from flags, earlier answers or questions |
-| 3 | The workspace | Starts a repository (`new`), adds the kit as a submodule at `kit/` where it is missing, then runs the engine, `kit/install.sh`, which creates the team's own files once and records them in `.claude/kit-templates.lock` |
+| 3 | The workspace | Starts a repository (`new`), adds the kit as a submodule at `kit/` where it is missing, then runs the engine, `kit/install.sh`, which creates the team's own files once and records them in `.claude/kit-templates.lock`. Where `.claude/settings.json` was there first, it offers to enable the kit's three plugins in it, and prints the `claude plugin enable` commands for any left off |
 | 4 | Remotes and privacy | Sets the git hooks, and records `origin` as private once GitHub (with `gh`) or the person confirms it |
 | 5 | Submodule configuration | The git settings that keep submodules visible and pushed |
 | 6 | Outside folders | Runs `link` for material projects name under `## Resources` |
-| 7 | Restart Claude Code | How to trust the folder and install the three plugins from the marketplace at `kit/` |
+| 7 | Restart Claude Code | Installs the three plugins for the person from the marketplace at `kit/` (asked first; unattended, the default), so a session opened in any folder inside the workspace has them, in a terminal or the desktop app's Code tab; their hooks act only inside a kit workspace. A re-run with them in place runs nothing. Then how to trust the folder: `docs/plugin-scope.md` |
 | 8 | Cowork (with `--cowork`) | Runs the skills bridge, packages the plugins for upload (`cowork`), and names the scheduled tasks that fit |
-| 9 | Verify | Each check, with the command that fixes any that fails |
+| 9 | Verify | Each check, with the command that fixes any that fails, and where the plugins load (`plugins_scope`, `plugins_user_kit`) with the commands that widen it |
 | 10 | Finish | What to run next, `/workspace:quick-start`, and the commit to make |
 
 | Mode | What it does |

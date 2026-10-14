@@ -39,7 +39,8 @@
 #   register register_path register_rows project_folders projects_without_current_state
 #   adopt_proposals glossary glossary_terms build_list verification catalogue readme codeowners
 #   decisions_log decisions_log_other own_skills foreign_skills kit_incoming
-#   settings plugins_registered plugins_mode plugins_path plugins_loaded plugins_not_loaded
+#   settings plugins_registered plugins_mode plugins_path plugins_loaded plugins_not_loaded plugins_scope
+#   plugins_user_kit
 #   vendored_commit kit_checkout
 #   closeout_conventions surfaces gemini_commands measure_script metrics_csv
 #   closeout_drafts_pending
@@ -989,6 +990,50 @@ emit plugins_loaded "$p_loaded"
 # repository, and no directory marketplace in the workspace's settings serves it). The fix for the first and last is claude plugin install <plugin>@agentic-workspace, or
 # /plugin.
 emit plugins_not_loaded "${p_not%,}"
+# plugins_scope: user | workspace | none | unknown — whose settings enable every plugin in the kit checkout,
+# which decides the folders a session loads them in. Claude Code reads .claude/settings.json in the folder
+# a session is opened on and not in the folders above it. So plugins the workspace's settings alone enable
+# (workspace) load in a session opened on the workspace's own folder, and not in one opened on a folder
+# below it, such as a project folder: the same in a terminal and in the desktop app's Code tab. Enabled in
+# the person's own settings.json (user) they load in every folder. none: neither names them all.
+# unknown: no jq, or no kit checkout.
+p_scope=unknown
+if [[ -n "$kit_plugins" && $have_jq == yes ]]; then
+    # on_in <settings file>: each kit plugin the file sets true, one per line.
+    on_in() {
+        [[ -f "$1" ]] && jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == true) | .key
+                                | select(endswith("@agentic-workspace")) | sub("@agentic-workspace$"; "")' "$1" 2>/dev/null
+    }
+    user_on="$(on_in "$cfg/settings.json" | join)"
+    ws_on="$({ on_in "$T/.claude/settings.local.json"; on_in "$settings"; } | sort -u | join)"
+    p_scope=user ws_all=yes
+    while IFS= read -r p; do
+        [[ -n "$p" ]] || continue
+        in_list "$p" "$user_on" || p_scope=""
+        in_list "$p" "$ws_on" || ws_all=no
+    done <<EOF
+$kit_plugins
+EOF
+    if [[ -z "$p_scope" ]]; then
+        if [[ $ws_all == yes ]]; then p_scope=workspace; else p_scope=none; fi
+    fi
+fi
+emit plugins_scope "$p_scope"
+# plugins_user_kit: this | elsewhere | none | unknown — the kit checkout the person's own settings.json
+# registers the agentic-workspace marketplace from (extraKnownMarketplaces, a directory source): this
+# workspace's kit/, compared by its real path, or another one. Claude Code keeps one path per marketplace
+# name, so two workspaces on one machine share whichever kit checkout it names. none: no such entry, or
+# not a directory source. unknown: no jq, or no kit checkout.
+p_ukit=unknown
+if [[ $have_jq == yes && -n "$KD" ]]; then
+    p_ukit=none
+    up="$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source // empty | select(.source == "directory") | .path // empty'           "$cfg/settings.json" 2>/dev/null)"
+    if [[ -n "$up" ]]; then
+        p_ukit=elsewhere
+        [[ "$(cd "$up" 2>/dev/null && pwd -P)" == "$(cd "$KD" 2>/dev/null && pwd -P)" ]] && p_ukit=this
+    fi
+fi
+emit plugins_user_kit "$p_ukit"
 
 if [[ $QUICK -eq 1 ]]; then
     # quick: 1 when the report is the --quick subset.

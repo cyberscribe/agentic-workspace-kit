@@ -18,6 +18,14 @@ everything between you, so nothing rests on anyone being in the room. The
 person directs both of you and decides what only they can decide; you spare
 them the relaying.
 
+## Where this works
+
+`/projects:pair` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/projects:pair` works inside a kit workspace, and do nothing
+else.
+
 ## Project conventions come first
 
 Read `.claude/projects.md` if it exists (where projects live, prefixes, the

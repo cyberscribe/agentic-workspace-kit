@@ -37,6 +37,11 @@ resume). Read its lines as a to-do list for the terminal: each names the command
 
 ## Common questions
 
+**Does it run outside a kit workspace?** No. Setup installs the plugins for the person, so they load in
+every session, and the hook first looks for `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock` in the
+session's folder or a folder above it (by its real path, so a symbolic link counts). Finding neither, it
+exits 0 with nothing said. The rule is `hooks/lib/boundary.sh`: `docs/plugin-scope.md`.
+
 **A submodule line lists several things.** They come in a fixed order: changed files, commits not
 pushed, pointer changed and not committed, commits behind its remote, detached. Commit and push
 inside the submodule first, then commit its pointer in the workspace.

@@ -45,6 +45,10 @@ input="$(cat)"
 [[ "${AW_HEADLESS_RUN:-}" == "1" ]] && exit 0
 # The closeout plugin's capture child is itself a session; it has no one to tell.
 [[ -n "${CLOSEOUT_HOOK_CHILD:-}" ]] && exit 0
+# Outside a kit workspace the plugin is installed but has nothing to do (hooks/lib/boundary.sh).
+# shellcheck source=lib/boundary.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
+[[ -n "$(aw_workspace_root "$input")" ]] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 
 here="$(dirname "${BASH_SOURCE[0]}")"

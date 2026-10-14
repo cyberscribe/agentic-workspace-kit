@@ -34,6 +34,11 @@ own context is there.
 
 ## Common questions
 
+**Does it run outside a kit workspace?** No. Setup installs the plugins for the person, so they load in
+every session, and the hook first looks for `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock` in the
+session's folder or a folder above it (by its real path, so a symbolic link counts). Finding neither, it
+exits 0 with nothing said. The rule is `hooks/lib/boundary.sh`: `docs/plugin-scope.md`.
+
 **Where do the drafts show up?** The next session opened in the same folder is pointed at them by the
 [closeout-review](closeout-review.md) hook.
 

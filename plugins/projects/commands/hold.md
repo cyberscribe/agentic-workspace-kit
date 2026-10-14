@@ -15,6 +15,14 @@ This is small. One reason, an optional date, a few edits, each shown first. The
 folder stays where it is and keeps being versioned, so nothing about the
 project's history changes because it is resting.
 
+## Where this works
+
+`/projects:hold` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/projects:hold` works inside a kit workspace, and do nothing
+else.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,

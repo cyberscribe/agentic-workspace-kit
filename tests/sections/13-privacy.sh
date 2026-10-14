@@ -698,11 +698,14 @@ fi
 # ---- 13.13 The agent guard -----------------------------------------------------------------------------------
 
 s13_G="$KITSRC/plugins/workspace/hooks/guard-git.sh"
+# The guard keeps to kit workspaces (hooks/lib/boundary.sh), so its session is in one: a ledger is the marker.
+s13_gws="$SCRATCH/s13-guard-ws"
+mkdir -p "$s13_gws/.claude" && : > "$s13_gws/.claude/kit-templates.lock"
 # s13_guard <command>: deny or allow, as guard-git.sh answers a Bash tool call carrying that command.
 s13_guard() {
     local c="$1" out
     c="${c//\\/\\\\}"; c="${c//\"/\\\"}"
-    out="$(printf '{"session_id":"t","tool_name":"Bash","tool_input":{"command":"%s","description":"a test"}}' "$c" \
+    out="$(printf '{"session_id":"t","cwd":"%s","tool_name":"Bash","tool_input":{"command":"%s","description":"a test"}}' "$s13_gws" "$c" \
         | env "${@:2}" "$st_bash" "$s13_G")"
     case "$out" in *'"permissionDecision":"deny"'*) echo deny ;; '') echo allow ;; *) echo "odd: $out" ;; esac
 }

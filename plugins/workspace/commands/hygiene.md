@@ -21,6 +21,14 @@ by an agent with the repository in front of it, where the report goes, and when
 to stop and ask. Where the two differ, the ritual wins. If there is no copy of
 the ritual in the repository, say so in a line and run the checks named below.
 
+## Where this works
+
+`/workspace:hygiene` works inside a kit workspace: the folder this session was opened in, or one
+above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's plugins
+are installed for the person, so the command is offered in every folder. Outside a
+workspace, say in one line that `/workspace:hygiene` works inside a kit workspace, and do nothing
+else.
+
 ## Conventions come first
 
 Before scanning, read what the repository says about itself, and let it set the

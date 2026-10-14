@@ -33,6 +33,11 @@ fi
 # (2) Global off switch, for projects that want /closeout without the backstop.
 [[ "${CLOSEOUT_DISABLED:-}" == "1" ]] && exit 0
 
+# Outside a kit workspace the plugin is installed but has nothing to do (hooks/lib/boundary.sh).
+# shellcheck source=lib/boundary.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
+[[ -n "$(aw_workspace_root "$input")" ]] || exit 0
+
 # shellcheck source=lib/config.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/config.sh"
 
