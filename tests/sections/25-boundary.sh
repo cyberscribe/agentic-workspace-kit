@@ -251,11 +251,12 @@ _, st = os.waitpid(pid, 0)
 sys.stdout.write(re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", out.decode("utf-8", "replace")).replace("\r", ""))
 print("S25-RC", os.WEXITSTATUS(st) if os.WIFEXITED(st) else 128)
 S25PY
-    # s25_att <name> <claude> <config dir> <rules>: setup attended from the workspace; stage 7's screen
+    # s25_att <name> <claude> <config dir> <rules>: setup attended from the workspace, entered by its
+    # symlink; stage 7's screen
     # goes to <name>.7, the claude calls to <name>.calls.
     s25_att() {
-        : > "$s25/$1.calls"
-        (cd "$s25/setup-ws" && env -u AW_WIZARD_NONINTERACTIVE AW_CLAUDE="$2" S25_LOG="$s25/$1.calls" CLAUDE_CONFIG_DIR="$3" \
+        : > "$s25/$1.calls"; mkdir -p "$3"
+        (cd "$s25/setup-link" && env -u AW_WIZARD_NONINTERACTIVE AW_CLAUDE="$2" S25_LOG="$s25/$1.calls" CLAUDE_CONFIG_DIR="$3" \
             python3 -I "$s25/pty.py" "$4" "$st_bash" kit/setup.sh >"$s25/$1.log" 2>&1)
         sed -n '/Stage 7 of/,/Stage 8 of/p' "$s25/$1.log" > "$s25/$1.7"
     }
@@ -271,6 +272,7 @@ S25PY
         s25_bad=""
         grep -q '^S25-RC 0$' "$s25/att-user.log" || s25_bad+="exit: $(grep '^S25-RC' "$s25/att-user.log")"$'\n'
         [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 4 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
+        grep -qF "2. Start a new one there:  cd $(printf '%q' "$s25/setup-link") && claude" "$s25/att-user.7" || s25_bad+="step 2 does not name the folder by the symlink"$'\n'
         grep -qF "4. Type / and check that /closeout, /projects:new and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
         grep -qF "start one more new one there" "$s25/att-user.7" || s25_bad+="no second-session step"$'\n'
         grep -qF "  claude plugin list" "$s25/att-user.7" || s25_bad+="the fallback does not name claude plugin list"$'\n'
@@ -278,7 +280,7 @@ S25PY
         ! grep -qF "Type /plugin" "$s25/att-user.7" || s25_bad+="names the /plugin check"$'\n'
         ! grep -qF "marketplace remove" "$s25/att-user.7" || s25_bad+="names the re-pointing steps"$'\n'
         [[ -z "$s25_bad" ]] || s25_bad+="stage 7:"$'\n'"$(cat "$s25/att-user.7")"
-        empty "25 setup attended, installed for the person: stage 7 asks for a new session and a look at /, with no install offer or re-pointing, and its fallback names claude plugin list" "$s25_bad"
+        empty "25 setup attended, installed for the person: stage 7 asks for a new session there, by the path the person came in by, and a look at /, with no install offer or re-pointing, and its fallback names claude plugin list" "$s25_bad"
 
         s25_bad=""
         s25_att att-no "$s25_cl" "$s25/cc-att-no" '[["Install them for you now?", "n"]]'

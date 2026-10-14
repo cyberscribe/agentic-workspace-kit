@@ -14,7 +14,8 @@ rewriting — the record of what a version claimed is part of what the version i
   `/projects:new` and `/workspace:hygiene`, with one more new session if the first after trust has none;
   the fallback names `claude plugin list`. The offer and the re-pointing steps stay where the install did
   not happen: declined, `claude` not on `PATH`, or the person's marketplace on another checkout. The
-  stage is now "Restart Claude Code and check the plugins". `docs/plugin-scope.md` says that a workspace
+  stage is now "Restart Claude Code and check the plugins", and its steps name the workspace by the
+  path the person came in by, a symbolic link kept, as the install does. `docs/plugin-scope.md` says that a workspace
   inside WSL opened from the Windows desktop app is untested. No plugin file changed, so no plugin
   version moved.
 

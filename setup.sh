@@ -658,7 +658,7 @@ if ! attended; then
     fi
 else
     step "1. Close any Claude Code session already open in this workspace."
-    step "2. Start a new one there:  cd $(printf '%q' "$T") && claude"
+    step "2. Start a new one there:  cd $(printf '%q' "$reach") && claude"
     step "3. Trust the folder when it asks: this folder itself, not only a folder above it."
     # Installed for the person from this kit, there is nothing left to accept: the session only shows
     # whether they loaded. The offer and the re-pointing steps are for the other paths.
@@ -690,13 +690,13 @@ else
         step "   session opens in its folder. workspace has two: the line that names anything out of step when a"
         step "   session opens, and a guard that keeps an agent from bypassing the git hooks."
         step "5. Type /plugin and check that closeout, projects and workspace are listed from agentic-workspace,"
-        step "   at $T/kit."
+        step "   at $reach/kit."
         step "6. If agentic-workspace is listed at another path, your user settings still name it there (a"
         step "   workspace moved from the 2.x layout does this). Re-point the user entry alone: a remove without"
         step "   --scope user also takes the marketplace and the three plugins out of this workspace's"
         step "   .claude/settings.json, and uninstalls them. Quit Claude Code, then run these one at a time:"
         step "     claude plugin marketplace remove --scope user agentic-workspace"
-        step "     claude plugin marketplace add --scope user $(printf '%q' "$T/kit")"
+        step "     claude plugin marketplace add --scope user $(printf '%q' "$reach/kit")"
         step "     claude plugin install closeout@agentic-workspace"
         step "     claude plugin install projects@agentic-workspace"
         step "     claude plugin install workspace@agentic-workspace"
