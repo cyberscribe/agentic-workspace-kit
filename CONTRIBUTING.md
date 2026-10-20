@@ -76,6 +76,12 @@ there is one, since the kit's scripts are written for bash 3.2; `AW_BASH32=0` le
 Checks that start Claude Code are skipped unless `AW_TEST_CLAUDE=1`. `tests/README.md` lists every
 section and flag. Passing is the bar for every change.
 
+To time a hook by hand, give it an empty stdin: `bash githooks/pre-commit </dev/null`. The hooks read
+stdin whenever it is not a terminal, as git hands a pre-push hook its refs that way, so a hook started
+from a script or an agent's shell waits on stdin until it is closed. For a check whose cost depends on
+the lines a commit adds, time it with lines copied from real files. Generated lines that share a
+prefix can make a slow search look fast.
+
 ## Shellcheck
 
 Every script is linted with `shellcheck -x`, which section 11 of the suite runs when `shellcheck` is on
