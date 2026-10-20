@@ -258,7 +258,10 @@ block.
 - **A row in the project register** — `projects/INDEX.md` under Active, unless
   the conventions file names another register or section: name, link to the
   folder, state, owner, one line. If the register's table has no State or Owner
-  column, fill the columns it has and leave its shape alone.
+  column, fill the columns it has and leave its shape alone. The register is
+  tracked even when the project is not, so for a `sensitive` project the one line
+  stays neutral — what kind of work it is, and that it is kept untracked or
+  private — with the figures, names and other detail left to its README.
 - **The versioning steps** above, each on its own yes: the `own-repo` setup, or
   the `.gitignore` line for `untracked`.
 - **Nothing else by default.** A `decisions.md` is created when the project makes
