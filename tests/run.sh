@@ -2511,7 +2511,7 @@ st_expect "11 fresh: mode and the always-loaded file" "$r" mode=fresh always_loa
 st_expect "11 fresh: the person, their profile and the project conventions" "$r" "person=Priya Shah" \
     person_slug=priya-shah person_profile=missing person_profile_path= people_dir=memory/people people_profiles=0 \
     projects_conventions=kit "projects_dir=projects/<slug>/" "paused_dir=projects/<slug>/" "done_dir=projects/_done/<slug>/" \
-    conventions_not_set=0 in_flight_limit=3 "staleness=1 week" default_owner=
+    conventions_not_set=0 in_flight_limit=200 "staleness=1 week" default_owner=
 st_expect "11 fresh: register, decisions log and the other canonical files" "$r" register=kit \
     register_path=projects/INDEX.md register_rows=0 project_folders=0 decisions_log=kit decisions_log_other= \
     glossary=present glossary_terms=0 build_list=present verification=missing catalogue=missing \

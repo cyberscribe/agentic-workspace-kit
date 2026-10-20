@@ -634,8 +634,11 @@ EOF
         if [[ -s "$tmp/long" ]]; then
             cut -f4- "$tmp/long" | sort -u > "$tmp/cand"
             if [[ -n "$CP_LINE_BASE" ]]; then
-                # git grep has no whole-line switch: substring matches are narrowed to exact lines here.
-                g grep -h -F -f "$tmp/cand" "$CP_LINE_BASE" -- 2>/dev/null \
+                # Every text line at the base is streamed through the candidates held in an awk hash.
+                # git grep -F -f tests each pattern against each line, so its time grows with the
+                # number of candidates: a large commit's thousands of lines took tens of minutes.
+                # One empty pattern prints every line and costs nothing per candidate.
+                g grep -h -I -e '' "$CP_LINE_BASE" -- 2>/dev/null \
                     | awk 'FNR == NR { c[$0] = 1; next } ($0 in c)' "$tmp/cand" - | sort -u > "$tmp/known"
                 if [[ -s "$tmp/known" ]]; then
                     awk 'FNR == NR { k[$0] = 1; next } !($0 in k)' "$tmp/known" "$tmp/cand" > "$tmp/cand2"; cat "$tmp/cand2" > "$tmp/cand"
@@ -645,7 +648,16 @@ EOF
                 excl=(":(exclude)kit")
                 if [[ -n "${AW_OPAQUE_PATHS+set}" ]]; then op="$AW_OPAQUE_PATHS"; else op="AGENTS.md copilot-instructions.md"; fi
                 for o in $op; do excl+=(":(exclude)$o"); done
-                aw_git_elsewhere "$ws" grep -F -f "$tmp/cand" -- . "${excl[@]}" > "$tmp/wsg" 2>/dev/null
+                # The workspace's tracked files get the same exact-line awk pass as the sweep below,
+                # for the same reason as at the base: git grep -F -f slows with every candidate.
+                # Regular files only (mode 100644 or 100755), so a tracked symlink is not followed.
+                aw_git_elsewhere "$ws" ls-files -s -z -- . "${excl[@]}" 2>/dev/null \
+                    | while IFS= read -r -d '' rec; do
+                          case "$rec" in 100644\ *|100755\ *) printf '%s\0' "${rec#*$'\t'}" ;; esac
+                      done > "$tmp/tracked"
+                # shellcheck disable=SC2016 # the awk program's $0 is awk's, not the shell's
+                ( cd "$ws" && xargs -0 grep -I -l --null -e '' -- /dev/null < "$tmp/tracked" 2>/dev/null \
+                      | xargs -0 awk 'FNR == NR { c[$0] = 1; next } ($0 in c) { print FILENAME ":" $0 }' "$tmp/cand" /dev/null 2>/dev/null ) > "$tmp/wsg"
                 # What the workspace keeps out of its own repository on purpose is read too: a
                 # sensitive project, a private/ folder, an own-repo project's checkout, .secrets/. So
                 # every file of 1 MB or less under the project folders and .secrets/, tracked or not,
@@ -690,11 +702,18 @@ EOF
                               i += k
                               if (substr(s, i + 1) in c) { if (!(substr(s, i + 1) in seen)) { seen[substr(s, i + 1)] = 1; print substr(s, i + 1) "\t" substr(s, 1, i - 1) }; break }
                           } }' "$tmp/cand" "$tmp/wsg" > "$tmp/lmap"
-                    while IFS=$'\t' read -r key path ln text; do
+                    # One awk pass joins the new lines to the workspace files they copy, so the shell loop
+                    # below runs only for the copies. A process per new line took seconds on a large commit.
+                    # In lmap the workspace file is after the last tab, since the line itself may hold one.
+                    awk 'FNR == NR { i = 0; while ((k = index(substr($0, i + 1), "\t")) > 0) i += k
+                                     m[substr($0, 1, i - 1)] = substr($0, i + 1); next }
+                         { t = $0; for (n = 0; n < 3; n++) t = substr(t, index(t, "\t") + 1)
+                           if (t in m) { split($0, f, "\t"); print f[1] "\t" f[2] "\t" f[3] "\t" m[t] } }' \
+                        "$tmp/lmap" "$tmp/long" > "$tmp/copies"
+                    while IFS=$'\t' read -r key path ln wf; do
                         case "$allow_copy" in *",$(pp "$path"),"*) continue ;; esac
-                        wf="$(awk -F '\t' -v t="$text" '$1 == t { print $2; exit }' "$tmp/lmap")"
-                        [[ -n "$wf" ]] && refused "$(item "$key" "$path")" "a copy of $wf (line $ln)"
-                    done < "$tmp/long"
+                        refused "$(item "$key" "$path")" "a copy of $wf (line $ln)"
+                    done < "$tmp/copies"
                 fi
             fi
         fi

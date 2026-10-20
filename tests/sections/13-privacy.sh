@@ -228,6 +228,22 @@ s13_expect "13 kit pre-commit: 1,000 long lines against 3,000 workspace files wi
 [[ $s13_t -lt 10 ]] && ok "13 ... in under 10 seconds (${s13_t} s)" || ko "13 ... in under 10 seconds" "${s13_t} s"
 s13_has "checking 1000 new lines against" && ok "13 ... and says on stderr how many lines and files it checks" \
     || ko "13 ... and says on stderr how many lines and files it checks" "$(cat "$s13_out")"
+# A large commit: 5,000 long lines, one of them copied from a tracked workspace file. The lines are
+# compared against the kit's base and the workspace's tracked files too, where git grep -F -f took time
+# in proportion to the number of lines and ran for tens of minutes on a real workspace.
+awk 'BEGIN { for (i = 1; i <= 4999; i++) printf "Row %d of a generated table that nobody wrote by hand, padded past sixty.\n", i }' > "$s13_S/big-page.md"
+printf '%s\n' "$s13_long" >> "$s13_S/big-page.md"
+s13_t0=$(date +%s)
+s13_kitpc "$(s13_stage "$s13_K" 100644 docs/big-page.md "$s13_S/big-page.md")"
+s13_t=$(( $(date +%s) - s13_t0 ))
+s13_expect "13 kit pre-commit: 5,000 long lines in one commit still find the copy of a tracked workspace file" 1 \
+    "a copy of memory/notes.md (line 5000)"
+[[ $s13_t -lt 10 ]] && ok "13 ... in under 10 seconds (${s13_t} s)" || ko "13 ... in under 10 seconds" "${s13_t} s"
+# A new line holding \E with an open parenthesis made git grep -F -f stop with a fatal error, and the
+# copy check passed with nothing compared. A copy in the same commit is still found.
+s13_kitpc "$(s13_stage "$s13_K" 100644 docs/regex-note.md "$(s13_file regex-note.md "Quote it as \\\\Q.\\\\E( so the pattern parser leaves the parenthesis alone, as written.\n$s13_long\n")")"
+s13_expect "13 kit pre-commit: a new line holding \\E( does not stop the copy check from finding a copy" 1 \
+    "a copy of memory/notes.md (line 2)"
 # Dependency folders are not read: a line found only under a project's .venv is third-party code, not a
 # copy of the person's writing. AW_SWEEP_SKIP set empty reads them again.
 s13_dep="The vendored module docstring explains the tensor layout in more words than anyone reads."
