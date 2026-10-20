@@ -5,6 +5,22 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.2.2 — 2026-10-20
+
+- **The in-flight limit defaults to 200.** The default of 3 counted live projects against a limit
+  meant for the day: a handful of things is active in any one day, while the projects a person has
+  live can number in the scores or hundreds. With no limit in a person's profile or the team's
+  `.claude/projects.md`, `/projects:new`, `/projects:pickup` and `/projects:board` now fall back to
+  200, and `/workspace:quick-start` suggests 200 when the team has no view. A limit a team or a person
+  has already set is unchanged. projects 3.2.1, workspace 2.2.1.
+
+### Template changes
+
+Changed: `templates/workspace/projects.md` sets the **In-flight limit** to `200`. An existing
+workspace keeps the number in its own `.claude/projects.md` until someone changes it there.
+
+---
+
 ## v3.2.1 — 2026-10-14
 
 - **Stage 7 says what 3.2.0 does.** With the plugins installed for the person from this workspace's kit

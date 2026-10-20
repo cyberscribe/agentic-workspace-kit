@@ -45,7 +45,7 @@ person and easy to find for a script.
 
 ## Pace
 
-- **In-flight limit:** `3` — how many projects one person has in the `doing` state at once. A
+- **In-flight limit:** `200` — how many projects one person has in the `doing` state at once. A
   person's own profile can set a different number. Going over it is advice to talk about, not a
   block.
 - **Counting in flight:** a person's count is the active projects whose Current state block reads
