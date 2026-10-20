@@ -216,7 +216,7 @@ the active projects whose Current state block reads `State: doing` and whose
 People section names them as **owns** or **does** (or, where a README has no
 People section, whose register Owner is them). Their limit is the **In-flight
 limit** in their profile — the file in the people directory matching their
-name — else the team default in `.claude/projects.md`, else 3. If starting this
+name — else the team default in `.claude/projects.md`, else 200. If starting this
 one would take them over, say so plainly, with the names of the projects they
 are doing, and offer the choices: start it as `ready`, pause or finish one of
 the others, or go ahead anyway. It is their call; the limit is advice, never a

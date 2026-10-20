@@ -1,6 +1,6 @@
 {
   "name": "projects",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "The life of a project, kept in its README: /projects:new interviews for the finish line, people, versioning and sensitivity; /projects:adopt adds what an existing project lacks; hold, board, pickup and close pause, show, resume and archive it; /projects:pair runs a product-manager session and a Claude Code engineer through a mailbox. A session-start line says where the folder's project stands and which of its resources this machine has not mapped.",
   "author": {
     "name": "Robert Peake",

@@ -113,7 +113,7 @@ none of it costs the always-loaded budget.
    into `memory/glossary.md`.
 8. *Optional* — **How projects run here**, into `.claude/projects.md`: the
    default **in-flight limit** (how many projects one person has in the `doing`
-   state at once — three, if the team has no view yet) and the **staleness**
+   state at once — 200, if the team has no view yet) and the **staleness**
    setting, written `` - **Staleness:** `1 week` `` (how long a project's
    `Updated:` line may go before the board flags it as stale; a project's own
    `Check-in:` line does not change it). Where one

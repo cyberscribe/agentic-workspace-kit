@@ -153,7 +153,7 @@ show the edits and write them:
   after counting what the owner already has in flight, as `/projects:new` does:
   the active projects whose Current state block reads `State: doing` and whose
   People section names them as **owns** or **does**, against the limit in their
-  profile, else the conventions' default, else 3. Over the limit is said
+  profile, else the conventions' default, else 200. Over the limit is said
   plainly, with the names, and is advice, not a block.
 - The look-again `Check-in:` line (`look again on YYYY-MM-DD`) removed. If
   the project had a cadence of its own before it was put on hold (the

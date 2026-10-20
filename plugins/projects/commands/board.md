@@ -173,9 +173,9 @@ that one is about what the repository holds.
    **owns** or **does**, or, where a README has no People section, whose
    register Owner is them — or however the conventions file says to count.
    Their limit is the **In-flight limit** in their profile (the file in the
-   people directory matching their name), else the conventions default, else 3.
-   Flag only a count above the limit, naming the projects: "Sam is doing 4,
-   limit 3: a, b, c, d".
+   people directory matching their name), else the conventions default, else 200.
+   Flag only a count above the limit, naming the projects: "Sam is doing 201,
+   limit 200: a, b, c, …".
 6. **Register disagrees** — the README wins; say what differs: an active folder
    with no register row; a row whose folder or entry point does not exist; a
    row linking a file other than the entry point; a State or Owner column that
