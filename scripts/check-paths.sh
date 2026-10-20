@@ -194,9 +194,28 @@ case "$source" in
                 :   # A deletion sends no content.
             else
                 rev_args=("$push_local" --not)
+                # The remote's tracking refs mark what it already has. A push to a URL rather than a
+                # configured remote gets the URL in place of a name; the configured remote with the
+                # same address is then the one whose refs count, so the walk covers only what is new
+                # rather than the whole history.
+                push_name=""
                 if g config --get "remote.$push_remote.url" >/dev/null 2>&1; then
-                    rev_args+=("--remotes=$push_remote")
-                    CP_HIST_ARGS+=("--remotes=$push_remote")
+                    push_name="$push_remote"
+                else
+                    want="$(aw_norm_url "$push_remote")"
+                    if [[ -n "$want" ]]; then
+                        while read -r k v; do
+                            [[ -n "${k:-}" ]] || continue
+                            k="${k#remote.}"; k="${k%.url}"
+                            if [[ "$(aw_norm_url "$v")" == "$want" ]]; then push_name="$k"; break; fi
+                        done <<EOF
+$(g config --get-regexp '^remote\..*\.url$' 2>/dev/null)
+EOF
+                    fi
+                fi
+                if [[ -n "$push_name" ]]; then
+                    rev_args+=("--remotes=$push_name")
+                    CP_HIST_ARGS+=("--remotes=$push_name")
                 fi
                 # A remote sha this repository does not have is left out: the walk then covers more,
                 # never less.
@@ -500,7 +519,8 @@ if [[ $content -eq 1 ]]; then
         done | sort -u | while IFS= read -r m; do refused "$m" "attribution trailer"; done
     fi
 
-    if [[ -n "$ws" && "$source" != message ]]; then
+    # R4 and R5 read only the added lines and paths, so with no entries there is nothing for them to do.
+    if [[ -n "$ws" && "$source" != message && -s "$tmp/entries" ]]; then
         # R4: names derived from the workspace, computed now and never stored. Each is skipped when the
         # kit already says it (HEAD), or when .claude/workspace.md lists it under Kit may name.
         : > "$tmp/ids"
@@ -577,11 +597,19 @@ EOF
             fence { next }
             /^[ \t]*[-*][ \t]+\*\*Kit may name:\*\*/ { if (match($0, /`[^`]+`/)) print substr($0, RSTART + 1, RLENGTH - 2); exit }' \
             "$ws/.claude/workspace.md" 2>/dev/null | tr ',' '\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')"
+        # Which of the names the kit already says, found in one pass over HEAD rather than one per
+        # name. A name only ever found inside a longer one is left out of this set and checked as
+        # before, so the batch can only ever check more, never less.
+        : > "$tmp/inhead"
+        cut -f2 "$tmp/ids" | grep -v '^$' | sort -u > "$tmp/idlist"
+        if [[ -s "$tmp/idlist" ]] && g rev-parse -q --verify 'HEAD^{commit}' >/dev/null; then
+            g grep -h -o -i -w -F -f "$tmp/idlist" HEAD -- 2>/dev/null | tr '[:upper:]' '[:lower:]' | sort -u > "$tmp/inhead"
+        fi
         sort -u "$tmp/ids" | while IFS=$'\t' read -r kind id; do
             [[ -n "$id" ]] || continue
             lid="$(printf '%s' "$id" | tr '[:upper:]' '[:lower:]')"
             if [[ -n "$may" ]] && printf '%s\n' "$may" | grep -qxF -- "$lid"; then continue; fi
-            if g rev-parse -q --verify 'HEAD^{commit}' >/dev/null && g grep -q -i -w -F -e "$id" HEAD -- 2>/dev/null; then continue; fi
+            grep -qxF -- "$lid" "$tmp/inhead" && continue
             printf '%s\n' "$id" > "$tmp/id1"
             hits "$tmp/id1" -iwF "names $kind of the workspace" || cnr R4 "the derived-name scan could not run"
         done
@@ -637,8 +665,15 @@ EOF
                     # slow in the BSD grep macOS ships, and the kit relies on nothing beyond the system's
                     # tools. grep -I -l with an empty pattern (one pattern, cheap everywhere) first drops
                     # binary and empty files, as grep -I did.
+                    # Dependency and cache folders hold third-party code and generated files, not the
+                    # person's writing, and in a workspace with Python or Node projects they are most of
+                    # the files (95% in one measured workspace, which took minutes per commit). They are
+                    # not read. AW_SWEEP_SKIP replaces the list of folder names; empty, every folder is read.
+                    skipdirs="${AW_SWEEP_SKIP-.venv venv node_modules site-packages __pycache__ .tox .mypy_cache .pytest_cache .ruff_cache}"
+                    prune=(-name .git)
+                    for sd in $skipdirs; do prune+=(-o -name "$sd"); done
                     ( cd "$ws" && sort -u "$tmp/roots" | awk '{ for (r in R) if (index($0, r "/") == 1) next; R[$0] = 1; print }' | while IFS= read -r r; do
-                          find "$r" -name .git -prune -o -type f -size -1025k -print0 2>/dev/null
+                          find "$r" \( "${prune[@]}" \) -prune -o -type f -size -1025k -print0 2>/dev/null
                       done > "$tmp/files" )
                     printf 'aw pre-commit: checking %s new lines against %s workspace files…\n' \
                         "$(aw_count < "$tmp/cand")" "$(tr -cd '\000' < "$tmp/files" | wc -c | tr -d ' ')" >&2

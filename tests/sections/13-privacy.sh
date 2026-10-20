@@ -228,6 +228,17 @@ s13_expect "13 kit pre-commit: 1,000 long lines against 3,000 workspace files wi
 [[ $s13_t -lt 10 ]] && ok "13 ... in under 10 seconds (${s13_t} s)" || ko "13 ... in under 10 seconds" "${s13_t} s"
 s13_has "checking 1000 new lines against" && ok "13 ... and says on stderr how many lines and files it checks" \
     || ko "13 ... and says on stderr how many lines and files it checks" "$(cat "$s13_out")"
+# Dependency folders are not read: a line found only under a project's .venv is third-party code, not a
+# copy of the person's writing. AW_SWEEP_SKIP set empty reads them again.
+s13_dep="The vendored module docstring explains the tensor layout in more words than anyone reads."
+mkdir -p "$s13_W/projects/$s13_slug/.venv/lib"
+printf 'Module\n%s\n' "$s13_dep" > "$s13_W/projects/$s13_slug/.venv/lib/mod.py"
+s13_kitpc "$(s13_stage "$s13_K" 100644 docs/dep-line.md "$(s13_file dep-line.md "Notes.\n$s13_dep\n")")"
+s13_expect "13 kit pre-commit: a line found only in a project's .venv is not read as a copy" 0
+s13_kitpc "$(s13_stage "$s13_K" 100644 docs/dep-line.md "$s13_S/dep-line.md")" AW_SWEEP_SKIP=
+s13_expect "13 kit pre-commit: AW_SWEEP_SKIP set empty reads dependency folders again" 1 \
+    "a copy of projects/$s13_slug/.venv/lib/mod.py (line 2)"
+rm -rf "$s13_W/projects/$s13_slug/.venv"
 # The people folder is the one the conventions name, and a short own-repo project folder counts.
 cp "$s13_W/.claude/projects.md" "$s13_S/projects.md.orig"; cp "$s13_W/.gitmodules" "$s13_S/gitmodules.orig"
 sed 's#^- \*\*People:\*\* `memory/people/<name>.md`#- **People:** `memory/team-notes/<name>.md`#' "$s13_S/projects.md.orig" > "$s13_W/.claude/projects.md"
@@ -312,6 +323,13 @@ s13_kitpush origin "$KITSRC" "$s13_addrm" "$s13_origin"
 s13_expect "13 kit pre-push: a file added in one commit and removed in the next is still refused" 1 "notes/plan.md"
 s13_kitpush origin "$KITSRC" "$s13_addrm" 1234567890abcdef1234567890abcdef12345678
 s13_expect "13 kit pre-push: a remote sha this repository lacks still walks every commit" 1 "notes/plan.md"
+# A push to a URL rather than a configured remote: git passes the URL in place of the name. The
+# remote with that address supplies the refs that mark what is already published, so only the new
+# commit is walked, not the whole history.
+s13_ourl="$(git -C "$s13_K" config --get remote.origin.url)"
+s13_run "$st_bash" "$s13_CP" --root "$s13_K" --ref refs/heads/main --push "$s13_ourl" "$s13_clean" \
+    0000000000000000000000000000000000000000
+s13_expect "13 kit pre-push to origin's URL rather than its name walks only the new commit" 0 "check-paths: 1 paths allowed"
 s13_kitpush origin "$KITSRC" "$s13_attr" "$s13_addrm"
 s13_expect "13 kit pre-push: an attribution trailer in a pushed commit is refused" 1 "attribution trailer"
 
