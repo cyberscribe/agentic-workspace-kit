@@ -16,6 +16,19 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.2.3 — 2026-10-22
+
+- **A pair message with no `Status:` line counts as open.** The engineer's hooks and watch counted
+  only messages marked `Status: open`, so a PM message written without the line was invisible to
+  them: no nudge at the end of a turn, and no end to the watch. In one pairing, eight PM messages
+  written that way went unanswered overnight. A missing status now reads as open, the same as an
+  explicit `open`.
+- **The engineer's start hook runs after a compaction.** It ran on `startup` and `resume` only. The
+  summary that replaces a compacted conversation can lose which mailbox messages were answered, so
+  the hook now also runs on `compact` and names the open messages again. projects 3.2.2.
+
+---
+
 ## v3.2.2 — 2026-10-20
 
 - **The in-flight limit defaults to 200.** The default of 3 counted live projects against a limit
