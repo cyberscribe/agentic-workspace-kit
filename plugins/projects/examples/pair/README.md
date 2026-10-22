@@ -30,7 +30,7 @@ first line (`Re: PM-007`).
 
 The reader of a message sets its `Status:` line — the only edit made to an existing message:
 
-- `open` — not yet dealt with (the writer sets this).
+- `open` — not yet dealt with (the writer sets this). A message with no `Status:` line counts as open.
 - `done <time> <commit or note>` — finished.
 - `declined <why>` — not doing it.
 - `waiting <on what>` — blocked; the PM or the person has the next move.

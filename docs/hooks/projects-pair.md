@@ -2,7 +2,7 @@
 
 *The engineer's side of a `/projects:pair` pairing: it records the session and points it at open
 mailbox messages, and never holds a turn. Source: `plugins/projects/hooks/pair.sh`, wired in
-`plugins/projects/hooks/hooks.json` (SessionStart `startup|resume` and Stop, timeout 5 seconds each).*
+`plugins/projects/hooks/hooks.json` (SessionStart `startup|resume|compact` and Stop, timeout 5 seconds each).*
 
 ## What it does
 
@@ -11,7 +11,8 @@ It does nothing unless `PAIR_ROLE=cc` and `PAIR_MAILBOX` are set, which only
 
 **At session start** it writes the session id to `.cc-session` in the mailbox, so the launcher can
 resume it later, sets `.cc-state` to `working`, and tells the agent which PM messages are open for it
-and the command that starts the watch.
+and the command that starts the watch. It runs again after a compaction, since the summary that
+replaces the conversation can drop which messages were answered.
 
 **At the end of each turn:**
 
@@ -20,6 +21,8 @@ and the command that starts the watch.
 - Otherwise it returns at once, setting `.cc-state` to `waiting` when a watch is running and
   `stopped` when none is. `.closed`, written when the PM closes the pairing, always reads `stopped`.
 - `Status:` is read wherever it sits in a line, and the last one in a message holds.
+- A message with no `Status:` line counts as open. A writer who forgets the line has still sent the
+  message, and treating it as settled would hide it from the engineer for good.
 
 **The watch** (`pair.sh watch`) is a background command the agent runs, not a hook. It reads
 `to-cc.md` every 20 seconds (`PAIR_POLL_SECONDS`) and ends, naming the message, when a new open one

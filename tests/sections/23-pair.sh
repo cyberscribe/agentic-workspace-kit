@@ -77,6 +77,22 @@ printf '\n## PM-006 · 2026-10-10 12:00 · Quoted\nSet it to `Status: open` when
 s23_out="$(s23_run stop)"
 [[ "$s23_out" == "0|" ]] && ok "23 hook stop: the last Status in a message is the one that holds" || ko "23 hook stop: the last Status in a message is the one that holds" "$s23_out"
 
+# A message with no Status line was never marked, so it is still open: hiding it would leave the
+# engineer deaf to it for good (2026-10-22: eight PM messages written without one went unseen).
+s23_reset
+printf '\n## PM-007 · 2026-10-10 12:00 · Unmarked\nDo this too.\n' >> "$s23_mb/to-cc.md"
+s23_out="$(s23_run stop)"
+[[ "$s23_out" == 2\|*PM-007* ]] && ok "23 hook stop: a message with no Status line counts as open" || ko "23 hook stop: a message with no Status line counts as open" "$s23_out"
+s23_reset
+printf '\n## PM-008 · 2026-10-10 12:00 · Unmarked last\nAnd this.\n\n## PM-009 · 2026-10-10 12:01 · Marked\nDone already.\nStatus: done 12:30\n' >> "$s23_mb/to-cc.md"
+s23_out="$(s23_run stop)"
+[[ "$s23_out" == 2\|*PM-008* && "$s23_out" != *PM-009* ]] && ok "23 hook stop: an unmarked message is found between marked ones" || ko "23 hook stop: an unmarked message is found between marked ones" "$s23_out"
+
+# The start hook runs after a compaction too, so a session that lost track of the mailbox is told again.
+grep -q '"startup|resume|compact"' "$KIT/plugins/projects/hooks/hooks.json" \
+    && ok "23 hooks.json: the start hook runs on compact as well as startup and resume" \
+    || ko "23 hooks.json: the start hook runs on compact as well as startup and resume" "matcher missing"
+
 # The watch: a background command the agent runs. It ends when a message arrives, naming it.
 s23_watch() { env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" PAIR_POLL_SECONDS=1 bash "$s23_hook" watch </dev/null 2>&1; }
 s23_reset

@@ -2,9 +2,10 @@
 # shellcheck source-path=SCRIPTDIR
 # The engineer's side of a /projects:pair pairing: two hooks, and the watch the agent runs.
 #
-#   pair.sh start   SessionStart: records this session's id in the mailbox (so the launcher can
-#                   resume it) and tells the agent which messages are open for it, and the command
-#                   that starts the watch.
+#   pair.sh start   SessionStart (startup, resume and compact): records this session's id in the
+#                   mailbox (so the launcher can resume it) and tells the agent which messages are
+#                   open for it, and the command that starts the watch. After a compaction the agent
+#                   has lost track of the mailbox, so it is told again.
 #   pair.sh stop    Stop: an open PM message the agent has not yet been pointed at twice sends it back
 #                   to work (exit 2, the reason on stderr). Otherwise it returns at once.
 #   pair.sh watch   Run by the agent as a background command, not by a hook. It ends, with one line
@@ -57,15 +58,17 @@ fi
 stamp() { date '+%Y-%m-%d %H:%M'; }
 set_state() { printf 'state: %s\nsince: %s\nsession: %s\n' "$1" "$(stamp)" "$sid" > "$mb/.cc-state" 2>/dev/null; }
 
-# The ids of messages in to-cc.md whose last Status begins "open" (bold labels allowed). The label
-# counts wherever it sits in a line, since a writer may end a sentence with it; the last one in the
-# message is the one that holds.
+# The ids of messages in to-cc.md whose last Status begins "open" (bold labels allowed), or that have
+# no Status at all. The label counts wherever it sits in a line, since a writer may end a sentence
+# with it; the last one in the message is the one that holds. A message the writer forgot to mark is
+# still unanswered, and treating it as settled would hide it from the engineer for good.
 open_ids() {
     [ -f "$cc_file" ] || return 0
     awk '
-        /^## [A-Za-z]+-[0-9]+/ { if (id != "" && st ~ /^open/) print id; id = $2; st = ""; next }
-        /Status:/ { s = $0; while (match(s, /Status:\**[ \t]*/)) s = substr(s, RSTART + RLENGTH); st = tolower(s) }
-        END { if (id != "" && st ~ /^open/) print id }
+        function emit() { if (id != "" && (st == "" || st ~ /^open/)) print id }
+        /^## [A-Za-z]+-[0-9]+/ { emit(); id = $2; st = ""; next }
+        /Status:/ { s = $0; while (match(s, /Status:\**[ \t]*/)) s = substr(s, RSTART + RLENGTH); st = tolower(s); if (st == "") st = "open" }
+        END { emit() }
     ' "$cc_file"
 }
 # How many times the agent has been pointed at an id.
