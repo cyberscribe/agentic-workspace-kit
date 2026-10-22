@@ -51,5 +51,6 @@ Claude Code that skill hands over to this command; in Cowork it runs the procedu
 ## It's working if
 
 - The report lists what was promoted and at which tier, what is proposed, and tracking on its own.
-- Every file it touched is named, and the commit commands name paths exactly, with no broad `git add`.
+- Every file it touched is named, and the commit commands name paths exactly, with no broad `git add`, in
+  short lines (one path per line, joined with a trailing `\`) so a copy from a wrapping terminal pastes as one command.
 - A session that ends after it leaves no new draft under `~/.claude/closeout-drafts/`.

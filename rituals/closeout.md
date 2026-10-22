@@ -189,7 +189,10 @@ submodule's path (`git add kit`) with the other files, and commit. The workspace
 commit that the submodule's remote lacks, and `push.recurseSubmodules=check` refuses such a push
 anyway. With a submodule inside a submodule, the innermost repository comes first, and each pointer is
 added in the repository around it. Every `git add` names its paths exactly, and no command carries a
-comment. The ritual itself commits nothing and pushes nothing.
+comment. The commands are copied out of a terminal, which hands back its wrapped display lines as
+separate lines, so each line stays short, around 70 characters: a long `git add` puts one path per line,
+joined with a trailing ` \`, or the paths go in a short script the person runs with one line. The
+ritual itself commits nothing and pushes nothing.
 
 A project marked `Versioned: untracked` has nothing to commit in the workspace; say so rather than
 listing its files. A project folder that is a repository of its own but not a submodule of the
