@@ -39,11 +39,17 @@ PYORDER
 done
 empty "21 closeout: the command and the ritual leave the commit to the person, submodule first, with the 3.0 paths" "$s21_bad"
 
-# The command's example: every line a git command with no comment, the project repository's lines
-# before the workspace's add of its pointer.
-s21_block="$(awk '/^```/ { if (f) exit; f = 1; next } f' <(sed -n '/^## Report/,/^## Finally/p' "$KIT/plugins/closeout/commands/closeout.md"))"
+# The command's example: every command a git command with no comment, the project repository's lines
+# before the workspace's add of its pointer. A line ending in " \" continues onto the next, so the
+# commands are read with those lines joined; each display line stays short enough to survive a
+# terminal that wraps it.
+s21_raw="$(awk '/^```/ { if (f) exit; f = 1; next } f' <(sed -n '/^## Report/,/^## Finally/p' "$KIT/plugins/closeout/commands/closeout.md"))"
+s21_block="$(awk '{ if (sub(/ \\$/, "")) { buf = buf $0 " "; next } print buf $0; buf = "" } END { if (buf != "") print buf }' <<<"$s21_raw" | sed 's/   */ /g')"
 s21_bad=""
 [[ -n "$s21_block" ]] || s21_bad+="no example block in the Report section"$'\n'
+while IFS= read -r s21_l; do
+    (( ${#s21_l} <= 80 )) || s21_bad+="longer than 80 characters: $s21_l"$'\n'
+done <<<"$s21_raw"
 while IFS= read -r s21_l; do
     [[ -n "$s21_l" ]] || continue
     [[ "$s21_l" == git\ * ]] || s21_bad+="not a git command: $s21_l"$'\n'

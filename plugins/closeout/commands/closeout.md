@@ -214,13 +214,20 @@ remote lacks, and `push.recurseSubmodules=check` refuses such a push anyway.
 With a submodule inside a submodule, the innermost repository comes first and
 each pointer is added in the repository around it. Every `git add` names its
 paths exactly, relative to the repository it runs in, and no command carries a
-comment:
+comment. The person copies these out of a terminal, and a terminal hands back
+its wrapped display lines as separate lines, so a long one-line command arrives
+as several and the shell runs its paths as commands. Each line stays short,
+around 70 characters: a long `git add` puts one path per line, joined with a
+trailing ` \`. Where even that would be unwieldy, the paths go in a short
+script and the person runs one line:
 
 ```
 git -C projects/field-study add notes/interviews.md
 git -C projects/field-study commit -m "Interview notes: the second round"
 git -C projects/field-study push
-git add projects/field-study logs/decisions.md
+git add \
+  projects/field-study \
+  logs/decisions.md
 git commit -m "Field study: second round recorded"
 ```
 

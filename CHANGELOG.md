@@ -5,6 +5,17 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased
+
+- **Commit plans survive a wrapping terminal.** A person copies the closeout's commit commands out of a
+  terminal, and a terminal returns its wrapped display lines as separate lines: a long one-line
+  `git add` arrived as several commands, and the shell tried to execute the paths, leaving some
+  files unstaged. The closeout command and ritual now keep each line short, around 70 characters,
+  with one path per line joined by a trailing `\`, or a short script for a very long list. closeout
+  1.5.1.
+
+---
+
 ## v3.2.3 — 2026-10-22
 
 - **A pair message with no `Status:` line counts as open.** The engineer's hooks and watch counted
