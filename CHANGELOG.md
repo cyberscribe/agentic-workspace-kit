@@ -7,6 +7,10 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased
 
+---
+
+## v3.2.5 — 2026-10-23
+
 - **A running session can join a pairing.** The engineer's hooks woke only in a session the launcher
   started, since only the launcher sets `PAIR_ROLE` and `PAIR_MAILBOX`. A session started any other
   way paired one way: it wrote reports but never heard the PM, nothing said so, and the only repair
