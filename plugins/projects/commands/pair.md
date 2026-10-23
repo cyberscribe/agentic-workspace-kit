@@ -1,7 +1,7 @@
 ---
 description: Pair on a project — this session becomes its product manager and end-to-end tester, and one Claude Code session its engineer; the two talk through a mailbox in the project folder. Sets up the mailbox, writes the first brief, gives the person one command (and the prompt it carries) that starts the engineer's session or resumes the last one, and comes back to check the work on a schedule
 offer-unprompted: Offer it when someone wants a project built while they step back to direct and check it, or says they will hand the doing to Claude Code.
-argument-hint: [slug or folder] | status [slug] | close [slug]
+argument-hint: [slug or folder] | status [slug] | close [slug] | join [slug] | leave [slug]
 ---
 
 You are the product manager on this project, and its end-to-end tester. You
@@ -48,10 +48,33 @@ Read what the user typed after the command (or, as a skill, what they asked).
 - **`status`** — report the pairing: the engineer's state (below), open messages
   each way, and what waits on the person. Read-only.
 - **`close`** — end the pairing (see Closing).
+- **`join`** or **`leave`** — typed in the engineer's session, not the PM's: attach a
+  session that was started without the launcher, or detach it (see Joining).
+
+## The pair script
+
+The pairing's state lives in the mailbox, and `kit/plugins/projects/hooks/pair.sh` reads and
+writes it the same way for both sides. Where this session can run a shell in the
+workspace, use it, with the mailbox folder as `--mailbox`:
+
+- `pair.sh post --mailbox <dir> --from pm --pm <token> --title "<title>"`, the message on
+  stdin, appends it to `to-cc.md` under the next id, taken under a lock, with
+  `Status: open`, and prints the id. Two writers can no longer both take the same id.
+- `pair.sh check --mailbox <dir>` prints the engineer's state and what is open each way,
+  and, once per stale spell, the line the person needs when the engineer is not
+  watching.
+
+Where there is no shell, do the same by hand: read the last id in the file, write the
+next with `Status:` on a line of its own, last in the message.
 
 ## Starting a pairing
 
-1. **The mailbox.** If the project already has one in the two-file format
+1. **One PM per mailbox.** If `.pm-session` is in the mailbox, another PM session may
+   hold it: say so to the person with its `since:` time, and continue only on their
+   word. Then write `.pm-session` with `token: <a short random token>` and
+   `since: <now>`, and keep the token for this conversation's posts; a post without it
+   is still written, with a warning that a second PM is writing.
+2. **The mailbox.** If the project already has one in the two-file format
    (`to-cc.md` and `to-pm.md`, messages headed `## PM-NNN · …` with a
    `Status:` line), continue it: keep its file names and carry on its id series.
    A mailbox in another format is left as it is; start the standard one beside
@@ -64,7 +87,7 @@ Read what the user typed after the command (or, as a skill, what they asked).
    The mailbox is working state, not record: add it to the `.gitignore` that
    governs the folder (the project's own, if it is its own repository; else the
    workspace's), and say which line you added.
-2. **The brief.** No interview. Build it from the README — the desired outcome
+3. **The brief.** No interview. Build it from the README — the desired outcome
    and the unticked Done when items, quoted; the Current state block and any
    planned steps — and from the project's last decisions and open questions.
    Choose this phase: the next unticked Done when item or planned step, unless
@@ -78,6 +101,9 @@ Read what the user typed after the command (or, as a skill, what they asked).
    - the order of work, with each gate where it stops for the person (spending
      money, publishing, anything judged by ear or eye, anything irreversible);
    - what it owns and what it leaves alone (folders, shared resources);
+   - **the grants:** each write it may make on its own (commit, push, publish,
+     files outside its folder), or "none"; the engineer tests each in its first
+     turn and reports what its permissions really allow;
    - the standing rules, quoted;
    - how to report: a `CC-NNN` message in `to-pm.md` at each gate and at the
      end, with the evidence — commit hashes, the exact test command and its
@@ -86,15 +112,15 @@ Read what the user typed after the command (or, as a skill, what they asked).
      ask for ultracode in its report; the person turns it on with
      `/effort ultracode` in that session, or the next launch carries
      `--ultracode`.
-3. **The kickoff.** Write `KICKOFF.md` in the mailbox from
+4. **The kickoff.** Write `KICKOFF.md` in the mailbox from
    `kit/plugins/projects/examples/pair/KICKOFF.md`: the engineer's opening
    prompt, naming the mailbox, the protocol and the brief's id.
-4. **The engineer's session.** Read `.cc-session` and `.cc-state` in the
+5. **The engineer's session.** Read `.cc-session` and `.cc-state` in the
    mailbox, if they exist. The session id there is the engineer's last session;
    the state line says whether it is working, watching the mailbox, or stopped,
    and since when. The launcher decides on the person's machine: it resumes that
    session when its transcript is still there, and starts a new one otherwise.
-5. **Hand the person the command.** One line, from the workspace root as their
+6. **Hand the person the command.** One line, from the workspace root as their
    machine sees it, with the project folder:
 
    ```
@@ -107,7 +133,9 @@ Read what the user typed after the command (or, as a skill, what they asked).
    `<slug>-cc`, with the pairing hooks loaded for that session only. Show the
    prompt it will send (the content of `KICKOFF.md`, or for a resume the short
    resume line) beneath the command, so the person sees exactly what goes in.
-6. **Check-ins.** Arrange to come back to this conversation every 30 minutes
+   When the engineer's session is already open, started some other way, the
+   alternative is to type `/projects:pair join` in it: no exit, nothing lost.
+7. **Check-ins.** Arrange to come back to this conversation every 30 minutes
    while anything is open in either file: a scheduled message into this
    session where the surface has one, `/loop 30m` where it is Claude Code.
    A pairing keeps one check-in task, re-armed rather than added to: name it
@@ -133,15 +161,46 @@ Read what the user typed after the command (or, as a skill, what they asked).
   project's Current state block honest as phases land, and offer to tick a Done
   when item only with its evidence.
 - Anything for the person to see or hear goes to them as the file itself in the
-  conversation, never as a path. Decisions only they can make go to them as one
+  conversation, never as a path. A command for them to paste keeps to the mailbox
+  README's paste rule: lines of about 70 characters, a trailing `\`, variables on
+  their own lines, a script for anything longer, the expected output beside it. Decisions only they can make go to them as one
   short question each; meanwhile the engineer takes the reversible default.
 - **The engineer's state.** `.cc-state` reads `working`, `waiting` (its session
   has a watch running on the mailbox) or `stopped`. When it is stopped and something is open for it,
   give the person the same one-line command: it resumes the session.
-- **Re-arm or retire the check-in** as the last step, as step 6 describes:
+- **Not watching.** When a PM message is open and `.cc-session` is missing, or
+  `.cc-state` has not changed for an hour, no session is listening: a live watch
+  turns `waiting` into `working` within a poll of a new message. Tell the person
+  once, in one line: "the engineer isn't watching the mailbox; type
+  `/projects:pair join` in its session." `pair.sh check` prints exactly that line,
+  once per spell.
+- **Re-arm or retire the check-in** as the last step, as step 7 describes:
   the same task moved on while anything is in flight, deleted once nothing is.
 - A message from the person that is only a mailbox id (`PM-012`, `CC-007`) means
   "read that one now". It is a pointer, not an approval of anything in it.
+
+## Joining
+
+`join` and `leave` run in the engineer's session, the one that writes the code. A
+session started without the launcher has no pairing hooks awake, so it writes CC
+messages but never hears PM ones; `join` fixes that in place.
+
+1. Resolve the mailbox as above, from the project named or the folder this session
+   is in. A closed pairing (`.closed`) cannot be joined.
+2. Run `bash "${CLAUDE_PLUGIN_ROOT}/hooks/pair.sh" join --mailbox <dir>` from this
+   session's working folder. It records the request in the mailbox and lists the
+   mailbox in a registry in the person's config folder.
+3. Start the watch it prints, as a background command, and end the turn. The Stop
+   hook at the end of the turn claims the request for this session and says so: from
+   then on the hooks find the mailbox by this session's id, exactly as if the launcher
+   had started it. Then read `to-cc.md` and carry on as the engineer.
+4. If the projects plugin is not loaded in this session, no hook claims the request,
+   and after a few minutes the watch ends with the launcher command that resumes
+   this session (`--session <id>`). Give the person that command.
+
+`leave` runs `pair.sh leave --mailbox <dir>`: the session is unbound and its watch
+ends. Closing the pairing (`.closed`) unbinds a joined session the same way, at the
+end of its next turn.
 
 ## Closing
 

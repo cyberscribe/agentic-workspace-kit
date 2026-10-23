@@ -12,12 +12,10 @@
 #
 # Written for bash 3.2, with no jq: the guard and the pair hooks run without it.
 
-# aw_workspace_root <hook input JSON>: the workspace the session is in, or nothing. The folder is the
-# input's first "cwd" (the session's; a later one could sit inside a tool's input), else
-# CLAUDE_PROJECT_DIR, else the hook's own working folder.
-aw_workspace_root() {
-    local d
-    d="$(printf '%s' "${1:-}" | awk 'BEGIN { RS = "\001" }
+# aw_input_cwd <hook input JSON>: the session's folder as the input gives it, its first "cwd" (a later
+# one could sit inside a tool's input), JSON escapes undone; nothing when there is none.
+aw_input_cwd() {
+    printf '%s' "${1:-}" | awk 'BEGIN { RS = "\001" }
         { i = index($0, "\"cwd\""); if (i == 0) exit
           s = substr($0, i + 5); if (!sub(/^[ \t\r\n]*:[ \t\r\n]*"/, "", s)) exit
           out = ""
@@ -27,7 +25,14 @@ aw_workspace_root() {
               if (c == "\"") break
               out = out c; s = substr(s, 2)
           }
-          print out; exit }')"
+          print out; exit }'
+}
+
+# aw_workspace_root <hook input JSON>: the workspace the session is in, or nothing. The folder is the
+# input's cwd, else CLAUDE_PROJECT_DIR, else the hook's own working folder.
+aw_workspace_root() {
+    local d
+    d="$(aw_input_cwd "${1:-}")"
     [[ -n "$d" ]] || d="${CLAUDE_PROJECT_DIR:-$PWD}"
     d="$(cd "$d" 2>/dev/null && pwd -P)" || return 0
     while [[ -n "$d" ]]; do

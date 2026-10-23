@@ -234,6 +234,13 @@ wakes it when a message arrives, so one written while it was idle is picked up
 without you relaying it, and the session stays free for you to type into. The PM checks back every 30 minutes, tests what is reported against evidence,
 and accepts it or writes the next brief; `close` ends the pairing.
 
+An engineer's session started some other way joins in place: type
+`/projects:pair join` in it, and the Stop hook at the end of that turn binds it
+to the mailbox (`leave` undoes it). If the PM sees an open message and no
+engineer listening, its check-in says so in one line. Message ids are taken under
+a lock (`hooks/pair.sh post`), and any small file several sessions share is
+edited with `scripts/registry.sh`, which locks it and keeps its header.
+
 ## Pick up
 
 **`/projects:pickup <slug>`** is a cold-start brief for anyone taking a project
