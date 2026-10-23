@@ -18,7 +18,12 @@ Source: `plugins/projects/commands/pair.md`.*
 - Writes `KICKOFF.md` and gives the person one command, with the prompt it sends shown beneath:
   `kit/plugins/projects/scripts/pair.sh <project folder>`. On the person's machine that resumes the
   engineer's last session if its transcript is still there, and starts a new one otherwise, in auto
-  permission mode, with the pairing hooks loaded for that session only.
+  permission mode, with the pairing hooks loaded for that session only. A resume starts in the
+  folder the session began in, read from its transcript.
+- `join`, typed in an engineer's session started some other way, attaches it in place: the Stop hook
+  at the end of that turn claims it, and from then on its hooks hear the PM. `leave` detaches it.
+- Takes one PM per mailbox (`.pm-session`) and message ids under a lock (`pair.sh post`), so two
+  writers never share an id, and gives each command it hands the person in a paste-safe form.
 - Comes back every 30 minutes while anything is open, tests what the engineer reports end to end, and
   accepts it or writes the next brief. `status` reports the pairing; `close` ends it, copies the
   mailbox's decisions to the project's log and lets the engineer's session stop.
@@ -37,6 +42,10 @@ line per message.
 **What keeps the engineer reading the mailbox?** A background watch it starts, which wakes it when a
 PM message arrives, and a Stop hook that points it at anything still open. Neither holds the session. See
 [the pairing hooks](../hooks/projects-pair.md).
+
+**The engineer's session was started without the launcher.** It writes reports but never hears the
+PM. The PM's check-in says so once ("the engineer isn't watching the mailbox"); typing
+`/projects:pair join` in that session fixes it without an exit.
 
 **Can the engineer use ultracode?** Yes, when a phase fans out: it asks in its report, and the person
 types `/effort ultracode` in that session, or launches with `--ultracode`.

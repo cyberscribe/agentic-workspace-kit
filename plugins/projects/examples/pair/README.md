@@ -15,7 +15,11 @@ like; nothing here needs them unless a message says **For <person>**. Set up by 
 
 ## A message
 
-Append only, newest last. Each side writes only the other's file.
+Append only, newest last. Each side writes only the other's file, and takes the next id with
+`kit/plugins/projects/hooks/pair.sh post`, which reads the last id and appends under a lock, so two
+writers never share one. Anyone else who writes to a file (a second session, the person) takes the
+next free id the same way. Two messages under one id are two messages: `pair.sh check` and the
+engineer's start hook name the id, and the later is read in full, not as an amendment.
 
 ```
 ## PM-007 · 2026-10-06 17:40 · Short title
@@ -43,6 +47,19 @@ The reader of a message sets its `Status:` line — the only edit made to an exi
 - **The PM** checks `to-pm.md` every 30 minutes while anything is open, and tests what the engineer
   reports before accepting it.
 - A message that cannot wait for a check goes to the person directly.
+
+## Commands handed to the person
+
+A command the person pastes into a terminal is written to survive the paste: each line about 70
+characters at most, a long command broken with a trailing `\`, variables set on lines of their own,
+anything longer in a script they run with one short line, and the output to expect shown beside it.
+A terminal returns a wrapped line as several, and each runs as a command of its own.
+
+## Shared files
+
+A file several sessions edit (a claims board, a locks file) is changed with
+`kit/plugins/projects/scripts/registry.sh add|remove|replace`, which locks it, keeps its header and
+renames the result into place, rather than with a hand-written `sed` or rewrite.
 
 ## Standing rules
 

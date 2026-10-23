@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Start, or resume, the engineer's Claude Code session for a /projects:pair pairing.
 #
-#   kit/plugins/projects/scripts/pair.sh <project folder> [--mailbox DIR] [--new] [--ultracode]
-#                                    [--mode MODE] [--print]
+#   kit/plugins/projects/scripts/pair.sh <project folder> [--mailbox DIR] [--new] [--session ID]
+#                                    [--ultracode] [--mode MODE] [--print]
 #
 #   --mailbox DIR   the mailbox, when it is not <project folder>/mailbox
 #   --new           start a new session even when the last one could be resumed
+#   --session ID    resume that session rather than the one the mailbox recorded
 #   --ultracode     start at ultracode effort, for a phase that fans out across many pieces
 #   --mode MODE     the permission mode (default auto; PAIR_PERMISSION_MODE sets it too)
 #   --print         print the command it would run, and run nothing
@@ -15,21 +16,25 @@
 # engineer recorded in the mailbox (.cc-session) still has a transcript, it resumes that session with a
 # short prompt; otherwise it starts a new one, named <slug>-cc, with KICKOFF.md as the prompt.
 #
-# Either way it starts Claude Code in the project folder with this plugin loaded for that session
+# A resume starts in the folder the transcript records as the session's first working folder, since
+# Claude Code finds a session to resume from the folder it is started in, and the session may have been
+# started somewhere other than the project folder. A new session starts in the project folder. Either
+# way Claude Code starts with this plugin loaded for that session
 # (--plugin-dir, so the pairing hooks are there whatever the folder's own settings load) and with
 # PAIR_ROLE=cc and PAIR_MAILBOX set, which is what wakes hooks/pair.sh. Every other session ignores them.
 # Written for bash 3.2.
 set -u
 
 die() { printf 'pair: %s\n' "$*" >&2; exit 2; }
-usage() { sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; }
 
 plugin="$(cd "$(dirname "$0")/.." && pwd -P)"
-proj="" mb="" new=0 ultra=0 print=0 mode="${PAIR_PERMISSION_MODE:-auto}"
+proj="" mb="" new=0 ultra=0 print=0 want="" mode="${PAIR_PERMISSION_MODE:-auto}"
 while [ $# -gt 0 ]; do
     case "$1" in
         --mailbox) [ $# -ge 2 ] || die "--mailbox needs a folder"; mb="$2"; shift 2 ;;
         --new) new=1; shift ;;
+        --session) [ $# -ge 2 ] || die "--session needs an id"; want="$2"; shift 2 ;;
         --ultracode) ultra=1; shift ;;
         --mode) [ $# -ge 2 ] || die "--mode needs a value"; mode="$2"; shift 2 ;;
         --print) print=1; shift ;;
@@ -51,15 +56,20 @@ command -v claude >/dev/null 2>&1 || [ $print -eq 1 ] || die "claude is not on P
 slug="$(basename "$proj" | sed 's/^[0-9][0-9]*-//')"
 
 # Resume when the recorded session's transcript is still on this machine.
-sid=""
-[ -f "$mb/.cc-session" ] && sid="$(head -n 1 "$mb/.cc-session" | tr -d '[:space:]')"
-resume=0
+sid="$want"
+[ -z "$sid" ] && [ -f "$mb/.cc-session" ] && sid="$(head -n 1 "$mb/.cc-session" | tr -d '[:space:]')"
+resume=0 where="$proj"
 if [ $new -eq 0 ] && [ -n "$sid" ]; then
     for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$sid".jsonl; do
-        [ -f "$f" ] && resume=1
+        [ -f "$f" ] || break
+        resume=1
+        # The first "cwd" in the transcript is the folder the session started in.
+        d="$(grep -o -m 1 '"cwd":"[^"]*"' "$f" | head -n 1 | sed -e 's/^"cwd":"//' -e 's/"$//' -e 's/\\\\/\\/g')"
+        [ -n "$d" ] && [ -d "$d" ] && where="$d"
         break
     done
 fi
+[ -n "$want" ] && [ $resume -eq 0 ] && die "no transcript for session $want on this machine"
 
 args=(--plugin-dir "$plugin" --permission-mode "$mode")
 [ $ultra -eq 1 ] && args+=(--effort ultracode)
@@ -77,11 +87,11 @@ fi
 [ -f "$mb/.closed" ] && printf 'pair: note: %s/.closed is there, so the session will not watch the mailbox; the PM removes it to reopen the pairing.\n' "$mb" >&2
 
 if [ $print -eq 1 ]; then
-    printf '%s\ncd %q && PAIR_ROLE=cc PAIR_MAILBOX=%q claude' "$how" "$proj" "$mb"
+    printf '%s\ncd %q && PAIR_ROLE=cc PAIR_MAILBOX=%q claude' "$how" "$where" "$mb"
     printf ' %q' "${args[@]}" "$prompt"
     printf '\n'
     exit 0
 fi
-printf 'pair: %s in %s\n' "$how" "$proj" >&2
-cd "$proj" || die "cannot enter $proj"
+printf 'pair: %s in %s\n' "$how" "$where" >&2
+cd "$where" || die "cannot enter $where"
 PAIR_ROLE=cc PAIR_MAILBOX="$mb" exec claude "${args[@]}" "$prompt"

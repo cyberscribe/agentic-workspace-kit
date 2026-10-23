@@ -24,7 +24,7 @@ to the kit.
 | 8 | No capitals-for-emphasis in command, example, template, ritual, workspace template (surface rows included), kit standards (`CLAUDE.kit.md`), git hook, docs (`docs/commands/`, `docs/hooks/`, `docs/setup.md`, `docs/migration.md`) or pilot prompt files, with an unterminated ignore block counted as a failure; the team roster template named on its own |
 | 9 | Exactly the eleven commands exist, each read by Claude Code from `kit/` in the workspace and each with one skill: valid Agent Skills front matter (name matching its folder, a description of at most 1024 characters that says when to offer it), under 30 lines, pointing at `kit/plugins/<plugin>/commands/<command>.md`, with `procedure.md` equal to the command's body; `--skills-only` points at a kit inside the repository directly, falls back to `procedure.md` with none, and writes nothing else; the closeout command and `rituals/closeout.md` both carry the same core rules (zero-sum, promote learnings first, the four states, the commit order inside the submodule first) and the same ablation offer at promotion (the top two tiers only, optional, on a proposal too, what task would go worse, the report line) |
 | 10 | `pilot/ablate.sh` end to end against a stub `claude`: `pilot/lib/strip-lines.py` removes whole lines only and names a line that no longer matches; `--dry-run` writes nothing and leaves no worktree; the `with` and `without` arms, fixture placement, the flags and environment each arm gets, and the submodule the target's settings register initialised in each worktree; the CSV rows (with `api_key_source`, `none` for the subscription login) and the report's n and date, and `--report`; the billing guard (an API key in the environment or an `apiKeyHelper` in the settings refuses the run with nothing run, `AW_ALLOW_API_BILLING=1` runs it and records the source, an init event reporting an API key stops it), and an older 13-field results file still read; a stale ablation gets one row and no run, and a user-level one is not run without a login token; the blind comparator (verdict on the `with` row, a `judge` row, an empty directory, no tools, a prompt that names no arm) and `--judge-kept`; the bare arm as `bare-repo` without a token; the token switch against the stub (a temporary config with the minimum set and a temporary HOME per run, both removed, the user-level ablation and the true bare arm run against the copy, the token in nothing written or printed); the flags from a prepared CSV, by gap (2 or more runs discriminates, 1 leans with, with 1/3 against 0/3 a check failing both arms rather than a lean, both passing no difference), with three both-pass weeks a demotion candidate and three both-fail or leaning weeks not, `measure.sh` counting only `discriminates` and `no difference (both pass)`, a Check both arms pass reported blind when the comparator prefers `with`, a judge-only ablation reaching `no difference (judge ties)` or `without preferred` and demotion, three weeks that are not consecutive not counted, a row per ablation from its own latest date, and a plugin-file error given its reason; `--judge-kept` writing onto the kept run's own dated row and judging nothing twice; the comparator's coin showing each arm as A over twelve pairs, recorded in `verdict.json`, with `--keep` leaving no worktree; a Check that prints its environment not seeing the token, and a run not inheriting the outer session's id; auto-update off in the config copy; uncommitted changes to a named file stop the run; an expected plugin missing from the init event stops it with status `error`, and so does a kit-file ablation whose plugins load from outside the worktree; a result event missing a field keeps the other columns in place; a Check can read tool calls from the captured stream; a fixture that cannot be written makes the run an error; the parser refuses allowed tools that could commit or push, a fixture over the ablated file, and outputs outside the repository; a runner stopped mid-run stops its headless child; the target's HEAD, branches and git config are unchanged |
-| 11 | `plugins/workspace/scripts/state.sh`, the state check: one scratch repository per mode (`fresh`, `joining`, `existing-system`, `nothing-left`), built with `kit/setup.sh new` (`mkws`) or the engine, asserting `mode=` and the other keys — `claude_md=kit`, `agents_md=kit`, `always_loaded=CLAUDE.md`, `plugins_mode=kit`, `kit_checkout=kit`, `measure_script=kit/pilot/measure.sh`, `done_dir=projects/_done/<slug>/` among them; an `AGENTS.md` whose stat a sandbox denies reads `unreadable`, not `missing`; a repository git refuses reads `in_git=refused`; `--json`; a missing target exits 2; nothing on stderr; every git call carries `--no-optional-locks`, and a run over a repository with a staged change leaves no `index.lock` and no file changed, with a control showing a plain `git status` would; the quick-start's fenced state-check command, `${CLAUDE_PLUGIN_ROOT}` standing for the plugin in `kit/`, reports each of the four modes and the command has a branch for each; every key the command names is one `state.sh` emits; it names `kit/plugins/workspace/scripts/state.sh`, keeps its no-shell fallback, and offers the team roster; `setup.sh` and `lib/wizard.sh` parse and read git with `--no-optional-locks`; `shellcheck -x` is clean on `setup.sh`, `install.sh`, the libraries, `state.sh`, the pilot's scripts, the git hooks, `scripts/`, `lib/setup/` and the workspace hooks |
+| 11 | `plugins/workspace/scripts/state.sh`, the state check: one scratch repository per mode (`fresh`, `joining`, `existing-system`, `nothing-left`), built with `kit/setup.sh new` (`mkws`) or the engine, asserting `mode=` and the other keys — `claude_md=kit`, `agents_md=kit`, `always_loaded=CLAUDE.md`, `plugins_mode=kit`, `kit_checkout=kit`, `measure_script=kit/pilot/measure.sh`, `done_dir=projects/_done/<slug>/` among them; an `AGENTS.md` whose stat a sandbox denies reads `unreadable`, not `missing`; a repository git refuses reads `in_git=refused`; `--json`; a missing target exits 2; nothing on stderr; every git call carries `--no-optional-locks`, and a run over a repository with a staged change leaves no `index.lock` and no file changed, with a control showing a plain `git status` would; the quick-start's fenced state-check command, `${CLAUDE_PLUGIN_ROOT}` standing for the plugin in `kit/`, reports each of the four modes and the command has a branch for each; every key the command names is one `state.sh` emits; it names `kit/plugins/workspace/scripts/state.sh`, keeps its no-shell fallback, and offers the team roster; `setup.sh` and `lib/wizard.sh` parse and read git with `--no-optional-locks`; `shellcheck -x` is clean on `setup.sh`, `install.sh`, the libraries, `state.sh`, the pilot's scripts, the git hooks, `scripts/`, `lib/setup/`, the workspace hooks and the projects plugin's hooks, libraries and scripts |
 | 12 | `tests/sections/12-docs.sh`: every command in `plugins/*/commands/` has `docs/commands/<plugin>-<command>.md` (the bare name when the two are the same, as for the skills), and every hook script (`plugins/*/hooks/*.sh`, `githooks/pre-*`, `githooks/commit-msg`) has `docs/hooks/<name>.md` (a plugin hook is `<plugin>-<script>`, or the script's own name when it starts with the plugin's); each page, and `docs/setup.md`, has exactly the H2s What it does · When to reach for it · Common questions · It's working if, in that order (fenced code left out), runs 25 to 70 lines and names its source file; `docs/setup.md` names every mode; every command has a README table row linking its page; no page is left without a command or hook; a probe proves the heading reader |
 | 13 | `tests/sections/13-privacy.sh`: the privacy guards. `check-paths.sh --all` passes on `KITSRC`, and no kit file names a machine path; path refusals (the allow-list, private by name, data-shaped files, symlinks, the workspace `.gitignore` in both forms) and content refusals (an unlisted binary, a private word, never echoed, a derived name, a verbatim copy and a copied long line with `AW_ALLOW_COPY`, an attribution trailer); push walks (every commit, an unknown remote sha, a mirror prefix, a notes ref); the guard-path change; the workspace pre-commit (a sensitive project's files, HEAD or working tree, a large file, a force-added ignored file, a gitlink); the workspace pre-push (a stub `gh` answering PUBLIC or PRIVATE, `AW_ALLOW_PUBLIC`, the Private remotes list without `gh`, a `via person` line with no terminal, a hanging `gh`, local paths); the project context; the stubs after a deinit and a move into `_done/`; chaining to the person's own hook (it fails: refused; it is absent: the kit's checks only; both pass: allowed; same arguments and stdin); fail closed; `gitconfig.sh`; `guard-git.sh` |
 | 14 | `tests/sections/14-ownership.sh`: the engine's §1.2 set and nothing kit-owned, a no-op second run, kept and stand-in files, an opaque `AGENTS.md`, `--cowork`, template status, diff and record against a clone of `KITSRC`, `.gitignore` merge, report, offer and decline, settings maintenance, 2.x traces, `--stand-ins`, and `--skills-only` with a prefix and a skip list |
@@ -36,6 +36,9 @@ to the kit.
 | 20 | `tests/sections/20-migrate.sh`: the migration on a 2.2.0 workspace (`mkws2x`) — a dry run that changes nothing and prints the real run's lines with `would` in front, the real run reaching the 3.0 keys, nothing deleted, M0 on an embedded `.git`, M7's edits and notes, a map with every verb (`keep` included), malformed and in-kit maps refused, an orphan gitlink stopping the run, a second run printing only skips, an opaque `AGENTS.md` left unread, a clone with an unpopulated kit brought in with `--kit-from`, `--confirm-private-origin`, the `header` verb (inserted, rewritten, skipped when there), a dry run's commit plan that leaves out the paths the run's own `.gitignore` lines ignore, a populated kit with its own `.git` taken through M0, M1 and M8 with its `core.hooksPath` resolving to a folder that exists, and the dry run naming that path as it will be after the move |
 | 21 | `tests/sections/21-rituals.sh`: closeout's commit order (inside each submodule first, then the pointer, as commands for the person) in the command and the ritual; hygiene's Submodules check and its two budget lines; the register audit and quick-start in a 3.0 workspace; `measure.sh` following imports and reading files inside `kit/` at the recorded commit; `ablate.sh`'s default target |
 | 22 | `tests/sections/22-reads.sh`: the agent-reads measure on transcripts the section writes into a scratch config folder (no clones, nothing read from the real `~/.claude`) — sessions inside the workspace, outside it, in `kit/` and never answered; a subagent's and a workflow agent's transcript; `Read`, each Bash verb, `Grep` and `Glob`; relative, absolute, after a `cd` and by pattern; what is not a read (an always-loaded file, an edit, a redirect target, a here-document, a nested shell); the window's two edges and empty-not-zero before the oldest transcript; `CLAUDE_CONFIG_DIR`, `$HOME/.claude` and `READS_TRANSCRIPTS`; `READS_AREAS`; the seven `metrics.csv` columns in `--backfill`, the daily row and a recomputed older CSV, with no fixture path or name in it; `pilot/reads.local.md` ignored by `templates/workspace.gitignore` and refused where it is not; the transcripts left untouched; 200 transcripts of 2,000 lines in under 10 seconds |
+| 23 | `tests/sections/23-pair.sh`: `/projects:pair`. The engineer's hooks (`plugins/projects/hooks/pair.sh`) on a fixture mailbox: inert without the launcher's variables or a registry entry; the session recorded; an open message sends the agent back, twice at most; a `Status:` mid-sentence, the last one holding, and none at all reading open; the Stop hook never waits; the watch, ended by a message or `.closed`, one at a time, a signal leaving `stopped`. Joining, with a scratch registry (`PAIR_REGISTRY`): `join` records the session id and lists the mailbox; the Stop hook claims it by session id or, with none, by folder, and not from another folder, another session or after 10 minutes; once bound, start and stop act with no variables while other sessions stay inert; `watch --mailbox`, a session id arriving late, an unclaimed join ending the watch with `--session`; `leave` and `.closed` unbind; a closed pairing cannot be joined. `check`: the not-watching line once per spell (no session; an hour-old state), never with nothing open; duplicate ids named by `check` and the start hook. `post`: six writers, six ids, `Status: open`, no lock left; a second PM warned; CC ids to `to-pm.md`. `registry.sh` and `hooks/lib/lock.sh`: twelve writers, the header kept, replace and remove by text, a header-dropping rewrite refused, a dead holder's lock taken quietly and a live one after a minute with a warning naming it. The guidance in the README and KICKOFF examples and the command. The launcher's `--print`: a new session from `KICKOFF.md`, a resume when the transcript is there and in its recorded folder, `--session`, `--new`, `--ultracode` |
+| 24 | `tests/sections/24-cowork.sh`: `kit/setup.sh cowork` — every plugin packaged as `<plugin>-<version>.plugin`, a zip with its manifest and no `bin/`; a plugin Cowork would refuse reported and not packaged; `--check` writes nothing; the dispatch |
+| 25 | `tests/sections/25-boundary.sh`: the workspace boundary — every plugin hook acts only inside a kit workspace (`hooks/lib/boundary.sh`, byte-identical in the three plugins) and each command says where it works; setup's user-scope install against a stub `claude` (once, the spelling kept, another kit checkout's marketplace left alone unattended); stage 7's attended steps through a pseudo-terminal; the `plugins_user_kit` key |
 
 Checks iterate over what is there — every plugin, every command, every generated skill — so a new
 command is covered the moment it exists. Section 9 also names the eleven commands, so adding or
@@ -61,7 +64,94 @@ prelude builds what they share:
 | `cc_gate`, `cc_run` | Claude Code checks: opt-in, a scratch config directory, and one line per run in `$AW_CC_LOG` |
 
 `AW_SECTIONS="13 16"` runs only the named sections, which is quick for work on one of them; a section
-that reads another's fixtures brings it along (3 and 9 read 1's).
+that reads another's fixtures or functions brings it along (3 and 9 read 1's, 19 calls 9's
+`skill_ok`).
+
+## Running less of it
+
+**In parallel.** `bash tests/run.sh` runs the sections as separate jobs, each a run of `tests/run.sh`
+for its own sections in its own scratch directory, at most `AW_JOBS` at once (default: half the
+processors, at most four, so the machine stays usable). Sections that read one another's fixtures or
+functions run in one job: 1, 3, 9 and 19 (`aw_needs` in `run.sh`). Each job builds its own `KITSRC`:
+a local clone hardlinks its objects, so a shared one would let one job's git change another's
+fixture. Output is printed section by section in serial order, and the lines and the count are those
+of a serial run; `AW_JOBS=1` is the serial run itself, and the one to use when debugging a section.
+
+**The slow tier.** Sections 10, 15, 16, 20 and 25 build whole workspaces through the installer, the
+migration or the ablation runner, and change least often. A full run runs them. `AW_SLOW=0` leaves
+them out of any run, one `SKIP` line each; `AW_SLOW=1` puts them back in a `--changed` run. A
+release (`AW_REQUIRE_CLAUDE=1`) and CI (`CI` set) always run them.
+
+**Path-scoped.** `bash tests/run.sh --changed` runs only the sections the changed paths map to: the
+working tree and untracked files against `HEAD`. `--changed=staged` takes the index alone, for the
+run just before a commit, and `--changed=<ref>` everything since the ref's merge base, for a branch.
+Each changed path adds the sections of every row below whose pattern matches it; a section file's own
+path (`tests/sections/NN-name.sh`) adds that section; the `always` row is added to every scoped run.
+A path no row matches runs the whole suite, slow tier included: an unmapped change is an unknown one.
+The slow tier stays out of a scoped run unless `AW_SLOW=1`, even where a row names it, and the
+`SKIP` line names each one held back, so the full run before a push is where those land.
+
+Routine use: `--changed=staged` before a commit, the full parallel run before a push, and
+`AW_REQUIRE_CLAUDE=1` for a release.
+
+## The path map
+
+`tests/run.sh --changed` reads this table: a pattern in backticks, matched as a bash `case` pattern
+against the path from the kit's root (`*` crosses folders), then the sections, or `none`. A new
+folder or root file gets a row when it is added; until then a change to it runs everything.
+`tests/run.sh` and the prelude's fixtures have no row on purpose: every section stands on them.
+
+| Pattern | Sections | Why |
+|---|---|---|
+| `always` | 6 7 8 12 | Words, attribution, the register and the docs: cheap, and any change can trip them |
+| `*.sh` | 3 | Every script parses (`bash -n`) |
+| `*.json` | 3 | Every JSON file parses; plugin manifests and marketplaces |
+| `.claude-plugin/*` | 3 9 | The marketplace, and the commands it lists |
+| `plugins/projects/*` | 4b 17 23 | The projects hooks, commands and pairing |
+| `plugins/closeout/*` | 4 21 | The closeout hooks and command |
+| `plugins/workspace/scripts/state.sh` | 11 16 | The state check |
+| `plugins/workspace/hooks/guard-git.sh` | 13 | The agent's git guard |
+| `plugins/workspace/hooks/*` | 16 | The workspace session-start hook |
+| `plugins/workspace/commands/*` | 11 21 | The quick-start's state check; hygiene and the register audit |
+| `plugins/*/hooks/*` | 25 | Every hook keeps to a kit workspace |
+| `plugins/*/commands/*` | 4 9 19 | Instruction checks, the commands as skills, the skills bridge |
+| `plugins/*/README.md` | none | Covered by `always` |
+| `githooks/*` | 13 25 | The git hooks and their stub |
+| `scripts/check-paths.sh` | 13 | The path checker |
+| `scripts/skills-bridge.sh` | 19 | The skills bridge |
+| `scripts/build-template.sh` | 15 | The template build |
+| `.github/*` | 13 | The guard paths |
+| `setup.sh` | 1 2 2b 11 14 15 18 20 24 | Every stage and mode of setup |
+| `install.sh` | 1 2 2b 9 14 15 19 20 | The engine, and what it writes |
+| `lib/common.sh` | 6 13 16 20 | Word lists, URL normalising, the guards |
+| `lib/wizard.sh` | 11 15 16 | The wizard |
+| `lib/templates.sh` | 1 2b 14 15 | The template ledger |
+| `lib/setup/gitconfig.sh` | 13 15 16 | The hooks setup |
+| `lib/setup/migrate.sh` | 20 | The migration |
+| `lib/setup/update.sh` | 15 | `setup.sh update` |
+| `lib/setup/developer.sh` | 15 | `setup.sh --developer` |
+| `lib/setup/link.sh` | 18 | `setup.sh link` |
+| `lib/setup/cowork.sh` | 24 | The Cowork plugin files |
+| `templates/workspace/*` | 1 4 4b 11 14 15 17 21 | What a workspace is made from |
+| `templates/workspace.gitignore` | 14 22 | The `.gitignore` merge |
+| `templates/project-readme.md` | 1 17 | The project template |
+| `templates/team-roster.md` | 4 6 | The roster |
+| `templates/*` | 14 | Template status and diffs |
+| `rituals/*` | 4 21 | The rituals the commands mirror |
+| `pilot/ablate.sh` | 5 10 21 | Ablations |
+| `pilot/lib/*` | 10 21 | Ablation helpers |
+| `pilot/measure.sh` | 5 21 22 | The metrics |
+| `pilot/reads.sh` | 22 | The agent-reads measure |
+| `pilot/README.md` | 21 22 | Read by the pilot checks |
+| `pilot/*` | 5 | The pilot's other files |
+| `tests/fixtures/ws-min/*` | 13 15 16 17 18 19 20 25 | The smallest workspace fixture |
+| `tests/README.md` | none | This map; `always` covers it |
+| `docs/*` | 12 | The command and hook pages |
+| `README.md` | 12 | The command table |
+| `CHANGELOG.md` | 12 15 16 | Read by `update` and the state check |
+| `CLAUDE.kit.md` | 1 14 | The import and the engine |
+| `CONTRIBUTING.md` | none | Covered by `always` |
+| `LICENSE` | none | Covered by `always` |
 
 ## What the suite does not reach: Claude Code's plugin registry
 
@@ -98,6 +188,9 @@ The others:
 | `AW_TEST_CLAUDE=1` | `tests/run.sh` | Runs the section-file checks that start Claude Code (`cc_gate`); without it they are `SKIP`. `claude -p` also needs `CLAUDE_CODE_OAUTH_TOKEN`, since a keychain login does not follow `CLAUDE_CONFIG_DIR` |
 | `AW_CC_LOG` | `tests/run.sh` | The file each Claude Code run appends one line to; by default `claude-runs.md` in the scratch directory |
 | `AW_SECTIONS` | `tests/run.sh` | A space-separated list of sections to run (`"4b 13"`); unset runs them all |
+| `AW_JOBS` | `tests/run.sh` | How many sections run at once (default: half the processors, at most 4); `1` is the serial run |
+| `AW_SLOW=0\|1` | `tests/run.sh` | Leaves out, or runs, the slow tier (10, 15, 16, 20, 25); a full run runs it by default, a `--changed` run does not, a release and CI always do |
+| `PAIR_REGISTRY` | `plugins/projects/hooks/pair.sh` | The registry of joined pairing sessions (default `~/.config/agentic-workspace-kit/pairings`); the runner points it at its scratch directory |
 | `AW_BASH32=0` | `tests/run.sh` | Leaves `PATH` alone, for a pass under the runner's own bash; by default `/bin/bash` comes first |
 | `AW_KEEP=1` | `tests/run.sh` | Keeps the scratch directory for inspection |
 | `AW_KIT_URL` | `setup.sh` (`new`, adopt), `lib/setup/migrate.sh` | The kit URL to add or migrate to; the tests point it at `KITSRC` |

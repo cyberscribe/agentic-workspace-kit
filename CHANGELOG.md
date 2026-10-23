@@ -9,6 +9,64 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.2.5 — 2026-10-23
+
+- **A running session can join a pairing.** The engineer's hooks woke only in a session the launcher
+  started, since only the launcher sets `PAIR_ROLE` and `PAIR_MAILBOX`. A session started any other
+  way paired one way: it wrote reports but never heard the PM, nothing said so, and the only repair
+  was to exit and relaunch. `/projects:pair join`, typed in that session, records a request in the
+  mailbox and lists the mailbox in a registry in the person's config folder
+  (`~/.config/agentic-workspace-kit/pairings`, or `PAIR_REGISTRY`). The Stop hook at the end of the
+  turn claims it for that session, matched by session id or, where none is visible, by folder, and
+  no more than 10 minutes old; from then on the hooks find the mailbox by session id. A join no hook
+  claims, because the projects plugin is not loaded in that session, ends the watch with the
+  launcher command that resumes it. `/projects:pair leave`, and `.closed`, unbind it. `pair.sh watch`
+  takes `--mailbox`, so it needs no variables.
+- **The PM hears when the engineer is not listening.** `pair.sh check`, run at each check-in, gives
+  the person one line, once per spell, when a PM message is open and no engineer session is recorded
+  or its state has not changed for an hour: type `/projects:pair join` in the engineer's session.
+- **One PM per mailbox, and ids that cannot collide.** `/projects:pair` records its session in
+  `.pm-session`. `pair.sh post` takes the next id under a lock and writes `Status: open`, and warns a
+  second PM writing to the same mailbox. Two messages filed under one id are named by `check` and
+  the engineer's start hook, so the later is read in full rather than as an amendment.
+- **Shared files are changed under a lock.** Several agents rewriting one small shared file by hand
+  could each overwrite the other's change, or leave it truncated, header and all, with nothing said.
+  `plugins/projects/scripts/registry.sh add|remove|replace` (and `hooks/lib/lock.sh` under it) locks
+  the file, writes the change to a temporary file, checks the header is still there and renames it
+  into place. A dead holder's lock is taken over at once; a live holder's after a minute, with a
+  warning naming it. The pairing registry and mailbox posts use it.
+- **The engineer tests its grants first.** A brief lists each write the engineer may make on its own;
+  its first turn tries each harmlessly (`git commit --dry-run`, `git push --dry-run`) and reports
+  what its permissions really allow, so a setting that overrides a grant is found before the work.
+- **Commands handed to a person survive a terminal paste.** The pairing's guidance, for both sides,
+  keeps each pasted line to about 70 characters, breaks long commands with a trailing `\`, puts
+  anything longer in a script, and shows the expected output beside it, as the closeout's commit
+  plans already did.
+- **The launcher resumes where the session started.** Claude Code finds a session to resume from the
+  folder it is started in, and the launcher always started in the project folder. A resume now starts
+  in the transcript's first recorded folder, and `--session <id>` resumes a named session.
+- **The suite runs in parallel.** `bash tests/run.sh` runs sections as separate jobs, half the
+  processors and at most four by default (`AW_JOBS`; `AW_JOBS=1` is the serial run), and prints the
+  same lines and count as a serial run. Each job builds its own copy of the kit, since local clones
+  share objects through hardlinks. A full run that took about 750 seconds takes about 210 to 250 on
+  a busy Mac.
+- **Path-scoped runs, and a slow tier.** `bash tests/run.sh --changed=staged` (or `--changed`, or
+  `--changed=<ref>`) runs only the sections the changed paths map to, from the path map in
+  `tests/README.md`; a path the map does not cover runs everything. Sections 10, 15, 16, 20 and 25
+  are the slow tier: held out of a `--changed` run unless `AW_SLOW=1`, and always run by a full run,
+  a release and CI. A typical pre-commit run takes 4 to 55 seconds. `CONTRIBUTING.md` gives the
+  routine.
+- **Test fixes.** Section 19 calls a function section 9 defines; `AW_SECTIONS=19` now brings 9 along
+  rather than skipping the check. A suite run inside a pairing session clears `PAIR_ROLE` and
+  `PAIR_MAILBOX`, so the hooks under test cannot write to its real mailbox. The suite writes no
+  Python bytecode (`PYTHONDONTWRITEBYTECODE=1`): run with only the system `PATH`, as from a scheduled
+  job, macOS's own `python3` wrote its caches into a fixture home and failed section 10. Section 11's
+  shellcheck covers the projects plugin's scripts.
+- projects 3.3.0, closeout 1.5.3 and workspace 2.2.2: the three plugins share `hooks/lib/boundary.sh`,
+  which gains `aw_input_cwd`.
+
+---
+
 ## v3.2.4 — 2026-10-23
 
 - **Supersedes v3.2.3; upgrade from it.** 3.2.3's pairing still scheduled a new one-shot check-in

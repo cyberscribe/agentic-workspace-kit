@@ -453,7 +453,10 @@ while time.time() - t0 < 30 and p.poll() is None:
     time.sleep(0.05)
 if p.poll() is None: os.killpg(p.pid, getattr(signal, name))
 try: rc = p.wait(timeout=30)
-except subprocess.TimeoutExpired: rc = "still running"
+except subprocess.TimeoutExpired:
+    # What was still alive, for the failure's detail: the process group the signal went to.
+    tree = subprocess.run(["ps", "-o", "pid,ppid,stat,command", "-g", str(p.pid)], capture_output=True, text=True).stdout
+    rc = "still running; " + " | ".join(l.strip() for l in tree.splitlines())
 print("seen=%d open=%s left=%d rc=%s" % (seen, ",".join(open_modes) or "none", len(glob.glob(os.path.join(tmp, "*"))), rc))
 PYINT
 s22_got="int: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_big/projects" "$s22_tmp/int" "$s22_today" SIGINT)
