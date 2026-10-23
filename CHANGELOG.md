@@ -7,6 +7,19 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased
 
+---
+
+## v3.2.4 — 2026-10-23
+
+- **Supersedes v3.2.3; upgrade from it.** 3.2.3's pairing still scheduled a new one-shot check-in
+  every 30 minutes and never removed the fired ones, so a day's pairing filled the person's list of
+  scheduled tasks. The first entry below is the fix.
+- **Scheduled check-ins clean up after themselves.** A pairing's check-ins were one-shot tasks, a
+  new one every 30 minutes, and a fired one-shot stays in the person's list of scheduled tasks; a
+  week of pairing left dozens. `/projects:pair` now keeps one check-in task per pairing in
+  `.pm-checkin` and re-arms it, and its close or stand-down deletes every one-shot bound to the
+  pairing. `/projects:close` clears the project's one-shots, and `/closeout` deletes the fired
+  one-shots its session made. projects 3.2.3, closeout 1.5.2.
 - **Commit plans survive a wrapping terminal.** A person copies the closeout's commit commands out of a
   terminal, and a terminal returns its wrapped display lines as separate lines: a long one-line
   `git add` arrived as several commands, and the shell tried to execute the paths, leaving some

@@ -175,7 +175,11 @@ there is no catalogue yet, offer to start one from `kit/templates/catalogue.md`
   another project's Planned. A step someone planned here is not retired with
   the project without being seen. The counts go in the close summary.
 - **The Current state block.** `State: done`; `Updated:` today; any `Check-in:`
-  line removed. If a `Blocked by:` line is still there, ask about it: it is
+  line removed, and the scheduled tasks tied to the project cleared with it:
+  list this account's scheduled tasks with fired one-shots included, delete
+  every one-shot named for the project or bound to a session that paired on
+  it (check-ins, follow-ups, watches, fired or pending), and give the count in
+  the summary. A recurring task for the project is named, and deleted on a yes. If a `Blocked by:` line is still there, ask about it: it is
   resolved and goes, or it is a loose end to hand to someone, named in the
   summary, and the line goes either way. Rewrite the dated line underneath to
   say how it ended — "`<date>` — Done: four of five criteria met, one waived;
