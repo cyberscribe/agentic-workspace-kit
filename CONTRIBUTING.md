@@ -66,9 +66,17 @@ change to the guard files themselves (`scripts/check-paths.sh`, `githooks/`, `.g
 From the kit's folder (`kit/` in a workspace, or a clone of its own):
 
 ```bash
-bash tests/run.sh                      # everything; one PASS, FAIL or SKIP line per check, then a count
+bash tests/run.sh --changed=staged     # before a commit: the sections the staged paths map to
+bash tests/run.sh                      # before a push: everything, up to four sections at once
+AW_JOBS=1 bash tests/run.sh            # to debug: everything, one section after another
 AW_SECTIONS="12 9" bash tests/run.sh   # only the named sections, for work on one of them
 ```
+
+One `PASS`, `FAIL` or `SKIP` line per check, then a count; a parallel run prints the same lines, in
+the same order, as a serial one. `--changed` reads the path map in `tests/README.md`, runs everything
+when a changed path has no row there, and holds back the slow tier (sections 10, 15, 16, 20 and 25,
+one `SKIP` line each) unless `AW_SLOW=1`; the full run before a push, and a release with
+`AW_REQUIRE_CLAUDE=1`, run them. A new folder or root file gets a row in the path map along with it.
 
 The suite needs `git`, `jq` and `python3` (3.11 or later), and builds everything under one temporary
 folder that it removes on exit (`AW_KEEP=1` keeps it). It runs child scripts under `/bin/bash` where
@@ -91,7 +99,7 @@ Every script is linted with `shellcheck -x`, which section 11 of the suite runs 
 shellcheck -x setup.sh install.sh lib/*.sh lib/setup/*.sh scripts/*.sh githooks/pre-commit \
     githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh githooks/lib/common.sh \
     plugins/workspace/scripts/state.sh plugins/*/hooks/*.sh plugins/closeout/hooks/lib/config.sh \
-    pilot/*.sh tests/run.sh tests/sections/*.sh
+    plugins/projects/hooks/lib/*.sh plugins/projects/scripts/*.sh pilot/*.sh tests/run.sh tests/sections/*.sh
 ```
 
 ## Along with the change
