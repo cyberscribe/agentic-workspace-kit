@@ -110,7 +110,15 @@ Read what the user typed after the command (or, as a skill, what they asked).
 6. **Check-ins.** Arrange to come back to this conversation every 30 minutes
    while anything is open in either file: a scheduled message into this
    session where the surface has one, `/loop 30m` where it is Claude Code.
-   Stop arranging them when nothing is in flight.
+   A pairing keeps one check-in task, re-armed rather than added to: name it
+   `<slug> check-in`, write its id to `.pm-checkin` in the mailbox, and at the
+   end of each check-in move that same task to the next time where the
+   scheduler can re-time a task (`update_trigger` with a new `run_once_at`).
+   Where it cannot, schedule the next one, delete the one that just fired, and
+   write the new id. A fired one-shot stays in the person's list of scheduled
+   tasks until something deletes it, so this keeps that list to one line per
+   live pairing. Stop arranging them when nothing is in flight, and delete the
+   task when you stop.
 
 ## Each check-in
 
@@ -130,6 +138,8 @@ Read what the user typed after the command (or, as a skill, what they asked).
 - **The engineer's state.** `.cc-state` reads `working`, `waiting` (its session
   has a watch running on the mailbox) or `stopped`. When it is stopped and something is open for it,
   give the person the same one-line command: it resumes the session.
+- **Re-arm or retire the check-in** as the last step, as step 6 describes:
+  the same task moved on while anything is in flight, deleted once nothing is.
 - A message from the person that is only a mailbox id (`PM-012`, `CC-007`) means
   "read that one now". It is a pointer, not an approval of anything in it.
 
@@ -139,8 +149,15 @@ When the phase's checks pass, or the person ends it: write a last `PM-NNN`
 saying the pairing is closed, and create `.closed` in the mailbox, which lets
 the engineer's session stop rather than wait. Copy the decisions made in the
 mailbox into the project's decisions log in its own format, and offer to update
-the Current state block. Stop the check-ins. The mailbox stays where it is,
-uncommitted, until the person removes it.
+the Current state block. Stop the check-ins and clear them away: delete the
+task named in `.pm-checkin`, then list this account's scheduled tasks with
+fired one-shots included and delete every one-shot bound to this session or
+named for this pairing (its slug with check-in, follow-up, after-check or
+watch), fired or pending. Say how many went. Recurring tasks are left alone
+unless the person says otherwise. A stand-down that pauses the pairing (it
+resumes on another day) clears them the same way; the next session arms a
+fresh one. The mailbox stays where it is, uncommitted, until the person
+removes it.
 
 ## Practices
 

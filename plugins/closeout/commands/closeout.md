@@ -154,6 +154,13 @@ the repository is the project — and open its entry point.
   `Done:` line says.
 - Confirm other task or status files reflect reality, and release any locks or
   claims this session holds.
+- **Scheduled tasks this session made.** Where the surface has a scheduler,
+  list this account's scheduled tasks with fired one-shots included and delete
+  the one-shots bound to this session that have fired or that nothing still
+  needs: check-ins, follow-ups, watches. A fired one-shot does nothing more and
+  stays in the person's list until deleted. Keep a pending one only when work
+  it serves is still in flight, and name it in the report. Recurring tasks are
+  reported, not deleted.
 
 ## Who needs to know — when two or more people are known
 
