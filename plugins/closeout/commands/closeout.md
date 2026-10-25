@@ -88,8 +88,9 @@ user only, such as `~/.claude/`). Prefer committed: a teammate cannot use the ot
 
 Default to the cheapest tier that still works; most things are project reference.
 The always-loaded tier is a budget paid by every future session, not a folder.
-**Promotion into it is zero-sum:** name what it displaces, or say why the budget
-should grow, and get the user's agreement. Every other tier is additive.
+**Promotion into it is bounded:** update or condense an existing line where that
+does the job; where the addition genuinely adds, say why it earns its place, and
+get the user's agreement. Every other tier is additive.
 
 ## Verify before you record
 

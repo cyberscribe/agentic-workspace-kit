@@ -202,10 +202,12 @@ This is the part most systems skip, and it is why most of them silently stop wor
 ### 3.1 The always-loaded tier is a budget, not a folder
 
 Every other tier is **additive**: adding a file to `docs/` costs nothing until something asks for it.
-The always-loaded tier is **zero-sum**: every byte is paid by every future session, relevant or not.
+The always-loaded tier is **bounded**: every byte is paid by every future session, relevant or not.
 
-So an addition there names the line it replaces, or makes the case that the budget should grow — and
-a human agrees to it. Not as a side effect of an end-of-session sweep.
+So an addition there has to earn its place. Update or condense an existing line where that does the
+job; where the addition genuinely adds, the tier can grow — and a human agrees to it. Not as a side
+effect of an end-of-session sweep. Bounded is not one-in-one-out: the point is that growth is argued
+for, not that it never happens.
 
 Put a number on it. In the workspace this came from, the always-loaded tier is about 29 KB against
 roughly 60 on-demand files that cost nothing until asked. Once the number is visible weekly, growth
@@ -732,7 +734,7 @@ once in the workspace and is the workspace's from then on:
 | `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
 | `gemini-settings.json` | `.gemini/settings.json` (merged) | With `--surfaces claude,gemini` only: makes Gemini CLI load `AGENTS.md` as its context file |
 | `CODEOWNERS` | `.github/CODEOWNERS` | Routes changes to the always-loaded tier through the standards owner |
-| `pull_request_template.md` | `.github/pull_request_template.md` | Asks a documentation PR which tier it touches, and what it displaces |
+| `pull_request_template.md` | `.github/pull_request_template.md` | Asks a documentation PR which tier it touches, and why an addition to working standards earns its place |
 
 `templates/workspace.gitignore` becomes the workspace's `.gitignore`; a later kit's new lines are
 offered by `kit/setup.sh update`, and none is removed.

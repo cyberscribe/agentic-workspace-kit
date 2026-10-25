@@ -123,8 +123,8 @@ So promotion classifies on two axes:
   and this is the axis people get wrong most often.
 
 The rule that makes the taxonomy do work rather than just describe things:
-**promotion into the always-loaded tier is zero-sum.** It must name what it
-displaces or justify the budget growing; every other tier is additive. Without
+**promotion into the always-loaded tier is bounded.** It updates or condenses
+where it can and justifies the growth where it adds; every other tier is additive. Without
 that, an always-on file only ever grows — each individual addition is defensible,
 the aggregate is not, and nobody is ever in the room where the aggregate is
 decided. A capture-and-promote loop makes that erosion faster, not slower, which

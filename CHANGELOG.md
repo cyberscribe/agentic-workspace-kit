@@ -7,6 +7,14 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased
 
+- **The always-loaded tier is bounded, not one-in-one-out.** The kit said an addition to working
+  standards "names the line it replaces", which read as a strict swap. The tier is a budget because
+  every session pays for it, and that bound is what matters: update or condense an existing line where
+  that does the job, and where an addition genuinely adds, let the tier grow — argued for and agreed by
+  a human, never as a side effect. Reworded in the README, `docs/memory-layers.md` §5, the closeout
+  command, ritual, design note, review hook and example, the workspace templates and the PR template;
+  the closeout parity test now checks for "is bounded".
+
 ---
 
 ## v3.2.5 — 2026-10-23

@@ -44,8 +44,8 @@ Everything below the line is the example itself.
 | Scratch | never loaded; working notes only | — | `~/.claude/projects/<p>/memory/` |
 
 Choose the cheapest tier that works. Standing rules cost every future session, so
-an addition there must name the line it replaces — we hold that file under 120
-lines deliberately.
+an addition there must earn its place — we prefer updating a line to adding one,
+and hold that file under 120 lines deliberately.
 
 ## House rules
 

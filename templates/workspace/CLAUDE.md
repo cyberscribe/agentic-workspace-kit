@@ -5,7 +5,7 @@ Kit working standards: `kit/CLAUDE.kit.md` (read it at session start if the line
 
 > The team's always-loaded file. Its first line imports the kit's working standards
 > (`kit/CLAUDE.kit.md`), which update with the kit. Everything below is the team's own, and wins where
-> the two differ. It is a budget, not a folder: an addition names the line it replaces. Changes go by
+> the two differ. It is a bounded budget, not a folder: an addition earns its place. Changes go by
 > pull request to the standards owner. Angle-bracket placeholders are the team's to fill in.
 
 ## 1. Who this team is
@@ -33,8 +33,8 @@ and the overlap is arbitrated like this:
 - **The personal layer governs your own sessions**: style, pace, depth, preferred formats.
 - **A personal practice that proves useful to others is promoted here by pull request**, not by
   editing directly. The standards owner reviews it (`.github/CODEOWNERS`).
-- **Updating beats appending.** A pull request that adds to this file names the line it replaces, or
-  makes the case that the budget should grow. The weekly hygiene pass reports the byte count either
+- **Updating beats appending.** A pull request that adds to this file updates or condenses an
+  existing line where it can, and makes the case where it genuinely adds. The weekly hygiene pass reports the byte count either
   way.
 
 ## 2. How to show up

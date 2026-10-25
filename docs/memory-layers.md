@@ -82,11 +82,14 @@ so it is general reference, and costs the always-loaded tier nothing.
 ## 5. The always-loaded tier is a budget
 
 Every other tier is additive: a file in `docs/` costs nothing until something asks for it. The
-always-loaded tier is zero-sum, because every future session pays for it whether or not it turns out
-to be relevant.
+always-loaded tier is bounded, because every future session pays for it whether or not it turns out
+to be relevant. Bounded is not zero-sum: the tier can grow, but each addition is weighed against that
+standing cost.
 
-- Adding a line to an always-loaded file means naming the line it replaces, or making the case that
-  the budget should grow — with a human agreeing, not as a side effect of a closeout.
+- An addition to an always-loaded file argues for its place against the bound. If updating or
+  condensing a line already there does the job, do that; if the addition brings something new, the
+  tier grows, with a human agreeing and never as a side effect of a closeout. One-in-one-out is a
+  good habit, not the rule.
 - **An index is not content.** One line per entry: a pointer and a hook. A paragraph in an index
   belongs in the file it points at.
 - The bar for `ALWAYS` is that a future session would go wrong *without ever thinking to ask*. A
