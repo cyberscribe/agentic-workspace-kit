@@ -2000,7 +2000,7 @@ else ko "9 skills-only: with no copy of the kit in the repository, a skill follo
 # the rules the two copies must not drift apart on.
 bad=""
 for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
-    for w in 'zero-sum' 'Promote learnings first' '`doing`' '`blocked`' '`paused`' '`done`' 'inside the submodule'; do
+    for w in 'is bounded' 'Promote learnings first' '`doing`' '`blocked`' '`paused`' '`done`' 'inside the submodule'; do
         grep -qF -- "$w" "$KIT/$f" || bad+="$f: no $w"$'\n'
     done
 done

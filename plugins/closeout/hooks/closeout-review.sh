@@ -97,7 +97,7 @@ Each item carries a proposed tier and scope. The tier is the expensive half of t
 
 $taxonomy
 
-Promotion into the always-loaded tier is zero-sum: it costs every future session, so name what it displaces or say why the budget should grow. Every other tier is additive and needs no such justification. When the user has confirmed tier and scope, promote with surgical edits — never a full rewrite — then delete the draft file. If a draft holds nothing worth keeping, propose deleting it."
+Promotion into the always-loaded tier is bounded: it costs every future session, so update or condense an existing line where that does the job, and where the addition genuinely adds, say why it earns its place. Every other tier is additive and needs no such justification. When the user has confirmed tier and scope, promote with surgical edits — never a full rewrite — then delete the draft file. If a draft holds nothing worth keeping, propose deleting it."
 
 if [[ -f "$CONVENTIONS_FILE" && "$CONVENTIONS_DEFINE_TIERS" != "project" ]]; then
     context="$context

@@ -20,7 +20,7 @@ copies drift.
 - **The kit's standards count in the budget.** `kit/CLAUDE.kit.md`'s bytes are loaded every session
   too, and are reviewed upstream, in the kit, not in a closeout.
 - **A change to the always-loaded tier is a proposal.** Write it on a branch and open a pull request
-  naming what it displaces; the standards owner reviews it. Every other tier is additive and can land
+  that makes its case against the bound; the standards owner reviews it. Every other tier is additive and can land
   in the normal way.
 - **A promotion to the always-loaded tier or general reference is offered an ablation.** The question
   is what task would go worse without the line; where there is one, a proposed ablation file in

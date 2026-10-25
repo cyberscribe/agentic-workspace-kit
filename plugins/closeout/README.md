@@ -146,7 +146,7 @@ A captured learning is classified on two axes before anything is promoted:
 
 The agent is told to default to the cheapest tier that works, and that the
 always-loaded tier is a budget rather than a folder — promotion into it is
-zero-sum, and must name what it displaces or justify the budget growing. Every
+bounded: it updates or condenses where it can, and makes the case where it adds. Every
 other tier is additive. That rule is the point of the taxonomy: without it an
 always-on file grows monotonically and every future session pays for it.
 

@@ -10,7 +10,8 @@ project's tracking is brought up to date, reported apart. Source: `plugins/close
   `~/.claude/closeout.md`, then `.claude/projects.md`. The project's conventions win where they differ.
 - Classifies each learning by tier (working standards, general reference, project reference, templates
   and agent roles) and by scope (shared or individual), defaulting to the cheapest tier that works.
-  Promotion into the always-loaded tier is zero-sum: it names what the line displaces and asks first.
+  Promotion into the always-loaded tier is bounded: it updates or condenses where it can, makes the case
+  where it adds, and asks first.
 - Checks each claim against the files as they are now, and against the team's verification standard
   where there is one. A claim that cannot be checked is recorded as unverified, or left out.
 - Promotes with surgical edits. The mechanical ones are made; anything that changes what loads every

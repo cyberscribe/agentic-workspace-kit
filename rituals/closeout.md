@@ -41,8 +41,9 @@ decides who it reaches.
 
 Default to the cheapest tier that works. Most things are project reference.
 
-**Promotion into the always-loaded tier is zero-sum.** Every future session pays for it. Name what it
-displaces, or make the case that the budget should grow, and get a human to agree. Every other tier is
+**Promotion into the always-loaded tier is bounded.** Every future session pays for it. Update or
+condense an existing line where that does the job; where the addition genuinely adds, make the case
+that it earns its place, and get a human to agree. Every other tier is
 additive and needs no such justification.
 
 **A learning others need is worthless in an individual store.** Prefer the committed destination.

@@ -6,7 +6,7 @@
 - [ ] Project reference — `projects/<slug>/`
 - [ ] Template — the team's own skills, templates, agent or command definitions
 
-**If working standards:** which line does this replace, or why should the budget grow?
+**If working standards:** could an update or condensing of an existing line do this instead? If not, why does it earn its place?
 
 **Came from:** <a closeout, a closeout draft, a review, a decision in a meeting>
 
