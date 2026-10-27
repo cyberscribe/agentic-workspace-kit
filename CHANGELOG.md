@@ -7,6 +7,34 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased
 
+- **A pairing mailbox can live in any folder, with one writer per file.** The mailbox was found at
+  `<project>/mailbox/` unless every command was given `--mailbox`, and the engineer edited the
+  `Status:` lines in the PM's own file, so in a folder copied between machines the two sides' edits
+  between copies came back as conflicting versions. Now:
+  - **Where it is.** `--mailbox <folder>` for one pairing, or a default root set once per machine
+    (`hooks/pair.sh default <folder>`, kept in `~/.config/agentic-workspace-kit/mailbox-root` or
+    `PAIR_MAILBOX_ROOT`), with one mailbox per project at `<root>/<slug>/`. `pair.sh where <project>`
+    says which, and whether the folder sits in a git repository. An existing mailbox wins over a new
+    place, so setting a default never loses a pairing in flight. The launcher finds it the same way
+    (`hooks/lib/mailbox.sh`) and adds a mailbox outside the session's folder with `--add-dir`.
+  - **One writer per file.** The reader of a message sets its status by appending a line to its own
+    file, `status-cc.md` or `status-pm.md` (`pair.sh status`), and the message is never edited. A
+    line there holds over the message's own `Status:`. Each side takes its own lock (`.pm-lock`,
+    `.cc-lock`, replacing the shared `.post-lock`).
+  - **Nothing names one machine's path.** `KICKOFF.md` says `{mailbox}`, and the launcher fills in
+    the path its machine sees.
+  - `pair.sh init --mailbox <folder> --name <project>` makes a mailbox in any folder. `pair.sh check`
+    names any file the protocol does not write: a conflict copy at once, anything else once it is five
+    minutes old. The `.gitignore` step is skipped, and said to be, when the mailbox is outside every
+    repository.
+  - **Times carry their UTC offset** (`2026-10-27 20:17 +0000`), read from the system clock each time,
+    which should be synced with network time where the machine allows.
+  - A mailbox made before this keeps its own protocol: its README says to edit `Status:` in place,
+    and those statuses still read the same.
+  - Section 23 covers a mailbox outside the workspace found from the default root, a two-machine
+    simulation (a brief, a report and status changes written on both sides between syncs, with no
+    conflict copy, and the old in-place edit making one), and `check` naming a conflict copy.
+
 - **The always-loaded tier is bounded, not one-in-one-out.** The kit said an addition to working
   standards "names the line it replaces", which read as a strict swap. The tier is a budget because
   every session pays for it, and that bound is what matters: update or condense an existing line where

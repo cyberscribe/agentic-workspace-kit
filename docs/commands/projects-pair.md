@@ -1,7 +1,7 @@
 # /projects:pair
 
 *Pair on a project: this session is its product manager and end-to-end tester, one Claude Code session
-its engineer, and a mailbox in the project folder carries everything between them.
+its engineer, and a mailbox carries everything between them.
 Source: `plugins/projects/commands/pair.md`.*
 
 ## What it does
@@ -9,9 +9,11 @@ Source: `plugins/projects/commands/pair.md`.*
 - Reads `.claude/projects.md`, the workspace's always-loaded file and the project's own guidance, and
   quotes the standing rules it finds (who commits, who pushes, attribution, deletion, sensitivity) into
   the brief. The local conventions win over the command's defaults.
-- Sets up the mailbox (`<project>/mailbox/`, or where the conventions say): a protocol README,
-  `to-cc.md` and `to-pm.md`, and a `.gitignore` line. An existing mailbox in this two-file format is continued, ids
-  and all.
+- Sets up the mailbox in any folder (`pair.sh init`): a protocol README, `to-cc.md`, `to-pm.md`, a
+  status file per side, and a `.gitignore` line unless the folder is outside every repository. It goes
+  in `--mailbox <folder>` for one pairing, else this machine's default root (`pair.sh default`, one
+  mailbox per project at `<root>/<slug>/`), else `<project>/mailbox/`; `pair.sh where` says which. An
+  existing mailbox wins over a new place, and one in this two-file format is continued, ids and all.
 - Writes the first brief as `PM-NNN`, with no interview: the outcome and Done when items quoted from
   the README, this phase's checks, the order of work with the person's gates, ownership, and how to
   report with evidence. It says which reading of "this phase" it took.
@@ -35,9 +37,16 @@ windows: one session holds the outcome and tests, the other does. One engineer p
 
 ## Common questions
 
-**Why a mailbox rather than one shared log?** Two files, each written by one side, with a `Status:`
-line as the only edit, mean neither side ever edits the other's words, and "what is open" is one
-line per message.
+**Why a mailbox rather than one shared log?** Each file has one writer: the PM writes `to-cc.md` and
+`status-pm.md`, the engineer `to-pm.md` and `status-cc.md`. Neither side edits the other's words,
+"what is open" is one line per message, and two sessions never write one file.
+
+**Can the mailbox be in a folder copied between machines?** Yes: with one writer per file, two
+machines never change one file between copies. Each side takes its own lock, `KICKOFF.md` says
+`{mailbox}` for the launcher to fill in, and `pair.sh check` names any file the protocol does not
+write, such as a conflict copy. Times come from the system clock, synced with network time where it
+can be, with their UTC offset (`2026-10-27 20:17 +0000`). A mailbox from before this keeps editing
+`Status:` in place, as its README says, and reads the same.
 
 **What keeps the engineer reading the mailbox?** A background watch it starts, which wakes it when a
 PM message arrives, and a Stop hook that points it at anything still open. Neither holds the session. See
