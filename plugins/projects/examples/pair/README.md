@@ -6,35 +6,60 @@ like; nothing here needs them unless a message says **For <person>**. Set up by 
 
 ## Files
 
-- `to-cc.md` — messages from the PM to the engineer, ids `PM-001`, `PM-002`, …
-- `to-pm.md` — messages from the engineer to the PM, ids `CC-001`, `CC-002`, …
-- `KICKOFF.md` — the engineer's opening prompt, sent by the launcher.
-- `.cc-session`, `.cc-state` — written by the engineer's session: its id, and whether it is
-  `working`, `waiting` (a watch on this mailbox is running) or `stopped`, since when.
-- `.closed` — present once the PM has closed the pairing.
+Every file has one writer, so this folder can sit anywhere, including a folder that is copied between
+machines: a file two machines change between copies would come back as two versions.
+
+| File | Written by | Holds |
+|---|---|---|
+| `to-cc.md` | the PM | messages to the engineer, ids `PM-001`, `PM-002`, … |
+| `to-pm.md` | the engineer | messages to the PM, ids `CC-001`, `CC-002`, … |
+| `status-cc.md` | the engineer | the status it has set on each PM message |
+| `status-pm.md` | the PM | the status it has set on each CC message |
+| `KICKOFF.md` | the PM | the engineer's opening prompt; the launcher puts this machine's path for `{mailbox}` |
+| `.cc-*` | the engineer's session | its id, its state (`working`, `waiting` with a watch running, or `stopped`, since when), its lock |
+| `.pm-*`, `.closed` | the PM | its session and lock; `.closed` once the pairing is closed |
+
+Anything else here is a stray, such as a copy left by two machines writing one file: `pair.sh check`
+names it.
 
 ## A message
 
-Append only, newest last. Each side writes only the other's file, and takes the next id with
+Append only, newest last. Each side writes only its own files, and takes the next id with
 `kit/plugins/projects/hooks/pair.sh post`, which reads the last id and appends under a lock, so two
 writers never share one. Anyone else who writes to a file (a second session, the person) takes the
 next free id the same way. Two messages under one id are two messages: `pair.sh check` and the
 engineer's start hook name the id, and the later is read in full, not as an amendment.
 
 ```
-## PM-007 · 2026-10-06 17:40 · Short title
+## PM-007 · 2026-10-06 17:40 +0100 · Short title
 The message.
 Status: open
 ```
 
-`Status:` goes on a line of its own, last in the message. Times are local. A reply is a new message in the other file that names the id it answers on its
+`Status: open` goes on a line of its own, last in the message, and is never edited afterwards. A reply is a new message in the other file that names the id it answers on its
 first line (`Re: PM-007`).
+
+## Time
+
+Every time written here comes from the system clock, never from an estimate: read it with `date`
+each time. Keep the clock synced with network time where the machine allows it. Write the UTC offset
+with every time (`2026-10-06 17:40 +0100`, from `date '+%Y-%m-%d %H:%M %z'`), so times written on
+machines in different zones still sort into the order things happened.
 
 ## Status
 
-The reader of a message sets its `Status:` line — the only edit made to an existing message:
+The reader of a message sets its status by appending one line to its own status file, never by
+editing the message:
 
-- `open` — not yet dealt with (the writer sets this). A message with no `Status:` line counts as open.
+```
+PM-007 · 2026-10-06 18:05 +0100 · done 4f2a91c
+```
+
+`kit/plugins/projects/hooks/pair.sh status --mailbox <this folder> --from cc --id PM-007 done 4f2a91c`
+writes that line (`--from pm` for the PM). Without a shell, append it by hand. The last line for an
+id holds. A status:
+
+- `open` — not yet dealt with (the writer sets this). A message with no status anywhere counts as open.
 - `done <time> <commit or note>` — finished.
 - `declined <why>` — not doing it.
 - `waiting <on what>` — blocked; the PM or the person has the next move.

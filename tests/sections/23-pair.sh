@@ -13,6 +13,9 @@ echo
 echo "23 · /projects:pair: the engineer's hooks and the launcher"
 
 s23_hook="$KIT/plugins/projects/hooks/pair.sh"
+# This machine's default mailbox root is the fixture's alone, so a root the person has set never leaks in.
+unset PAIR_MAILBOX_ROOT
+export PAIR_CONFIG_DIR="$SCRATCH/s23/config"
 s23_launch="$KIT/plugins/projects/scripts/pair.sh"
 s23_p="$SCRATCH/s23/projects/00-demo"
 s23_mb="$s23_p/mailbox"
@@ -282,7 +285,7 @@ done
 wait
 s23_ids="$(grep -oE '^## PM-[0-9]+' "$s23_mb/to-cc.md" | sort | uniq -d)"
 s23_n="$(grep -cE '^## PM-' "$s23_mb/to-cc.md")"
-[[ -z "$s23_ids" && "$s23_n" == 7 && "$(grep -c '^Status: open$' "$s23_mb/to-cc.md")" == 6 && ! -d "$s23_mb/.post-lock" ]] \
+[[ -z "$s23_ids" && "$s23_n" == 7 && "$(grep -c '^Status: open$' "$s23_mb/to-cc.md")" == 6 && ! -d "$s23_mb/.pm-lock" && ! -d "$s23_mb/.post-lock" ]] \
     && ok "23 post: six PM posts at once take six different ids, each with Status: open, and leave no lock" \
     || ko "23 post: six PM posts at once take six different ids, each with Status: open, and leave no lock" "duplicates: $s23_ids; headings: $s23_n"
 s23_out="$(printf 'Hello.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_mb" --from pm --pm tok-b --title "Second PM" 2>&1)"
@@ -389,3 +392,119 @@ s23_out2="$(CLAUDE_CONFIG_DIR="$s23_cfg" bash "$s23_launch" "$s23_p" --print --s
 rm -f "$s23_cfg/projects/x/sess-123.jsonl" "$s23_cfg/projects/x/sess-777.jsonl"
 s23_out="$(bash "$s23_launch" "$SCRATCH/s23" --print 2>&1; echo "rc=$?")"
 [[ "$s23_out" == *"no mailbox"*"rc=2" ]] && ok "23 launcher: no mailbox, no launch" || ko "23 launcher: no mailbox, no launch" "$s23_out"
+
+# ---- A mailbox anywhere: one-off, or this machine's default root (hooks/lib/mailbox.sh) -----------
+s23_root="$SCRATCH/s23-outside/root"
+s23_far="$SCRATCH/s23/projects/01-far"
+mkdir -p "$s23_root" "$s23_far"
+s23_out="$(bash "$s23_hook" default "$s23_root" 2>&1)"
+s23_w="$(bash "$s23_hook" where "$s23_far" 2>&1)"
+[[ "$s23_out" == *"default mailbox root: $(cd "$s23_root" && pwd -P)"* && "$s23_w" == *"mailbox: $(cd "$s23_root" && pwd -P)/far"* \
+    && "$s23_w" == *"state: new"* && "$s23_w" == *"repository: none"* ]] \
+    && ok "23 where: a default root puts a new mailbox at <root>/<slug>, outside every repository" \
+    || ko "23 where: a default root puts a new mailbox at <root>/<slug>, outside every repository" "$s23_out"$'\n'"$s23_w"
+s23_fmb="$(cd "$s23_root" && pwd -P)/far"
+bash "$s23_hook" init --mailbox "$s23_fmb" --name "Far project" >/dev/null 2>&1
+s23_w="$(bash "$s23_hook" where "$s23_far" 2>&1)"
+[[ -f "$s23_fmb/to-cc.md" && -f "$s23_fmb/to-pm.md" && -f "$s23_fmb/status-cc.md" && -f "$s23_fmb/status-pm.md" \
+    && "$(head -n 1 "$s23_fmb/README.md")" == "# Mailbox: Far project" && "$s23_w" == *"state: existing"* ]] \
+    && ok "23 init: makes the protocol README, both message files and both status files in any folder" \
+    || ko "23 init: makes the protocol README, both message files and both status files in any folder" "$s23_w"
+printf 'Read {mailbox}/README.md, then {mailbox}/to-cc.md.\n' > "$s23_fmb/KICKOFF.md"
+s23_out="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23_far" --print 2>&1)"
+[[ "$s23_out" == *"PAIR_MAILBOX=$s23_fmb "* && "$s23_out" == *"--add-dir $s23_fmb"* \
+    && "$s23_out" == *"$s23_fmb/README.md"* && "$s23_out" != *"{mailbox}"* ]] \
+    && ok "23 launcher: finds the mailbox from the default root with no --mailbox, adds its folder, and fills in {mailbox}" \
+    || ko "23 launcher: finds the mailbox from the default root with no --mailbox, adds its folder, and fills in {mailbox}" "$s23_out"
+s23_ctx="$(printf '{"session_id":"sess-far","cwd":"%s"}' "$s23_far" | PAIR_ROLE=cc PAIR_MAILBOX="$s23_fmb" bash "$s23_hook" start)"
+[[ "$s23_ctx" == *"Nothing is open"* && "$(cat "$s23_fmb/.cc-session" 2>/dev/null)" == sess-far ]] \
+    && ok "23 hook start: a mailbox outside the workspace works as one inside it" \
+    || ko "23 hook start: a mailbox outside the workspace works as one inside it" "$s23_ctx"
+# An existing mailbox in the project wins over the default root, and a one-off folder over both.
+s23_w="$(bash "$s23_hook" where "$s23_p" 2>&1)"
+s23_w2="$(bash "$s23_hook" where "$s23_p" --mailbox "$s23_other/once" 2>&1)"
+[[ "$s23_w" == *"mailbox: $s23_mb"*"state: existing"* && "$s23_w2" == *"once"*"state: new"* ]] \
+    && ok "23 where: a mailbox in flight in the project wins over the default root; --mailbox wins over both" \
+    || ko "23 where: a mailbox in flight in the project wins over the default root; --mailbox wins over both" "$s23_w"$'\n'"$s23_w2"
+bash "$s23_hook" default --clear >/dev/null 2>&1
+s23_w="$(bash "$s23_hook" where "$s23_far" 2>&1)"
+[[ "$s23_w" == *"mailbox: $s23_far/mailbox"*"state: new"* ]] \
+    && ok "23 default --clear: back to <project>/mailbox" || ko "23 default --clear: back to <project>/mailbox" "$s23_w"
+
+# ---- One writer per file: statuses in the reader's own file ----------------------------------------
+s23_reset
+: > "$s23_mb/status-cc.md"
+s23_add PM-002
+s23_out="$(s23_bare bash "$s23_hook" status --mailbox "$s23_mb" --from cc --id PM-002 done 4f2a91c 2>&1)"
+s23_out2="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_out2" == *"Open for the engineer: none"* && "$(tail -n 1 "$s23_mb/to-cc.md")" == "Status: open" ]] \
+    && grep -qE '^PM-002 · [0-9-]+ [0-9:]+ [+-][0-9]{4} · done 4f2a91c$' "$s23_mb/status-cc.md" \
+    && ok "23 status: the reader's line in its own file settles a message, which is left unedited; the time carries its offset" \
+    || ko "23 status: the reader's line in its own file settles a message, which is left unedited; the time carries its offset" "$s23_out"$'\n'"$s23_out2"
+s23_out="$(s23_bare bash "$s23_hook" status --mailbox "$s23_mb" --from cc --id PM-099 done 2>&1; echo "rc=$?")"
+[[ "$s23_out" == *"no PM-099"*"rc=2" ]] && ok "23 status: refuses an id the other side never wrote" || ko "23 status: refuses an id the other side never wrote" "$s23_out"
+s23_out="$(printf 'Report.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_mb" --from cc --title "Stamped" 2>&1)"
+grep -qE '^## CC-[0-9]+ · [0-9-]+ [0-9:]+ [+-][0-9]{4} · Stamped$' "$s23_mb/to-pm.md" && [[ ! -d "$s23_mb/.cc-lock" ]] \
+    && ok "23 post: a message's time carries its UTC offset, and the engineer's own lock is released" \
+    || ko "23 post: a message's time carries its UTC offset, and the engineer's own lock is released" "$(tail -n 3 "$s23_mb/to-pm.md")"
+
+# ---- Two machines: two copies of one mailbox, synced in both directions after each step ------------
+# s23_sync: a file changed on one side since the last sync is copied to the other; a file changed on
+# both comes back as the first side's version plus a conflict copy of the second's, as a two-way file
+# sync does. Lock folders are left alone, being one machine's business.
+s23_sim="$SCRATCH/s23-sim"
+s23_sync() {
+    local a="$s23_sim/a/mb" b="$s23_sim/b/mb" base="$s23_sim/base" f n ca cb
+    mkdir -p "$base"
+    for f in "$a"/* "$a"/.[!.]* "$b"/* "$b"/.[!.]*; do
+        [ -f "$f" ] || continue; n="${f##*/}"
+        cmp -s "$a/$n" "$b/$n" && { cp -p "$a/$n" "$base/$n"; continue; }
+        ca=0; [ -f "$a/$n" ] && ! cmp -s "$a/$n" "$base/$n" && ca=1
+        cb=0; [ -f "$b/$n" ] && ! cmp -s "$b/$n" "$base/$n" && cb=1
+        if [ $ca -eq 1 ] && [ $cb -eq 0 ]; then cp -p "$a/$n" "$b/$n"; cp -p "$a/$n" "$base/$n"
+        elif [ $cb -eq 1 ] && [ $ca -eq 0 ]; then cp -p "$b/$n" "$a/$n"; cp -p "$b/$n" "$base/$n"
+        else
+            cp -p "$b/$n" "$a/$n.conflict-copy-1"; cp -p "$b/$n" "$b/$n.conflict-copy-1"
+            cp -p "$a/$n" "$b/$n"; cp -p "$a/$n" "$base/$n"
+        fi
+    done
+}
+s23_conflicts() { find "$s23_sim" -name '*conflict*' | wc -l | tr -d ' '; }
+rm -rf "$s23_sim"; mkdir -p "$s23_sim/a" "$s23_sim/b/mb"
+s23_A="$s23_sim/a/mb" s23_B="$s23_sim/b/mb"
+bash "$s23_hook" init --mailbox "$s23_A" --name Sim >/dev/null 2>&1; s23_sync
+printf 'The brief.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_A" --from pm --title Brief >/dev/null; s23_sync
+s23_bare bash "$s23_hook" status --mailbox "$s23_B" --from cc --id PM-001 waiting gate 1 >/dev/null
+printf 'Gate 1.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_B" --from cc --title Report >/dev/null; s23_sync
+# Both machines write between one sync and the next: the PM settles the report and sends the next
+# brief while the engineer settles the first.
+s23_bare bash "$s23_hook" status --mailbox "$s23_A" --from pm --id CC-001 done >/dev/null
+printf 'Next.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_A" --from pm --title Next >/dev/null
+s23_bare bash "$s23_hook" status --mailbox "$s23_B" --from cc --id PM-001 done abc1234 >/dev/null
+s23_sync
+s23_ca="$(s23_bare bash "$s23_hook" check --mailbox "$s23_A")"; s23_cb="$(s23_bare bash "$s23_hook" check --mailbox "$s23_B")"
+[[ "$(s23_conflicts)" == 0 && "$s23_ca" == *"Open for the engineer: PM-002"*"Open for the PM: none"* && "$s23_cb" == *"Open for the engineer: PM-002"*"Open for the PM: none"* ]] \
+    && ok "23 two machines: a brief, a report and status changes, written on both sides between syncs, leave no conflict copy and read the same" \
+    || ko "23 two machines: a brief, a report and status changes, written on both sides between syncs, leave no conflict copy and read the same" "conflicts: $(s23_conflicts)"$'\n'"$s23_ca"$'\n'"$s23_cb"
+# The same steps with the old protocol, a status edited in place in the PM's file, do make one: the
+# simulation can tell the two apart.
+sed -i.bak 's/^Status: open$/Status: done 1/' "$s23_B/to-cc.md" && rm -f "$s23_B/to-cc.md.bak"
+printf 'Third.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_A" --from pm --title Third >/dev/null
+s23_sync
+[[ "$(s23_conflicts)" != 0 ]] && ok "23 two machines: an in-place status edit in the other side's file does make a conflict copy" \
+    || ko "23 two machines: an in-place status edit in the other side's file does make a conflict copy" "none made"
+
+# ---- check names what the protocol does not write -----------------------------------------------
+s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_A")"
+: > "$s23_A/notes-fresh.txt"; : > "$s23_A/notes-old.txt"; age "$s23_A/notes-old.txt" 0.01
+s23_out2="$(s23_bare bash "$s23_hook" check --mailbox "$s23_A")"
+[[ "$s23_out" == *"does not write: to-cc.md.conflict-copy-1"* && "$s23_out2" == *"notes-old.txt"* && "$s23_out2" != *"notes-fresh.txt"* \
+    && "$s23_out2" != *"status-pm.md,"* ]] \
+    && ok "23 check: names a conflict copy at once and any other unknown file once it is five minutes old" \
+    || ko "23 check: names a conflict copy at once and any other unknown file once it is five minutes old" "$s23_out"$'\n'"$s23_out2"
+
+s23_bad=""
+grep -q 'status-cc.md' "$s23_ex/README.md" && grep -q "%z" "$s23_ex/README.md" && grep -q 'network time' "$s23_ex/README.md" || s23_bad+="README: status files, offset times, a synced clock"$'\n'
+grep -q '{mailbox}' "$s23_ex/KICKOFF.md" && ! grep -q '<mailbox path>' "$s23_ex/KICKOFF.md" || s23_bad+="KICKOFF: {mailbox}"$'\n'
+grep -q 'pair.sh where' "$s23_cmd" && grep -q 'repository: none' "$s23_cmd" && grep -q 'pair.sh default' "$s23_cmd" && grep -q "%z" "$s23_cmd" || s23_bad+="command: where, default, no .gitignore outside a repository, offset times"$'\n'
+empty "23 guidance: status files, offset times and the mailbox's location are in the README, KICKOFF and command" "$s23_bad"

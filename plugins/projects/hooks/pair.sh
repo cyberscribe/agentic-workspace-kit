@@ -27,6 +27,30 @@
 #                   Appends the message on stdin to the other side's file under the next id, taken
 #                   under a lock, with Status: open. --pm names the PM's token from .pm-session; a
 #                   PM post without the holder's token is written, with a warning.
+#   pair.sh status --mailbox DIR --from pm|cc --id ID TEXT...
+#                   Sets the status of a message the other side wrote (done, declined, or waiting
+#                   and why): one line appended to the reader's own status file, under its lock.
+#   pair.sh init --mailbox DIR --name NAME
+#                   Makes a mailbox in DIR, any folder: the protocol README and the four files below.
+#                   A folder that already holds a mailbox is left as it is.
+#   pair.sh where PROJECT [--mailbox DIR]
+#                   Prints where the project's mailbox is (lib/mailbox.sh), whether it exists yet,
+#                   and the git repository around it, or none.
+#   pair.sh default [DIR | --clear]
+#                   Prints, sets or clears this machine's default mailbox root: a new mailbox goes
+#                   in <root>/<slug> rather than <project>/mailbox.
+#
+# One writer per file. A mailbox may live in a folder that is copied between machines, and a file two
+# machines change between copies comes back as two versions. So no file has two writers: the PM writes
+# to-cc.md, status-pm.md and the .pm-* files; the engineer writes to-pm.md, status-cc.md and the .cc-*
+# files. A message's status is the last line for its id in its reader's status file ("PM-007 · <time> ·
+# done ..."), or, where there is none, the last Status: line in the message itself. A mailbox made
+# before the status files existed has its Status: lines edited in place by the reader, and still reads
+# the same. Each side takes its own lock (.pm-lock, .cc-lock), because a lock only means something to
+# processes on one machine.
+#
+# Times are this machine's clock, written with its UTC offset ("2026-10-27 20:17 +0000"), so two
+# machines in different zones still agree on the order of events.
 #
 # How a session is found. The launcher (scripts/pair.sh) sets PAIR_ROLE=cc and PAIR_MAILBOX, and those
 # still win. A session started any other way joins: join writes .cc-join in the mailbox and lists the
@@ -59,7 +83,7 @@ set -u
 
 mode="${1:-}"
 [ $# -gt 0 ] && shift
-opt_mb="" opt_cwd="" opt_from="" opt_title="" opt_pm=""
+opt_mb="" opt_cwd="" opt_from="" opt_title="" opt_pm="" opt_id="" opt_name="" opt_clear=0 rest=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --mailbox) opt_mb="${2:-}"; shift 2 2>/dev/null || shift ;;
@@ -67,13 +91,16 @@ while [ $# -gt 0 ]; do
         --from) opt_from="${2:-}"; shift 2 2>/dev/null || shift ;;
         --title) opt_title="${2:-}"; shift 2 2>/dev/null || shift ;;
         --pm) opt_pm="${2:-}"; shift 2 2>/dev/null || shift ;;
-        *) shift ;;
+        --id) opt_id="${2:-}"; shift 2 2>/dev/null || shift ;;
+        --name) opt_name="${2:-}"; shift 2 2>/dev/null || shift ;;
+        --clear) opt_clear=1; shift ;;
+        *) rest="${rest:+$rest }$1"; shift ;;
     esac
 done
 
 registry="${PAIR_REGISTRY:-$HOME/.config/agentic-workspace-kit/pairings}"
 here="$(cd "$(dirname "$0")" && pwd -P)"
-stamp() { date '+%Y-%m-%d %H:%M'; }
+stamp() { date '+%Y-%m-%d %H:%M %z'; }
 say() { printf 'pair: %s\n' "$*"; }
 
 # ---- The registry ----------------------------------------------------------------------------------
@@ -100,6 +127,55 @@ reg_drop() { [ -f "$registry" ] && aw_rewrite "$registry" awk -F'\t' -v m="$1" '
 field() { sed -n "s/^$2: //p" "$1" 2>/dev/null | head -n 1; }
 # older <path> <minutes>: 0 when the path was last written more than that many minutes ago.
 older() { [ -n "$(find "$1" -prune -mmin +"$2" 2>/dev/null)" ]; }
+
+# ---- Commands that need no mailbox yet --------------------------------------------------------------
+# shellcheck source=lib/mailbox.sh
+. "$here/lib/mailbox.sh"
+case "$mode" in
+    where)
+        [ -n "$rest" ] || { say "name the project folder: pair.sh where <project folder>"; exit 2; }
+        [ -d "$rest" ] || { say "$rest is not a folder"; exit 2; }
+        proj="$(cd "$rest" && pwd -P)"
+        line="$(aw_mb_resolve "$proj" "$opt_mb")"
+        tab="$(printf '\t')"; at="${line%%"$tab"*}"
+        # The nearest folder that exists says which repository the mailbox would sit in.
+        up="$at"; while [ ! -d "$up" ] && [ "$up" != / ] && [ -n "$up" ]; do up="$(dirname "$up")"; done
+        [ -d "$at" ] && at="$(cd "$at" && pwd -P)"
+        repo="$(git -C "$up" rev-parse --show-toplevel 2>/dev/null)"
+        printf 'mailbox: %s\nstate: %s\nrepository: %s\n' "$at" "${line##*"$tab"}" "${repo:-none}"
+        exit 0
+        ;;
+    default)
+        conf="$(aw_mb_config)"
+        if [ $opt_clear -eq 1 ]; then rm -f "$conf"; say "no default mailbox root on this machine now"; exit 0; fi
+        if [ -n "$rest" ]; then
+            [ -d "$rest" ] || { say "$rest is not a folder"; exit 2; }
+            mkdir -p "$(dirname "$conf")" || exit 2
+            printf '%s\n' "$(cd "$rest" && pwd -P)" > "$conf"
+        fi
+        r="$(aw_mb_root)"
+        if [ -z "$r" ]; then say "no default mailbox root on this machine; a new mailbox goes in <project>/mailbox"
+        elif [ -n "${PAIR_MAILBOX_ROOT:-}" ]; then say "default mailbox root: $r (from PAIR_MAILBOX_ROOT)"
+        else say "default mailbox root: $r (from $conf)"
+        fi
+        exit 0
+        ;;
+    init)
+        [ -n "$opt_mb" ] || { say "name the folder: pair.sh init --mailbox <folder> --name <project name>"; exit 2; }
+        if [ -f "$opt_mb/to-cc.md" ]; then say "$opt_mb already holds a mailbox; it is left as it is"; exit 0; fi
+        mkdir -p "$opt_mb" || { say "cannot make $opt_mb"; exit 2; }
+        name="${opt_name:-$(basename "$opt_mb")}"
+        tpl="$here/../examples/pair/README.md"
+        # The project's name goes in with awk, so no character in it can act as a sed command.
+        [ -f "$opt_mb/README.md" ] || awk -v n="$name" '{ gsub(/<project name>/, n); print }' "$tpl" > "$opt_mb/README.md"
+        printf '# To the engineer: %s\n\nMessages from the PM, ids PM-001 on. Protocol: README.md.\n' "$name" > "$opt_mb/to-cc.md"
+        printf '# To the PM: %s\n\nMessages from the engineer, ids CC-001 on. Protocol: README.md.\n' "$name" > "$opt_mb/to-pm.md"
+        printf '# Statuses the engineer has set on PM messages: id · time · status. The last line for an id holds.\n' > "$opt_mb/status-cc.md"
+        printf '# Statuses the PM has set on CC messages: id · time · status. The last line for an id holds.\n' > "$opt_mb/status-pm.md"
+        say "mailbox made in $(cd "$opt_mb" && pwd -P)"
+        exit 0
+        ;;
+esac
 
 # ---- Which mailbox, and which session --------------------------------------------------------------
 mb="" sid="" input=""
@@ -135,7 +211,7 @@ case "$mode" in
         [ -n "$mb" ] || [ -z "${CLAUDE_CODE_SESSION_ID:-}" ] || mb="$(reg_mailbox "$CLAUDE_CODE_SESSION_ID")"
         [ -n "$mb" ] || { say "name the mailbox: pair.sh $mode --mailbox <folder>"; exit 2; }
         ;;
-    join|check|post)
+    join|check|post|status)
         mb="$opt_mb"
         [ -n "$mb" ] || { say "name the mailbox: pair.sh $mode --mailbox <folder>"; exit 2; }
         ;;
@@ -192,19 +268,24 @@ set_state() {
     printf 'state: %s\nsince: %s\nsession: %s\n' "$1" "$(stamp)" "$sid" > "$mb/.cc-state" 2>/dev/null
 }
 
-# The ids of messages in a mailbox file whose last Status begins "open" (bold labels allowed), or that
-# have no Status at all. The label counts wherever it sits in a line, since a writer may end a sentence
-# with it; the last one in the message is the one that holds. A message the writer forgot to mark is
-# still unanswered, and treating it as settled would hide it from the engineer for good.
+# status_file <mailbox file>: the status file its reader writes (to-cc.md is read by the engineer).
+status_file() { case "$1" in *to-cc.md) printf '%s/status-cc.md' "$mb" ;; *) printf '%s/status-pm.md' "$mb" ;; esac; }
+# The ids of messages in a mailbox file whose status begins "open", or that have no status at all. A
+# line for the id in the reader's status file holds over the message's own Status: lines. Within a
+# message the label counts wherever it sits in a line (bold allowed), since a writer may end a
+# sentence with it, and the last one holds. A message the writer forgot to mark is still unanswered,
+# and treating it as settled would hide it from the engineer for good.
 open_ids() {
-    local f="${1:-$cc_file}"
+    local f="${1:-$cc_file}" sf
     [ -f "$f" ] || return 0
+    sf="$(status_file "$f")"; [ -f "$sf" ] || sf=/dev/null
     awk '
-        function emit() { if (id != "" && (st == "" || st ~ /^open/)) print id }
+        function emit() { if (id != "") { if (id in set) st = set[id]; if (st == "" || st ~ /^open/) print id } }
+        FILENAME == sf { if ($0 !~ /^#/ && match($0, / · [^·]* · /)) set[$1] = tolower(substr($0, RSTART + RLENGTH)); next }
         /^## [A-Za-z]+-[0-9]+/ { emit(); id = $2; st = ""; next }
         /Status:/ { s = $0; while (match(s, /Status:\**[ \t]*/)) s = substr(s, RSTART + RLENGTH); st = tolower(s); if (st == "") st = "open" }
         END { emit() }
-    ' "$f"
+    ' sf="$sf" "$sf" "$f"
 }
 # dup_ids <file>: ids that head more than one message, as "PM-019 (2)". A second writer that took an id
 # by hand files a separate message under it; read as an amendment, it would be half lost.
@@ -234,7 +315,7 @@ send_back() {
     local id
     for id in $1; do mark_nudged "$id"; done
     set_state working
-    printf 'Mailbox: %s open for you in %s. Read it and act on it; then set its Status: line (done, declined or waiting <on what>) and report in %s/to-pm.md.\n' \
+    printf 'Mailbox: %s open for you in %s. Read it and act on it; then set its status (done, declined or waiting <on what>) as the mailbox README says and report in %s/to-pm.md.\n' \
         "$1" "$cc_file" "$mb" >&2
     exit 2
 }
@@ -300,7 +381,7 @@ case "$mode" in
             if [ -n "$ids" ]; then
                 for id in $ids; do mark_nudged "$id"; done
                 rm -f "$watch_pid"; set_state working
-                printf 'Mailbox: %s open for you in %s. Read it and act on it; then set its Status: line (done, declined or waiting <on what>), report in %s/to-pm.md, and start the watch again.\n' \
+                printf 'Mailbox: %s open for you in %s. Read it and act on it; then set its status (done, declined or waiting <on what>) as the mailbox README says, report in %s/to-pm.md, and start the watch again.\n' \
                     "$ids" "$cc_file" "$mb"
                 exit 0
             fi
@@ -346,6 +427,22 @@ case "$mode" in
         printf 'Open for the PM: %s\n' "${to_pm:-none}"
         dup_line "$cc_file"
         dup_line "$mb/to-pm.md"
+        # Files the protocol does not write. A copy of a file that two machines changed between copies
+        # holds the other version, and nothing reads it: it is named at once when its name says
+        # "conflict", and any other unknown file once it is five minutes old (a copy in progress is not).
+        strays=""
+        for f in "$mb"/* "$mb"/.[!.]*; do
+            [ -e "$f" ] || continue
+            n="${f##*/}"
+            case "$n" in
+                README.md|KICKOFF.md|to-cc.md|to-pm.md|status-cc.md|status-pm.md|.closed|.post-lock) continue ;;
+                *[Cc]onflict*) ;;
+                .cc-*|.pm-*|*.tmp.[0-9]*) continue ;;
+                *) [ -n "$(find "$f" -prune -mmin +5 2>/dev/null)" ] || continue ;;
+            esac
+            strays="${strays:+$strays, }$n"
+        done
+        [ -z "$strays" ] || printf 'Files in the mailbox that the protocol does not write: %s. A copy made when two machines changed one file between copies holds the other version: compare it with the original, keep what is missing, then delete the copy.\n' "$strays"
         # Not watching: a PM message is open and either no session has ever been recorded, or the
         # state has not changed for an hour. A live watch turns waiting into working within a poll of
         # a new message, and every turn's end rewrites the state, so an hour of silence over an open
@@ -370,7 +467,7 @@ case "$mode" in
         [ -n "$body" ] || { say "post reads the message from stdin, and it was empty"; exit 2; }
         # The id is read and the message appended under one lock (lib/lock.sh), so two writers cannot
         # take the same id.
-        aw_lock "$mb/.post-lock" || { say "the mailbox is locked ($mb/.post-lock)"; exit 2; }
+        aw_lock "$mb/.$opt_from-lock" || { say "the mailbox is locked ($mb/.$opt_from-lock)"; exit 2; }
         if [ "$opt_from" = pm ] && [ -f "$mb/.pm-session" ]; then
             holder="$(field "$mb/.pm-session" token)"
             [ "$holder" = "$opt_pm" ] || printf 'pair: warning: another PM session holds this mailbox (since %s); two PMs writing one to-cc.md give the engineer two briefs. Posted anyway.\n' \
@@ -379,8 +476,22 @@ case "$mode" in
         last="$(grep -oE "^## $prefix-[0-9]+" "$file" 2>/dev/null | sed "s/^## $prefix-//" | sed 's/^0*//' | sort -n | tail -n 1)"
         id="$(printf '%s-%03d' "$prefix" $(( ${last:-0} + 1 )))"
         printf '\n## %s · %s · %s\n%s\nStatus: open\n' "$id" "$(stamp)" "$opt_title" "$body" >> "$file"
-        aw_unlock "$mb/.post-lock"
+        aw_unlock "$mb/.$opt_from-lock"
         printf '%s\n' "$id"
+        exit 0
+        ;;
+    status)
+        # The reader sets the status of the other side's message, in its own file.
+        case "$opt_from" in cc) file="$cc_file" ;; pm) file="$mb/to-pm.md" ;;
+            *) say "status needs --from pm or --from cc"; exit 2 ;; esac
+        [ -n "$opt_id" ] && [ -n "$rest" ] || { say "status needs --id <message id> and the status (done, declined or waiting <on what>)"; exit 2; }
+        grep -q "^## $opt_id " "$file" 2>/dev/null || { say "no $opt_id in $file"; exit 2; }
+        sf="$(status_file "$file")"
+        aw_lock "$mb/.$opt_from-lock" || { say "the mailbox is locked ($mb/.$opt_from-lock)"; exit 2; }
+        [ -f "$sf" ] || printf '# Statuses set by the %s side: id · time · status. The last line for an id holds.\n' "$opt_from" > "$sf"
+        printf '%s · %s · %s\n' "$opt_id" "$(stamp)" "$(printf '%s' "$rest" | tr '\n' ' ')" >> "$sf"
+        aw_unlock "$mb/.$opt_from-lock"
+        printf '%s %s\n' "$opt_id" "$rest"
         exit 0
         ;;
 esac

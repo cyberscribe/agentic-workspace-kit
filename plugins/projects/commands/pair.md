@@ -1,7 +1,7 @@
 ---
 description: Pair on a project — this session becomes its product manager and end-to-end tester, and one Claude Code session its engineer; the two talk through a mailbox in the project folder. Sets up the mailbox, writes the first brief, gives the person one command (and the prompt it carries) that starts the engineer's session or resumes the last one, and comes back to check the work on a schedule
 offer-unprompted: Offer it when someone wants a project built while they step back to direct and check it, or says they will hand the doing to Claude Code.
-argument-hint: [slug or folder] | status [slug] | close [slug] | join [slug] | leave [slug]
+argument-hint: [slug or folder] [--mailbox DIR] | status [slug] | close [slug] | join [slug] | leave [slug] | default [DIR]
 ---
 
 You are the product manager on this project, and its end-to-end tester. You
@@ -29,8 +29,7 @@ else.
 ## Project conventions come first
 
 Read `.claude/projects.md` if it exists (where projects live, prefixes, the
-entry point, a **Mailbox** line naming where a project's mailbox goes, else
-`<project>/mailbox/`). Then read the workspace's always-loaded file
+entry point, a **Mailbox** line naming where a project's mailbox goes). Then read the workspace's always-loaded file
 (`CLAUDE.md`, and what it imports) and the project's own `README.md`,
 `CLAUDE.md` and decisions log. From those, collect the **standing rules** the
 engineer works under — who commits and who pushes, attribution lines, what may
@@ -50,6 +49,29 @@ Read what the user typed after the command (or, as a skill, what they asked).
 - **`close`** — end the pairing (see Closing).
 - **`join`** or **`leave`** — typed in the engineer's session, not the PM's: attach a
   session that was started without the launcher, or detach it (see Joining).
+- **`default <folder>`** — set this machine's default mailbox root with
+  `pair.sh default <folder>`: a new mailbox then goes in `<folder>/<slug>/`.
+  `default` alone says what it is; `default --clear` removes it.
+
+## Where the mailbox is
+
+A mailbox is any folder, inside the project or anywhere else, including one that
+is copied between machines. In order:
+
+1. **Named for this pairing:** `--mailbox <folder>` after the command. It is
+   passed on to every script call and to the launcher command.
+2. **Found:** `pair.sh where <project folder>` prints the mailbox, whether it
+   exists yet, and the git repository it sits in (or `none`). It finds an
+   existing mailbox at this machine's default root (`<root>/<slug>/`), then at
+   `<project>/mailbox/`, so setting a default never loses a pairing in flight.
+3. **New:** where `where` reports `state: new` and the conventions' **Mailbox**
+   line names a place, use that; otherwise the place `where` printed.
+
+The same folder can have a different path on each machine that opens it. Each
+side uses the path its own machine sees, and nothing written into the mailbox
+names one: `KICKOFF.md` says `{mailbox}`, which the launcher fills in. Where
+this session sees the mailbox through a folder the person connected, confirm
+the folder holds `to-cc.md` and that its `README.md` heading names the project.
 
 ## The pair script
 
@@ -60,12 +82,25 @@ workspace, use it, with the mailbox folder as `--mailbox`:
 - `pair.sh post --mailbox <dir> --from pm --pm <token> --title "<title>"`, the message on
   stdin, appends it to `to-cc.md` under the next id, taken under a lock, with
   `Status: open`, and prints the id. Two writers can no longer both take the same id.
+- `pair.sh status --mailbox <dir> --from pm --id CC-NNN <status>` sets the status of
+  an engineer's message: one line in `status-pm.md`, the PM's own file.
 - `pair.sh check --mailbox <dir>` prints the engineer's state and what is open each way,
   and, once per stale spell, the line the person needs when the engineer is not
-  watching.
+  watching. It also names any file in the mailbox the protocol does not write,
+  such as a copy left by two machines writing one file; tell the person, and
+  merge the copy into the original only with their word.
+- `pair.sh init --mailbox <dir> --name "<project name>"` makes a mailbox in any
+  folder.
+
+**Time.** Every time written into the mailbox comes from the system clock, read
+with `date` each time, never estimated, and carries its UTC offset:
+`date '+%Y-%m-%d %H:%M %z'`. Where the machine's clock can be synced with network
+time, it should be; if a time looks wrong, say so to the person rather than
+correcting it by hand.
 
 Where there is no shell, do the same by hand: read the last id in the file, write the
-next with `Status:` on a line of its own, last in the message.
+next with `Status: open` on a line of its own, last in the message; a status is a line
+appended to your own status file (the mailbox README shows it).
 
 ## Starting a pairing
 
@@ -78,15 +113,23 @@ next with `Status:` on a line of its own, last in the message.
    (`to-cc.md` and `to-pm.md`, messages headed `## PM-NNN · …` with a
    `Status:` line), continue it: keep its file names and carry on its id series.
    A mailbox in another format is left as it is; start the standard one beside
-   it and say so. Otherwise create the folder with:
-   - `README.md` — the protocol, from
-     `kit/plugins/projects/examples/pair/README.md`, with the project's name
-     and any standing rule that changes it;
-   - `to-cc.md` and `to-pm.md` — a one-line title and the protocol line each.
+   it and say so. Otherwise make it where the section above says, with
+   `pair.sh init --mailbox <dir> --name "<project name>"`, then add any standing
+   rule that changes the protocol to its `README.md`. Without a shell, write
+   the same files by hand: `README.md` from
+   `kit/plugins/projects/examples/pair/README.md` with the project's name;
+   `to-cc.md` and `to-pm.md`, a one-line title each; `status-cc.md` and
+   `status-pm.md`, a header line each.
+
+   An existing mailbox keeps the protocol its own `README.md` gives: one made
+   before the status files edits `Status:` lines in place, and both sides go on
+   doing so there.
 
    The mailbox is working state, not record: add it to the `.gitignore` that
    governs the folder (the project's own, if it is its own repository; else the
-   workspace's), and say which line you added.
+   workspace's), and say which line you added. When `pair.sh where` reports
+   `repository: none`, the mailbox is outside every repository: skip this step
+   and say so.
 3. **The brief.** No interview. Build it from the README — the desired outcome
    and the unticked Done when items, quoted; the Current state block and any
    planned steps — and from the project's last decisions and open questions.
@@ -114,7 +157,8 @@ next with `Status:` on a line of its own, last in the message.
      `--ultracode`.
 4. **The kickoff.** Write `KICKOFF.md` in the mailbox from
    `kit/plugins/projects/examples/pair/KICKOFF.md`: the engineer's opening
-   prompt, naming the mailbox, the protocol and the brief's id.
+   prompt, naming the protocol and the brief's id. Leave `{mailbox}` as it is:
+   the launcher puts in the path the engineer's machine sees.
 5. **The engineer's session.** Read `.cc-session` and `.cc-state` in the
    mailbox, if they exist. The session id there is the engineer's last session;
    the state line says whether it is working, watching the mailbox, or stopped,
@@ -128,7 +172,9 @@ next with `Status:` on a line of its own, last in the message.
    ```
 
    Add `--new` to start fresh rather than resume, `--ultracode` for a wide
-   phase, `--mailbox <dir>` when the conventions put it elsewhere. It starts
+   phase, `--mailbox <dir>` when the mailbox was named for this pairing or the
+   conventions put it elsewhere (with the path the engineer's machine sees; the
+   launcher finds a default-root mailbox itself). It starts
    Claude Code in the project folder in auto permission mode, named
    `<slug>-cc`, with the pairing hooks loaded for that session only. Show the
    prompt it will send (the content of `KICKOFF.md`, or for a resume the short
@@ -150,9 +196,10 @@ next with `Status:` on a line of its own, last in the message.
 
 ## Each check-in
 
-- Read `to-pm.md` from the last message you answered. Set each one's `Status:`
-  line in that file when you have dealt with it; that line is the only edit
-  either side makes to an existing message.
+- Read `to-pm.md` from the last message you answered. Set each one's status
+  when you have dealt with it, as the mailbox README says: a line in
+  `status-pm.md` (`pair.sh status --from pm`), or, in a mailbox made before the
+  status files, its `Status:` line edited in place.
 - **Test it end to end.** Check each claim against evidence before you accept
   it or pass it on: the commit is in `git log`; the tests pass when you run
   them; the page, the file or the output does what the brief said, seen the way
