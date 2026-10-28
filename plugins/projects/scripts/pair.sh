@@ -4,7 +4,8 @@
 #   kit/plugins/projects/scripts/pair.sh <project folder> [--mailbox DIR] [--new] [--session ID]
 #                                    [--ultracode] [--mode MODE] [--print]
 #
-#   --mailbox DIR   the mailbox, when it is not <project folder>/mailbox
+#   --mailbox DIR   the mailbox for this launch, wherever it is (otherwise hooks/lib/mailbox.sh finds
+#                   it: this machine's default root, else <project folder>/mailbox)
 #   --new           start a new session even when the last one could be resumed
 #   --session ID    resume that session rather than the one the mailbox recorded
 #   --ultracode     start at ultracode effort, for a phase that fans out across many pieces
@@ -22,6 +23,9 @@
 # way Claude Code starts with this plugin loaded for that session
 # (--plugin-dir, so the pairing hooks are there whatever the folder's own settings load) and with
 # PAIR_ROLE=cc and PAIR_MAILBOX set, which is what wakes hooks/pair.sh. Every other session ignores them.
+# A mailbox outside the session's folder is added to it (--add-dir), so the engineer can write there.
+# KICKOFF.md names the mailbox as {mailbox}, and this script puts in the path this machine sees, so
+# the same file reads right on every machine that opens the mailbox.
 # Written for bash 3.2.
 set -u
 
@@ -46,14 +50,17 @@ done
 [ -n "$proj" ] || { usage >&2; die "name the project folder"; }
 [ -d "$proj" ] || die "$proj is not a folder"
 proj="$(cd "$proj" && pwd -P)"
-[ -n "$mb" ] || mb="$proj/mailbox"
+# shellcheck source=SCRIPTDIR/../hooks/lib/mailbox.sh
+. "$plugin/hooks/lib/mailbox.sh"
+found="$(aw_mb_resolve "$proj" "$mb")"
+mb="${found%%"$(printf '\t')"*}"
 [ -d "$mb" ] || die "no mailbox at $mb: the PM sets it up with /projects:pair"
 mb="$(cd "$mb" && pwd -P)"
 [ -f "$mb/to-cc.md" ] || die "$mb has no to-cc.md: the PM sets it up with /projects:pair"
 command -v claude >/dev/null 2>&1 || [ $print -eq 1 ] || die "claude is not on PATH"
 
 # A priority prefix (00-, 01-) is not part of the project's name.
-slug="$(basename "$proj" | sed 's/^[0-9][0-9]*-//')"
+slug="$(aw_mb_slug "$proj")"
 
 # Resume when the recorded session's transcript is still on this machine.
 sid="$want"
@@ -73,13 +80,15 @@ fi
 
 args=(--plugin-dir "$plugin" --permission-mode "$mode")
 [ $ultra -eq 1 ] && args+=(--effort ultracode)
+case "$mb/" in "$where"/*) ;; *) args+=(--add-dir "$mb") ;; esac
 if [ $resume -eq 1 ]; then
     args+=(--resume "$sid")
     prompt="Resuming the pairing. Read $mb/to-cc.md for anything with Status: open, and carry on from your last message in $mb/to-pm.md. Start the mailbox watch from your opening context as a background command if none is running."
     how="Resuming session $sid"
 else
     args+=(--name "$slug-cc")
-    if [ -f "$mb/KICKOFF.md" ]; then prompt="$(cat "$mb/KICKOFF.md")"
+    # awk, not sed, so no character in the path can act as a sed command.
+    if [ -f "$mb/KICKOFF.md" ]; then prompt="$(awk -v m="$mb" '{ while ((i = index($0, "{mailbox}")) > 0) $0 = substr($0, 1, i - 1) m substr($0, i + 9); print }' "$mb/KICKOFF.md")"
     else prompt="You are the engineer on $slug. Read $mb/README.md, then $mb/to-cc.md, and start with the first message whose Status is open."
     fi
     how="Starting a new session, $slug-cc"

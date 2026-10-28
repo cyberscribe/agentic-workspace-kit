@@ -20,7 +20,8 @@ a compaction, and names any id two messages share.
 - A join no more than 10 minutes old is claimed by the session that asked for it, matched by the
   session id `join` recorded or, where there was none, by folder: `.cc-session` written, the registry
   bound, `.cc-join` removed, and the agent told.
-- A PM message open (a `Status:` that reads `open`, or none at all) that the agent has not been pointed
+- A PM message open (its last line in `status-cc.md`, else its own last `Status:`, reads `open`, or
+  there is none at all) that the agent has not been pointed
   at twice sends it back to work: exit 2, with the ids on stderr.
 - Otherwise it returns at once: `.cc-state` reads `waiting` with a watch running, else `stopped`.
   `.closed` reads `stopped`, and unbinds a joined session.

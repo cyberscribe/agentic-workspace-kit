@@ -12,7 +12,7 @@ session-start line:
 | **`/projects:board`** | Everything in flight on one page, with one-line flags for what needs attention. |
 | **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear, and the folder archived to `projects/_done/`. |
 | **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it; it offers to resume a paused one. |
-| **`/projects:pair [slug]`** | Build with a split: this session is product manager and end-to-end tester, a Claude Code session is the engineer, and they talk through a mailbox in the project folder. |
+| **`/projects:pair [slug]`** | Build with a split: this session is product manager and end-to-end tester, a Claude Code session is the engineer, and they talk through a mailbox, in the project folder or any other. |
 
 Most of it is optional. What it insists on, kindly, is the part that decides
 whether the work ever finishes:
