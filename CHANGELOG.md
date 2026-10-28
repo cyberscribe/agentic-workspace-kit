@@ -5,6 +5,34 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.4.0 — 2026-10-28
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. From v3.3.0
+or earlier, that first update runs the old kit's script, so leave out `--yes` that time; it works from
+the next update on. A file the workspace had before the kit gets the template's changes listed for
+hand merging, one change at a time.
+
+- **`kit/setup.sh update` applies a template change hunk by hunk.** A changed template was applied
+  with one `git apply`, all or nothing, so a single hunk that no longer fitted the workspace's file
+  refused the whole change and left it for hand merging, the parts that would have fitted included.
+  Now each hunk is taken on its own: one whose new side the file already has counts as there (a
+  placeholder the team filled in, say, which the diff shows as a change when the file was recorded
+  with its stand-in); one that fits is applied; one that does neither is printed with its lines for
+  hand merging. The file is recorded as accepted only when nothing is left over, so the rest is
+  offered again next time; answering n records it as skipped once it is merged by hand. A file whose
+  hunks are all there already is recorded without a question. The end of the run lists what was
+  applied, what was already there and what is left for hand merging, each with its file.
+- **`kit/setup.sh update --yes` (`-y`)** takes the template-change and `.gitignore` offers without
+  asking, attended or not, and still prints each diff. The migration question keeps its n default.
+  The flag reaches the new kit's own `update.sh` after the advance; the update that first brings this
+  kit in runs the old kit's script, which does not know `--yes`, so it works from the update after.
+- A file the kit kept rather than made (one the workspace had before the kit) was never rendered from
+  the template, so most of a template's changes will not fit it; they are printed for hand merging.
+- Section 15 covers a filled placeholder beside a wording change, a hunk that fits nowhere, `--yes`
+  with no terminal, and `--yes` on a 2.x workspace leaving the migration unrun.
+
+---
+
 ## v3.3.0 — 2026-10-28
 
 - **A pairing mailbox can live in any folder, with one writer per file.** The mailbox was found at

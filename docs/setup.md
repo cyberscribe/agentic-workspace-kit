@@ -25,7 +25,7 @@ deletes and commits nothing; the last stage prints the commit to make.
 | Mode | What it does |
 |---|---|
 | `kit/setup.sh new DIR` | Makes a workspace from nothing: `git init`, the kit added from `--kit-url` (else `AW_KIT_URL`, else the kit's own origin), then the ten stages |
-| `kit/setup.sh update [--no-fetch]` | Advances the kit submodule, prints the CHANGELOG since the old version, offers each changed template as a diff to apply or skip, re-runs the engine, and prints the commit. A 2.x workspace is handed to `migrate --dry-run` |
+| `kit/setup.sh update [--no-fetch] [--yes]` | Advances the kit submodule, prints the CHANGELOG since the old version, offers each changed template as a diff to apply or skip, applied hunk by hunk: a hunk the file already has counts as there, and one that does not fit is printed for hand merging and offered again next time. Re-runs the engine, lists what was applied, already there and left over, and prints the commit. `--yes` (`-y`) takes the template and `.gitignore` offers without asking; the migration still asks. A 2.x workspace is handed to `migrate --dry-run` |
 | `kit/setup.sh --developer` | Puts `kit/` on `main` tracking `origin/main`, with `submodule.<name>.update=rebase` and `pull.rebase=true`, for developing the kit in place |
 | `kit/setup.sh link [SLUG] [--dry-run]` | Links each resource a project names to its path on this machine, from `.claude/resources.local.md` |
 | `kit/setup.sh hooks [--repo PATH] [--check]` | Sets the git hooks in the workspace, the kit and each project repository |
