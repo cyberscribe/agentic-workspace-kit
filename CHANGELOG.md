@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased
+## v3.3.0 — 2026-10-28
 
 - **A pairing mailbox can live in any folder, with one writer per file.** The mailbox was found at
   `<project>/mailbox/` unless every command was given `--mailbox`, and the engineer edited the
@@ -42,6 +42,19 @@ rewriting — the record of what a version claimed is part of what the version i
   a human, never as a side effect. Reworded in the README, `docs/memory-layers.md` §5, the closeout
   command, ritual, design note, review hook and example, the workspace templates and the PR template;
   the closeout parity test now checks for "is bounded".
+
+- projects 3.4.0 (the pairing's new commands, and a new protocol for new mailboxes) and closeout
+  1.5.4 (the bounded-budget wording in its review hook and docs). workspace stays at 2.2.2.
+
+### Template changes
+
+Changed: `templates/workspace/CLAUDE.md` calls the always-loaded file a bounded budget, where an
+addition earns its place, and its "Updating beats appending" rule asks a pull request to update or
+condense an existing line where it can and to make the case where it adds;
+`templates/workspace/closeout.md` has a change to the always-loaded tier make its case against the
+bound, rather than name what it displaces; `templates/workspace/pull_request_template.md` asks
+whether an update or condensing of an existing line would do instead, and if not, why the addition
+earns its place. `kit/setup.sh update` offers each as a diff to an existing workspace's copy.
 
 ---
 
