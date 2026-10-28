@@ -378,6 +378,15 @@ if s15_need kitsrc mkws2x; then
         s15_diff="$(diff "$SCRATCH/s15-2x-before.txt" "$SCRATCH/s15-2x-after.txt" 2>&1)"
         [[ -z "$s15_diff" ]] || s15_bad+="the workspace changed: $s15_diff"$'\n'
         empty "15 update on a 2.x workspace hands over to migrate --dry-run, exits with its status, and changes nothing unattended" "$s15_bad"
+        # --yes answers the offers only: attended, the migration is still asked, and Enter keeps its n.
+        (cd "$SCRATCH" && printf '\n' | AW_KIT_URL="$KITSRC" AW_WIZARD_NONINTERACTIVE=0 "$st_bash" "$s15_setup" update --target "$s15_x" --yes \
+            >"$SCRATCH/s15-2x-yes.log" 2>&1)
+        st_tree "$s15_x" >"$SCRATCH/s15-2x-after-yes.txt"
+        # A piped answer shows no prompt (read -p prints one only to a terminal), so the tree is the check.
+        s15_diff="$(diff "$SCRATCH/s15-2x-before.txt" "$SCRATCH/s15-2x-after-yes.txt" 2>&1)"
+        grep -q '^This workspace has the 2.x layout; the migration moves it to 3.0\.$' "$SCRATCH/s15-2x-yes.log" && [[ -z "$s15_diff" ]] \
+            && ok "15 update --yes on a 2.x workspace, attended: the migration keeps its n default and the workspace is as it was" \
+            || ko "15 update --yes on a 2.x workspace, attended: the migration keeps its n default and the workspace is as it was" "$s15_diff $(tail -n 4 "$SCRATCH/s15-2x-yes.log")"
     else
         ko "15 the 2.x fixture (mkws2x) could not be built" "$(tail -n 5 "$s15_x.log" 2>/dev/null)"
     fi
@@ -491,6 +500,56 @@ if [[ -n "${s15_engine:-}" && ${s15_engine:-0} -eq 1 ]]; then
                 || ko "15 update, attended: n records each missing .gitignore line as declined, and adds none" "$(grep '^!declined' "$s15_c/.claude/kit-templates.lock")"
         fi
     done
+
+    # Hunk by hunk. CLAUDE.md is recorded as made with the owner still a stand-in, as a workspace whose
+    # owner was filled in later is, and the kit also rewords a line ten lines above the owner's row. The
+    # diff then holds two hunks: the owner's row, which the file already has, and the wording, which fits.
+    s15_c="$SCRATCH/s15-update-hunks"
+    cp -R "$s15_u" "$s15_c"
+    awk -F '\t' -v OFS='\t' '$1 == "CLAUDE.md" { print $0, "owner=<standards owner>"; next } { print }' \
+        "$s15_c/.claude/kit-templates.lock" >"$SCRATCH/s15-lock" && cat "$SCRATCH/s15-lock" >"$s15_c/.claude/kit-templates.lock"
+    sed 's/It is a bounded budget, not a folder/It is a bounded budget, never a folder/' \
+        "$s15_c/kit/templates/workspace/CLAUDE.md" >"$SCRATCH/s15-tpl" && cat "$SCRATCH/s15-tpl" >"$s15_c/kit/templates/workspace/CLAUDE.md"
+    (cd "$SCRATCH" && printf 'y\ny\nn\n' | AW_WIZARD_NONINTERACTIVE=0 "$st_bash" "$s15_c/kit/setup.sh" update --no-fetch >"$s15_c.log" 2>&1)
+    s15_bad=""
+    grep -q 'never a folder' "$s15_c/CLAUDE.md" || s15_bad+="the wording change did not land"$'\n'
+    grep -q '^| \*\*Standards owner\*\* | Sam Example — ' "$s15_c/CLAUDE.md" || s15_bad+="the owner's row lost its value"$'\n'
+    grep -q '<standards owner>' "$s15_c/CLAUDE.md" && s15_bad+="the stand-in came back"$'\n'
+    [[ "$(awk -F '\t' '$1 == "CLAUDE.md" { print $5 }' "$s15_c/.claude/kit-templates.lock")" == accepted ]] || s15_bad+="CLAUDE.md is not recorded accepted"$'\n'
+    grep -q '^  applied                CLAUDE\.md$' "$s15_c.log" || s15_bad+="the summary does not name CLAUDE.md as applied"$'\n'
+    grep -q 'does not fit CLAUDE\.md' "$s15_c.log" && s15_bad+="a hunk of CLAUDE.md was left over"$'\n'
+    empty "15 update, hunk by hunk: a filled placeholder counts as there, the kit's wording change elsewhere lands, the file is recorded accepted" "$s15_bad"
+
+    # A hunk that fits nowhere: the line the second commit appends to closeout.md follows a last line the
+    # team has reworded, so it neither applies nor is there. It is printed, and the file is not recorded.
+    s15_c="$SCRATCH/s15-update-conflict"
+    cp -R "$s15_u" "$s15_c"
+    sed '$s/$/ (reworded by the team)/' "$s15_c/.claude/closeout.md" >"$SCRATCH/s15-co" && cat "$SCRATCH/s15-co" >"$s15_c/.claude/closeout.md"
+    cp "$s15_c/.claude/closeout.md" "$SCRATCH/s15-co-before"
+    (cd "$SCRATCH" && printf 'y\nn\n' | AW_WIZARD_NONINTERACTIVE=0 "$st_bash" "$s15_c/kit/setup.sh" update --no-fetch >"$s15_c.log" 2>&1)
+    s15_bad=""
+    cmp -s "$s15_c/.claude/closeout.md" "$SCRATCH/s15-co-before" || s15_bad+=".claude/closeout.md changed"$'\n'
+    [[ "$(awk -F '\t' '$1 == ".claude/closeout.md"' "$s15_c/.claude/kit-templates.lock")" == "$s15_lock_before" ]] \
+        || s15_bad+="the ledger entry for .claude/closeout.md changed"$'\n'
+    grep -q 'This change does not fit \.claude/closeout\.md as it is now; merge it by hand:' "$s15_c.log" || s15_bad+="the left-over hunk is not named"$'\n'
+    grep -q '^    +A line the second kit commit adds\.$' "$s15_c.log" || s15_bad+="the lines it wanted are not printed"$'\n'
+    grep -q '^  left for hand merging  \.claude/closeout\.md (1 of 1 changes)$' "$s15_c.log" || s15_bad+="the summary does not list it for hand merging"$'\n'
+    empty "15 update, hunk by hunk: a hunk that fits nowhere is printed for hand merging, and the file is not recorded accepted" "$s15_bad"
+
+    # --yes with no terminal: the template change and the .gitignore lines are applied without a prompt.
+    s15_c="$SCRATCH/s15-update-yes"
+    cp -R "$s15_u" "$s15_c"
+    grep -v -x -e '\.DS_Store' "$s15_c/.gitignore" >"$SCRATCH/s15-gi" && cat "$SCRATCH/s15-gi" >"$s15_c/.gitignore"
+    (cd "$SCRATCH" && AW_WIZARD_NONINTERACTIVE=1 "$st_bash" "$s15_c/kit/setup.sh" update --no-fetch --yes </dev/null >"$s15_c.log" 2>&1)
+    s15_bad=""
+    grep -q '^A line the second kit commit adds\.$' "$s15_c/.claude/closeout.md" || s15_bad+="the template change was not applied"$'\n'
+    [[ "$(awk -F '\t' '$1 == ".claude/closeout.md" { print $5 }' "$s15_c/.claude/kit-templates.lock")" == accepted ]] || s15_bad+="not recorded accepted"$'\n'
+    grep -q -x '\.DS_Store' "$s15_c/.gitignore" || s15_bad+="the .gitignore line was not added"$'\n'
+    grep -q '(y/n)' "$s15_c.log" && s15_bad+="a question was asked"$'\n'
+    grep -q '^+A line the second kit commit adds\.$' "$s15_c.log" || s15_bad+="the diff was not printed"$'\n'
+    grep -q '^  applied                \.claude/closeout\.md$' "$s15_c.log" && grep -q '^  applied                \.gitignore$' "$s15_c.log" \
+        || s15_bad+="the summary does not list both as applied"$'\n'
+    empty "15 update --yes: the template change and .gitignore lines are applied without a question, the diffs printed, both listed" "$s15_bad"
 else
     skp "15 update, attended: a template diff and .gitignore lines applied or declined — needs ${s15_why:-the update fixture above}"
 fi

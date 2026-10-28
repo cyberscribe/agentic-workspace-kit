@@ -5,7 +5,7 @@
 #
 #   kit/setup.sh [--target DIR] [--team NAME] [--owner NAME] [--owner-handle @h] [--pilot] [--cowork] [--init] [--reinstall]
 #   kit/setup.sh new DIR [--team NAME] [--owner NAME] [--owner-handle @h] [--pilot] [--cowork] [--kit-url URL] [--kit-ref REF]
-#   kit/setup.sh update [--target DIR] [--no-fetch]
+#   kit/setup.sh update [--target DIR] [--no-fetch] [--yes]
 #   kit/setup.sh --developer [--target DIR]
 #   kit/setup.sh link [SLUG] [--target DIR] [--dry-run]
 #   kit/setup.sh hooks [--target DIR] [--repo PATH] [--check]

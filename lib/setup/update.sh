@@ -2,7 +2,10 @@
 # lib/setup/update.sh: kit/setup.sh update. Brings a newer kit into the workspace and offers what came
 # with it.
 #
-#   update.sh --target WS [--no-fetch]
+#   update.sh --target WS [--no-fetch] [--yes]
+#
+#   --yes, -y   answer yes to the template-change and .gitignore offers, attended or not; the diffs are
+#               still printed. The migration question keeps its n default.
 #
 # 1. A workspace still in the 2.x layout goes to the migration instead: its dry run is shown, and an
 #    attended run is asked whether to run it for real.
@@ -10,11 +13,15 @@
 #    new kit's own copy of this script (--after-advance), so the steps below are the new kit's.
 # 3. The CHANGELOG since the old version is printed.
 # 4. Each template the kit changed since a file of yours was made from it is offered as a diff, one at
-#    a time (an attended run asks; an unattended one lists them and records nothing). Lines the kit
-#    added to its .gitignore template are offered as one diff.
+#    a time (an attended run asks; an unattended one lists them and records nothing). The diff is
+#    applied hunk by hunk: a hunk already in the file counts as there, one that fits is applied, and
+#    one that does neither is printed for hand merging. A file is recorded as accepted only when no
+#    hunk is left over, so the rest is offered again next time. Lines the kit added to its .gitignore
+#    template are offered as one diff.
 # 5. The engine runs again, creating any file of yours a newer kit adds; the skills bridge is refreshed
 #    when it is in use; the session-start summary is printed.
-# 6. The one commit to make is printed. Nothing is committed here.
+# 6. What was applied, already there and left for hand merging is listed, then the one commit to make.
+#    Nothing is committed here.
 #
 # Exit status: 0 finished, 1 stopped, 2 usage.
 # shellcheck source-path=SCRIPTDIR/../..
@@ -28,7 +35,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 # shellcheck disable=SC2034  # read by lib/wizard.sh
 WZ_STATE_SH="$KIT/plugins/workspace/scripts/state.sh"
 
-WS="" NO_FETCH=0 AFTER=0 OLD=""
+WS="" NO_FETCH=0 AFTER=0 OLD="" YES=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --target|--old)
@@ -36,8 +43,9 @@ while [[ $# -gt 0 ]]; do
             if [[ $1 == --target ]]; then WS="$2"; else OLD="$2"; fi
             shift 2 ;;
         --no-fetch) NO_FETCH=1; shift ;;
+        --yes|-y) YES=1; shift ;;
         --after-advance) AFTER=1; shift ;;
-        -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "update.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
@@ -98,7 +106,8 @@ if [[ $AFTER -eq 0 ]]; then
         exit 1
     fi
     # The rest runs from the kit just checked out, so a newer kit's steps are the ones taken.
-    exec "${BASH:-bash}" "$WS/kit/lib/setup/update.sh" --target "$WS" --after-advance --old "$old" ${nf[@]+"${nf[@]}"}
+    yes=(); [[ $YES -eq 0 ]] || yes=(--yes)
+    exec "${BASH:-bash}" "$WS/kit/lib/setup/update.sh" --target "$WS" --after-advance --old "$old" ${nf[@]+"${nf[@]}"} ${yes[@]+"${yes[@]}"}
 fi
 
 # --- After the advance, from the new kit ------------------------------------------------------------
@@ -134,7 +143,40 @@ else
 fi
 
 # --- Template diffs ---------------------------------------------------------------------------------
-ACCEPTED=() GITIGNORE_ADDED=0 RECORDED=0
+# by_hunk check|apply <dest> <diff>: each hunk of a one-file diff taken on its own, since one hunk that
+# no longer fits should not hold back the others. A hunk that applies in reverse has its new side in
+# the file already, so it counts as there. In apply mode a hunk that fits is applied, and one that does
+# neither is printed for hand merging. Sets H_THERE, H_FITS and H_LEFT to the counts.
+by_hunk() {
+    local mode="$1" dest="$2" dir i h
+    H_THERE=0 H_FITS=0 H_LEFT=0
+    dir="$(mktemp -d "${TMPDIR:-/tmp}/aw-hunks.XXXXXX")" || return 1
+    # The file header (diff --git, index, ---, +++) is repeated at the top of every hunk's own patch.
+    awk -v p="$dir/h." '
+        n == 0 && !/^@@/ { hdr = hdr $0 "\n"; next }
+        /^@@/ { if (f != "") close(f); n++; f = p n; printf "%s", hdr > f }
+        { print > f }' "$3"
+    i=1
+    while [[ -f "$dir/h.$i" ]]; do
+        h="$dir/h.$i"
+        if "${WG[@]}" apply --check -R "$h" >/dev/null 2>&1; then
+            H_THERE=$((H_THERE + 1))
+        elif "${WG[@]}" apply --check "$h" >/dev/null 2>&1 && { [[ $mode == check ]] || "${WG[@]}" apply "$h" >/dev/null 2>&1; }; then
+            H_FITS=$((H_FITS + 1))
+        else
+            H_LEFT=$((H_LEFT + 1))
+            if [[ $mode == apply ]]; then
+                say "  This change does not fit $dest as it is now; merge it by hand:"
+                sed -n '/^@@/,$p' "$h" | sed 's/^/    /'
+            fi
+        fi
+        i=$((i + 1))
+    done
+    rm -rf "$dir"
+}
+
+# Files this update changed, for the commit; and the lists the end summary gives.
+ACCEPTED=() APPLIED=() THERE=() HAND=() GITIGNORE_ADDED=0 RECORDED=0
 if [[ $offer -eq 1 ]]; then
     status_out="$("${BASH:-bash}" "$WS/kit/install.sh" --template-status --target "$WS" 2>/dev/null)"; rc=$?
     if [[ $rc -ne 0 ]]; then
@@ -148,9 +190,15 @@ if [[ $offer -eq 1 ]]; then
         case "$st" in
             changed)
                 "${BASH:-bash}" "$WS/kit/install.sh" --template-diff "$dest" --target "$WS" >"$diff_file" 2>/dev/null; drc=$?
+                if [[ $drc -eq 0 ]]; then
+                    by_hunk check "$dest" "$diff_file"
+                    # Every hunk already in the file: nothing to offer, only the record to bring up to date.
+                    [[ $((H_FITS + H_LEFT)) -gt 0 ]] || { drc=3; THERE+=("$dest"); }
+                fi
                 if [[ $drc -eq 3 ]]; then
-                    # The template changed in a way that renders the same for this workspace.
-                    if attended; then
+                    # The template changed in a way that renders the same for this workspace, or the
+                    # file already has the change.
+                    if attended || [[ $YES -eq 1 ]]; then
                         "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1 \
                             && RECORDED=1
                     fi
@@ -161,20 +209,25 @@ if [[ $offer -eq 1 ]]; then
                     continue
                 fi
                 listed=$((listed + 1))
-                if ! attended; then
-                    step "changed   $dest  (from kit/$src; kit/setup.sh update, run at a terminal, offers the diff)"
+                if ! attended && [[ $YES -eq 0 ]]; then
+                    step "changed   $dest  (from kit/$src; kit/setup.sh update, run at a terminal or with --yes, offers the diff)"
                     continue
                 fi
                 bold "The kit's template for $dest has changed:"; echo
                 cat "$diff_file"
                 echo
-                if confirm "Apply this change to $dest?" n; then
-                    if "${WG[@]}" apply --check "$diff_file" >/dev/null 2>&1 && "${WG[@]}" apply "$diff_file"; then
+                if [[ $YES -eq 1 ]] || confirm "Apply this change to $dest?" n; then
+                    by_hunk apply "$dest" "$diff_file"
+                    [[ $H_FITS -eq 0 ]] || ACCEPTED+=("$dest")
+                    if [[ $H_LEFT -eq 0 ]]; then
                         "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
-                        ACCEPTED+=("$dest"); RECORDED=1
+                        RECORDED=1
+                        APPLIED+=("$dest")
                         check "applied to $dest" true
                     else
-                        say "  The diff does not apply to $dest as it is now: left for hand merging."
+                        HAND+=("$dest ($H_LEFT of $((H_THERE + H_FITS + H_LEFT)) changes)")
+                        [[ $H_FITS -eq 0 ]] || APPLIED+=("$dest ($H_FITS of $((H_THERE + H_FITS + H_LEFT)) changes)")
+                        note "left for hand merging; offered again next time. Once merged by hand, answer n to stop the offer"
                     fi
                 else
                     "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status skipped --target "$WS" >/dev/null 2>&1
@@ -183,7 +236,8 @@ if [[ $offer -eq 1 ]]; then
                 fi ;;
             changed-no-base)
                 listed=$((listed + 1))
-                say "Template changed: $dest (from kit/$src). The kit's earlier version is not in this clone; compare $dest with kit/$src by hand." ;;
+                say "Template changed: $dest (from kit/$src). The kit's earlier version is not in this clone; compare $dest with kit/$src by hand."
+                HAND+=("$dest (no earlier version to diff against)") ;;
         esac
     done 3<<EOF
 $status_out
@@ -201,16 +255,18 @@ EOF
             bold "Lines the kit's .gitignore template has and yours does not:"; echo
             cat "$gi_diff"
             echo
-            if ! attended; then
-                note "unattended: nothing added; kit/setup.sh update, run at a terminal, offers them"
-            elif confirm "Add them to .gitignore?" y; then
+            if ! attended && [[ $YES -eq 0 ]]; then
+                note "unattended: nothing added; kit/setup.sh update, run at a terminal or with --yes, offers them"
+            elif [[ $YES -eq 1 ]] || confirm "Add them to .gitignore?" y; then
                 if "${WG[@]}" apply --check "$gi_diff" >/dev/null 2>&1 && "${WG[@]}" apply "$gi_diff"; then
                     GITIGNORE_ADDED=1; check "added to .gitignore" true
                 elif "${BASH:-bash}" "$WS/kit/install.sh" --target "$WS" --gitignore merge >/dev/null 2>&1; then
                     GITIGNORE_ADDED=1; check "added to .gitignore" true
                 else
                     warn "the lines could not be added; .gitignore is as it was"
+                    HAND+=(".gitignore (the lines above)")
                 fi
+                [[ $GITIGNORE_ADDED -eq 0 ]] || APPLIED+=(.gitignore)
             else
                 while IFS= read -r l; do
                     [[ -z "$l" ]] || "${BASH:-bash}" "$WS/kit/install.sh" --gitignore-decline "$l" --target "$WS" >/dev/null 2>&1
@@ -263,6 +319,15 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$hook" ]]; then
         echo
         if [[ -n "$summary" ]]; then printf '%s\n' "$summary"; else say "Workspace: nothing out of step."; fi
     fi
+fi
+
+# --- What the offers came to ------------------------------------------------------------------------
+if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#HAND[@]} -gt 0 ]]; then
+    echo
+    say "Template changes:"
+    for p in ${APPLIED[@]+"${APPLIED[@]}"}; do step "applied                $p"; done
+    for p in ${THERE[@]+"${THERE[@]}"}; do step "already there          $p"; done
+    for p in ${HAND[@]+"${HAND[@]}"}; do step "left for hand merging  $p"; done
 fi
 
 # --- The commit -------------------------------------------------------------------------------------
