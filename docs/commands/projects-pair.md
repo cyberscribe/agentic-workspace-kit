@@ -26,9 +26,11 @@ Source: `plugins/projects/commands/pair.md`.*
   at the end of that turn claims it, and from then on its hooks hear the PM. `leave` detaches it.
 - Takes one PM per mailbox (`.pm-session`) and message ids under a lock (`pair.sh post`), so two
   writers never share an id, and gives each command it hands the person in a paste-safe form.
-- Comes back every 30 minutes while anything is open, tests what the engineer reports end to end, and
-  accepts it or writes the next brief. `status` reports the pairing; `close` ends it, copies the
-  mailbox's decisions to the project's log and lets the engineer's session stop.
+- A Claude Code PM (`pair.sh <project folder> --pm`) is its own session, named `<slug>-pm`, woken by its watch
+  when a CC message arrives; a Cowork PM comes back on a timer. A build pairing takes the Claude Code PM.
+- Tests what the engineer reports end to end, and accepts it or writes the next brief. Before saying anything
+  about the engineer, the PM runs `pair.sh check` and asks the person rather than relaunching, unless the state is
+  `ended`. `status` reports the pairing; `close` ends it and copies the decisions to the project's log.
 
 ## When to reach for it
 
@@ -48,23 +50,21 @@ write, such as a conflict copy. Times come from the system clock, synced with ne
 can be, with their UTC offset (`2026-10-27 20:17 +0000`). A mailbox from before this keeps editing
 `Status:` in place, as its README says, and reads the same.
 
-**What keeps the engineer reading the mailbox?** A background watch it starts, which wakes it when a
-PM message arrives, and a Stop hook that points it at anything still open. Neither holds the session. See
+**What keeps the engineer reading the mailbox?** A background watch it starts, which wakes it when a PM
+message arrives, and a Stop hook that sends the turn back once if no watch runs. Neither holds the session. See
 [the pairing hooks](../hooks/projects-pair.md).
 
 **The engineer's session was started without the launcher.** It writes reports but never hears the
 PM. The PM's check-in says so once ("the engineer isn't watching the mailbox"); typing
 `/projects:pair join` in that session fixes it without an exit.
 
-**Can the engineer use ultracode?** Yes, when a phase fans out: it asks in its report, and the person
-types `/effort ultracode` in that session, or launches with `--ultracode`.
+**Can the engineer use ultracode?** Yes, when a phase fans out: `/effort ultracode` or `--ultracode`.
 
-**Does it run in Cowork?** Yes, as the `kit-projects-pair` skill: Cowork is the natural PM. The
-engineer is always Claude Code, on the machine with the code.
+**Does it run in Cowork?** Yes, as the `kit-projects-pair` skill; the engineer is always Claude Code.
 
 ## It's working if
 
 - The person never copies a message from one window to the other.
 - Every accepted `CC-NNN` names evidence the PM re-ran: a commit, a test result, the thing seen working.
-- `.cc-state` reads `waiting` between phases rather than `stopped`, and the launcher resumes rather
-  than starting over.
+- `pair.sh check` reads `working` or `watching` between phases, with its evidence, and the launcher resumes rather
+  than starting over; each pickup leaves a `received` line.
