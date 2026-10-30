@@ -64,6 +64,13 @@ prelude builds what they share:
 | `gitcount_run <log> <cmd…>` | Runs a command with a `git` that logs each call; `aw_count <log` counts them |
 | `cc_gate`, `cc_run` | Claude Code checks: opt-in, a scratch config directory, and one line per run in `$AW_CC_LOG` |
 
+A section that runs a hook gives it a workspace. The hooks act only inside a kit workspace and exit
+silently elsewhere, so a fixture holding `.claude/kit-templates.lock`, with `CLAUDE_PROJECT_DIR`
+pointing at it, keeps a check from depending on where the kit is checked out; a section that sets
+`CLAUDE_PROJECT_DIR` clears it again at its end, since `tests/run.sh` starts every run with it unset. A
+background process a check starts writes to `/dev/null` and is ended, with its children, before the
+section finishes: one that inherits the suite's stdout holds a piped run open until it exits.
+
 `AW_SECTIONS="13 16"` runs only the named sections, which is quick for work on one of them; a section
 that reads another's fixtures or functions brings it along (3 and 9 read 1's, 19 calls 9's
 `skill_ok`).
