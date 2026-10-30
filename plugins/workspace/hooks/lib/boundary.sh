@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# The workspace boundary, sourced by every hook of the kit's three plugins.
+# The workspace boundary, sourced by every hook of the kit's plugins.
 #
 # Setup installs the plugins for the person (user scope), so Claude Code loads them in every session on
 # the machine, wherever it is opened. Their hooks act only inside a kit workspace and pass silently
@@ -8,7 +8,7 @@
 # is resolved with pwd -P first, so a workspace entered through a symlink counts.
 #
 # Each plugin carries a byte-identical copy at hooks/lib/boundary.sh, because an installed plugin can
-# reach only its own folder. tests/sections/25-boundary.sh checks that the three copies match.
+# reach only its own folder. tests/sections/25-boundary.sh checks that the copies match.
 #
 # Written for bash 3.2, with no jq: the guard and the pair hooks run without it.
 

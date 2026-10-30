@@ -1,0 +1,29 @@
+{
+  "description": "Scheduler plugin — inside a kit workspace only. SessionStart: scheduled runs that failed and tasks that paused themselves since the last session saw them, and runs awaiting a reply, each with the command that shows it; silent when nothing needs attention. Stop: an answer given in a session that a waiting run owns is recorded as its reply; silent for every other session. Reads only the scheduler's state folder.",
+  "modules": ["./pane.tsx"],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

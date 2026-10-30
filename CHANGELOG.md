@@ -5,6 +5,85 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased
+
+**To update:** run `kit/setup.sh update` in the workspace and accept the template change, which enables
+the scheduler in `.claude/settings.json`; then make the commit it prints. Each person runs
+`kit/setup.sh` once more, or `claude plugin install scheduler@agentic-workspace --scope user`, to have
+it in every folder.
+
+- **A fourth plugin, scheduler (0.1.0).** `/scheduler:tasks` turns "every weekday at 7:30, do X" into
+  a scheduled Claude Code task that runs on the person's own machine and outlasts the session: one
+  Markdown file per task (front matter for its settings, the body its prompt) in
+  `~/.config/agentic-workspace-kit/scheduler/tasks/`, rendered into the machine's own scheduler — a
+  LaunchAgent on macOS, a systemd user timer on Linux and WSL2, or a line in one marked crontab block
+  elsewhere. Its script, `plugins/scheduler/scripts/schedule.sh`, creates, lists, shows, edits,
+  pauses, resumes, runs now, deletes (to `.trash/`) and reports history and logs, with `--json` on
+  `list` and `show`. Schedules are five-field cron with cron's day-of-month or day-of-week rule, the
+  `@daily`-style aliases, `every <n>m|h|d` and `once YYYY-MM-DD HH:MM`, in local time. Each run is a
+  headless `claude -p` with its tools named in advance (`permission_mode: dontAsk` by default), a lock
+  against overlap, a timeout, retries, a run folder with the session id to resume, and a desktop
+  notification on failure; after three failed runs in a row a task pauses itself and says why. Setup
+  installs it with the other plugins; installed, it schedules nothing until someone creates a task.
+  Section 26 of the suite covers it, every backend against stubs.
+- **What moving from a cloud scheduler needs.** A `CRON_TZ=` prefix or `timezone` field (the machine's
+  own zone is local; another works on systemd and is refused by launchd and cron). `chrome: true`.
+  `requires`, the connectors a task relies on, which `doctor <name>` looks for in `claude mcp list`.
+  `awaits_reply`: a good run ends `waiting`, the person is notified, and `reply <name> <answer>`
+  continues that run's session; unanswered past `reply_window` it expires. `result_to`, a file the
+  final message is also written to. Each scheduled run records its `due` time and is marked `late`
+  past five minutes, and `doctor` gives the macOS wake command. The `notify` command gets the run,
+  its resume command and a result file in its environment. A session-start line, inside a kit
+  workspace, names failed runs, self-paused tasks and runs awaiting a reply. A run that ended well
+  while a tool it reached for was refused is recorded `denied`, a failure, with the refused calls.
+- **Runs are billed to the person's login, never an API key.** A run's environment carries no API
+  credential; a setting that would supply one (an `apiKeyHelper`, or an API key or cloud provider in an
+  `env` block of the user, managed or project settings) refuses the run before `claude` is called; and
+  the call streams its events, so a run whose init event names an API key source is stopped at once.
+  Each is recorded `refused: api billing` and counts as a failure. `auth=` records the source on every
+  run, costs read `est.`, and `doctor` shows the login from `claude auth status`.
+- **systemd timers fire to the second** (`AccuracySec=1s`). systemd's default lets a timer fire up to a
+  minute late, which a live run in a container showed turning `every 1m` into two minutes.
+- **Live Linux runs in Docker, opt-in** (`AW_TEST_DOCKER=1`, section 26, `tests/docker/`): systemd on
+  Ubuntu and Fedora, cron on Debian without jq, each with a stub `claude`. WSL2 stays untested.
+- **Every run is told what it may use.** For a task with a tool list, the appended prompt names each
+  allowed and refused tool, one a line, and says that one refused call leaves the listed tools working
+  and that a `Bash(...)` pattern matches one command on its own.
+- **`verify`**, a task's own definition of done: a command run after a good run, outside Claude, whose
+  exit status decides `ok` or `failed: verify`. **The sandbox is visible:** `show`, `doctor <name>` and
+  `port check` say whether a task's folder is sandboxed and to which domains, and a network call the
+  sandbox refused counts as a refusal. A `port check` set rule says nothing once the field is set.
+- **`schedule.sh home [<dir> [--move]]`** keeps the task files in a folder of the person's choosing,
+  remembered in a pointer file (after `SCHEDULER_HOME`, before the default), so they can be versioned.
+  In a git repository, `show` and `doctor` mark uncommitted task files, `home` writes a `.gitignore`
+  for `.trash/`, and the scheduler never commits. A task file holding something shaped like a
+  credential warns in `show`, `doctor` and `port check`.
+- **`schedule.sh report`** gives, for a window (the last seven days by default), each task's fires due
+  while it was active, the scheduled runs and how they ended, the late ones and each due fire with no
+  run, every figure out of its whole and with the window.
+- **`schedule.sh port`** moves a set of cloud scheduled tasks one deterministic step at a time:
+  `start` imports an export paused, with folder path maps; `check` audits the schedule, zone, folders,
+  connectors, permission mode and the prompt against a rules table (`port-rules.tsv`) of cloud-only
+  idioms; `ack`, `trial` (plan mode by default), `activate`, `cloud-paused --confirmed`, `rollback`, `skip` and `done`
+  follow, each refusing to run before the one it comes after, with the place kept in a ledger. A cloud
+  task that has moved is paused, never deleted, so `rollback` is one step back.
+  `port trial` is a real run with the task's own permission mode and allowed tools, on a yes, with
+  `result_to` and `notify` held back; `--plan` is a plan-mode look that does not move the task on.
+  A refusal a run carried on from leaves it `ok (N refused)`, named and counted; one it stopped at
+  is `denied`.
+  Only the connectors a prompt names are carried into `requires`: the rest of those a cloud listing
+  attaches are reported and left out, and the cloud scheduler's own connector is never carried. The
+  lint knows a mount placeholder (`<mnt>/…`) and "your system prompt gives the mount path". A path that
+  looks like a sandbox mount but exists on this machine is not a finding.
+- Setup, its messages and the suite name the kit's plugins without counting them where they can, and
+  the suite counts twelve commands. Section 25's rule that every command works only inside a kit
+  workspace has one exception, `/scheduler:tasks`, which works in any folder.
+
+### Template changes
+
+- `templates/workspace/settings.json` enables `scheduler@agentic-workspace` beside the other three.
+- `templates/workspace/surface-rows/claude.md` names the scheduler among the plugins from `kit/`.
+
 ## v3.4.0 — 2026-10-28
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. From v3.3.0

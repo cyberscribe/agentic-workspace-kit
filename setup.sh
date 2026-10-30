@@ -158,7 +158,8 @@ lock_value() {
 # kit_gitlink: success when the workspace's index holds kit/ as a submodule (mode 160000).
 kit_gitlink() { [[ "$("${TG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print "y"; exit }')" == y ]]; }
 # The kit's plugins, as .claude/settings.json names them: <name>@agentic-workspace.
-KIT_PLUGINS="closeout projects workspace"
+# In the order the state check reports them (sorted), so the list compares with plugins_registered.
+KIT_PLUGINS="closeout projects scheduler workspace"
 # plugins_off: those the workspace's settings do not enable, from the last state check.
 plugins_off() {
     local p out=""
@@ -403,9 +404,9 @@ if layout_2x "$T"; then
 fi
 legacy="$(state_key legacy)"
 [[ -z "$legacy" ]] || note "Traces of an earlier kit, left as they are: $legacy (kit/setup.sh migrate --dry-run names them)"
-# laid_down: the engine's ledger, the import line, the three plugins, registered from kit/.
+# laid_down: the engine's ledger, the import line, the kit's plugins, registered from kit/.
 laid_down() {
-    key_is ledger present && key_is claude_md kit && key_is plugins_registered closeout,projects,workspace \
+    key_is ledger present && key_is claude_md kit && key_is plugins_registered "${KIT_PLUGINS// /,}" \
         && key_is plugins_mode kit
 }
 before_ok=0; laid_down && before_ok=1
@@ -603,7 +604,7 @@ fi
 # --- 7 · Restart Claude Code and check the plugins --------------------------------------------------
 stage 7 $TOTAL "Restart Claude Code and check the plugins"
 say "Claude Code reads a workspace's plugin settings only in a session started in its own folder, once"
-say "the person has trusted it. One new session there shows whether the kit's three plugins load."
+say "the person has trusted it. One new session there shows whether the kit's plugins load."
 echo
 # The workspace's settings reach a session opened on its own folder and no other, so the plugins are also
 # installed for the person (user scope): then a session opened anywhere inside the workspace, a project
@@ -637,6 +638,7 @@ else
     if [[ $go -eq 1 ]]; then
         say "Installing the plugins for you as well lets them load anywhere inside this workspace. Your own"
         say "Claude Code settings change; the workspace's do not. Outside a kit workspace their hooks stay quiet."
+        say "The scheduler among them acts only on tasks someone creates; installed, it schedules nothing."
         if confirm "Install them for you now?" y; then
             out="$("$cl" plugin marketplace add --scope user "$reach/kit" </dev/null 2>&1)"
             check "marketplace agentic-workspace, for you, from $reach/kit" test $? -eq 0 \
@@ -663,15 +665,15 @@ else
     # Installed for the person from this kit, there is nothing left to accept: the session only shows
     # whether they loaded. The offer and the re-pointing steps are for the other paths.
     if key_is plugins_scope user && key_is plugins_user_kit this; then
-        step "4. Type / and check that /closeout, /projects:new and /workspace:hygiene are listed."
+        step "4. Type / and check that /closeout, /projects:new, /scheduler:tasks and /workspace:hygiene are listed."
         step "5. If they are not, leave the session and start one more new one there: the first session after"
         step "   the folder is trusted can come up without them, and the next one has them."
         echo
-        if confirm "Were all three listed?" y; then
+        if confirm "Were they all listed?" y; then
             outcome "done"
         else
             step "If the second session has none of them either, run this in a terminal and check that"
-            step "closeout, projects and workspace each show Scope: user and enabled:"
+            step "${KIT_PLUGINS// /, } each show Scope: user and enabled:"
             step "  claude plugin list"
             step "A plugin listed but disabled is switched on with:"
             step "  claude plugin enable <name>@agentic-workspace --scope user"
@@ -684,22 +686,21 @@ else
             enable_steps
             echo
         fi
-        step "4. Accept the offer to install the agentic-workspace marketplace and its three plugins. Their"
+        step "4. Accept the offer to install the agentic-workspace marketplace and its plugins. Their"
         step "   hooks come with them. closeout has two: one keeps a draft when a session ends, one offers it"
         step "   when the next one starts. projects has one: the line that says where a project stands when a"
         step "   session opens in its folder. workspace has two: the line that names anything out of step when a"
-        step "   session opens, and a guard that keeps an agent from bypassing the git hooks."
-        step "5. Type /plugin and check that closeout, projects and workspace are listed from agentic-workspace,"
+        step "   session opens, and a guard that keeps an agent from bypassing the git hooks. scheduler acts only"
+        step "   on tasks someone creates with /scheduler:tasks; installed, it schedules nothing."
+        step "5. Type /plugin and check that ${KIT_PLUGINS// /, } are listed from agentic-workspace,"
         step "   at $reach/kit."
         step "6. If agentic-workspace is listed at another path, your user settings still name it there (a"
         step "   workspace moved from the 2.x layout does this). Re-point the user entry alone: a remove without"
-        step "   --scope user also takes the marketplace and the three plugins out of this workspace's"
+        step "   --scope user also takes the marketplace and the kit's plugins out of this workspace's"
         step "   .claude/settings.json, and uninstalls them. Quit Claude Code, then run these one at a time:"
         step "     claude plugin marketplace remove --scope user agentic-workspace"
         step "     claude plugin marketplace add --scope user $(printf '%q' "$reach/kit")"
-        step "     claude plugin install closeout@agentic-workspace"
-        step "     claude plugin install projects@agentic-workspace"
-        step "     claude plugin install workspace@agentic-workspace"
+        for p in $KIT_PLUGINS; do step "     claude plugin install $p@agentic-workspace"; done
         step "     git -C $(printf '%q' "$T") diff -- .claude/settings.json"
         step "   The last one prints nothing when the workspace's settings are as committed. If it prints a"
         step "   change, put the file back:"
@@ -709,7 +710,7 @@ else
         [[ "$optional" != *claude* ]] || warn "claude is not on PATH yet: install Claude Code first (stage 1 has the link)."
         note "The settings this workspace gives Claude Code register: $(state_key plugins_registered)"
         echo
-        if confirm "Were all three listed?" y; then
+        if confirm "Were they all listed?" y; then
             outcome "done"
         else
             step "If none are listed: quit Claude Code and start it again in this folder itself, trust it, and"
@@ -786,7 +787,7 @@ if ! check "CLAUDE.md imports the kit's standards (kit_import=$(state_key kit_im
 fi
 check "the ledger, .claude/kit-templates.lock" key_is ledger present || fix "kit/setup.sh --reinstall"
 check "workspace settings, .claude/workspace.md" key_is workspace_conventions present || fix "kit/setup.sh --reinstall"
-if ! check "plugins enabled in .claude/settings.json: closeout, projects, workspace" key_is plugins_registered closeout,projects,workspace; then
+if ! check "plugins enabled in .claude/settings.json: ${KIT_PLUGINS// /, }" key_is plugins_registered "${KIT_PLUGINS// /,}"; then
     # One fix, several lines: the commands that enable what is missing, run in the workspace's folder.
     off=$((off + 1))
     step "  it enables: $(state_key plugins_registered | sed 's/^$/none/'). In a terminal:"

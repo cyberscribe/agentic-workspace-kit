@@ -1,0 +1,28 @@
+# The prompt lint `schedule.sh port check` runs on a task moved from a cloud scheduler: the idioms a
+# cloud task uses to reach a computer it is not on, and what a local run uses instead. One rule a line,
+# tab-separated: id, severity, pattern, message, fix. The pattern is an extended regular expression,
+# matched line by line, case ignored. Severities:
+#   block   the task stays at imported until the prompt no longer matches
+#   block-path  as block, unless every path on the line that matches is one that exists on this machine
+#               (a real home folder can look like a sandbox mount)
+#   warn    reported; port ack records that a person read it
+#   set     the fix is a field (key: value), which check writes into the task file and records
+#   trial   not a prompt rule: a line in a trial's output that fails the trial
+#   refusal not a prompt rule: a line in a run's stream that is a refusal of its own (a sandbox
+#           refusing a network call), counted as one
+# tests/sections/26-scheduler.sh holds one match and one near miss for each rule.
+id	severity	pattern	message	fix
+bridge-shell	block	(device_bash|mcp__[a-z0-9_-]+__(bash|shell|run_command|exec)([^a-z0-9_]|$))	A bridge tool runs shell commands on a computer the cloud task could not reach.	Run the command with Bash, and name it in allowed_tools; steps with loops or redirects go better in one script the task may run.
+osascript-bridge	block	do shell script	An osascript "do shell script" used as a bridge to a shell.	Call the command directly with Bash.
+mounted-path	block-path	(\$HOME/mnt/|~/mnt/|(^|[^a-z])/sessions/|/mnt/user-data|outputs (dir|directory|folder)([^a-z]|$))	A path from a cloud sandbox's mounts, which does not exist here.	Use the real path on this machine, or a --path-map.
+mount-placeholder	block	<(mnt|mount|mounted)([ >/_-][^>]*)?>|<the (outputs?|mount|mounted)[ >][^>]*>	A placeholder for a cloud sandbox's mount path, which the cloud filled in and a local run cannot.	Write the real path on this machine in its place.
+system-prompt-path	block	your system prompt (gives|has|names|says|holds) the (mount|mounted|outputs?) (path|folder|dir|directory)	A mount path the cloud scheduler's system prompt supplied, which a local run does not have.	Write the real path on this machine into the prompt.
+cloud-session	block	(CLAUDE_CODE_REMOTE_SESSION_ID|claude\.ai/(code/)?(session|chat)s?/)	A cloud session variable or link, which a local run does not have.	Remove it; the run folder records the session id, and show prints the resume command.
+sandbox-install	warn	(pip3? install .*--break-system-packages|apt(-get)? install|npm (install|i) -g )	An install step for a fresh sandbox; this machine keeps what is installed.	Install it once by hand, and take the step out.
+toolsearch	warn	ToolSearch.*select:	A ToolSearch line that loads tools; a local run is given its tools by allowed_tools.	Take the line out, and name the tools in allowed_tools.
+browser-tools	set	(mcp__claude-in-chrome__|claude in chrome)	The task drives a browser.	chrome: true
+awaits-reply	set	((reply|respond|answer) (to me )?in this (session|conversation|chat)|wait (for|on) (my|the user's|their|a) (reply|answer|response))	The task waits for the person's reply.	awaits_reply: true
+post-conversation	warn	(post|paste|put|share|write) (it |the [a-z]+ |them )?(into|in|to) (this|the) (conversation|chat|session)	The result was meant for a conversation; a local run keeps it in its run folder.	Set result_to to a file the person reads.
+tool-unavailable	trial	(tool [^ ]+ (is )?(not available|unavailable)|no such tool|(is|was) not (an )?available tool|permission (to use [^ ]+ )?(was )?denied|not allowed to use)	A tool the run reached for was not available to it.	Add the tool to allowed_tools, or check the connector with doctor <name>.
+credential	warn	((token|api[_-]?key|secret|password|passwd)["']?[[:space:]]*[=:][[:space:]]*["']?[A-Za-z0-9_./+=-]{12,}|bearer[[:space:]]+[A-Za-z0-9._~+/=-]{16,}|(sk|ghp|gho|xox[abp])[-_][A-Za-z0-9_-]{16,})	Something shaped like a credential is written into the task file, which may be committed or shared.	Keep the credential in a file the prompt points to, and leave the task file without it.
+sandbox-network	refusal	(Tunnel connection failed: 403( user denied)?|CONNECT tunnel failed, response 403|blocked by (the )?sandbox|sandbox (denied|blocked) (a |the )?(network|connection))	A network call the sandbox refused, since its domain is not on the allowed list.	Add the domain to sandbox.network.allowedDomains in the folder's settings, or run the task from a folder without the sandbox.

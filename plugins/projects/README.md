@@ -234,6 +234,12 @@ wakes it when a message arrives, so one written while it was idle is picked up
 without you relaying it, and the session stays free for you to type into. The PM checks back every 30 minutes, tests what is reported against evidence,
 and accepts it or writes the next brief; `close` ends the pairing.
 
+A build pairing can have a Claude Code PM too: `scripts/pair.sh <project folder> --pm` starts (or resumes)
+its session, named `<slug>-pm`, whose watch on `to-pm.md` wakes it when the engineer writes. Cowork suits
+a PM whose work is mostly outward (mail, Slack, documents). The engineer's state is derived from evidence
+(its process, its last activity and its watch) and printed with that evidence, so a PM asks rather than
+guessing; each message's pickup is recorded as a `received` line in the reader's status file.
+
 An engineer's session started some other way joins in place: type
 `/projects:pair join` in it, and the Stop hook at the end of that turn binds it
 to the mailbox (`leave` undoes it). If the PM sees an open message and no

@@ -24,10 +24,16 @@ mkdir -p "$s23_mb"
 mkdir -p "$SCRATCH/s23/.claude" && : > "$SCRATCH/s23/.claude/kit-templates.lock"
 
 s23_reset() {
+    # A stand-in watch from an earlier check is ended with the reset that clears it.
+    [ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
     rm -f "$s23_mb"/.cc-* "$s23_mb"/.pm-* "$s23_mb/.closed"
     printf '# To CC\n\n## PM-001 · 2026-10-10 10:00 · Brief\nBuild it.\nStatus: done 2026-10-10 11:00 abc1234\n' > "$s23_mb/to-cc.md"
     printf '# To the PM\n' > "$s23_mb/to-pm.md"
 }
+# s23_standin: a watch the Stop hook counts as running (a sleep, which the next reset ends). Checks about
+# what a message does, rather than the no-watch rule, use it so the watch rule does not get in the way.
+# The command line reads "pair.sh watch", which is what watching() looks for; the trailing : keeps bash from exec-ing sleep.
+s23_standin() { bash -c 'sleep 900; :' pair.sh watch & printf '%s\n' "$!" > "$s23_mb/.cc-watch"; }
 s23_add() { printf '\n## %s · 2026-10-10 12:00 · More\nAnd this.\nStatus: open\n' "$1" >> "$s23_mb/to-cc.md"; }
 # s23_run <mode> [VAR=value...]: runs the hook with the launcher's variables; prints "<exit>|<stderr>".
 s23_run() {
@@ -49,12 +55,18 @@ s23_ctx="$(printf '{"session_id":"sess-123","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc
     && ok "23 hook start: records the session id, says nothing is open and gives the watch command" \
     || ko "23 hook start: records the session id, says nothing is open and gives the watch command" "$s23_ctx"
 
+# With the pairing open and no watch running, the first Stop sends the turn back once to start the watch;
+# the second lets it end (the no-watch rule, below). Nothing open is no reason to skip the watch.
 s23_out="$(s23_run stop)"
-[[ "$s23_out" == "0|" ]] && grep -q '^state: stopped' "$s23_mb/.cc-state" \
-    && ok "23 hook stop: nothing open lets the session stop" || ko "23 hook stop: nothing open lets the session stop" "$s23_out"
+s23_out2="$(s23_run stop)"
+[[ "$s23_out" == 2\|*"watch --mailbox"* && "$s23_out2" == "0|" ]] && grep -q '^state: stopped' "$s23_mb/.cc-state" \
+    && ok "23 hook stop: with nothing open and no watch, the first Stop asks for the watch and the second lets the session stop" \
+    || ko "23 hook stop: with nothing open and no watch, the first Stop asks for the watch and the second lets the session stop" "$s23_out; $s23_out2"
 
 # The Stop hook holds nothing: with nothing open it is back well inside a second or two, whatever an
 # older launcher left in the environment.
+# The counter is cleared by a release, so one block comes first; the timed call is then the release.
+s23_run stop >/dev/null
 s23_t0=$(date +%s)
 s23_out="$(s23_run stop PAIR_WAIT_MINUTES=50)"
 s23_dt=$(( $(date +%s) - s23_t0 ))
@@ -67,6 +79,7 @@ s23_out="$(s23_run stop)"
     || ko "23 hook stop: an open message sends the agent back (exit 2, naming it)" "$s23_out"
 s23_out="$(s23_run stop)"
 [[ "$s23_out" == 2\|*PM-002* ]] && ok "23 hook stop: a second nudge for the same message" || ko "23 hook stop: a second nudge for the same message" "$s23_out"
+s23_standin
 s23_out="$(s23_run stop)"
 [[ "$s23_out" == "0|" ]] && ok "23 hook stop: no third nudge, so a stuck message cannot loop" || ko "23 hook stop: no third nudge, so a stuck message cannot loop" "$s23_out"
 
@@ -77,6 +90,7 @@ s23_out="$(s23_run stop)"
 [[ "$s23_out" == 2\|*PM-005* ]] && ok "23 hook stop: a Status at the end of a sentence is read" || ko "23 hook stop: a Status at the end of a sentence is read" "$s23_out"
 s23_reset
 printf '\n## PM-006 · 2026-10-10 12:00 · Quoted\nSet it to `Status: open` when you write one.\n**Status:** done 12:30\n' >> "$s23_mb/to-cc.md"
+s23_standin
 s23_out="$(s23_run stop)"
 [[ "$s23_out" == "0|" ]] && ok "23 hook stop: the last Status in a message is the one that holds" || ko "23 hook stop: the last Status in a message is the one that holds" "$s23_out"
 
@@ -109,7 +123,7 @@ wait
     && ok "23 watch: a message written while it runs ends it, naming the message (${s23_dt}s)" \
     || ko "23 watch: a message written while it runs ends it, naming the message" "$s23_out after ${s23_dt}s"
 s23_out="$(s23_run stop)"
-[[ "$s23_out" == 2\|*PM-003* ]] && s23_out="$(s23_run stop)" && [[ "$s23_out" == "0|" ]] \
+[[ "$s23_out" == 2\|*PM-003* ]] && s23_standin && s23_out="$(s23_run stop)" && [[ "$s23_out" == "0|" ]] \
     && ok "23 watch: a message it reported gets one more nudge from the Stop hook, then none" \
     || ko "23 watch: a message it reported gets one more nudge from the Stop hook, then none" "$s23_out"
 
@@ -260,15 +274,24 @@ s23_out2="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
 [[ "$s23_out" == *"not started"*"PM-014"*"isn't watching the mailbox; type /projects:pair join"* && "$s23_out2" != *"isn't watching"* ]] \
     && ok "23 check: no engineer session and a message open gives the join line, once" \
     || ko "23 check: no engineer session and a message open gives the join line, once" "first: $s23_out"$'\n'"second: $s23_out2"
-printf 'sess-j\n' > "$s23_mb/.cc-session"
-printf 'state: waiting\nsince: 2026-10-23 12:29\nsession: sess-j\n' > "$s23_mb/.cc-state"
+# The engineer's state is derived from evidence: a live process with a fresh activity beat is working; a
+# live process with a stale beat and no watch is idle, and with a message open that gets the join line
+# once; a fresh beat again clears the spell.
+s23_claude_sleep() { sleep 600 & s23_claude=$!; }
+s23_claude_sleep
+printf 'sess-j\n' > "$s23_mb/.cc-session"; printf '%s\n' "$s23_claude" > "$s23_mb/.cc-pid"
+printf '%s\n' "$(date +%s)" > "$s23_mb/.cc-beat"
 s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
-age "$s23_mb/.cc-state" 0.05
+printf '%s\n' "$(( $(date +%s) - 300 ))" > "$s23_mb/.cc-beat"
 s23_out2="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
 s23_out3="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
-[[ "$s23_out" != *"isn't watching"* && "$s23_out2" == *"Engineer: waiting since 2026-10-23 12:29"*"isn't watching"* && "$s23_out3" != *"isn't watching"* ]] \
-    && ok "23 check: a state an hour old with a message open gives the join line once; a fresh one does not" \
-    || ko "23 check: a state an hour old with a message open gives the join line once; a fresh one does not" "fresh: $s23_out"$'\n'"old: $s23_out2"$'\n'"again: $s23_out3"
+printf '%s\n' "$(date +%s)" > "$s23_mb/.cc-beat"
+s23_out4="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+kill "$s23_claude" 2>/dev/null
+[[ "$s23_out" == *"Engineer: working: last activity"*"pid $s23_claude alive"* && "$s23_out" != *"isn't watching"* \
+    && "$s23_out2" == *"Engineer: idle"*"isn't watching"* && "$s23_out3" != *"isn't watching"* && "$s23_out4" != *"isn't watching"* ]] \
+    && ok "23 check: working on a fresh beat with its evidence; idle on a stale one, with the join line once; a fresh beat clears it" \
+    || ko "23 check: working on a fresh beat with its evidence; idle on a stale one, with the join line once; a fresh beat clears it" "fresh: $s23_out"$'\n'"stale: $s23_out2"$'\n'"again: $s23_out3"$'\n'"fresh again: $s23_out4"
 s23_reset
 printf 'sess-j\n' > "$s23_mb/.cc-session"; printf 'state: waiting\nsince: x\n' > "$s23_mb/.cc-state"; age "$s23_mb/.cc-state" 0.05
 s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
@@ -508,3 +531,302 @@ grep -q 'status-cc.md' "$s23_ex/README.md" && grep -q "%z" "$s23_ex/README.md" &
 grep -q '{mailbox}' "$s23_ex/KICKOFF.md" && ! grep -q '<mailbox path>' "$s23_ex/KICKOFF.md" || s23_bad+="KICKOFF: {mailbox}"$'\n'
 grep -q 'pair.sh where' "$s23_cmd" && grep -q 'repository: none' "$s23_cmd" && grep -q 'pair.sh default' "$s23_cmd" && grep -q "%z" "$s23_cmd" || s23_bad+="command: where, default, no .gitignore outside a repository, offset times"$'\n'
 empty "23 guidance: status files, offset times and the mailbox's location are in the README, KICKOFF and command" "$s23_bad"
+
+# ---- Liveness from evidence (PM-057): the claude process, the beat, the end, and the state derived from them
+s23_reset
+# Each case gives the hook its own ancestry. The suite runs inside whatever started it, which may be a Claude Code
+# session with a claude process above it, so a check that leaned on that would pass there and fail in a plain terminal.
+# The hook's input names this section's folder, so the boundary check does not fall back to the suite's own cwd.
+s23_cs="$SCRATCH/s23/claude-stub"; mkdir -p "$s23_cs"
+printf '{"session_id":"sess-123","cwd":"%s"}' "$s23_p" > "$s23_cs/start-in.json"
+# B1: a stub executable named claude, run through exec -a claude, starts the hook. The hook's parent is the stub, so
+# the walk must record the stub's own pid, which the stub prints before it runs the hook.
+cat > "$s23_cs/claude" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$$"
+PAIR_ROLE=cc PAIR_MAILBOX="$1" bash "$2" start < "$3" >/dev/null 2>&1
+EOF
+s23_reset
+s23_stub="$(exec -a claude bash "$s23_cs/claude" "$s23_mb" "$s23_hook" "$s23_cs/start-in.json")"
+s23_rec="$(cat "$s23_mb/.cc-pid" 2>/dev/null)"
+[[ "$s23_stub" =~ ^[0-9]+$ && "$s23_rec" == "$s23_stub" ]] \
+    && ok "23 liveness: with a claude above it, the start hook records that process (pid $s23_rec), found by the walk" \
+    || ko "23 liveness: with a claude above it, the start hook records that process, found by the walk" "stub $s23_stub; recorded $s23_rec"
+# B2: no claude above the hook. The walk's ps is shimmed for this one run, since the suite may itself sit under a
+# claude process: every process reports the comm zsh and the parent 1, so the walk finds nothing. B1 uses the real ps.
+s23_shim="$SCRATCH/s23/ps-shim"; mkdir -p "$s23_shim"
+cat > "$s23_shim/ps" <<'EOF'
+#!/bin/bash
+case "$*" in *ppid=*) echo 1 ;; *) echo zsh ;; esac
+EOF
+chmod +x "$s23_shim/ps"
+s23_reset
+PATH="$s23_shim:$PATH" PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start < "$s23_cs/start-in.json" >/dev/null 2>&1
+printf '{}' | PATH="$s23_shim:$PATH" PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" beat >/dev/null 2>&1
+s23_nopid="$(wc -c < "$s23_mb/.cc-pid" 2>/dev/null | tr -d ' ')"
+s23_nost="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_nopid" == 0 && -f "$s23_mb/.cc-session" && -f "$s23_mb/.cc-beat" && "$s23_nost" == *"working: last activity"* && "$s23_nost" != *"alive"* ]] \
+    && ok "23 liveness: with no claude above the hook, no pid is recorded and the state rests on the beat" \
+    || ko "23 liveness: with no claude above the hook, no pid is recorded and the state rests on the beat" "pid bytes $s23_nopid; $s23_nost"
+
+# The beat: silent, inert outside a pairing, rewritten at most every 30 seconds.
+s23_reset
+s23_out="$(printf '{"session_id":"sess-123"}' | env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" beat 2>&1; echo "rc=$?")"
+s23_b1="$(cat "$s23_mb/.cc-beat" 2>/dev/null)"
+s23_now="$(date +%s)"
+printf '%s\n' "$(( s23_now - 10 ))" > "$s23_mb/.cc-beat"
+printf '{}' | env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" beat >/dev/null 2>&1
+s23_b2="$(cat "$s23_mb/.cc-beat")"
+printf '%s\n' "$(( s23_now - 60 ))" > "$s23_mb/.cc-beat"
+printf '{}' | env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" beat >/dev/null 2>&1
+s23_b3="$(cat "$s23_mb/.cc-beat")"
+[[ "$s23_out" == "rc=0" && "$s23_b1" =~ ^[0-9]+$ && "$s23_b2" == "$(( s23_now - 10 ))" && "$s23_b3" -ge "$s23_now" ]] \
+    && ok "23 beat: silent; writes the epoch; a beat under 30 seconds old is not rewritten, an older one is" \
+    || ko "23 beat: silent; writes the epoch; a beat under 30 seconds old is not rewritten, an older one is" "$s23_out; b1 $s23_b1; b2 $s23_b2; b3 $s23_b3"
+s23_bt="$(env -u PAIR_ROLE -u PAIR_MAILBOX PAIR_REGISTRY="$SCRATCH/s23/no-registry" bash "$s23_hook" beat </dev/null 2>&1; echo "rc=$?")"
+[[ "$s23_bt" == "rc=0" && ! -f "$SCRATCH/s23/no-registry" ]] && ok "23 beat: outside a pairing it writes nothing and says nothing" \
+    || ko "23 beat: outside a pairing it writes nothing and says nothing" "$s23_bt"
+# Measured on the author's machine (2026-10-30): about 11 ms per call outside a pairing, about 33 ms inside.
+# The check is loose so a busy machine does not fail it: twenty calls within ten seconds.
+s23_t0=$(date +%s)
+for s23_i in $(seq 20); do printf '{}' | env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" beat >/dev/null 2>&1; done
+s23_dt=$(( $(date +%s) - s23_t0 ))
+[[ $s23_dt -lt 10 ]] && ok "23 beat: twenty calls take under ten seconds (${s23_dt}s)" \
+    || ko "23 beat: twenty calls take under ten seconds" "${s23_dt}s"
+
+# The end hook writes .cc-ended, and a start (a resume) clears it.
+s23_reset
+s23_run end >/dev/null
+s23_e1="$(test -f "$s23_mb/.cc-ended" && echo y)"
+s23_run start >/dev/null
+[[ "$s23_e1" == y && ! -f "$s23_mb/.cc-ended" ]] && ok "23 end: the end hook writes .cc-ended; a start clears it" \
+    || ko "23 end: the end hook writes .cc-ended; a start clears it" "after end: $s23_e1"
+
+# The state is derived from evidence and printed with it; the cache is labelled.
+s23_reset
+sleep 600 & s23_live=$!
+printf 'sess-j\n' > "$s23_mb/.cc-session"; printf '%s\n' "$s23_live" > "$s23_mb/.cc-pid"; printf '%s\n' "$(date +%s)" > "$s23_mb/.cc-beat"
+s23_st_work="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+printf 'state: working\nsince: 2026-10-30 12:00 +0000\nsession: sess-j\n' > "$s23_mb/.cc-state"
+s23_st_cache="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+: > "$s23_mb/.cc-ended"; s23_st_end="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"; rm -f "$s23_mb/.cc-ended"
+sleep 0 & s23_dead=$!; wait "$s23_dead"; printf '%s\n' "$s23_dead" > "$s23_mb/.cc-pid"
+s23_st_dead="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+printf '%s\n' "$s23_live" > "$s23_mb/.cc-pid"; printf '%s\n' "$(( $(date +%s) - 600 ))" > "$s23_mb/.cc-beat"
+s23_standin
+s23_st_watch="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+kill "$s23_live" 2>/dev/null
+[[ "$s23_st_work" == *"Engineer: working: last activity"*"pid $s23_live alive"* \
+    && "$s23_st_cache" == *"Cached state (.cc-state, written at the last hook event): working"* \
+    && "$s23_st_end" == *"Engineer: ended: session ended at"* \
+    && "$s23_st_dead" == *"Engineer: ended: no running process for pid $s23_dead"* \
+    && "$s23_st_watch" == *"Engineer: watching: watch running"* ]] \
+    && ok "23 state: working, ended (marked and dead pid), and watching are derived, each with its evidence; the cache is labelled" \
+    || ko "23 state: working, ended (marked and dead pid), and watching are derived, each with its evidence; the cache is labelled" \
+        "$s23_st_work"$'\n'"$s23_st_cache"$'\n'"$s23_st_end"$'\n'"$s23_st_dead"$'\n'"$s23_st_watch"
+
+# ---- No unread messages (PM-057 D2): a turn with the pairing open and no watch is sent back once ----------
+s23_reset
+s23_nw1="$(s23_run stop)"
+s23_nw2="$(s23_run stop)"
+[[ "$s23_nw1" == 2\|*"watch --mailbox"* && "$s23_nw2" == "0|" && "$(cat "$s23_mb/.cc-nowatch")" == 0 ]] \
+    && ok "23 no-watch: the first Stop names the watch command, the second releases the turn and clears the counter; no loop" \
+    || ko "23 no-watch: the first Stop names the watch command, the second releases the turn; no loop" "$s23_nw1; $s23_nw2"
+s23_run stop >/dev/null
+printf '{}' | env PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" beat --prompt >/dev/null 2>&1
+s23_nw3="$(s23_run stop)"
+[[ "$s23_nw3" == 2\|*"watch --mailbox"* ]] && ok "23 no-watch: a turn sent back (counter set) and then a new prompt (beat --prompt): the next Stop is sent back, not released" \
+    || ko "23 no-watch: a turn sent back (counter set) and then a new prompt (beat --prompt): the next Stop is sent back, not released" "$s23_nw3"
+# A watch that starts leaves the counter alone (a watch that exits at once must leave the release armed); with it
+# running the Stop hook lets the turn end and clears the counter.
+printf '1\n' > "$s23_mb/.cc-nowatch"
+s23_watch >/dev/null 2>&1 &
+s23_wpid=$!
+s23_i=0; until [[ -f "$s23_mb/.cc-watch" || $s23_i -ge 50 ]]; do sleep 0.1; s23_i=$((s23_i + 1)); done
+s23_wn="$(cat "$s23_mb/.cc-nowatch")"
+s23_wstop="$(s23_run stop)"
+kill -TERM "$(cat "$s23_mb/.cc-watch" 2>/dev/null)" 2>/dev/null; wait "$s23_wpid" 2>/dev/null
+[[ "$s23_wn" == 1 && "$s23_wstop" == "0|" && "$(cat "$s23_mb/.cc-nowatch")" == 0 ]] && ok "23 no-watch: a watch that starts leaves the counter; with it running the Stop hook lets the turn end and clears the counter" \
+    || ko "23 no-watch: a watch that starts leaves the counter; with it running the Stop hook lets the turn end and clears the counter" "counter $s23_wn; stop $s23_wstop"
+
+# ---- The PM's guard (PM-060 A): a Claude Code PM's turn is held once for its watch, as the engineer's is
+s23_reset
+s23_hook_real="$(cd "$(dirname "$s23_hook")" && pwd -P)/pair.sh"
+s23_pmw="bash $(printf '%q' "$s23_hook_real") watch --role pm --mailbox $(printf '%q' "$s23_mb")"
+s23_pg1="$(s23_run stop PAIR_ROLE=pm)"
+s23_pg2="$(s23_run stop PAIR_ROLE=pm)"
+[[ "$s23_pg1" == "2|"*"$s23_pmw"* && "$s23_pg2" == "0|" ]]     && ok "23 pm guard: the PM's turn is blocked once with the PM watch command in the reason, and the second Stop releases it"     || ko "23 pm guard: the PM's turn is blocked once with the PM watch command in the reason, and the second Stop releases it" "$s23_pg1; $s23_pg2"
+# A PM watch that starts clears the PM's counter, so with the watch running the turn ends; once the watch has ended,
+# the next turn is held again.
+s23_pwatch() { env PAIR_ROLE=pm PAIR_MAILBOX="$s23_mb" PAIR_POLL_SECONDS=1 bash "$s23_hook" watch --role pm --mailbox "$s23_mb" </dev/null 2>&1; }
+s23_reset
+s23_run stop PAIR_ROLE=pm >/dev/null
+printf '1\n' > "$s23_mb/.pm-nowatch"
+s23_pwatch >/dev/null 2>&1 &
+s23_pwpid=$!
+s23_i=0; until [[ -f "$s23_mb/.pm-watch" || $s23_i -ge 50 ]]; do sleep 0.1; s23_i=$((s23_i + 1)); done
+s23_pwn="$(cat "$s23_mb/.pm-nowatch" 2>/dev/null)"
+s23_pws="$(s23_run stop PAIR_ROLE=pm)"
+kill -TERM "$(cat "$s23_mb/.pm-watch" 2>/dev/null)" 2>/dev/null; wait "$s23_pwpid" 2>/dev/null
+s23_pwa="$(s23_run stop PAIR_ROLE=pm)"
+[[ "$s23_pwn" == 1 && "$s23_pws" == "0|" && "$s23_pwa" == 2\|*"watch --role pm"* ]]     && ok "23 pm guard: a PM watch that starts leaves the counter; with it running the turn ends, and once it has ended the next turn is held"     || ko "23 pm guard: a PM watch that starts leaves the counter; with it running the turn ends, and once it has ended the next turn is held" "counter $s23_pwn; stop $s23_pws; after $s23_pwa"
+# A watch pid counts only when the process is a pair.sh watch of this side: a live process that is not a watch
+# (a reused pid) leaves the Stop guard holding the turn, for both roles.
+s23_reset; rm -f "$s23_mb/.cc-nowatch" "$s23_mb/.pm-nowatch"
+sleep 60 & s23_nwp=$!
+printf '%s\n' "$s23_nwp" > "$s23_mb/.cc-watch"
+s23_nwc="$(s23_run stop)"
+printf '%s\n' "$s23_nwp" > "$s23_mb/.pm-watch"
+s23_nwpm="$(s23_run stop PAIR_ROLE=pm)"
+kill "$s23_nwp" 2>/dev/null; wait "$s23_nwp" 2>/dev/null; rm -f "$s23_mb/.cc-watch" "$s23_mb/.pm-watch"
+[[ "$s23_nwc" == "2|"* && "$s23_nwpm" == "2|"* ]] && ok "23 watch pid: a live process that is not a pair.sh watch does not count as a running watch, for either role" \
+    || ko "23 watch pid: a live process that is not a pair.sh watch does not count as a running watch, for either role" "cc $s23_nwc; pm $s23_nwpm"
+s23_reset; rm -f "$s23_mb/.cc-nowatch" "$s23_mb/.pm-nowatch"
+# A closed pairing lets the PM's turn end, and a PM session's start writes no engineer state.
+s23_reset; rm -f "$s23_mb/.pm-nowatch" "$s23_mb/.cc-session" "$s23_mb/.cc-state"
+: > "$s23_mb/.closed"; s23_cl="$(s23_run stop PAIR_ROLE=pm)"; rm -f "$s23_mb/.closed"
+[[ "$s23_cl" == "0|" && ! -f "$s23_mb/.pm-nowatch" ]] && ok "23 pm guard: a closed pairing lets the PM's turn end" \
+    || ko "23 pm guard: a closed pairing lets the PM's turn end" "$s23_cl"
+s23_run start PAIR_ROLE=pm >/dev/null
+[[ ! -f "$s23_mb/.cc-session" && ! -f "$s23_mb/.cc-state" ]] && ok "23 pm start: a PM session's SessionStart writes no engineer state" \
+    || ko "23 pm start: a PM session's SessionStart writes no engineer state" "$(ls -a "$s23_mb")"
+# A PM session with no mailbox bound is outside any pairing: it exits 0 and writes nothing.
+s23_reset
+s23_pnm="$(printf '{"session_id":"x"}' | env -u PAIR_MAILBOX PAIR_ROLE=pm PAIR_REGISTRY="$SCRATCH/s23/no-registry" bash "$s23_hook" stop 2>&1; echo "rc=$?")"
+[[ "$s23_pnm" == "rc=0" && ! -f "$s23_mb/.pm-nowatch" ]]     && ok "23 pm guard: a PM session with no PAIR_MAILBOX is silent, exits 0 and writes nothing"     || ko "23 pm guard: a PM session with no PAIR_MAILBOX is silent, exits 0 and writes nothing" "$s23_pnm"
+
+# ---- Pickup visible (PM-057 D3): a received line in the reader's own file, which settles nothing ----------
+s23_reset
+rm -f "$s23_mb/status-cc.md"
+s23_add PM-020
+s23_r1="$(s23_run stop)"
+s23_r2="$(s23_run stop)"
+s23_rc="$(grep -c ' · received$' "$s23_mb/status-cc.md" 2>/dev/null)"
+s23_rck="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_r1" == 2\|*PM-020* && "$s23_r2" == 2\|*PM-020* && "$s23_rc" == 1 \
+    && "$(grep -cE '^PM-020 · [0-9-]+ [0-9:]+ [+-][0-9]{4} · received$' "$s23_mb/status-cc.md")" == 1 ]] \
+    && ok "23 received: the first pointing writes one received line in status-cc.md, and a second pointing writes no other" \
+    || ko "23 received: the first pointing writes one received line in status-cc.md, and a second pointing writes no other" "$s23_r1; $s23_r2; count $s23_rc"
+[[ "$s23_rck" == *"Open for the engineer: PM-020"* && "$s23_rck" == *"Last picked up: PM-020 at "* ]] \
+    && ok "23 received: a received line settles nothing (PM-020 stays open), and check prints the last pickup" \
+    || ko "23 received: a received line settles nothing (PM-020 stays open), and check prints the last pickup" "$s23_rck"
+
+# ---- Headers come from the clock (PM-057 D4) -----------------------------------------------------------
+s23_reset
+printf '\n## PM-030 · 2030-01-01 09:00 +0000 · Ahead\nText.\nStatus: open\n' >> "$s23_mb/to-cc.md"
+s23_ck="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_ck" == *"Clock: PM-030 is headed 2030-01-01 09:00 +0000, later than to-cc.md was last written ("* \
+    && "$s23_ck" != *"Clock: PM-001"* ]] \
+    && ok "23 clock: a header dated later than its file's last write is named with both times; the past ones are not" \
+    || ko "23 clock: a header dated later than its file's last write is named with both times; the past ones are not" "$s23_ck"
+# A header of this minute, on a file last written at the start of this minute, is not flagged: BSD date fills
+# the seconds a header leaves out from the current time, so the parse must pin them to :00.
+s23_reset
+s23_stamp_now="$(date '+%Y-%m-%d %H:%M %z')"
+printf '\n## CC-040 · %s · Same minute\nDone.\nStatus: open\n' "$s23_stamp_now" >> "$s23_mb/to-pm.md"
+touch -t "$(date '+%Y%m%d%H%M').00" "$s23_mb/to-pm.md"
+s23_same="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_same" != *"Clock: CC-040"* ]] && ok "23 clock: a header of the same minute as its file's last write is not flagged" \
+    || ko "23 clock: a header of the same minute as its file's last write is not flagged" "$s23_same"
+
+# ---- The PM's watch (PM-057 D5): --role pm watches to-pm.md, says so, and writes no engineer state -------
+s23_reset
+printf '\n## CC-001 · 2026-10-10 12:00 · Report\nDone.\nStatus: open\n' >> "$s23_mb/to-pm.md"
+s23_pw="$(env -u PAIR_ROLE -u PAIR_MAILBOX PAIR_POLL_SECONDS=1 bash "$s23_hook" watch --role pm --mailbox "$s23_mb" </dev/null 2>&1; echo "rc=$?")"
+[[ "$s23_pw" == *"CC-001 open for the PM in"*"rc=0" && ! -f "$s23_mb/.pm-watch" && ! -f "$s23_mb/.cc-state" \
+    && "$(cut -d' ' -f1 "$s23_mb/.pm-nudged")" == CC-001 ]] && grep -q ' · received$' "$s23_mb/status-pm.md" \
+    && ok "23 pm watch: ends on an open CC message, says so, records the pointing, and writes no engineer state" \
+    || ko "23 pm watch: ends on an open CC message, says so, records the pointing, and writes no engineer state" "$s23_pw"
+( sleep 2; printf '\n## CC-002 · 2026-10-10 12:05 · Next\nAlso done.\nStatus: open\n' >> "$s23_mb/to-pm.md" ) &
+s23_sp=$!
+s23_pw2="$(env -u PAIR_ROLE -u PAIR_MAILBOX PAIR_POLL_SECONDS=1 bash "$s23_hook" watch --role pm --mailbox "$s23_mb" </dev/null 2>&1)"
+wait "$s23_sp"
+[[ "$s23_pw2" == *"CC-002 open for the PM"* ]] && ok "23 pm watch: a later CC message wakes it, and CC-001, already pointed at, does not" \
+    || ko "23 pm watch: a later CC message wakes it, and CC-001, already pointed at, does not" "$s23_pw2"
+s23_pb="$(env -u PAIR_ROLE -u PAIR_MAILBOX bash "$s23_hook" watch --role boss --mailbox "$s23_mb" 2>&1; echo "rc=$?")"
+[[ "$s23_pb" == *"--role is cc or pm"*"rc=2" ]] && ok "23 pm watch: an unknown role is refused" || ko "23 pm watch: an unknown role is refused" "$s23_pb"
+# The PM's session records its id in .pm-session, which the launcher reads on a resume.
+s23_reset
+printf 'token: tok-w\nsince: 2026-10-30 12:00 +0000\n' > "$s23_mb/.pm-session"
+printf '\n## CC-003 · 2026-10-10 12:06 · Watched\nDone.\nStatus: open\n' >> "$s23_mb/to-pm.md"
+env -u PAIR_ROLE -u PAIR_MAILBOX PAIR_POLL_SECONDS=1 CLAUDE_CODE_SESSION_ID=sess-pm-9 bash "$s23_hook" watch --role pm --mailbox "$s23_mb" >/dev/null 2>&1 </dev/null
+[[ "$(grep -c '^session: sess-pm-9$' "$s23_mb/.pm-session")" == 1 && "$(grep -c '^token: tok-w$' "$s23_mb/.pm-session")" == 1 ]] \
+    && ok "23 pm watch: records the PM session's id in .pm-session beside its token" \
+    || ko "23 pm watch: records the PM session's id in .pm-session beside its token" "$(cat "$s23_mb/.pm-session")"
+
+# ---- The launcher's --pm (PM-057 D6) -------------------------------------------------------------------
+s23_reset
+rm -f "$s23_mb/.pm-session"
+s23_pp="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23_p" --pm --print 2>&1)"
+[[ "$s23_pp" == *"Starting a new PM session, demo-pm"* && "$s23_pp" == *"--name demo-pm"* && "$s23_pp" == *"watch --role pm --mailbox"* \
+    && "$s23_pp" == *"You are the product manager"* && "$s23_pp" != *"{token}"* && "$s23_pp" != *"{mailbox}"* && "$s23_pp" != *"PAIR_ROLE=cc"* \
+    && ! -f "$s23_mb/.pm-session" ]] \
+    && ok "23 launcher --pm --print: the PM's command and prompt, every placeholder filled, nothing run or written" \
+    || ko "23 launcher --pm --print: the PM's command and prompt, every placeholder filled, nothing run or written" "$s23_pp"
+[[ "$s23_pp" == *"&& PAIR_ROLE=pm PAIR_MAILBOX="* ]] && ok "23 launcher --pm --print: the PM's command carries PAIR_ROLE=pm and PAIR_MAILBOX, as the engineer's does" \
+    || ko "23 launcher --pm --print: the PM's command carries PAIR_ROLE=pm and PAIR_MAILBOX, as the engineer's does" "$s23_pp"
+
+# A real --pm launch, with a stand-in claude that records its arguments: it writes .pm-session with a fresh token.
+s23_fake="$SCRATCH/s23/fakebin"; mkdir -p "$s23_fake"
+cat > "$s23_fake/claude" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$@" > "$FAKE_ARGS"
+printf 'PAIR_ROLE=%s PAIR_MAILBOX=%s\n' "${PAIR_ROLE:-}" "${PAIR_MAILBOX:-}" > "$FAKE_ARGS.env"
+EOF
+chmod +x "$s23_fake/claude"
+s23_fa="$SCRATCH/s23/fake-args"
+PATH="$s23_fake:$PATH" FAKE_ARGS="$s23_fa" CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23_p" --pm >/dev/null 2>&1
+s23_tok="$(sed -n 's/^token: //p' "$s23_mb/.pm-session" 2>/dev/null)"
+[[ -n "$s23_tok" && "$(grep -c '^since: ' "$s23_mb/.pm-session")" == 1 && "$(grep -cx 'demo-pm' "$s23_fa")" == 1 \
+    && "$(grep -c "$s23_tok" "$s23_fa")" -ge 1 && "$(grep -c '{token}' "$s23_fa")" == 0 \
+    && "$(cat "$s23_fa.env")" == "PAIR_ROLE=pm PAIR_MAILBOX="* ]] \
+    && ok "23 launcher --pm: starts the PM's session named demo-pm, with a fresh token in its prompt and recorded in .pm-session" \
+    || ko "23 launcher --pm: starts the PM's session named demo-pm, with a fresh token in its prompt and recorded in .pm-session" "$(cat "$s23_mb/.pm-session" 2>/dev/null); $(cat "$s23_fa" 2>/dev/null | head -n 3)"
+
+# A resume keeps the token the mailbox holds, and resumes the session the PM's watch recorded.
+printf 'token: %s\nsince: 2026-10-30 12:00 +0000\nsession: sess-pm-1\n' "$s23_tok" > "$s23_mb/.pm-session"
+mkdir -p "$SCRATCH/s23/claude-pm/projects/x"
+printf '{"type":"user","cwd":"%s"}\n' "$s23_p" > "$SCRATCH/s23/claude-pm/projects/x/sess-pm-1.jsonl"
+PATH="$s23_fake:$PATH" FAKE_ARGS="$s23_fa" CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-pm" bash "$s23_launch" "$s23_p" --pm >/dev/null 2>&1
+[[ "$(sed -n 's/^token: //p' "$s23_mb/.pm-session")" == "$s23_tok" && "$(grep -cx 'sess-pm-1' "$s23_fa")" == 1 && "$(grep -cx -- '--resume' "$s23_fa")" == 1 ]] \
+    && ok "23 launcher --pm: a resume keeps the mailbox's token and resumes the recorded PM session" \
+    || ko "23 launcher --pm: a resume keeps the mailbox's token and resumes the recorded PM session" "$(cat "$s23_mb/.pm-session"); $(head -n 4 "$s23_fa")"
+
+# ---- Hooks and guidance (PM-057) ---------------------------------------------------------------------------
+s23_hj="$KIT/plugins/projects/hooks/hooks.json"
+python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["hooks"]; import sys as s; s.exit(0 if all(k in d for k in ("UserPromptSubmit","PostToolUse","SessionEnd")) else 1)' "$s23_hj" 2>/dev/null \
+    && grep -q 'beat --prompt' "$s23_hj" && grep -q 'hooks/pair.sh\\" beat' "$s23_hj" && grep -q 'hooks/pair.sh\\" end' "$s23_hj" \
+    && ok "23 hooks.json: UserPromptSubmit and PostToolUse beat, and SessionEnd end" \
+    || ko "23 hooks.json: UserPromptSubmit and PostToolUse beat, and SessionEnd end" "$(cat "$s23_hj")"
+s23_bad=""
+grep -q 'watch --role pm' "$s23_cmd" && grep -q 'Claude Code PM' "$s23_cmd" && grep -q 'Cowork PM' "$s23_cmd" && grep -q 'pair.sh <project folder> --pm\|--pm' "$s23_cmd" \
+    && grep -q 'in place of' "$s23_cmd" || s23_bad+="command: the PM watch, the two PM kinds, --pm"$'\n'
+grep -q 'ended' "$s23_cmd" && grep -q 'pair.sh check' "$s23_cmd" && grep -qi 'ask the person' "$s23_cmd" || s23_bad+="command: the PM reads check before the engineer's state"$'\n'
+grep -q 'received' "$s23_ex/README.md" && grep -q 'watch --role pm' "$s23_ex/README.md" && grep -q 'pair.sh check' "$s23_ex/README.md" || s23_bad+="README: received lines, the PM watch, check flags headers"$'\n'
+grep -q 'received' "$s23_ex/KICKOFF.md" && grep -q "date '+%Y-%m-%d %H:%M %z'" "$s23_ex/KICKOFF.md" || s23_bad+="KICKOFF: received lines and the clock"$'\n'
+grep -q '{token}' "$s23_ex/PM-KICKOFF.md" && grep -q '{watch}' "$s23_ex/PM-KICKOFF.md" && grep -q 'commands/pair.md' "$s23_ex/PM-KICKOFF.md" || s23_bad+="PM-KICKOFF: token, watch, the role's source"$'\n'
+empty "23 guidance (PM-057): the command's PM watch and kinds of PM, the PM's rule, the README, KICKOFF and PM-KICKOFF" "$s23_bad"
+# PM-057 review: a beat clears a stale end mark (a /clear, or a session that goes on after SessionEnd); with no
+# recorded pid and a fresh beat the state reads working, not ended; a mailbox path with a space is shell-quoted
+# in the PM's printed command.
+s23_reset
+: > "$s23_mb/.cc-ended"; rm -f "$s23_mb/.cc-beat" "$s23_mb/.cc-pid"
+s23_run beat >/dev/null
+[[ ! -f "$s23_mb/.cc-ended" ]] && ok "23 beat: a beat after an end mark clears it (the session went on)" \
+    || ko "23 beat: a beat after an end mark clears it (the session went on)" "$(ls -a "$s23_mb")"
+: > "$s23_mb/.cc-pid"; date +%s > "$s23_mb/.cc-beat"; printf 'sess-x\n' > "$s23_mb/.cc-session"
+s23_st="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_st" == *"working: last activity"* && "$s23_st" != *"ended"* ]] \
+    && ok "23 check: no recorded pid and a fresh beat reads working, not ended" \
+    || ko "23 check: no recorded pid and a fresh beat reads working, not ended" "$s23_st"
+s23_sp="$SCRATCH/s23/sp ace/mb"; mkdir -p "$s23_sp" && printf '# To CC\n' > "$s23_sp/to-cc.md"
+# --print shows the prompt as %q, so the watch command's one backslash before the space shows as two.
+s23_spp="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23_p" --mailbox "$s23_sp" --pm --print 2>&1)"
+[[ "$s23_spp" == *'watch --role pm --mailbox '*'sp\\ ace/mb'* ]] && ok "23 launcher --pm --print: a mailbox path with a space is quoted in the PM's watch command" \
+    || ko "23 launcher --pm --print: a mailbox path with a space is quoted in the PM's watch command" "$s23_spp"
+s23_reset
+
+# The last stand-in watch and the claude stand-in are ended here, not left for the next section.
+[ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
+[ -n "${s23_claude:-}" ] && kill "$s23_claude" 2>/dev/null
+true

@@ -24,3 +24,8 @@ what brings you back between turns. It holds nothing, so finish each turn cleanl
 `to-pm.md`, and carry on. Questions for the person go to the PM in the mailbox rather than here. A
 command you hand the person keeps to the mailbox README's paste rule: short lines, a trailing `\`,
 a script for anything long, and the expected output beside it.
+
+Two things about the watch and the clock. The watch's pickup of each PM message is recorded for the PM in
+`status-cc.md` as a `received` line, so the PM can see how long a message waited: start the watch promptly.
+And a header in any message you write comes from `pair.sh post`, or from the output of
+`date '+%Y-%m-%d %H:%M %z'`, never a typed time; `pair.sh check` names a header dated later than its file.

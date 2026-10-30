@@ -579,7 +579,7 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
 - **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
   `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
   diff to apply or skip. Files the team owns are created once and never overwritten.
-- **Three plugins, eleven commands, are wired in** from the directory marketplace at `kit`:
+- **The kit's plugins, and their twelve commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `kit/docs/memory-layers.md`, so there is one taxonomy.
   - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close`, `pickup` and `pair`, the life of a
@@ -589,6 +589,9 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
     `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check;
     and a session-start summary of what is out of step.
+  - **scheduler** — `/scheduler:tasks`, Claude Code tasks on a schedule that run on the person's own
+    machine from its own scheduler (launchd, systemd user timers or cron) and outlast the session.
+    Installed, it schedules nothing until someone creates a task.
   Setup also installs them for the person, so a session opened in any folder inside the workspace has
   them; their hooks act only inside a kit workspace (`docs/plugin-scope.md`).
 - **Git hooks keep the workspace private and the kit clean.** `kit/setup.sh hooks` sets them in the
@@ -676,12 +679,14 @@ it, common questions, and how to tell it is working.
 | `/workspace:quick-start` | workspace | The first-time interview, and the check that the kit is reachable | [docs/commands/workspace-quick-start.md](docs/commands/workspace-quick-start.md) |
 | `/workspace:hygiene` | workspace | The weekly pass over where context lives | [docs/commands/workspace-hygiene.md](docs/commands/workspace-hygiene.md) |
 | `/workspace:register-audit` | workspace | The monthly pass over how guidance reads | [docs/commands/workspace-register-audit.md](docs/commands/workspace-register-audit.md) |
+| `/scheduler:tasks` | scheduler | Claude Code tasks on a schedule, on this machine, that outlast the session | [docs/commands/scheduler-tasks.md](docs/commands/scheduler-tasks.md) |
 
 The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.md) and
 [closeout-review](docs/hooks/closeout-review.md); the projects plugin's
 [session-start line](docs/hooks/projects-session-start.md) and [pairing hooks](docs/hooks/projects-pair.md); the workspace plugin's
 [session-start summary](docs/hooks/workspace-session-start.md) and
-[git guard](docs/hooks/workspace-guard-git.md); and the git hooks in `githooks/`,
+[git guard](docs/hooks/workspace-guard-git.md); the scheduler plugin's
+[session-start line](docs/hooks/scheduler-session-start.md); and the git hooks in `githooks/`,
 [pre-commit](docs/hooks/pre-commit.md), [pre-merge-commit](docs/hooks/pre-merge-commit.md),
 [commit-msg](docs/hooks/commit-msg.md) and [pre-push](docs/hooks/pre-push.md).
 
@@ -704,6 +709,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
 | `plugins/projects/` | Projects from start to done — seven commands, a session-start line and the pairing hooks |
 | `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `scripts/state.sh` (the read-only state check), the session-start summary and the git guard |
+| `plugins/scheduler/` | `/scheduler:tasks` and `scripts/schedule.sh`, scheduled Claude Code tasks rendered into launchd, systemd user timers or cron |
 | `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
 | `install.sh` | The engine setup runs: creates the files a workspace owns, once, and records them in `.claude/kit-templates.lock` |
 | `lib/` | The shared shell library and the scripts behind setup's subcommands (`lib/setup/`) |
@@ -731,7 +737,7 @@ once in the workspace and is the workspace's from then on:
 | `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public (a repository marked as a template, as the published one is, is skipped) |
 | `closeout.md` | `.claude/closeout.md` | Points the closeout plugin (and the `kit-closeout` skill) at `kit/docs/memory-layers.md`, so there is one taxonomy rather than two |
 | `projects.md` | `.claude/projects.md` | The team's project conventions — where projects live, register sections, naming, in-flight limit, staleness — read first by every projects command |
-| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
+| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects, scheduler and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
 | `gemini-settings.json` | `.gemini/settings.json` (merged) | With `--surfaces claude,gemini` only: makes Gemini CLI load `AGENTS.md` as its context file |
 | `CODEOWNERS` | `.github/CODEOWNERS` | Routes changes to the always-loaded tier through the standards owner |
 | `pull_request_template.md` | `.github/pull_request_template.md` | Asks a documentation PR which tier it touches, and why an addition to working standards earns its place |

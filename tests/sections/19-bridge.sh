@@ -171,7 +171,7 @@ empty "19 each kit-* skill hands over to its plugin command in Claude Code, and 
 # the person's own.
 s19_cfg="$SCRATCH/s19-cc-config"
 mkdir -p "$s19_cfg/plugins"
-printf '{"version":2,"plugins":{"closeout@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}}\n' \
+printf '{"version":2,"plugins":{"closeout@agentic-workspace":[{"scope":"user"}],"scheduler@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}}\n' \
     > "$s19_cfg/plugins/installed_plugins.json"
 # The kit is reached through a marketplace added for the user here, not the workspace's own directory
 # marketplace (which serves its enabled plugins without the registry), so its entry is taken out for

@@ -1,6 +1,6 @@
 {
   "name": "agentic-workspace",
-  "description": "The workspace context kit's plugins: closeout, the end-of-session promotion ritual; projects, the life of a project from its start to its close; and workspace, the first-time setup and the upkeep that follows.",
+  "description": "The workspace context kit's plugins: closeout, the end-of-session promotion ritual; projects, the life of a project from its start to its close; workspace, the first-time setup and the upkeep that follows; and scheduler, Claude Code tasks on a schedule on the person's own machine.",
   "owner": {
     "name": "Robert Peake",
     "url": "https://github.com/cyberscribe"
@@ -24,6 +24,13 @@
       "name": "workspace",
       "description": "Set up and look after a shared agentic workspace: /workspace:quick-start interviews the team and each person, makes the kit the team's own and checks it is reachable on every surface people use; /workspace:hygiene runs the weekly tidy of where context lives, submodules included; /workspace:register-audit checks guidance files for the register they are written in. A session-start line names what is out of step, and a guard keeps agents from bypassing the git hooks.",
       "source": "./plugins/workspace",
+      "category": "productivity",
+      "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
+    },
+    {
+      "name": "scheduler",
+      "description": "Scheduled Claude Code tasks that run on this machine and outlast the session: /scheduler:tasks turns \"every weekday at 7:30, do X\" into a task file and a unit in launchd, systemd user timers or cron, and lists, shows, edits, pauses, resumes, runs now, deletes and explains past runs. A run that keeps failing pauses itself and says why. Installed, it schedules nothing until someone creates a task.",
+      "source": "./plugins/scheduler",
       "category": "productivity",
       "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
     }

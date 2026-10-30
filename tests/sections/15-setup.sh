@@ -179,7 +179,7 @@ if s15_need kitsrc; then
         empty "15 new, unattended, from nothing: stages 1 already done or done, 2–5 done, 6–8 skipped (Cowork off by default), 9–10 done" "$s15_bad"
         st_expect "15 new: the fresh-install green set (§11.4)" "$(st_run "$s15_n")" in_git=yes hooks=active kit_hooks=active \
             kit_path=kit kit_submodule=yes kit_import=ok ledger=present workspace_conventions=present claude_md=kit \
-            agents_md=kit always_loaded=CLAUDE.md plugins_registered=closeout,projects,workspace plugins_mode=kit \
+            agents_md=kit always_loaded=CLAUDE.md plugins_registered=closeout,projects,scheduler,workspace plugins_mode=kit \
             submodule_config=ok submodules_attention= orphan_gitlinks= sensitive_tracked= versioned_mismatch= \
             external_paths_missing= legacy= kit_incoming= mode=fresh origin_visibility=none
         s15_bad=""
@@ -279,7 +279,7 @@ if s15_need kitsrc; then
             mkdir -p "$1/.claude" && git -C "$1" init -q && git -C "$1" symbolic-ref HEAD refs/heads/main
             printf '%s\n' "$2" > "$1/.claude/settings.json"
         }
-        s15_all='{"closeout@agentic-workspace":true,"projects@agentic-workspace":true,"workspace@agentic-workspace":true}'
+        s15_all='{"closeout@agentic-workspace":true,"projects@agentic-workspace":true,"scheduler@agentic-workspace":true,"workspace@agentic-workspace":true}'
 
         s15_e="$SCRATCH/s15-own-settings"
         s15_own "$s15_e" '{"permissions":{"allow":["Read(./**)"]}}'
@@ -293,13 +293,13 @@ if s15_need kitsrc; then
         s15_is "$(s15_outcome "$s15_e.log" 9)" done || s15_bad+="stage 9: $(s15_outcome "$s15_e.log" 9)"$'\n'
         grep -q 'claude plugin enable ' "$s15_e.log" && s15_bad+="enable commands printed with nothing left to enable"$'\n'
         grep '^  git add ' "$s15_e.log" | grep -q ' \.claude/settings\.json' || s15_bad+=".claude/settings.json is not in the git add line"$'\n'
-        empty "15 a settings file of the person's own, unattended: the three plugins are enabled in it, its own keys kept, stages 3 and 9 done" "$s15_bad"
+        empty "15 a settings file of the person's own, unattended: the kit's plugins are enabled in it, its own keys kept, stages 3 and 9 done" "$s15_bad"
         st_expect "15 ... and the state check reads them enabled by the workspace's settings alone" \
-            "$(CLAUDE_CONFIG_DIR="$s15_cc" st_run "$s15_e")" plugins_registered=closeout,projects,workspace plugins_not_loaded= plugins_scope=workspace
+            "$(CLAUDE_CONFIG_DIR="$s15_cc" st_run "$s15_e")" plugins_registered=closeout,projects,scheduler,workspace plugins_not_loaded= plugins_scope=workspace
         s15_bad=""
         grep -q 'plugins_scope=workspace' "$s15_e.log" || s15_bad+="stage 9 does not say where the plugins load"$'\n'
         grep -qF "claude plugin marketplace add --scope user $(s15_real "$s15_e")/kit" "$s15_e.log" || s15_bad+="no marketplace add --scope user line"$'\n'
-        for s15_p in closeout projects workspace; do
+        for s15_p in closeout projects scheduler workspace; do
             grep -qF "claude plugin install $s15_p@agentic-workspace --scope user" "$s15_e.log" || s15_bad+="no user-scope install line for $s15_p"$'\n'
         done
         empty "15 stage 9 says the plugins load only in a session opened on the workspace's own folder, with the commands that install them for the person" "$s15_bad"
@@ -309,10 +309,10 @@ if s15_need kitsrc; then
         s15_own "$s15_e" '{"enabledPlugins":{"projects@agentic-workspace":false}}'
         CLAUDE_CONFIG_DIR="$s15_cc" s15_wz "$s15_e.log" "$s15_setup" --target "$s15_e" --team "Test Team" --owner "Sam Example" --owner-handle "@sam"
         s15_bad=""
-        [[ "$(jq -S -c '.enabledPlugins' "$s15_e/.claude/settings.json" 2>/dev/null)" == '{"closeout@agentic-workspace":true,"projects@agentic-workspace":false,"workspace@agentic-workspace":true}' ]] \
+        [[ "$(jq -S -c '.enabledPlugins' "$s15_e/.claude/settings.json" 2>/dev/null)" == '{"closeout@agentic-workspace":true,"projects@agentic-workspace":false,"scheduler@agentic-workspace":true,"workspace@agentic-workspace":true}' ]] \
             || s15_bad+="enabledPlugins: $(jq -c '.enabledPlugins' "$s15_e/.claude/settings.json" 2>&1)"$'\n'
         grep -qF "claude plugin enable projects@agentic-workspace --scope project" "$s15_e.log" || s15_bad+="the enable command for projects is not printed"$'\n'
-        grep -qE 'claude plugin enable (closeout|workspace)@' "$s15_e.log" && s15_bad+="an enable command for a plugin that is enabled"$'\n'
+        grep -qE 'claude plugin enable (closeout|scheduler|workspace)@' "$s15_e.log" && s15_bad+="an enable command for a plugin that is enabled"$'\n'
         s15_is "$(s15_outcome "$s15_e.log" 3)" "left open" || s15_bad+="stage 3: $(s15_outcome "$s15_e.log" 3)"$'\n'
         s15_is "$(s15_outcome "$s15_e.log" 9)" "left open" || s15_bad+="stage 9: $(s15_outcome "$s15_e.log" 9)"$'\n'
         grep -q '✗ plugins enabled in .claude/settings.json' "$s15_e.log" || s15_bad+="stage 9 has no failing line for the plugins"$'\n'
@@ -328,14 +328,14 @@ if s15_need kitsrc; then
         [[ "$(jq -c '.enabledPlugins // "absent"' "$s15_e/.claude/settings.json" 2>/dev/null)" == '"absent"' ]] \
             || s15_bad+="enabledPlugins was written: $(jq -c '.enabledPlugins' "$s15_e/.claude/settings.json" 2>&1)"$'\n'
         [[ "$(jq -r '.extraKnownMarketplaces["agentic-workspace"].source.path' "$s15_e/.claude/settings.json" 2>/dev/null)" == kit ]] || s15_bad+="the marketplace was not added"$'\n'
-        for s15_p in closeout projects workspace; do
+        for s15_p in closeout projects scheduler workspace; do
             [[ "$(grep -cF "claude plugin enable $s15_p@agentic-workspace --scope project" "$s15_e.log")" -ge 3 ]] \
                 || s15_bad+="the enable command for $s15_p is not in stages 3, 7 and 9"$'\n'
         done
         grep -qF "cd $(s15_real "$s15_e")" "$s15_e.log" || s15_bad+="the commands do not start in the workspace's folder"$'\n'
-        grep -q "This workspace's settings do not enable: closeout, projects, workspace" "$s15_e.log" || s15_bad+="stage 7 does not say so before its steps"$'\n'
+        grep -q "This workspace's settings do not enable: closeout, projects, scheduler, workspace" "$s15_e.log" || s15_bad+="stage 7 does not say so before its steps"$'\n'
         s15_is "$(s15_outcome "$s15_e.log" 3)" "left open" || s15_bad+="stage 3: $(s15_outcome "$s15_e.log" 3)"$'\n'
-        empty "15 attended, the offer declined: the settings file keeps no enabledPlugins, and stages 3, 7 and 9 print the three enable commands" "$s15_bad"
+        empty "15 attended, the offer declined: the settings file keeps no enabledPlugins, and stages 3, 7 and 9 print the four enable commands" "$s15_bad"
     else
         skp "15 a settings file of the person's own: the plugins enabled, or the commands named — needs $s15_why"
     fi

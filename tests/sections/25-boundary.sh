@@ -19,7 +19,7 @@ s25_real() { (cd "$1" && pwd -P); }
 
 # --- The helper -------------------------------------------------------------------------------------
 s25_bad=""
-for s25_p in closeout projects; do
+for s25_p in closeout projects scheduler; do
     cmp -s "$KIT/plugins/workspace/hooks/lib/boundary.sh" "$KIT/plugins/$s25_p/hooks/lib/boundary.sh" \
         || s25_bad+="plugins/$s25_p/hooks/lib/boundary.sh differs from the workspace plugin's"$'\n'
 done
@@ -147,14 +147,20 @@ empty "25 workspace SessionStart: a summary inside, nothing outside" "$s25_bad"
 
 # --- The commands -----------------------------------------------------------------------------------
 s25_bad=""
+# The scheduler is the one exception: a task names the folder it runs in, so /scheduler:tasks works
+# in any folder, and its Where this works section says so.
 for s25_f in "$KIT"/plugins/*/commands/*.md; do
     s25_pl="$(basename "$(dirname "$(dirname "$s25_f")")")"; s25_n="$(basename "$s25_f" .md)"
     s25_c="/$s25_pl:$s25_n"; [[ $s25_pl == closeout ]] && s25_c=/closeout
-    awk '/^## Where this works$/ { on = 1; next } on && /^## / { exit } on' "$s25_f" | tr '\n' ' ' \
-        | grep -qF "say in one line that \`$s25_c\` works inside a kit workspace, and do nothing" \
+    s25_w="$(awk '/^## Where this works$/ { on = 1; next } on && /^## / { exit } on' "$s25_f" | tr '\n' ' ')"
+    if [[ $s25_c == /scheduler:tasks ]]; then
+        grep -qF "\`$s25_c\` works in any folder" <<<"$s25_w" || s25_bad+="${s25_f#"$KIT"/}: no line saying $s25_c works in any folder"$'\n'
+        continue
+    fi
+    grep -qF "say in one line that \`$s25_c\` works inside a kit workspace, and do nothing" <<<"$s25_w" \
         || s25_bad+="${s25_f#"$KIT"/}: no outside-a-workspace line naming $s25_c"$'\n'
 done
-empty "25 every command says, outside a kit workspace, in one line that it works inside one, and stops" "$s25_bad"
+empty "25 every command says, outside a kit workspace, in one line that it works inside one, and stops; /scheduler:tasks says it works in any folder" "$s25_bad"
 
 # --- plugins_user_kit --------------------------------------------------------------------------------
 if [[ $kitsrc_ok -eq 1 ]]; then
@@ -199,12 +205,12 @@ if mkws "$s25/setup-ws" >/dev/null 2>&1; then
     s25_bad=""
     [[ "$(head -n 1 "$s25/calls.log")" == "plugin marketplace add --scope user $s25/setup-link/kit" ]] \
         || s25_bad+="marketplace add, by the symlink: $(head -n 1 "$s25/calls.log")"$'\n'
-    for s25_p in closeout projects workspace; do
+    for s25_p in closeout projects scheduler workspace; do
         grep -qxF "plugin install $s25_p@agentic-workspace --scope user" "$s25/calls.log" || s25_bad+="no user-scope install of $s25_p"$'\n'
     done
     grep -q 'plugins_scope=user' "$s25/setup1.log" || s25_bad+="stage 9 does not report plugins_scope=user"$'\n'
     grep -q '^  7\. [^:]*: done' "$s25/setup1.log" || s25_bad+="stage 7: $(grep '^  7\. ' "$s25/setup1.log" | tail -n 1)"$'\n'
-    empty "25 setup, unattended: the marketplace added for the person by the spelling they came in by, the three plugins installed for them, stage 9 says so" "$s25_bad"
+    empty "25 setup, unattended: the marketplace added for the person by the spelling they came in by, the kit's plugins installed for them, stage 9 says so" "$s25_bad"
 
     : > "$s25/calls2.log"
     s25_setup "$s25/setup2.log" "$s25/calls2.log" "$s25_cc" "$s25/setup-link"
@@ -265,15 +271,15 @@ S25PY
         grep -qF "6. If agentic-workspace is listed at another path" "$s25/$1.7" || s25_bad+="$1: no re-pointing step"$'\n'
         ! grep -qF "Type / and check" "$s25/$1.7" || s25_bad+="$1: the installed-for-you steps"$'\n'
     }
-    s25_att att-user "$s25_cl" "$s25/cc-att-user" '[["Were all three listed?", "n"]]'
+    s25_att att-user "$s25_cl" "$s25/cc-att-user" '[["Were they all listed?", "n"]]'
     if grep -q '^S25-NO-PTY' "$s25/att-user.log"; then
         skp "25 setup attended, stage 7 by path — no pseudo-terminal here ($(sed -n 's/^S25-NO-PTY //p' "$s25/att-user.log"))"
     else
         s25_bad=""
         grep -q '^S25-RC 0$' "$s25/att-user.log" || s25_bad+="exit: $(grep '^S25-RC' "$s25/att-user.log")"$'\n'
-        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 4 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
+        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 5 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
         grep -qF "2. Start a new one there:  cd $(printf '%q' "$s25/setup-link") && claude" "$s25/att-user.7" || s25_bad+="step 2 does not name the folder by the symlink"$'\n'
-        grep -qF "4. Type / and check that /closeout, /projects:new and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
+        grep -qF "4. Type / and check that /closeout, /projects:new, /scheduler:tasks and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
         grep -qF "start one more new one there" "$s25/att-user.7" || s25_bad+="no second-session step"$'\n'
         grep -qF "  claude plugin list" "$s25/att-user.7" || s25_bad+="the fallback does not name claude plugin list"$'\n'
         ! grep -qiF "offer" "$s25/att-user.7" || s25_bad+="names an install offer: $(grep -iF offer "$s25/att-user.7")"$'\n'
@@ -324,13 +330,13 @@ if cc_gate "25 the same plugins enabled for the person and by the workspace load
         s25_want="$(cat "$KIT"/plugins/*/hooks/hooks.json | jq -s '[.[].hooks.SessionStart[]? | select((.matcher // "") | test("startup")) | .hooks[]] | length')"
         s25_bad=""
         for s25_f in "$s25_lw/.claude/settings.json" "$s25_ccc/settings.json"; do
-            [[ "$(jq -c '[.enabledPlugins // {} | to_entries[] | select(.key | endswith("@agentic-workspace")) | select(.value)] | length' "$s25_f")" == 3 ]] \
-                || s25_bad+="${s25_f##*/} in $(basename "$(dirname "$s25_f")") does not enable all three"$'\n'
+            [[ "$(jq -c '[.enabledPlugins // {} | to_entries[] | select(.key | endswith("@agentic-workspace")) | select(.value)] | length' "$s25_f")" == 4 ]] \
+                || s25_bad+="${s25_f##*/} in $(basename "$(dirname "$s25_f")") does not enable all four"$'\n'
         done
         s25_names="$(jq -r 'select(.subtype == "init") | .plugins[] | select(.path != "builtin") | .name' "$s25/live-2.jsonl" | sort | paste -sd, -)"
-        [[ "$s25_names" == closeout,projects,workspace ]] || s25_bad+="the second session loads: ${s25_names:-nothing}"$'\n'
+        [[ "$s25_names" == closeout,projects,scheduler,workspace ]] || s25_bad+="the second session loads: ${s25_names:-nothing}"$'\n'
         s25_got="$(jq -c 'select(.subtype == "hook_started" and .hook_event == "SessionStart")' "$s25/live-2.jsonl" | wc -l | tr -d ' ')"
-        [[ "$s25_got" == "$s25_want" ]] || s25_bad+="$s25_got SessionStart hooks started, against $s25_want in the three hooks.json files"$'\n'
+        [[ "$s25_got" == "$s25_want" ]] || s25_bad+="$s25_got SessionStart hooks started, against $s25_want in the kit's hooks.json files"$'\n'
         empty "25 the same plugins enabled for the person and by the workspace load once, each SessionStart hook run once" "$s25_bad"
     else
         ko "25 the same plugins enabled for the person and by the workspace load once — the workspace could not be built"

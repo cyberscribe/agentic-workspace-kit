@@ -49,7 +49,7 @@
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook       9 the eleven commands, on Claude Code and as skills; the
+#   4b the projects session-start hook       9 the twelve commands, on Claude Code and as skills; the
 #                                               closeout command and ritual carry the same core rules
 #                                            10 ablations: pilot/ablate.sh against a stub claude; the
 #                                               blind comparator, the bare arm, the login-token switch,
@@ -60,7 +60,8 @@
 # and then, from tests/sections/: 12 the docs (a page per command and hook, in four parts, and a README
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
-# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files.
+# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files,
+# 25 the workspace boundary, 26 the scheduler plugin.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -632,9 +633,9 @@ empty "1 a Claude-only install names no Gemini CLI surface in the files read fir
     "$(grep -n -i -E 'gemini cli|\.gemini/settings' "$T1/CLAUDE.md" "$T1/AGENTS.md" "$T1/.claude/projects.md")"
 check "1 the surface table carries the Claude Code row, naming the plugins and the git hooks in kit/" \
     grep -qxF "$(head -n 1 "$KIT/templates/workspace/surface-rows/claude.md")" "$T1/CLAUDE.md"
-grep -qF "approve the closeout, projects and workspace plugins when asked" <<<"$out1" \
-    && ok "1 the Next message asks each person to approve the three plugins" \
-    || ko "1 the Next message asks each person to approve the three plugins" "$(grep -A6 '^Next' <<<"$out1")"
+grep -qF "approve the closeout, projects, scheduler and workspace plugins when asked" <<<"$out1" \
+    && ok "1 the Next message asks each person to approve the kit's plugins" \
+    || ko "1 the Next message asks each person to approve the kit's plugins" "$(grep -A6 '^Next' <<<"$out1")"
 grep -qF "bash kit/pilot/measure.sh" <<<"$out1" && ok "1 the pilot's Next line runs the measurement from kit/" \
     || ko "1 the pilot's Next line runs the measurement from kit/" "$(grep -A6 '^Next' <<<"$out1")"
 empty "1 no .kit-incoming files after two runs" "$(find "$T1" -name '*.kit-incoming' -not -path '*/.git/*' -not -path "$T1/kit/*")"
@@ -821,12 +822,12 @@ empty "3 every plugin.json carries a semantic version" "$bad"
 
 # lists_plugins <marketplace.json> <source prefix> <plugins root> [<directory set>]: the marketplace's
 # plugin set equals the directories in <directory set> (default: the kit's plugins/) in both
-# directions, each source resolves to that plugin under <plugins root>, and the three the kit ships
+# directions, each source resolves to that plugin under <plugins root>, and the four the kit ships
 # are there by name. A directory the marketplace omits never installs; an entry with no directory
 # fails at install time on someone else's machine, which is why both directions are checked.
 lists_plugins() {
     local mp="$1" prefix="$2" root="$3" dirs="${4:-$KIT/plugins}" d name src shown problems=""
-    for name in closeout projects workspace; do
+    for name in closeout projects scheduler workspace; do
         jq -e --arg n "$name" '.plugins | map(.name) | index($n) != null' "$mp" >/dev/null || problems+="$name not listed"$'\n'
     done
     for d in "$dirs"/*/; do
@@ -842,7 +843,7 @@ lists_plugins() {
     done < <(jq -r '.plugins[].name' "$mp")
     printf '%s' "$problems" | sort -u
 }
-empty "3 the root marketplace lists all three plugins, and every plugin in plugins/" \
+empty "3 the root marketplace lists the kit's four plugins, and every plugin in plugins/" \
     "$(lists_plugins "$KIT/.claude-plugin/marketplace.json" "./plugins/" "$KIT/plugins")"
 # Cowork installs a plugin as a .plugin file and refuses one that a claude.ai-hosted plugin may not be:
 # a description over 500 characters, or a top-level bin/ (Claude Code puts it on PATH, and the admin
@@ -912,10 +913,10 @@ fi
 
 bad="$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' "$T1/.claude/settings.json" 2>/dev/null)"
 missing=""
-for name in closeout projects workspace; do grep -qx "$name@agentic-workspace" <<<"$bad" || missing+="$name@agentic-workspace"$'\n'; done
+for name in closeout projects scheduler workspace; do grep -qx "$name@agentic-workspace" <<<"$bad" || missing+="$name@agentic-workspace"$'\n'; done
 jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "directory", "path": "kit"}' "$T1/.claude/settings.json" >/dev/null 2>&1 \
     || missing+="the marketplace is not the directory kit"$'\n'
-empty "3 .claude/settings.json enables all three plugins from the directory marketplace at kit" "$missing"
+empty "3 .claude/settings.json enables the kit's four plugins from the directory marketplace at kit" "$missing"
 
 # One source per procedure works on both surfaces only if commands speak of arguments in prose.
 empty "3 no command uses a tool-specific argument placeholder" \
@@ -1920,15 +1921,15 @@ fi
 # ---------------------------------------------------------------------------------------------------
 if aw_want 9; then
 echo
-echo "9 · The eleven commands, on Claude Code and as skills, from one source each"
+echo "9 · The twelve commands, on Claude Code and as skills, from one source each"
 
-# The command set is fixed by the contract's command list; an eleventh, or a missing one, fails here
+# The command set is fixed by the contract's command list; a thirteenth, or a missing one, fails here
 # so the plugins, the skills and this list move together.
 commands="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup
-workspace/hygiene workspace/quick-start workspace/register-audit"
+scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the eleven commands" \
-    || ko "9 the kit has exactly the eleven commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the twelve commands" \
+    || ko "9 the kit has exactly the twelve commands" "has: $have"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }
@@ -2710,7 +2711,7 @@ st_expect "11 fresh: register, decisions log and the other canonical files" "$r"
     glossary=present glossary_terms=0 build_list=present verification=missing catalogue=missing \
     codeowners=.github/CODEOWNERS kit_incoming= own_skills= foreign_skills=
 st_expect "11 fresh: plugins, surfaces and measurement, all read in place from kit/" "$r" settings=present \
-    plugins_registered=closeout,projects,workspace plugins_mode=kit plugins_path=kit \
+    plugins_registered=closeout,projects,scheduler,workspace plugins_mode=kit plugins_path=kit \
     kit_checkout=kit closeout_conventions=present surfaces=claude gemini_commands=0 \
     measure_script=kit/pilot/measure.sh metrics_csv=missing vendored_commit= state_version=2
 
@@ -2889,11 +2890,12 @@ sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugin
     githooks/pre-commit githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh
     githooks/lib/common.sh)
 for f in "$KIT"/scripts/*.sh "$KIT"/lib/setup/*.sh "$KIT"/plugins/workspace/hooks/*.sh \
-         "$KIT"/plugins/projects/hooks/*.sh "$KIT"/plugins/projects/hooks/lib/*.sh "$KIT"/plugins/projects/scripts/*.sh; do
+         "$KIT"/plugins/projects/hooks/*.sh "$KIT"/plugins/projects/hooks/lib/*.sh "$KIT"/plugins/projects/scripts/*.sh \
+         "$KIT"/plugins/scheduler/scripts/*.sh; do
     sc_list+=("${f#"$KIT"/}")
 done
 if command -v shellcheck >/dev/null 2>&1; then
-    check "11 shellcheck -x is clean on setup.sh, install.sh, the libraries, state.sh, the pilot, the git hooks, scripts/, lib/setup/, the workspace hooks and the projects plugin's scripts" \
+    check "11 shellcheck -x is clean on setup.sh, install.sh, the libraries, state.sh, the pilot, the git hooks, scripts/, lib/setup/, the workspace hooks, the projects plugin's scripts and the scheduler's" \
         bash -c 'cd "$1" && shift && shellcheck -x "$@"' _ "$KIT" "${sc_list[@]}"
 else
     skp "11 shellcheck not on PATH; the kit's scripts not linted"
