@@ -23,7 +23,7 @@ mkdir -p "$s23_mb"
 # The hooks keep to kit workspaces (hooks/lib/boundary.sh): the fixture's root carries a ledger as the marker.
 mkdir -p "$SCRATCH/s23/.claude" && : > "$SCRATCH/s23/.claude/kit-templates.lock"
 # Every hook call in this section, direct or through a helper, sees the fixture as the workspace, so the
-# checks do not depend on where the kit is checked out.
+# checks do not depend on where the kit is checked out. It is cleared again at the end of the section.
 export CLAUDE_PROJECT_DIR="$SCRATCH/s23"
 
 s23_reset() {
@@ -850,4 +850,5 @@ s23_reset
 [ -f "$s23_mb/.cc-watch" ] && pkill -P "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -n "${s23_claude:-}" ] && kill "$s23_claude" 2>/dev/null
+unset CLAUDE_PROJECT_DIR
 true
