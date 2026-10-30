@@ -442,7 +442,7 @@ watch_cmd() {
 # derive_state: the engineer's state from evidence, into ds_state (not-started, ended, working, watching
 # or idle) and ds_ev (the same word with its evidence, as check prints it).
 derive_state() {
-    local pid now beat wp
+    local pid now beat wp sid tf f tm
     pid="$(head -n 1 "$mb/.cc-pid" 2>/dev/null | tr -d '[:space:]')"
     if [ -z "$pid" ] && [ ! -f "$mb/.cc-session" ]; then
         ds_state=not-started; ds_ev="not started: no session has been recorded"; return 0
@@ -462,6 +462,19 @@ derive_state() {
     wp="$(head -n 1 "$mb/.cc-watch" 2>/dev/null | tr -d '[:space:]')"
     if [ -n "$wp" ] && kill -0 "$wp" 2>/dev/null; then
         ds_state=watching; ds_ev="watching: watch running (process $wp)${pid:+, pid $pid alive}"; return 0
+    fi
+    # The session's transcript is written as the session runs. A beat older than the session's hooks (a plugin
+    # loaded before the beat was added, say) would read idle beside a fresh transcript, so a transcript written
+    # in the last two minutes counts as working, and the line says the beat is the older evidence.
+    sid="$(head -n 1 "$mb/.cc-session" 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "$sid" ]; then
+        tf=""
+        for f in "$HOME"/.claude/projects/*/"$sid".jsonl; do [ -f "$f" ] && tf="$f"; done
+        tm=""
+        [ -n "$tf" ] && tm="$(stat -f %m "$tf" 2>/dev/null || stat -c %Y "$tf" 2>/dev/null)"
+        if [ -n "$tm" ] && [ $(( now - tm )) -lt 120 ]; then
+            ds_state=working; ds_ev="working: transcript written $(hms "$tm")${pid:+, pid $pid alive}, the activity beat is older"; return 0
+        fi
     fi
     ds_state=idle
     if [ "$beat" -gt 0 ]; then ds_ev="idle: last activity $(hms "$beat")${pid:+, pid $pid alive}, no watch running"

@@ -2653,7 +2653,10 @@ cmd_doctor() {
         if [[ -n "$earliest" ]]; then
             local h=$((10#${earliest%:*})) m=$((10#${earliest#*:} - 5))
             (( m < 0 )) && { m=$((m + 60)); h=$(((h + 23) % 24)); }
-            echo "  To wake the Mac five minutes before the earliest task, run it yourself (it needs sudo):"
+            echo "  Optional: this Mac runs a task that was asleep at its fire time late, when it wakes. To have it"
+            echo "  wake five minutes before the earliest task, you can run the line below. It changes the power"
+            echo "  settings of the whole machine, replaces any repeat wake already set, and needs sudo. Undo it with:"
+            echo "  sudo pmset repeat cancel"
             echo "    sudo pmset repeat wakeorpoweron MTWRFSU $(pad2 $h):$(pad2 $m):00"
         fi
     fi

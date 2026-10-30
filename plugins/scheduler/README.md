@@ -107,6 +107,9 @@ which is useful: a self-pause is visible in `git status`.
 
 `SCHEDULER_BACKEND` picks one by hand. A host with none of them is an error rather than a quiet no-op.
 
+The scheduler never changes power, wake or sleep settings on any host: no timer sets a wake (no `WakeSystem=`,
+no `rtcwake`), and a task missed while the machine slept runs late when it wakes, which `report` counts.
+
 On Linux, user timers fire only while you are logged in unless lingering is on
 (`loginctl enable-linger`); `schedule.sh doctor` says which. On WSL2 the distro stops when it is
 idle, and its timers stop with it: `schedule.sh keepalive install` adds a Windows logon task that
@@ -187,8 +190,8 @@ anything from earlier the same day. Its output is kept per attempt, in `verify-N
 
 A scheduled run records `due`, the fire time it answers (the latest at or before its start), and a run
 that started more than five minutes after it is marked `late`, as one held back by a sleeping machine
-is. On a Mac, `doctor` shows the wake schedule and the `pmset` line that wakes it before the earliest
-task, for you to run (it needs `sudo`).
+is. On a Mac, `doctor` shows the wake schedule and, as an optional line for you to run, the `pmset` line
+that wakes it before the earliest task (it needs `sudo`, and changes the machine's power settings).
 
 The `notify` command runs with `SCHEDULER_TASK`, `SCHEDULER_STATUS` (`ok`, `failed`, `timeout` or
 `waiting`), `SCHEDULER_RUN` (the run's id), `SCHEDULER_RUN_DIR`, `SCHEDULER_SUMMARY`,

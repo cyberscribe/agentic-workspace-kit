@@ -322,6 +322,26 @@ s26_g="$(s26_x unit weekdays --backend systemd)"
 [[ "$s26_g" == *"Type=oneshot"*"ExecStart=/bin/bash \"$s26/data/runner/schedule.sh\" exec weekdays"*"AccuracySec=1s"*"Unit=aw-scheduler-weekdays.service"*"WantedBy=timers.target"* ]] \
     || s26_bad+="the service and timer: $s26_g"$'\n'
 empty "26 systemd: OnCalendar lines (two for the OR rule), Persistent=true, every as OnActiveSec + OnUnitActiveSec, AccuracySec=1s, a oneshot service on the runner's copy" "$s26_bad"
+
+# --- Wake: the scheduler never changes power, wake or sleep settings ---------------------------------
+# Static: no wake timer and no rtcwake anywhere in the plugin, and every pmset in the script is a read (-g) or a line
+# printed for the person to run (sudo pmset), never a call. A comment line is not a call.
+s26_bad=""
+s26_wk="$(grep -rn 'WakeSystem\|rtcwake' "$KIT/plugins/scheduler/scripts" "$KIT/plugins/scheduler/hooks" 2>/dev/null)"
+[[ -z "$s26_wk" ]] || s26_bad+="a wake timer or rtcwake: $s26_wk"$'\n'
+s26_pmcall="$(grep -n 'pmset' "$KIT/plugins/scheduler/scripts/schedule.sh" | grep -v -e 'pmset -g' -e 'sudo pmset' -e 'have pmset' -e '^[0-9]*:[[:space:]]*#')"
+[[ -z "$s26_pmcall" ]] || s26_bad+="a pmset call that is not a read: $s26_pmcall"$'\n'
+grep -q 'WakeSystem' <<<"$s26_g" && s26_bad+="the rendered systemd timer sets WakeSystem"$'\n'
+# Dynamic: a stubbed Mac, so doctor takes its Darwin path. Every pmset call it makes is logged and must be a read.
+s26_pm="$s26/pmbin"; mkdir -p "$s26_pm"
+printf '#!/bin/bash\n[[ "$1" == -s ]] && { echo Darwin; exit 0; }\nexec /usr/bin/uname "$@"\n' >"$s26_pm/uname"
+printf '#!/bin/bash\necho "$*" >>"%s/pmset.calls"\n[[ "$1" == -g ]] && echo "Sleep schedule: none"\nexit 0\n' "$s26_pm" >"$s26_pm/pmset"
+chmod +x "$s26_pm/uname" "$s26_pm/pmset"
+s26_dr="$(PATH="$s26_pm:$PATH" s26_x doctor 2>&1)"
+grep -qv '^-g' "$s26_pm/pmset.calls" 2>/dev/null && s26_bad+="doctor called pmset with more than -g: $(cat "$s26_pm/pmset.calls")"$'\n'
+[[ "$s26_dr" == *"Optional: this Mac runs a task that was asleep"*"sudo pmset repeat cancel"*"sudo pmset repeat wakeorpoweron"* ]] \
+    || s26_bad+="doctor's wake line is not labelled optional with its undo: $s26_dr"$'\n'
+empty "26 wake: no WakeSystem or rtcwake in the plugin; pmset is only ever read, and doctor labels its wake line optional with the undo" "$s26_bad"
 if command -v systemd-analyze >/dev/null 2>&1; then
     s26_bad=""
     for s26_n in weekdays ordays hourly later biz; do
