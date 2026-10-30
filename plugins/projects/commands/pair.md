@@ -45,7 +45,8 @@ Read what the user typed after the command (or, as a skill, what they asked).
   not part of its name. **Nothing** — the project folder this session is in, or
   ask which of the active projects.
 - **`status`** — report the pairing: the engineer's state (below), open messages
-  each way, and what waits on the person. Read-only.
+  each way, and what waits on the person. Read-only. It is `pair.sh check`, which
+  derives the state from evidence.
 - **`close`** — end the pairing (see Closing).
 - **`join`** or **`leave`** — typed in the engineer's session, not the PM's: attach a
   session that was started without the launcher, or detach it (see Joining).
@@ -84,19 +85,29 @@ workspace, use it, with the mailbox folder as `--mailbox`:
   `Status: open`, and prints the id. Two writers can no longer both take the same id.
 - `pair.sh status --mailbox <dir> --from pm --id CC-NNN <status>` sets the status of
   an engineer's message: one line in `status-pm.md`, the PM's own file.
-- `pair.sh check --mailbox <dir>` prints the engineer's state and what is open each way,
-  and, once per stale spell, the line the person needs when the engineer is not
-  watching. It also names any file in the mailbox the protocol does not write,
-  such as a copy left by two machines writing one file; tell the person, and
-  merge the copy into the original only with their word.
+- `pair.sh check --mailbox <dir>` prints the engineer's state, derived from evidence,
+  with the evidence: `working: last activity 12:27:16, pid 20007 alive`,
+  `watching: …`, `idle: …` or `ended: …`. It prints the cached `.cc-state` labelled
+  as cached. It also prints what is open each way, the last message each side
+  picked up (`Last picked up: PM-058 at 12:31`), any header dated later than its
+  file's last write, and, once per spell, the line the person needs. It names any
+  file in the mailbox the protocol does not write, such as a copy left by two
+  machines writing one file; tell the person, and merge the copy into the original
+  only with their word.
+- `pair.sh watch --role pm --mailbox <dir>` is the PM's watch, run as a background
+  command. It ends with one line naming a new open CC message, and the PM starts it
+  again.
 - `pair.sh init --mailbox <dir> --name "<project name>"` makes a mailbox in any
   folder.
 
 **Time.** Every time written into the mailbox comes from the system clock, read
 with `date` each time, never estimated, and carries its UTC offset:
-`date '+%Y-%m-%d %H:%M %z'`. Where the machine's clock can be synced with network
-time, it should be; if a time looks wrong, say so to the person rather than
-correcting it by hand.
+`date '+%Y-%m-%d %H:%M %z'`. Every message is written with `pair.sh post`, which
+stamps its header itself, or headed with the output of that `date` command, never
+a typed time. A header later than its file's last write is named by `check`, and
+the times in it are both shown. Where the machine's clock can be synced with
+network time, it should be; if a time looks wrong, say so to the person rather
+than correcting it by hand.
 
 Where there is no shell, do the same by hand: read the last id in the file, write the
 next with `Status: open` on a line of its own, last in the message; a status is a line
@@ -106,9 +117,11 @@ appended to your own status file (the mailbox README shows it).
 
 1. **One PM per mailbox.** If `.pm-session` is in the mailbox, another PM session may
    hold it: say so to the person with its `since:` time, and continue only on their
-   word. Then write `.pm-session` with `token: <a short random token>` and
-   `since: <now>`, and keep the token for this conversation's posts; a post without it
-   is still written, with a warning that a second PM is writing.
+   word. A PM started by `pair.sh --pm` is handed its token in its prompt, and the
+   launcher has written `.pm-session` already: keep that token. Otherwise write
+   `.pm-session` with `token: <a short random token>` and `since: <now>`, and keep
+   the token for this conversation's posts; a post without it is still written, with
+   a warning that a second PM is writing.
 2. **The mailbox.** If the project already has one in the two-file format
    (`to-cc.md` and `to-pm.md`, messages headed `## PM-NNN · …` with a
    `Status:` line), continue it: keep its file names and carry on its id series.
@@ -181,9 +194,30 @@ appended to your own status file (the mailbox README shows it).
    resume line) beneath the command, so the person sees exactly what goes in.
    When the engineer's session is already open, started some other way, the
    alternative is to type `/projects:pair join` in it: no exit, nothing lost.
-7. **Check-ins.** Arrange to come back to this conversation every 30 minutes
-   while anything is open in either file: a scheduled message into this
-   session where the surface has one, `/loop 30m` where it is Claude Code.
+
+   A Claude Code PM is started the same way, with `--pm`: `kit/plugins/projects/scripts/pair.sh
+   <project folder> --pm`. It starts, or resumes, a session named `<slug>-pm` whose prompt
+   is `examples/pair/PM-KICKOFF.md` with this mailbox and a fresh token filled in, and it
+   writes `.pm-session`. Say to the person which session is the PM's and which the
+   engineer's, and that the PM's session starts its own watch.
+7. **Check-ins.** A Claude Code PM (started by `pair.sh <project folder> --pm`, below)
+   checks in by its watch, not by a timer: start `pair.sh watch --role pm --mailbox <dir>`
+   as a background command in place of `/loop 30m`. It ends with one line when a new CC
+   message arrives, and the PM starts it again; it holds nothing, so the session stays
+   free for the person. Start it before the first turn ends, and start it again after
+   each message. A turn that ends with no PM watch running is sent back once, with this
+   command, by the Stop hook; the second stop lets it end, and the next turn gets one
+   block again.
+
+   **Which PM.** The Claude Code PM fits a build pairing, where the engineer is also a
+   Claude Code session, the PM runs the commands and the app itself, and the wake-up has
+   to be quick. The Cowork PM fits when the work is mostly outward (mail, Slack,
+   documents) or is directed from claude.ai, since its check-ins are scheduled reminders
+   that can arrive late. A build pairing takes the Claude Code PM unless the person says
+   otherwise.
+
+   A Cowork PM arranges to come back to this conversation every 30 minutes while
+   anything is open in either file: a scheduled message into this session.
    A pairing keeps one check-in task, re-armed rather than added to: name it
    `<slug> check-in`, write its id to `.pm-checkin` in the mailbox, and at the
    end of each check-in move that same task to the next time where the
@@ -212,15 +246,22 @@ appended to your own status file (the mailbox README shows it).
   README's paste rule: lines of about 70 characters, a trailing `\`, variables on
   their own lines, a script for anything longer, the expected output beside it. Decisions only they can make go to them as one
   short question each; meanwhile the engineer takes the reversible default.
-- **The engineer's state.** `.cc-state` reads `working`, `waiting` (its session
-  has a watch running on the mailbox) or `stopped`. When it is stopped and something is open for it,
-  give the person the same one-line command: it resumes the session.
-- **Not watching.** When a PM message is open and `.cc-session` is missing, or
-  `.cc-state` has not changed for an hour, no session is listening: a live watch
-  turns `waiting` into `working` within a poll of a new message. Tell the person
-  once, in one line: "the engineer isn't watching the mailbox; type
-  `/projects:pair join` in its session." `pair.sh check` prints exactly that line,
-  once per spell.
+- **The engineer's state.** Read `pair.sh check` before saying anything about the
+  engineer, and report what it derives, with its evidence: `working` (activity
+  within two minutes), `watching` (its watch runs), `idle` (its session runs, with no
+  watch) or `ended` (its session is gone). The `.cc-state` line check prints is a
+  cache, labelled as one; do not report from it. Do not tell the person to relaunch
+  on your own reading. Ask the person instead ("is the engineer working?"). Tell them to
+  relaunch only when check says `ended`, and then give the one-line command, which
+  resumes the session.
+- **Pickup.** `check` prints when the engineer last picked a message up (`Last
+  picked up: PM-058 at 12:31`). A message with no pickup after a long wait is the
+  thing to ask about, with the state beside it.
+- **Not watching.** When a PM message is open and the engineer is idle or not
+  started, no watch is listening. Tell the person once, in one line, and do not
+  repeat it each check-in: "the engineer isn't watching the mailbox; type
+  `/projects:pair join` in its session." `pair.sh check` prints that line once per
+  spell; an `ended` engineer gets the relaunch line instead.
 - **Re-arm or retire the check-in** as the last step, as step 7 describes:
   the same task moved on while anything is in flight, deleted once nothing is.
 - A message from the person that is only a mailbox id (`PM-012`, `CC-007`) means

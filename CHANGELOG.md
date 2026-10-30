@@ -5,6 +5,25 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.5.0 — 2026-10-30
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. The pairing
+hooks and commands take effect in the next session.
+
+- **Pairing on evidence.** A pairing's liveness comes from what is recorded, and the status line shows that
+  evidence: the engineer's process id, its last activity beat, whether a watch is running, and whether the
+  session has ended. A status that reads idle says which evidence it read.
+- **The Stop guard on both sides.** A turn that would end while a pairing is open is held once, with the
+  reason, and released on the second try, for the engineer and for the PM.
+- **The PM watch and `pair.sh --pm`.** A PM that is a Claude Code session runs its own watch, and the
+  launcher starts it with `--pm`.
+- **Clock-stamped headers and pickups.** Each message header carries the time it was posted, and a pickup is
+  recorded in the mailbox.
+- **A watch counts only when its process is the one the pairing recorded,** so a reused process id no longer
+  reads as a running watch. `.cc-state` is a cache, rebuilt from the evidence.
+
+---
+
 ## v3.4.0 — 2026-10-28
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. From v3.3.0

@@ -42,7 +42,9 @@ first line (`Re: PM-007`).
 ## Time
 
 Every time written here comes from the system clock, never from an estimate: read it with `date`
-each time. Keep the clock synced with network time where the machine allows it. Write the UTC offset
+each time. A header is written by `kit/plugins/projects/hooks/pair.sh post`, which stamps it itself, or
+headed with the output of `date`; a header typed by hand, or dated later than the file it sits in, is named
+by `pair.sh check`. Keep the clock synced with network time where the machine allows it. Write the UTC offset
 with every time (`2026-10-06 17:40 +0100`, from `date '+%Y-%m-%d %H:%M %z'`), so times written on
 machines in different zones still sort into the order things happened.
 
@@ -69,7 +71,12 @@ id holds. A status:
 - **The engineer** checks `to-cc.md` at the start of each piece of work, at each gate and before it
   reports done. Between turns a background command it starts watches the file and wakes it when a
   message arrives. The watch holds nothing: the session stays free for the person to type into.
-- **The PM** checks `to-pm.md` every 30 minutes while anything is open, and tests what the engineer
+  The first time the watch or a hook points it at a message, `status-cc.md` gains a `received <time>` line
+  for that id, so the PM sees how long the message waited. A `received` line is a pickup record, not a
+  settlement: the message stays open until a status line says otherwise.
+- **The PM** runs `pair.sh watch --role pm` as a background command, which wakes it when a CC message arrives, and
+  reads `pair.sh check` before saying anything about the engineer. A Claude Code PM is started with
+  `pair.sh <folder> --pm`; a Cowork PM checks on a schedule instead. Either way it tests what the engineer
   reports before accepting it.
 - A message that cannot wait for a check goes to the person directly.
 
