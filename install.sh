@@ -827,7 +827,7 @@ if [[ $DRY -eq 0 ]]; then
         echo "     @kit/CLAUDE.kit.md; /workspace:quick-start maps your system onto the kit and changes nothing without your yes."
     fi
     i=$((i + 1))
-    echo "  $i. Each person, in Claude Code: trust the folder, then approve the closeout, projects and workspace plugins when asked."
+    echo "  $i. Each person, in Claude Code: trust the folder, then approve the closeout, projects, scheduler and workspace plugins when asked."
     i=$((i + 1))
     if [[ "$AW_V_pilot" == 1 ]]; then
         echo "  $i. Put the team's own build list into pilot/build-list.md, commit, then run bash $REL/pilot/measure.sh."

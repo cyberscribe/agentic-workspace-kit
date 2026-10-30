@@ -5,6 +5,7 @@
   "enabledPlugins": {
     "closeout@agentic-workspace": true,
     "projects@agentic-workspace": true,
+    "scheduler@agentic-workspace": true,
     "workspace@agentic-workspace": true
   },
   "permissions": {

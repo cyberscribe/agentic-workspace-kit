@@ -22,11 +22,9 @@ s23_mb="$s23_p/mailbox"
 mkdir -p "$s23_mb"
 # The hooks keep to kit workspaces (hooks/lib/boundary.sh): the fixture's root carries a ledger as the marker.
 mkdir -p "$SCRATCH/s23/.claude" && : > "$SCRATCH/s23/.claude/kit-templates.lock"
-export CLAUDE_PROJECT_DIR="$SCRATCH/s23"
 
 s23_reset() {
     # A stand-in watch from an earlier check is ended with the reset that clears it.
-    [ -f "$s23_mb/.cc-watch" ] && pkill -P "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
     [ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
     rm -f "$s23_mb"/.cc-* "$s23_mb"/.pm-* "$s23_mb/.closed"
     printf '# To CC\n\n## PM-001 · 2026-10-10 10:00 · Brief\nBuild it.\nStatus: done 2026-10-10 11:00 abc1234\n' > "$s23_mb/to-cc.md"
@@ -35,7 +33,7 @@ s23_reset() {
 # s23_standin: a watch the Stop hook counts as running (a sleep, which the next reset ends). Checks about
 # what a message does, rather than the no-watch rule, use it so the watch rule does not get in the way.
 # The command line reads "pair.sh watch", which is what watching() looks for; the trailing : keeps bash from exec-ing sleep.
-s23_standin() { bash -c 'sleep 900; :' pair.sh watch >/dev/null 2>&1 & printf '%s\n' "$!" > "$s23_mb/.cc-watch"; }
+s23_standin() { bash -c 'sleep 900; :' pair.sh watch & printf '%s\n' "$!" > "$s23_mb/.cc-watch"; }
 s23_add() { printf '\n## %s · 2026-10-10 12:00 · More\nAnd this.\nStatus: open\n' "$1" >> "$s23_mb/to-cc.md"; }
 # s23_run <mode> [VAR=value...]: runs the hook with the launcher's variables; prints "<exit>|<stderr>".
 s23_run() {
@@ -162,7 +160,7 @@ s23_other="$SCRATCH/s23/elsewhere"
 mkdir -p "$s23_other"
 # s23_bare <args...>: the hook with no launcher variables, the section's registry and no session id
 # unless the call sets one.
-s23_bare() { env -u PAIR_ROLE -u PAIR_MAILBOX -u CLAUDE_CODE_SESSION_ID CLAUDE_PROJECT_DIR="$SCRATCH/s23" PAIR_REGISTRY="$s23_reg" "$@"; }
+s23_bare() { env -u PAIR_ROLE -u PAIR_MAILBOX -u CLAUDE_CODE_SESSION_ID PAIR_REGISTRY="$s23_reg" "$@"; }
 # s23_hook_in <mode> <session id> <cwd> [VAR=value...]: a hook call as Claude Code makes it, with no
 # launcher variables; prints "<exit>|<stderr>".
 s23_hook_in() {
@@ -829,7 +827,6 @@ s23_spp="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23
 s23_reset
 
 # The last stand-in watch and the claude stand-in are ended here, not left for the next section.
-    [ -f "$s23_mb/.cc-watch" ] && pkill -P "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -n "${s23_claude:-}" ] && kill "$s23_claude" 2>/dev/null
 true

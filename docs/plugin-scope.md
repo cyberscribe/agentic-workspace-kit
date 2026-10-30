@@ -8,7 +8,7 @@ load at stage 9.*
 ## The rule
 
 Claude Code reads `.claude/settings.json` in the folder a session is opened on, and not in the folders
-above it. The workspace's settings register the kit's marketplace and enable its three plugins, so on
+above it. The workspace's settings register the kit's marketplace and enable its plugins, so on
 their own they reach a session opened on the workspace's own folder and no other. Setup therefore also
 installs the plugins for the person (user scope), and the plugins' hooks keep to kit workspaces.
 
@@ -43,12 +43,12 @@ A session is inside a kit workspace when its folder, or a folder above it, holds
 resolved to its real path first, so a workspace entered through a symbolic link counts. This is the same
 walk the workspace plugin's session-start line has always used to find the workspace it reports on.
 
-Every hook of the three plugins starts with it: closeout's SessionStart and SessionEnd, projects'
+Every hook of the kit's plugins starts with it: closeout's SessionStart and SessionEnd, projects'
 SessionStart and the pair hooks, workspace's SessionStart and the git guard. Outside a workspace each
 exits 0 with nothing said, so the closeout capture starts no child session there and the git guard
 leaves other repositories' commands alone. The rule lives in `hooks/lib/boundary.sh`; each plugin
 carries an identical copy, since an installed plugin reaches only its own folder, and the test suite
-checks that the three match. The commands cannot be hidden outside a workspace, so each one checks the
+checks that the copies match. The commands cannot be hidden outside a workspace, so each one checks the
 same two files first and, finding neither, says in one line where it works.
 
 ## Installing them for the person
@@ -87,7 +87,7 @@ longer there is replaced without asking. Two workspaces on the same kit version 
 
 **`/closeout` reads as unknown after setup.** Neither the person's settings nor the workspace's enable
 the plugins. Where `.claude/settings.json` existed before the kit, the engine adds the marketplace to a
-file that is the person's and leaves the rest; setup offers to add the three entries at stage 3 and to
+file that is the person's and leaves the rest; setup offers to add the kit's entries at stage 3 and to
 install the plugins for the person at stage 7. Where both were declined, or a plugin is set to `false`,
 stages 3, 7 and 9 print the commands. `git diff .claude/settings.json` shows the lines to commit.
 

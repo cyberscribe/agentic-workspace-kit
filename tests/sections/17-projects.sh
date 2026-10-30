@@ -268,13 +268,13 @@ empty "17 hook: a folder with no Current state block that is not listed stays si
 empty "17 hook: every run exits quietly (nothing on stderr)" \
     "$(jq -nc --arg c "$s17_ws/projects/field-study" '{cwd: $c}' | PROJECTS_HOOK_STATE_DIR="$s17_stamps" "$st_bash" "$s17_hook" 2>&1 >/dev/null)"
 
-# ---- The ten commands ----------------------------------------------------------------------------
+# ---- The twelve commands ----------------------------------------------------------------------------
 
-s17_want="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the eleven commands, /projects:hold among them" \
-    || ko "17 the kit has exactly the eleven commands, /projects:hold among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the twelve commands, /projects:hold among them" \
+    || ko "17 the kit has exactly the twelve commands, /projects:hold among them" "has: $s17_got"
 
 # ---- What each projects command says -------------------------------------------------------------
 

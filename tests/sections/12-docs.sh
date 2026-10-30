@@ -56,10 +56,11 @@ empty "12 every command has a row in the README that links its page" "$s12_rows"
 
 # --- Hooks -----------------------------------------------------------------------------------------
 s12_bad="" s12_count=0
-for s12_f in "$KIT"/plugins/*/hooks/*.sh; do
+for s12_f in "$KIT"/plugins/*/hooks/*.sh "$KIT"/plugins/*/hooks/*.tsx; do
+    [[ "$s12_f" == *.test.tsx ]] && continue
     s12_rel="${s12_f#"$KIT"/}"
     s12_p="${s12_rel#plugins/}"; s12_p="${s12_p%%/*}"
-    s12_b="${s12_f##*/}"; s12_b="${s12_b%.sh}"
+    s12_b="${s12_f##*/}"; s12_b="${s12_b%.sh}"; s12_b="${s12_b%.tsx}"
     case "$s12_b" in "$s12_p"-*) s12_name="$s12_b" ;; *) s12_name="$s12_p-$s12_b" ;; esac
     s12_expected+=" docs/hooks/$s12_name.md "
     s12_bad+="$(s12_page "$KIT/docs/hooks/$s12_name.md" "$s12_rel")"$'\n'

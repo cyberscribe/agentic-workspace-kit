@@ -81,7 +81,8 @@ one `SKIP` line each) unless `AW_SLOW=1`; the full run before a push, and a rele
 The suite needs `git`, `jq` and `python3` (3.11 or later), and builds everything under one temporary
 folder that it removes on exit (`AW_KEEP=1` keeps it). It runs child scripts under `/bin/bash` where
 there is one, since the kit's scripts are written for bash 3.2; `AW_BASH32=0` leaves `PATH` alone.
-Checks that start Claude Code are skipped unless `AW_TEST_CLAUDE=1`. `tests/README.md` lists every
+Checks that start Claude Code are skipped unless `AW_TEST_CLAUDE=1`, and the scheduler's live runs in
+Linux containers unless `AW_TEST_DOCKER=1` (about four minutes, with a Docker daemon). `tests/README.md` lists every
 section and flag. Passing is the bar for every change.
 
 To time a hook by hand, give it an empty stdin: `bash githooks/pre-commit </dev/null`. The hooks read
@@ -99,7 +100,8 @@ Every script is linted with `shellcheck -x`, which section 11 of the suite runs 
 shellcheck -x setup.sh install.sh lib/*.sh lib/setup/*.sh scripts/*.sh githooks/pre-commit \
     githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh githooks/lib/common.sh \
     plugins/workspace/scripts/state.sh plugins/*/hooks/*.sh plugins/closeout/hooks/lib/config.sh \
-    plugins/projects/hooks/lib/*.sh plugins/projects/scripts/*.sh pilot/*.sh tests/run.sh tests/sections/*.sh
+    plugins/projects/hooks/lib/*.sh plugins/projects/scripts/*.sh plugins/scheduler/scripts/*.sh pilot/*.sh \
+    tests/run.sh tests/sections/*.sh
 ```
 
 ## Along with the change

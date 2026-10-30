@@ -181,7 +181,7 @@ sed 's/^Plain, short answers\.$/<how the agent should show up here>/' "$s16_W/CL
 r="$(AW_OPAQUE_PATHS="$s16_opq" st_run "$s16_G")"
 st_expect "16 the §11.4 green set, every key present" "$r" in_git=yes hooks=active kit_hooks=active kit_path=kit \
     kit_submodule=yes kit_import=ok ledger=present workspace_conventions=present claude_md=kit agents_md=kit \
-    always_loaded=CLAUDE.md plugins_registered=closeout,projects,workspace plugins_mode=kit submodule_config=ok \
+    always_loaded=CLAUDE.md plugins_registered=closeout,projects,scheduler,workspace plugins_mode=kit submodule_config=ok \
     submodules_attention= orphan_gitlinks= sensitive_tracked= versioned_mismatch= external_paths_missing= legacy= \
     kit_incoming= mode=fresh origin_visibility=none
 s16_bad=""
@@ -196,7 +196,7 @@ mkws "$s16_M"; s16_rc=$?
 if [[ $s16_rc -eq 0 ]]; then
     st_expect "16 setup.sh new reaches the §11.4 green set" "$(st_run "$s16_M")" in_git=yes hooks=active kit_hooks=active \
         kit_path=kit kit_submodule=yes kit_import=ok ledger=present workspace_conventions=present claude_md=kit \
-        agents_md=kit always_loaded=CLAUDE.md plugins_registered=closeout,projects,workspace plugins_mode=kit \
+        agents_md=kit always_loaded=CLAUDE.md plugins_registered=closeout,projects,scheduler,workspace plugins_mode=kit \
         submodule_config=ok submodules_attention= orphan_gitlinks= sensitive_tracked= versioned_mismatch= \
         external_paths_missing= legacy= kit_incoming= mode=fresh origin_visibility=none
 else
@@ -447,9 +447,9 @@ s16_nomkt="$s16_S/settings-nomkt.json"
 jq 'del(.extraKnownMarketplaces)' "$s16_W/.claude/settings.json" > "$s16_nomkt"
 cp "$s16_nomkt" "$s16_PL/.claude/settings.json"
 st_expect "16 plugins_loaded unknown with no registry to read, and nothing named" "$(s16_pl)" plugins_loaded=unknown plugins_not_loaded=
-s16_reg '{"closeout@agentic-workspace":[{"scope":"user"}],"projects@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}'
+s16_reg '{"closeout@agentic-workspace":[{"scope":"user"}],"projects@agentic-workspace":[{"scope":"user"}],"scheduler@agentic-workspace":[{"scope":"user"}],"workspace@agentic-workspace":[{"scope":"user"}]}'
 st_expect "16 plugins_loaded yes when every kit plugin is enabled and installed for the user" "$(s16_pl)" plugins_loaded=yes plugins_not_loaded=
-s16_reg '{"closeout@agentic-workspace":[{"scope":"project","projectPath":"'"$s16_PLt"'"}],"projects@agentic-workspace":[{"scope":"project","projectPath":"/elsewhere"}],"workspace@agentic-workspace":[{"scope":"user"}],"projects@another-market":[{"scope":"user"}]}'
+s16_reg '{"closeout@agentic-workspace":[{"scope":"project","projectPath":"'"$s16_PLt"'"}],"projects@agentic-workspace":[{"scope":"project","projectPath":"/elsewhere"}],"workspace@agentic-workspace":[{"scope":"user"}],"scheduler@agentic-workspace":[{"scope":"user"}],"projects@another-market":[{"scope":"user"}]}'
 st_expect "16 a project-scope install counts for its own repository only; another marketplace's is not the kit's" "$(s16_pl --quick)" \
     plugins_loaded=no plugins_not_loaded=projects:not-installed
 printf '{"enabledPlugins":{"projects@agentic-workspace":false}}\n' > "$s16_PL/.claude/settings.local.json"
@@ -475,12 +475,12 @@ st_expect "16 a directory marketplace at kit/ in the workspace's settings serves
 st_expect "16 ... and --quick agrees" "$(s16_pl --quick)" plugins_loaded=yes plugins_not_loaded=
 jq '.extraKnownMarketplaces["agentic-workspace"].source.path = "no-such-kit"' "$s16_W/.claude/settings.json" > "$s16_PL/.claude/settings.json"
 st_expect "16 a directory marketplace whose folder does not exist serves nothing" "$(s16_pl)" \
-    plugins_loaded=no plugins_not_loaded=closeout:not-installed,projects:not-installed,workspace:not-installed
+    plugins_loaded=no plugins_not_loaded=closeout:not-installed,projects:not-installed,scheduler:not-installed,workspace:not-installed
 cp "$s16_nomkt" "$s16_PL/.claude/settings.json"
 st_expect "16 no kit checkout: unknown" "$(CLAUDE_CONFIG_DIR="$s16_cfg" st_run "$s16_S/plain")" plugins_loaded=unknown plugins_scope=unknown
 # plugins_scope: whose settings enable every kit plugin, which decides the folders a session loads them in.
 st_expect "16 plugins_scope workspace when the workspace's settings alone enable the kit's plugins" "$(s16_pl)" plugins_scope=workspace
-printf '{"enabledPlugins":{"closeout@agentic-workspace":true,"projects@agentic-workspace":true,"workspace@agentic-workspace":true}}\n' > "$s16_cfg/settings.json"
+printf '{"enabledPlugins":{"closeout@agentic-workspace":true,"projects@agentic-workspace":true,"scheduler@agentic-workspace":true,"workspace@agentic-workspace":true}}\n' > "$s16_cfg/settings.json"
 st_expect "16 plugins_scope user when the person's own settings.json enables them all" "$(s16_pl)" plugins_scope=user
 printf '{"enabledPlugins":{"closeout@agentic-workspace":true,"projects@agentic-workspace":false}}\n' > "$s16_cfg/settings.json"
 st_expect "16 ... and workspace again when the person's own names only some of them" "$(s16_pl)" plugins_scope=workspace
@@ -635,7 +635,7 @@ s16_o="$(s16_hookrun "$s16_D" | s16_msg)"
     || ko "16 hook: two submodules with the same last name are named by their paths" "$s16_o"
 # A kit plugin not loaded beside the bridge's kit-* skills: one line naming it and the fix. A plugin set
 # false is a choice, and the plugin whose hook is running (CLAUDE_PLUGIN_ROOT) is loaded.
-s16_reg '{"workspace@agentic-workspace":[{"scope":"user"}],"closeout@agentic-workspace":[{"scope":"user"}]}'
+s16_reg '{"workspace@agentic-workspace":[{"scope":"user"}],"closeout@agentic-workspace":[{"scope":"user"}],"scheduler@agentic-workspace":[{"scope":"user"}]}'
 s16_hb() { s16_hookrun "$s16_PL" CLAUDE_CONFIG_DIR="$s16_cfg" "$@" | s16_msg; }
 s16_bad=""
 [[ -z "$(s16_hb)" ]] || s16_bad+="with no bridge manifest: $(s16_hb)"$'\n'
@@ -646,9 +646,9 @@ s16_o="$(s16_hb)"
     || s16_bad+="one plugin missing: $s16_o"$'\n'
 s16_reg '{}'
 s16_o="$(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")"
-[[ "$s16_o" == "Workspace: the kit's plugins closeout, projects are not loaded, so their kit-* skills stand in for them — claude plugin install <name>@agentic-workspace for each, or /plugin." ]] \
+[[ "$s16_o" == "Workspace: the kit's plugins closeout, projects, scheduler are not loaded, so their kit-* skills stand in for them — claude plugin install <name>@agentic-workspace for each, or /plugin." ]] \
     || s16_bad+="two missing, the hook's own plugin loaded: $s16_o"$'\n'
-printf '{"enabledPlugins":{"closeout@agentic-workspace":false,"projects@agentic-workspace":false}}\n' > "$s16_PL/.claude/settings.local.json"
+printf '{"enabledPlugins":{"closeout@agentic-workspace":false,"projects@agentic-workspace":false,"scheduler@agentic-workspace":false}}\n' > "$s16_PL/.claude/settings.local.json"
 [[ -z "$(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")" ]] || s16_bad+="plugins set false got a line: $(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")"$'\n'
 empty "16 hook: a kit plugin not loaded while bridge skills exist gets one line with the fix; none without the bridge, or for a plugin set false" "$s16_bad"
 empty "16 hook: exit 0 and nothing on stderr in every run above" "$s16_hook_err"
