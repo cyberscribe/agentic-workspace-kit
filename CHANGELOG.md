@@ -79,6 +79,8 @@ it in every folder.
   the suite counts twelve commands. Section 25's rule that every command works only inside a kit
   workspace has one exception, `/scheduler:tasks`, which works in any folder.
 
+- **`list` reads at a glance.** Its NAME column is as wide as the longest task name, so every row lines up, and a schedule on a few days of the week reads as their names ("Tue, Thu 07:50", "weekends 09:00") rather than as cron fields.
+
 ### Template changes
 
 - `templates/workspace/settings.json` enables `scheduler@agentic-workspace` beside the other three.

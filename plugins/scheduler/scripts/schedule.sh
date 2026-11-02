@@ -453,7 +453,13 @@ describe_words() {
             t="$(printf '%02d:%02d' "$C_HOUR" "$C_MIN")"
             if full_set "$C_DOW" 0 6; then DWORDS="daily $t$zone"
             elif [[ "$C_DOW" == "1 2 3 4 5" ]]; then DWORDS="weekdays $t$zone"
-            else return 1; fi
+            elif [[ "$C_DOW" == "0 6" ]]; then DWORDS="weekends $t$zone"
+            else
+                # A short list of days reads as their names: "Tue, Thu 07:50".
+                local dd dn=""
+                for dd in $C_DOW; do dn+="${dn:+, }${DOW_NAMES[dd]}"; done
+                DWORDS="$dn $t$zone"
+            fi
             return 0 ;;
     esac
     return 1
@@ -1933,11 +1939,14 @@ next_for_task() {   # count: after the task is loaded
 cmd_list() {
     local json=0 n rows_w="" rows="" row
     [[ "${1:-}" == --json ]] && json=1
+    # The NAME column is as wide as the longest name, so a long one does not push its row out of line.
+    local nw=4
+    for n in $(task_names); do (( ${#n} > nw )) && nw=${#n}; done
     # Tasks with a run awaiting a reply come first: they are the ones that need the person.
     for n in $(task_names); do
         local st sched sched_w nxt="" nxt_w="" last="" lr="" lst="" wait=""
         if ! task_load "$(task_file "$n")"; then
-            (( json )) || rows+="$(printf '%-24s %-7s %s' "$n" "?" "$TERR")"$'\n'
+            (( json )) || rows+="$(printf '%-*s %-7s %s' "$nw" "$n" "?" "$TERR")"$'\n'
             continue
         fi
         st="$(tv status)"; sched="$t_schedule"; sched_w="$(schedule_words "$sched")"
@@ -1956,14 +1965,14 @@ cmd_list() {
                 "$(json_str "$sched_w")" "$(json_str "$nxt_w")")"
         else
             [[ -n "$wait" ]] && last="awaiting a reply since $(meta_get "$S_DATA/runs/$n/$wait" end | cut -c1-16)"
-            row="$(printf '%-24s %-7s %-21s %-30s %s' "$n" "$st" "${nxt_w:--}" "${last:--}" "$sched_w")"
+            row="$(printf '%-*s %-7s %-21s %-30s %s' "$nw" "$n" "$st" "${nxt_w:--}" "${last:--}" "$sched_w")"
         fi
         if [[ -n "$wait" ]]; then rows_w+="$row"$'\n'; else rows+="$row"$'\n'; fi
     done
     if (( json )); then
         printf '[%s]\n' "$(printf '%s%s' "$rows_w" "$rows" | sed '/^$/d' | paste -sd, -)"
     else
-        printf '%-24s %-7s %-21s %-30s %s\n' NAME STATUS NEXT LAST SCHEDULE
+        printf '%-*s %-7s %-21s %-30s %s\n' "$nw" NAME STATUS NEXT LAST SCHEDULE
         printf '%s%s' "$rows_w" "$rows"
     fi
 }

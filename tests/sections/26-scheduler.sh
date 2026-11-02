@@ -220,13 +220,14 @@ CRON_TZ=FZ 10 9 * * *|daily 09:10 (FZ)
 10 9 * * *|daily 09:10
 @daily|daily 00:00
 once 2027-01-01 09:00|once, Fri 1 Jan 2027 09:00
-30 8 * * 1|30 8 * * 1
+30 8 * * 1|Mon 08:30
+0 9 * * 2,4|Tue, Thu 09:00
 */15 9 * * *|*/15 9 * * *
 0 9 1 * *|0 9 1 * *
-0 9 * * 6,0|0 9 * * 6,0
+0 9 * * 6,0|weekends 09:00
 every 30m|every 30m
 TABLE
-empty "26 schedules in words: weekdays, daily and once; a zone named only when it is not this machine's; any other schedule as written" "$s26_bad"
+empty "26 schedules in words: weekdays, weekends, daily, a list of days and once; a zone named only when it is not this machine's; any other schedule as written" "$s26_bad"
 
 # list shows the same words in its schedule and next columns; JSON keeps the raw fields and adds
 # schedule_words and next_words beside them. The clock is pinned on a Friday, so the next runs are known.
@@ -238,6 +239,7 @@ s26_mk mine "CRON_TZ=$s26_lz 40 9 * * 1-5"
 s26_mk abroad "CRON_TZ=$s26_fz 40 9 * * 1-5"
 s26_mk daily '10 9 * * *'
 s26_mk raw '30 8 * * 1'
+s26_mk a-task-with-a-name-longer-than-the-old-column '0 9 1 * *'
 s26_bad=""
 s26_js="$(s26_x list --json 2>&1)"
 s26_jq() { printf '%s' "$s26_js" | jq -r --arg n "$1" ".[] | select(.name == \$n) | $2"; }
@@ -246,17 +248,20 @@ s26_jq() { printf '%s' "$s26_js" | jq -r --arg n "$1" ".[] | select(.name == \$n
 [[ "$(s26_jq abroad '.schedule_words')" == "weekdays 09:40 ($s26_fz)" ]] || s26_bad+="abroad: $(s26_jq abroad '.schedule_words')"$'\n'
 [[ "$(s26_jq abroad '.next_words | test("^[A-Z][a-z]{2} [0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}$")')" == true ]] || s26_bad+="abroad next: $(s26_jq abroad '.next_words')"$'\n'
 [[ "$(s26_jq daily '.schedule_words + " | " + .next_words')" == "daily 09:10 | Sat 31 Oct 09:10" ]] || s26_bad+="daily: $(s26_jq daily '.schedule_words + " | " + .next_words')"$'\n'
-[[ "$(s26_jq raw '.schedule_words + " | " + .next_words')" == "30 8 * * 1 | Mon 2 Nov 08:30" ]] || s26_bad+="raw: $(s26_jq raw '.schedule_words + " | " + .next_words')"$'\n'
+[[ "$(s26_jq raw '.schedule_words + " | " + .next_words')" == "Mon 08:30 | Mon 2 Nov 08:30" ]] || s26_bad+="raw: $(s26_jq raw '.schedule_words + " | " + .next_words')"$'\n'
 [[ "$(s26_jq past '.schedule_words + " | " + .next_words')" == "once, Thu 1 Oct 09:00 | " ]] || s26_bad+="past once: $(s26_jq past '.schedule_words + " | " + .next_words')"$'\n'
 s26_out="$(s26_x list 2>&1)"
 # The list's columns are NAME, STATUS, NEXT, LAST, SCHEDULE: the schedule is last, so it reads after the next run.
-[[ "$s26_out" == *"Mon 2 Nov 09:40"*"weekdays 09:40"* && "$s26_out" == *"Sat 31 Oct 09:10"*"daily 09:10"* && "$s26_out" == *"Mon 2 Nov 08:30"*"30 8 * * 1"* ]] \
+[[ "$s26_out" == *"Mon 2 Nov 09:40"*"weekdays 09:40"* && "$s26_out" == *"Sat 31 Oct 09:10"*"daily 09:10"* && "$s26_out" == *"Mon 2 Nov 08:30"*"Mon 08:30"* && "$s26_out" == *"0 9 1 * *"* ]] \
     || s26_bad+="list columns: $s26_out"$'\n'
 [[ "$(head -1 <<<"$s26_out" | awk '{ print $3, $4 }')" == "NEXT LAST" ]] && [[ "$s26_out" == *"SCHEDULE"* ]] \
     || s26_bad+="list header: $(head -1 <<<"$s26_out")"$'\n'
 [[ "$s26_out" == *"once, Thu 1 Oct 09:00"* ]] || s26_bad+="list column for the past once: $s26_out"$'\n'
+# The NAME column is as wide as the longest name, so STATUS starts at the same column on every line.
+s26_col="$(awk 'NR == 1 { c = index($0, "STATUS"); next } { if (substr($0, c - 1, 1) != " " || substr($0, c, 1) == " ") bad = 1 } END { print (c > 0 && !bad) ? "aligned" : "ragged" }' <<<"$s26_out")"
+[[ "$s26_col" == aligned ]] || s26_bad+="list columns not aligned: $s26_out"$'\n'
 unset s26_now
-empty "26 list: the schedule and next columns in words, the raw fields kept in JSON beside schedule_words and next_words; a zone shown only when it is not this machine's; a past once has no next" "$s26_bad"
+empty "26 list: the schedule and next columns in words, aligned under a NAME column as wide as the longest name, the raw fields kept in JSON beside schedule_words and next_words; a zone shown only when it is not this machine's; a past once has no next" "$s26_bad"
 
 # --- Rendering: launchd --------------------------------------------------------------------------
 s26_reset
