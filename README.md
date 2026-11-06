@@ -300,6 +300,50 @@ look.
 *One implementation of the hook-based version ships in this repository as a Claude Code plugin, at
 `plugins/closeout/`. The pattern matters more than the tool.*
 
+#### Levels of closeout
+
+The session pass is the one people mean by "closeout", but the same question — *what did this teach
+that the next piece of work should start from?* — is asked at four levels, each on the cadence at which
+that kind of learning appears.
+
+| Level | When | The question | Where the answer goes |
+|---|---|---|---|
+| **Session** | The end of each working session (`/closeout`) | What was learned, decided or corrected that the next session would otherwise re-derive? | The four content types, cheapest tier first; tracking reconciled apart |
+| **Project** | The finish line (`/projects:close`) | What should the next similar project know first? | The README's retrospective, then whatever survives the cross-project filter into the decisions log or `docs/` |
+| **Workspace** | Weekly (`/workspace:hygiene`) | Which project decisions turned out to generalise, which drafts were never promoted, what has drifted out of place? | General reference, or a proposal for the always-loaded tier |
+| **Method** | When the system itself taught something | Is this about how work is organised, for anyone using the method? | Upstream to the kit, by pull request, stripped of the project, the people and the setting it came from |
+
+Inside a session pass, the tier is the size of the investment. A line in project reference is paid for
+only when that project is open; a line in working standards is paid for on every turn of every session,
+which is why it needs a person's yes (§3.1). A line promoted to one of the two most-loaded tiers is
+offered an *ablation*: a realistic task, run with the line and without it and graded by a check
+(`pilot/ablate.sh`). A line that changes nothing on the task it was promoted for is a candidate for a
+cheaper tier. That test is what separates investment from accumulation.
+
+#### Why it is worth five minutes: context as an investment
+
+A session starts from what it is given. Given little, it reconstructs: it guesses at conventions,
+re-derives constraints, re-proposes the option that was rejected last month, and fills each gap with a
+plausible assumption. Every one of those is a place where an answer can be fluent and wrong. Grounding
+replaces the guess with a reading — the decision with the alternatives it beat, the constraint with
+its evidence, the correction that replaced a belief — and that is the mechanism by which kept context
+improves results. The model is the same on both days; what it starts from is not.
+
+The return compounds, because each pass starts from the last one's output. It is the
+continuous-improvement cycle — plan, do, check, act — applied to the context rather than the product:
+do the work, notice what it taught, record it at the tier where the next session will find it, and
+start the next session from there. Each closeout is small. The improvement comes from their number,
+and from the fact that nothing learned has to be learned twice.
+
+The same compounding runs the other way. A stale line grounds the agent in something that is no longer
+true, which is worse than no line at all, because it is read with the same confidence as a current one.
+That is why the loop has weekly and monthly passes as well as a per-session one, why superseded
+material is marked rather than silently kept, and why the always-loaded tier has a budget. An
+investment is reviewed; a hoard is not.
+
+*This rests on experience in the workspace the kit came from, not on a controlled comparison. The
+ablation runner is how a team tests it for itself, one promoted line at a time.*
+
 ### 4.2 Weekly hygiene — is everything where it belongs?
 
 A scan plus a judgement pass. The scan is deterministic and reports:
@@ -657,6 +701,73 @@ monthly, each running its ritual from `rituals/`. On a surface without session h
 description says when to offer it unprompted: the board when someone asks where the work stands, a project's
 own line when a session opens in its folder, the closeout near the end of a session that decided
 something.
+
+### A project, from first line to done
+
+A project is a folder, `projects/<slug>/`, whose `README.md` is its entry point: an agent picking the
+project up reads it top to bottom, then opens only what the task touches. The README carries
+orientation and pointers, not content, in a fixed order (`templates/project-readme.md`):
+
+- **Versioned** and **Sensitivity**, two lines under the title. The project is tracked by the
+  workspace, is its own repository, or is untracked; a `sensitive` project is never tracked by the
+  workspace, and nothing from it is promoted into a shared file.
+- **What this is**, including what it is *not*. Naming the boundary saves more time than describing the
+  scope.
+- **Desired outcome**, then **Done when**: three to five criteria someone else could check without
+  asking the owner. If the outcome is hard to write, the thing is probably an ongoing area, and belongs
+  in general reference instead.
+- **Current state**, read second because it goes stale fastest: one of five states (*ready*, *doing*,
+  *blocked*, *paused*, *done*), what blocks it and since when, a check-in cadence if it has one, the
+  date it was updated, and one dated line saying where it stands, rewritten rather than added to.
+- **Planned** (optional): the steps foreseen from here, reordered as the work teaches.
+- **People** (optional), one line each, with one of five roles: *owns* (one person per outcome),
+  *does*, *helps*, *ask first* (consulted before a decision) and *keep told* (hears how it went). The
+  roles decide who the closeout's "who needs to know" step names.
+
+The commands follow the project through its life. `/projects:new` interviews for all of this, and
+`/projects:adopt` adds only what an existing project lacks, without rewriting what is there. While the
+work runs, the session-start line and `/projects:board` read the Current state blocks; the board flags
+what needs a look, including anyone over their in-flight limit. `/projects:hold` pauses a project with
+its reason and a date to look at it again; the folder stays where it is, because the reason something
+is paused is itself context. `/projects:pickup` briefs whoever takes it on, from the README, the last
+decisions and commits, and who to ask. `/projects:close` checks each Done-when box against evidence,
+asks three retrospective questions, promotes what the next similar project should know, and moves the
+folder to `projects/_done/<slug>/`.
+
+### Pairing: one session holds the outcome, another builds
+
+`/projects:pair` splits a build between two sessions, so the person directs and decides rather than
+relaying messages between windows.
+
+- **The product manager** — the session where `/projects:pair` was typed, in Cowork or Claude Code —
+  holds the outcome. It writes each brief, re-runs the evidence behind each report, and accepts the
+  work or says what to fix.
+- **The engineer** — always a Claude Code session — owns the doing: the design inside the brief, the
+  code, the tests, and the evidence that it works.
+- **The person** answers at the gates the brief names, and keeps whatever cannot be undone. Commits,
+  pushes, merges and releases stay with the person unless the brief grants them.
+
+The separation is the point. A builder's report of its own work is a claim; the PM reads it as a
+pointer to evidence, re-runs the test or opens the thing, and only then accepts. "Done" means seen
+working by a session that did not build it.
+
+They talk through a mailbox, a folder of plain Markdown. The PM writes `to-cc.md` as numbered
+`PM-NNN` messages, the engineer writes `to-pm.md` as `CC-NNN`, and each side records the status of the
+other's messages in a status file of its own. Every file has one writer, so two sessions never edit
+the same words, and the mailbox can sit in a folder synced between two machines without conflicting
+copies. The first brief quotes the project's outcome, its Done when items and the workspace's standing
+rules, and says where the engineer stops for the person.
+
+The engineer is started with one command, `kit/plugins/projects/scripts/pair.sh <project folder>`, which
+resumes its last session where the transcript is still there, and starts a new one otherwise. A
+session started some other way joins with `/projects:pair join`. Between turns each side runs a
+background watch that wakes it when a message arrives, and `pair.sh check` reports the engineer's state
+from evidence — a live process, a recent activity beat, a running watch — rather than from what the
+session last claimed. `/projects:pair close` ends the pairing and copies its decisions into the
+project's log, where the next session will find them.
+
+Reach for it when the work is mostly building and is worth checking end to end. For a small change, one
+session is quicker. [The command's page](docs/commands/projects-pair.md) has the detail.
 
 ### Commands and hooks, one page each
 
