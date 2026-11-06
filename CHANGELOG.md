@@ -5,6 +5,17 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased
+
+- **The README explains projects, pairing and the closeout's levels.** It gains *A project, from first
+  line to done* (the README's sections, the five states and roles, and the commands through a project's
+  life) and *Pairing: one session holds the outcome, another builds* (the roles, why acceptance rests on
+  re-run evidence, the mailbox, and how the engineer is started and checked). §4.1 adds *Levels of
+  closeout* (session, project, workspace and method, each with its cadence and destination) and *context
+  as an investment*: why grounding improves results, how the gain compounds, and why the same loop prunes.
+
+---
+
 ## v3.5.0 — 2026-10-30
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. The pairing
