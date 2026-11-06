@@ -1,11 +1,85 @@
 # A Workspace That Keeps Its Context
 
+**Welcome.** This kit gives you and your AI assistant a shared workspace that remembers. Each working
+session ends with a short pass that writes down what was decided and learned, in a place the next
+session will find it, so the assistant starts each day from what you have already worked out rather
+than from guesses. It keeps your projects, their finish lines and where each one stands, and it grows
+more useful the longer you use it.
+
+It runs with [Claude Code](https://code.claude.com/docs/en/overview), on a Mac or a Linux computer. You
+do not need to be a programmer: setting it up is copying a few lines into a terminal and answering
+questions.
+
+## Quick start
+
+About twenty minutes. Each step says what you should see.
+
+**1. Open a terminal.** On a Mac, open *Terminal* (in Applications, then Utilities). Everything in a
+grey box below is one line to copy, paste into the terminal, and run with Return. If you have not used a
+terminal before, [this guide](https://code.claude.com/docs/en/terminal-guide) shows how.
+
+**2. Install Claude Code**, if you have not already:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+Then open a new terminal window and run `claude --version`. You should see a version number. Claude
+Code needs a Claude subscription; it asks you to sign in the first time you start it.
+
+**3. Check for git and jq**, two small tools the kit uses:
+
+```bash
+git --version && jq --version
+```
+
+You should see two version numbers. On a Mac, if `git` is missing, the Mac offers to install it: say
+yes, then run the line again. If `jq` is missing, install [Homebrew](https://brew.sh) and then run
+`brew install jq`. On Debian or Ubuntu Linux: `sudo apt install git jq`.
+
+**4. Make your workspace.** These two lines download the kit and make a new, private workspace folder
+called `my-workspace` in your home folder:
+
+```bash
+cd ~ && git clone https://github.com/cyberscribe/agentic-workspace-kit.git agentic-workspace-kit
+```
+
+```bash
+bash agentic-workspace-kit/setup.sh new my-workspace
+```
+
+Setup asks a few questions (your team's name, which can just be your own, and who owns its standards,
+which can be you), then works through ten stages. When it finishes, it prints a `git add` line and a
+`git commit` line under "Commit to make": copy and run them, from inside the workspace folder
+(`cd ~/my-workspace` first). That saves your starting point.
+
+**5. Start Claude in your workspace:**
+
+```bash
+cd ~/my-workspace && claude
+```
+
+Trust the folder when asked. Then type `/workspace:quick-start` and press Return. It interviews you
+about how you work and fills the workspace in. Answer in your own words; anything can be skipped.
+
+**6. Start your first project.** Type `/projects:new` and describe something you are working on that
+has a finish line.
+
+**7. At the end of a working session**, type `/closeout`. It records what the session decided and
+learned, and brings the project's status up to date. This is the habit that makes the rest work.
+
+That is the whole start. **[The getting-started guide](docs/getting-started.md)** walks through
+everything else in order — the daily routine, pairing two sessions on a build, finishing projects,
+keeping the workspace tidy, and updating the kit — with a check at each step. A team setting it up
+together, or anyone who wants the workspace on GitHub from the start, should begin there.
+
+---
+
+## About this kit
+
 *A working system for collaborating with AI agents over long horizons, across many projects at once.
 It is a filesystem layout, four content types, a tracking axis kept in each project's README, three
-human-in-the-loop rituals, and two small checks.
-Copy the files in this kit, change the names to yours, and start.*
-
-*To install it and try each feature in order, start with [docs/getting-started.md](docs/getting-started.md).*
+human-in-the-loop rituals, and two small checks.*
 
 *Nothing here is theoretical. It was extracted from a working folder shared by several agent surfaces
 over a year of daily use, then stripped of everything specific to that setting. Where a claim rests
