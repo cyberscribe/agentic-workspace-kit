@@ -7,6 +7,11 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased
 
+- **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
+  installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,
+  pairing, pausing and closing, the weekly and monthly passes, measurement and updates, and ends each
+  step with how to tell it worked. The README links to it from its opening lines.
+
 - **The README explains projects, pairing and the closeout's levels.** It gains *A project, from first
   line to done* (the README's sections, the five states and roles, and the commands through a project's
   life) and *Pairing: one session holds the outcome, another builds* (the roles, why acceptance rests on
