@@ -5,6 +5,8 @@ It is a filesystem layout, four content types, a tracking axis kept in each proj
 human-in-the-loop rituals, and two small checks.
 Copy the files in this kit, change the names to yours, and start.*
 
+*To install it and try each feature in order, start with [docs/getting-started.md](docs/getting-started.md).*
+
 *Nothing here is theoretical. It was extracted from a working folder shared by several agent surfaces
 over a year of daily use, then stripped of everything specific to that setting. Where a claim rests
 on evidence, the evidence is named; where it rests on experience, it says so.*
@@ -801,6 +803,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | File | What it is |
 |---|---|
 | `CLAUDE.kit.md` | The kit's working standards — stance, conventions, map, log formats — imported by the first line of a workspace's `CLAUDE.md` |
+| `docs/getting-started.md` | The walkthrough: install, the first session, the quick-start, a first project, the daily closeout, pairing, upkeep and updates, each with how to tell it worked |
 | `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion; §3 pre-filled for a team sharing one repository |
 | `docs/documentation-register.md` | The register rule, the translation table, and how to scan for drift |
 | `docs/plugin-scope.md` | Where the kit's plugins load, by the folder a session is opened on and the surface; setup's install for the person, and the workspace boundary their hooks keep to |
