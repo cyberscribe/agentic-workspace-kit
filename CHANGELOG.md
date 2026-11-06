@@ -81,10 +81,24 @@ it in every folder.
 
 - **`list` reads at a glance.** Its NAME column is as wide as the longest task name, so every row lines up, and a schedule on a few days of the week reads as their names ("Tue, Thu 07:50", "weekends 09:00") rather than as cron fields.
 
+- **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
+  installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,
+  pairing, pausing and closing, the weekly and monthly passes, measurement and updates, and ends each
+  step with how to tell it worked. The README links to it from its opening lines.
+
+- **The README explains projects, pairing and the closeout's levels.** It gains *A project, from first
+  line to done* (the README's sections, the five states and roles, and the commands through a project's
+  life) and *Pairing: one session holds the outcome, another builds* (the roles, why acceptance rests on
+  re-run evidence, the mailbox, and how the engineer is started and checked). §4.1 adds *Levels of
+  closeout* (session, project, workspace and method, each with its cadence and destination) and *context
+  as an investment*: why grounding improves results, how the gain compounds, and why the same loop prunes.
+
 ### Template changes
 
 - `templates/workspace/settings.json` enables `scheduler@agentic-workspace` beside the other three.
 - `templates/workspace/surface-rows/claude.md` names the scheduler among the plugins from `kit/`.
+
+---
 
 ## v3.5.0 — 2026-10-30
 
