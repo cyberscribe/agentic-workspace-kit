@@ -75,6 +75,7 @@ complete one. The file is the truth; the scheduler's unit is rendered from it, a
 | `result_to` | | A file the final message is also written to, `{date}` and `{name}` filled in; relative to `cwd`. A reply is appended |
 | `notify`, `notify_on` | none, `failure` | A shell command run after a run, and when to notify (`failure`, `always`, `never`). A desktop notification goes with it |
 | `keep_runs` | `30` | Run folders kept |
+| `catch_up` | `12h` | A fire missed while the machine was off runs once at the next login or boot, if that is within this long of the fire and before half the gap to the next one; `none`: it is reported, not run (below) |
 | `created` | | When it was made |
 
 When day of month and day of week are both restricted, a cron schedule fires when either matches,
@@ -108,7 +109,29 @@ which is useful: a self-pause is visible in `git status`.
 `SCHEDULER_BACKEND` picks one by hand. A host with none of them is an error rather than a quiet no-op.
 
 The scheduler never changes power, wake or sleep settings on any host: no timer sets a wake (no `WakeSystem=`,
-no `rtcwake`), and a task missed while the machine slept runs late when it wakes, which `report` counts.
+no `rtcwake`). It acts only once the machine is on.
+
+### A fire missed while the machine slept or was off
+
+| Backend | Missed while asleep | Missed while off |
+|---|---|---|
+| launchd | Runs when the Mac wakes: launchd folds the missed calendar times into one run | launchd does not run it. The catch-up agent (`agentic-workspace.scheduler-catchup`, with `RunAtLoad`) runs `schedule.sh catchup` at your next login |
+| systemd | Runs on resume, through the timer's `Persistent=true` | Runs at the next boot, through `Persistent=true`, however long ago it was due; there is no catch-up unit, so one due time never runs twice |
+| cron | Not run: cron does not make up a missed line | An `@reboot` line in the managed block runs `schedule.sh catchup` at the next boot |
+
+`catchup` looks at each active task's latest due fire, the last one at or before now. If no run started
+at or after it, by the schedule or by hand, and the task was active then, it runs once, as a scheduled
+run that is `late` and carries `catch_up=1`; `report` counts it as late and says it was caught up. It
+runs only inside the task's `catch_up` window (12h by default) and before half the gap to the next fire,
+so a daily task does not run yesterday's fire when today's is close. Only the latest fire is weighed:
+one run per task, however many fires the gap held; the older ones stay in `report` as missed. A run
+already holding the task's lock is left alone. `every` tasks are not caught up, since they fire again
+within their interval.
+
+A fire that is owed but not run (`catch_up: none`, or past the window) is noted once: a desktop
+notification, the task's `notify` command with `SCHEDULER_STATUS=missed` and `SCHEDULER_DUE`, the
+session-start line, and `state/<name>.missed`. Loading the launchd agent runs it, so a `create` or a
+`sync` that loads it can catch up a fire that is owed. `schedule.sh catchup --dry-run` says what a pass would do, and runs nothing.
 
 On Linux, user timers fire only while you are logged in unless lingering is on
 (`loginctl enable-linger`); `schedule.sh doctor` says which. On WSL2 the distro stops when it is
@@ -193,8 +216,9 @@ that started more than five minutes after it is marked `late`, as one held back 
 is. On a Mac, `doctor` shows the wake schedule and, as an optional line for you to run, the `pmset` line
 that wakes it before the earliest task (it needs `sudo`, and changes the machine's power settings).
 
-The `notify` command runs with `SCHEDULER_TASK`, `SCHEDULER_STATUS` (`ok`, `failed`, `timeout` or
-`waiting`), `SCHEDULER_RUN` (the run's id), `SCHEDULER_RUN_DIR`, `SCHEDULER_SUMMARY`,
+The `notify` command runs with `SCHEDULER_TASK`, `SCHEDULER_STATUS` (`ok`, `failed`, `timeout`,
+`waiting`, or `missed` for a fire missed while the machine was off and not caught up, with
+`SCHEDULER_DUE` its due time and no run), `SCHEDULER_RUN` (the run's id), `SCHEDULER_RUN_DIR`, `SCHEDULER_SUMMARY`,
 `SCHEDULER_RESUME` (the `claude --resume` command for the run), `SCHEDULER_RESULT_FILE` (the final
 message) and `SCHEDULER_QUESTION` (for a waiting run, that message trimmed; empty otherwise) in its
 environment, so a script of your own can forward a failure, or a question awaiting you, to a phone.

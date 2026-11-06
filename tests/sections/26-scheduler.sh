@@ -1502,6 +1502,92 @@ s26_pn="$(grep -c "command.register({ name: 'scheduler-pane'" "$KIT/plugins/sche
     && ok "26 the pane registers /scheduler-pane, and its page names that command" \
     || ko "26 the pane registers /scheduler-pane, and its page names that command" "register count $s26_pn"
 # --- The plugin's own tests (the pane) -------------------------------------------------------------
+# --- Catch-up (PM-082): a fire due while the machine was off ------------------------------------------
+# launchd runs a calendar job missed during sleep on wake, but not one missed while the machine was off;
+# cron runs neither. `catchup` (the launchd agent's RunAtLoad, cron's @reboot) runs each task's latest
+# due fire that nothing answered, once, inside its catch_up window, and notes the rest as missed. The
+# runner reads the real clock for a run's start, so the schedules here are built from now.
+s26_reset; rm -f "$s26/missed-notified"; s26_backend=none; s26_mode ok
+s26_at() { date -r "$1" "+$2" 2>/dev/null || date -d "@$1" "+$2"; }
+s26_now_e="$(date +%s)"
+s26_daily() { printf '%s %s * * *' "$((10#$(s26_at "$1" %M)))" "$((10#$(s26_at "$1" %H)))"; }
+# s26_owed <name> <schedule>: the task's event log says it has been active, on that schedule, for a day.
+s26_owed() { printf '%s\tactive\t%s\n' "$((s26_now_e - 86400))" "$2" >"$s26/data/state/$1.events"; }
+s26_bad=""
+s26_t10=$((s26_now_e - 600)) s26_t13=$((s26_now_e - 13 * 3600)) s26_t40=$((s26_now_e - 2400))
+s26_mk late10 "$(s26_daily "$s26_t10")"; s26_owed late10 "$(s26_daily "$s26_t10")"
+s26_mk late13 "$(s26_daily "$s26_t13")" --notify 'printf "%s %s\n" "$SCHEDULER_STATUS" "$SCHEDULER_DUE" >>'"'$s26/missed-notified'"; s26_owed late13 "$(s26_daily "$s26_t13")"
+s26_mk off10 "$(s26_daily "$s26_t10")" --catch-up none; s26_owed off10 "$(s26_daily "$s26_t10")"
+s26_mk hourly40 "$((10#$(s26_at "$s26_t40" %M))) * * * *"; s26_owed hourly40 "$((10#$(s26_at "$s26_t40" %M))) * * * *"
+s26_mk fresh10 "$(s26_daily "$s26_t10")"                                      # created after its fire: not owed
+s26_mk byhand10 "$(s26_daily "$s26_t10")"; s26_owed byhand10 "$(s26_daily "$s26_t10")"; s26_run byhand10
+s26_mk locked10 "$(s26_daily "$s26_t10")"; s26_owed locked10 "$(s26_daily "$s26_t10")"
+mkdir -p "$s26/data/locks/locked10"; printf '%s\n' "$$" >"$s26/data/locks/locked10/pid"
+s26_mk interval 'every 2h'
+s26_due10="$(s26_at "$s26_t10" '%Y-%m-%d %H:%M')" s26_due13="$(s26_at "$s26_t13" '%Y-%m-%d %H:%M')"
+rm -f "$s26/data/state/session-seen"
+s26_o="$(s26_x catchup --dry-run 2>&1)"
+[[ "$s26_o" == *"late10: would catch up the fire due $s26_due10"* && "$s26_o" == *"late13: would note the fire due $s26_due13 as missed"* \
+    && -z "$(s26_last late10)" && ! -f "$s26/data/state/late13.missed" && ! -f "$s26/missed-notified" ]] \
+    || s26_bad+="--dry-run did more than say, or said the wrong thing: $s26_o"$'\n'
+s26_o="$(s26_x catchup 2>&1)"
+[[ "$s26_o" == *"late10: catching up the fire due $s26_due10"* ]] || s26_bad+="the owed fire 10 minutes ago was not caught up: $s26_o"$'\n'
+[[ "$(s26_meta late10 trigger) $(s26_meta late10 catch_up) $(s26_meta late10 due) $(s26_meta late10 status)" == "schedule 1 $s26_due10 ok" ]] \
+    || s26_bad+="the catch-up run is not a scheduled run with catch_up=1, its due time and ok: $(cat "$(s26_last late10)meta" 2>&1)"$'\n'
+[[ "$s26_o" == *"late13: missed the fire due $s26_due13 (past its catch-up window of 12h00m)"* ]] || s26_bad+="13 hours late was not past the window: $s26_o"$'\n'
+[[ -z "$(s26_last late13)" ]] || s26_bad+="a fire past its window ran"$'\n'
+[[ "$(cat "$s26/missed-notified" 2>/dev/null)" == "missed $s26_due13" ]] || s26_bad+="the notify command did not get SCHEDULER_STATUS=missed and the due time: $(cat "$s26/missed-notified" 2>&1)"$'\n'
+[[ "$s26_o" == *"off10: missed the fire due $s26_due10 (catch_up is none)"* && -z "$(s26_last off10)" ]] || s26_bad+="catch_up none ran or was not noted: $s26_o"$'\n'
+[[ "$s26_o" == *"hourly40: missed the fire due"*"(past its catch-up window of 30m)"* ]] || s26_bad+="past half the gap to the next fire was not a miss: $s26_o"$'\n'
+for s26_n in fresh10 byhand10 locked10 interval; do
+    [[ "$s26_o" != *"$s26_n:"* ]] || s26_bad+="$s26_n was weighed: $s26_o"$'\n'
+done
+[[ "$(ls "$s26/data/runs/byhand10" | wc -l | tr -d ' ')" == 1 && -z "$(s26_last fresh10)$(s26_last locked10)$(s26_last interval)" ]] \
+    || s26_bad+="a task that was answered, not owed, locked or on an interval ran"$'\n'
+s26_j="$(s26_x report --json 2>&1)"
+[[ "$(jq -r '.tasks[] | select(.task == "late10") | "\(.ran) \(.late) \(.caught_up) \(.missed)"' <<<"$s26_j")" == "1 1 1 0" ]] \
+    || s26_bad+="report does not count the catch-up as one late scheduled run that answered its fire: $(jq -c '.tasks[] | select(.task == "late10")' <<<"$s26_j")"$'\n'
+s26_says "caught up a fire missed while the machine was off" report || s26_bad+="report's totals do not name the catch-up"$'\n'
+s26_says "catching up a fire missed while the machine was off" log late10 || s26_bad+="log does not say the run was a catch-up"$'\n'
+s26_o="$(s26_h "$s26_ws" | jq -r '.systemMessage')"
+[[ "$s26_o" == *"hourly40, late13, off10 missed runs while the machine was off (schedule.sh report)"* ]] \
+    || s26_bad+="the session-start line does not name the missed fires: $s26_o"$'\n'
+# A second pass, as at the next login: nothing is run or notified twice.
+s26_o="$(s26_x catchup 2>&1)"
+[[ "$s26_o" == "Nothing to catch up." && "$(ls "$s26/data/runs/late10" | wc -l | tr -d ' ')" == 1 && "$(grep -c . "$s26/missed-notified")" == 1 ]] \
+    || s26_bad+="a second pass ran or notified again: $s26_o"$'\n'
+s26_backend=systemd
+[[ "$(s26_x catchup 2>&1)" == *"Persistent=true"* ]] || s26_bad+="on systemd catchup does not leave it to Persistent=true"$'\n'
+s26_backend=none
+s26_says "catch_up 'banana' is not a duration (12h, 90m) or none" edit late10 --catch-up banana || s26_bad+="a bad catch_up was accepted"$'\n'
+empty "26 catch-up: the latest owed fire runs once, late, as a scheduled run report counts; past its window, past half the gap to the next fire or with catch_up none it is noted, notified (missed) and shown at session start; not owed, answered, locked, interval or systemd tasks are left alone" "$s26_bad"
+
+# The catch-up units: on launchd one agent with RunAtLoad, outside the task labels so sync keeps it, gone
+# once no task is active; on cron an @reboot line beside the task lines and gone with the last of them;
+# on systemd none.
+s26_bad=""
+s26_reset; s26_backend=launchd
+s26_mk cu1 '0 7 * * *'
+s26_p="$s26/LaunchAgents/agentic-workspace.scheduler-catchup.plist"
+grep -q '<string>catchup</string>' "$s26_p" 2>/dev/null && grep -q '<key>RunAtLoad</key>' "$s26_p" \
+    && grep -qx 'agentic-workspace.scheduler-catchup' "$s26/bin/loaded" || s26_bad+="launchd: no catch-up agent loaded with RunAtLoad"$'\n'
+s26_o="$(s26_x sync 2>&1)"
+[[ "$s26_o" == *"0 orphan unit(s) removed"* && -f "$s26_p" ]] || s26_bad+="sync took the catch-up agent for an orphan: $s26_o"$'\n'
+s26_x pause cu1 >/dev/null 2>&1; s26_x sync >/dev/null 2>&1
+[[ ! -f "$s26_p" ]] && ! grep -qx 'agentic-workspace.scheduler-catchup' "$s26/bin/loaded" || s26_bad+="launchd: the catch-up agent stayed with no active task"$'\n'
+s26_reset; s26_backend=cron
+s26_mk cu1 '0 7 * * *'; s26_mk cu2 '0 8 * * *'
+grep -q '^@reboot /bin/bash .* catchup >>' "$s26/bin/crontab.txt" 2>/dev/null || s26_bad+="cron: no @reboot catch-up line: $(cat "$s26/bin/crontab.txt" 2>&1)"$'\n'
+s26_x delete cu1 >/dev/null 2>&1
+grep -q 'catchup' "$s26/bin/crontab.txt" || s26_bad+="cron: the @reboot line went while a task was left"$'\n'
+s26_x delete cu2 >/dev/null 2>&1
+! grep -q 'catchup\|BEGIN agentic-workspace' "$s26/bin/crontab.txt" 2>/dev/null || s26_bad+="cron: a lone @reboot block was left: $(cat "$s26/bin/crontab.txt")"$'\n'
+s26_reset; s26_backend=systemd
+s26_mk cu1 '0 7 * * *'
+s26_cu=("$s26/systemd"/*catchup*); [[ ! -e "${s26_cu[0]}" ]] || s26_bad+="systemd: a catch-up unit was written"$'\n'
+s26_backend=none
+empty "26 catch-up units: a launchd agent with RunAtLoad that sync keeps and removes with the last active task; a cron @reboot line beside the task lines; none on systemd" "$s26_bad"
+
 # claude plugin test runs each *.test.tsx under the plugin folder; a build without the subcommand prints one skip.
 if command -v claude >/dev/null 2>&1 && claude plugin test --help >/dev/null 2>&1; then
     s26_ptest="$(claude plugin test "$KIT/plugins/scheduler" 2>&1)"; s26_prc=$?

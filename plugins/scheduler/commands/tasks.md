@@ -106,7 +106,7 @@ description (`list`) when the person names it loosely ("the commits one").
 | "Pause it" / "start it again" | `pause <name> --reason '<their words>'` / `resume <name>` |
 | "Make it 8 instead" | `edit <name> --schedule '0 8 * * mon-fri' --dry-run`, then without `--dry-run` on a yes |
 | "Run it now" | `run <name>` (in the background), or `run <name> --wait` to see the result here |
-| "What ran overnight?" | `runs --since '<yesterday> 18:00'`; a run marked `late` started after the machine woke |
+| "What ran overnight?" | `runs --since '<yesterday> 18:00'`; a run marked `late` started after the machine woke, or caught up a fire missed while it was off (`log` says so) |
 | "Why did it fail?" | `log <name>`, then `show <name>` |
 | "Reply to the news scan: 1, 3, 5" | `reply <name> '1, 3, 5'` |
 | "How did the week go?" | `report` (the last seven days, or `--since` and `--until`): each task's due fires, runs, late runs and misses, every figure out of its whole |

@@ -5,7 +5,9 @@
 #
 #   - runs that failed or timed out since the last session started;
 #   - tasks that paused themselves since then (the reason in the task file names its last run);
-#   - runs awaiting a reply, for as long as they wait.
+#   - runs awaiting a reply, for as long as they wait;
+#   - fires missed while the machine was off and not caught up (state/<name>.missed, written by
+#     schedule.sh catchup), since the last session started.
 #
 # It reads only the scheduler's state folder and the task files, with no claude call and no call to the
 # OS scheduler, so it is quick. The lines go out twice: as systemMessage, which the person sees, and as
@@ -47,7 +49,7 @@ fi
 mkdir -p "$data/state" && date '+%Y%m%d-%H%M%S' >"$stamp"
 
 has() { case " $1 " in *" $2 "*) return 0 ;; esac; return 1; }
-failed="" paused="" waiting=""
+failed="" paused="" waiting="" missed="" missed_due=""
 for d in "$data/runs"/*/*; do
     [[ -f "$d/meta" ]] || continue
     id="${d##*/}"
@@ -86,6 +88,17 @@ for w in "$data/state"/*.waiting; do
     [[ -z "$open_cmd" && -n "$sid" ]] && open_cmd="cd '$wcwd' && claude --desktop --resume $sid"
 done
 
+# A missed fire's line starts with the run id of when catchup noted it, so "since then" compares as
+# the run folders do.
+for m in "$data/state"/*.missed; do
+    [[ -f "$m" ]] || continue
+    tk="$(basename "$m" .missed)"
+    while IFS=$'\t' read -r noted due _why; do
+        [[ "$noted" > "$seen" ]] || continue
+        has "$missed" "$tk" || { missed+="$tk "; [[ -n "$missed_due" ]] || missed_due="$due"; }
+    done <"$m"
+done
+
 parts=()
 # The name lists are space-separated task names, which have no spaces, so they split as intended.
 list() { local x out=""; for x in $1; do out+="${out:+, }$x"; done; printf '%s' "$out"; }
@@ -97,6 +110,11 @@ if [[ -n "$failed" ]]; then
 fi
 [[ -n "$paused" ]] && parts+=("$(list "$paused") paused itself after failing (schedule.sh show $(first "$paused"))")
 [[ -n "$waiting" ]] && parts+=("$(list "$waiting") awaiting an answer (open it: ${open_cmd:-schedule.sh show $(first "$waiting")}; or schedule.sh reply $(first "$waiting") '<your reply>')")
+if [[ -n "$missed" ]]; then
+    n=0; for x in $missed; do n=$((n + 1)); done
+    if (( n == 1 )); then parts+=("$(first "$missed") missed its run due $missed_due while the machine was off (schedule.sh run $(first "$missed") runs it now)")
+    else parts+=("$(list "$missed") missed runs while the machine was off (schedule.sh report)"); fi
+fi
 [[ ${#parts[@]} -gt 0 ]] || exit 0
 
 msg="Scheduler: "

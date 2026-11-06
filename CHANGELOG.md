@@ -42,6 +42,16 @@ it in every folder.
   the call streams its events, so a run whose init event names an API key source is stopped at once.
   Each is recorded `refused: api billing` and counts as a failure. `auth=` records the source on every
   run, costs read `est.`, and `doctor` shows the login from `claude auth status`.
+- **A fire missed while the machine was off is caught up.** launchd runs a calendar job missed during
+  sleep when the Mac wakes, but not one missed while it was powered off, and cron runs neither.
+  `schedule.sh catchup` runs each active task's latest due fire that nothing answered, once, as a
+  scheduled run that is `late` and marked `catch_up=1`, inside the task's `catch_up` window (12h by
+  default, `none` to turn it off) and before half the gap to the next fire. A fire it does not run is
+  reported once: a desktop notification, the `notify` command with `SCHEDULER_STATUS=missed`, and the
+  session-start line. On macOS one LaunchAgent with `RunAtLoad` (`agentic-workspace.scheduler-catchup`)
+  runs it at login; on cron an `@reboot` line in the managed block runs it at boot; systemd's
+  `Persistent=true` already does this, so it has no catch-up unit. `report` counts a caught-up run as
+  late, and the README says what each backend does with a fire missed during sleep and while off.
 - **systemd timers fire to the second** (`AccuracySec=1s`). systemd's default lets a timer fire up to a
   minute late, which a live run in a container showed turning `every 1m` into two minutes.
 - **Live Linux runs in Docker, opt-in** (`AW_TEST_DOCKER=1`, section 26, `tests/docker/`): systemd on

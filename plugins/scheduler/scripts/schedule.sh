@@ -31,14 +31,17 @@ VERSION=0.1.0
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SELF="$SELF_DIR/$(basename "${BASH_SOURCE[0]}")"
 
-FIELDS="name description schedule timezone status paused_reason cwd model effort fallback_model permission_mode allowed_tools disallowed_tools add_dirs chrome requires max_budget_usd timeout retries retry_delay retry_on pause_after_failures verify awaits_reply reply_window reach result_to notify notify_on keep_runs created"
+FIELDS="name description schedule timezone status paused_reason cwd model effort fallback_model permission_mode allowed_tools disallowed_tools add_dirs chrome requires max_budget_usd timeout retries retry_delay retry_on pause_after_failures verify awaits_reply reply_window reach result_to notify notify_on keep_runs catch_up created"
 # Fields a flag may set; name, status, paused_reason and created belong to create, pause and resume.
-SETTABLE="description schedule timezone cwd model effort fallback_model permission_mode allowed_tools disallowed_tools add_dirs chrome requires max_budget_usd timeout retries retry_delay retry_on pause_after_failures verify awaits_reply reply_window reach result_to notify notify_on keep_runs"
+SETTABLE="description schedule timezone cwd model effort fallback_model permission_mode allowed_tools disallowed_tools add_dirs chrome requires max_budget_usd timeout retries retry_delay retry_on pause_after_failures verify awaits_reply reply_window reach result_to notify notify_on keep_runs catch_up"
 D_status=active D_permission_mode=dontAsk D_timeout=30m D_retries=1 D_retry_delay=2m D_retry_on=all D_reach=desktop
-D_pause_after_failures=3 D_notify_on=failure D_keep_runs=30 D_reply_window=24h
+D_pause_after_failures=3 D_notify_on=failure D_keep_runs=30 D_reply_window=24h D_catch_up=12h
 LAUNCHD_MAX=400
 LABEL_PREFIX=agentic-workspace.scheduler
 UNIT_PREFIX=aw-scheduler
+# The catch-up agent's label sits outside LABEL_PREFIX.<name>, so no task name can take it and sync's sweep
+# of task units leaves it alone.
+CATCHUP_LABEL="$LABEL_PREFIX-catchup"
 CRON_BEGIN="# BEGIN agentic-workspace scheduler (rendered by schedule.sh sync; edits inside are replaced)"
 CRON_END="# END agentic-workspace scheduler"
 HEADLESS_PROMPT="This session was started by a schedule on this machine, and nobody is watching it. No one will answer a question or approve a tool, so work with the tools already allowed and finish what can be finished. When something stops the work, the final reply says what it was and what would unblock it; that reply is kept as the run's record."
@@ -552,6 +555,7 @@ validate_task() {
         v="t_$b"; [[ -z "${!v}" ]] || in_list "${!v}" "true false" || VERR+="$b '${!v}' is not true or false"$'\n'
     done
     dur_secs "$(tv reply_window)" || VERR+="reply_window '$(tv reply_window)' is not a duration (24h, 90m)"$'\n'
+    [[ "$(tv catch_up)" == none ]] || dur_secs "$(tv catch_up)" || VERR+="catch_up '$(tv catch_up)' is not a duration (12h, 90m) or none"$'\n'
     in_list "$(tv notify_on)" "failure always never" || VERR+="notify_on '$t_notify_on' is not failure, always or never"$'\n'
     in_list "$(tv reach)" "desktop remote" || VERR+="reach '$t_reach' is not desktop or remote"$'\n'
     [[ -n "$T_BODY" ]] || VERR+="the prompt (the body under the front matter) is empty"$'\n'
@@ -796,6 +800,7 @@ cron_apply() (   # a subshell, since it loads every task and the caller's task s
         parse_schedule "$t_schedule" || continue
         block+="$(render_cronline "$n")"$'\n'
     done
+    [[ -n "$block" ]] && block+="$(render_catchup_cronline)"$'\n'
     {
         [[ -n "$rest" ]] && printf '%s\n' "$rest"
         if [[ -n "$block" ]]; then printf '%s\n%s%s\n' "$CRON_BEGIN" "$block" "$CRON_END"; fi
@@ -836,6 +841,7 @@ unit_install() {
             printf '%s\n' "$content" >"$S_DATA/units/$name.cron" ;;
     esac
     epoch_now_stamp >"$S_DATA/state/$name.loaded"
+    catchup_unit
     return 0
 }
 epoch_now_stamp() { now_epoch; }
@@ -867,11 +873,78 @@ cron_apply_except() {   # the block rebuilt without one task, whatever its file 
     rest="$(printf '%s\n' "$cur" | cron_without_block)"
     block="$(printf '%s\n' "$cur" | awk -v b="$CRON_BEGIN" -v e="$CRON_END" '$0 == b { on = 1; next } $0 == e { on = 0; next } on' \
         | grep -vF " exec $1 >>")"
+    # The @reboot catch-up line stays only beside a task line.
+    printf '%s\n' "$block" | grep -qF ' exec ' || block=""
     {
         [[ -n "$rest" ]] && printf '%s\n' "$rest"
         if [[ -n "$block" ]]; then printf '%s\n%s\n%s\n' "$CRON_BEGIN" "$block" "$CRON_END"; fi
     } | "$CRONTAB" -
 }
+# --- Catch-up: a fire due while the machine was off --------------------------------------------------
+# launchd runs a calendar job missed during sleep when the machine wakes, but not one missed while it was
+# powered off; cron runs neither; systemd's timers carry Persistent=true and run it at boot. So on launchd
+# one agent with RunAtLoad runs `catchup` at each login, and on cron an @reboot line in the managed block
+# does; systemd needs neither.
+catchup_plist() { printf '%s/%s.plist' "$LA_DIR" "$CATCHUP_LABEL"; }
+render_catchup_plist() {
+    cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>$CATCHUP_LABEL</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>$(xml "$RUNNER")</string>
+		<string>catchup</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>$(xml "$S_DATA/logs/catchup.out")</string>
+	<key>StandardErrorPath</key>
+	<string>$(xml "$S_DATA/logs/catchup.out")</string>
+</dict>
+</plist>
+EOF
+}
+render_catchup_cronline() {
+    local cmd
+    cmd="/bin/bash $(sq "$RUNNER") catchup >>$(sq "$S_DATA/logs/catchup.out") 2>&1"
+    printf '@reboot %s\n' "${cmd//%/\\%}"
+}
+any_active() (   # a subshell: it loads every task
+    local n
+    for n in $(task_names); do
+        task_load "$(task_file "$n")" 2>/dev/null || continue
+        [[ "$(tv status)" == active ]] && exit 0
+    done
+    exit 1
+)
+# catchup_unit: on launchd, the catch-up agent loaded while any task is active, and removed at sync once
+# none is. It is written and loaded again only when its text changes, since loading it runs it.
+catchup_unit() {
+    [[ "$BACKEND" == launchd ]] || return 0
+    local p content
+    p="$(catchup_plist)"
+    if any_active; then
+        content="$(render_catchup_plist)"
+        if [[ -f "$p" && "$(cat "$p")" == "$content" ]] && "$LAUNCHCTL" print "gui/$UIDN/$CATCHUP_LABEL" >/dev/null 2>&1; then
+            return 0
+        fi
+        mkdir -p "$LA_DIR"
+        "$LAUNCHCTL" print "gui/$UIDN/$CATCHUP_LABEL" >/dev/null 2>&1 && "$LAUNCHCTL" bootout "gui/$UIDN/$CATCHUP_LABEL" >/dev/null 2>&1
+        printf '%s\n' "$content" >"$p"
+        "$LAUNCHCTL" bootstrap "gui/$UIDN" "$p" >/dev/null 2>&1 || warn "launchctl bootstrap refused $p, so a fire missed while the machine is off will not be caught up"
+    elif [[ "${1:-}" == --sync ]]; then
+        rm -f "$p"
+        "$LAUNCHCTL" print "gui/$UIDN/$CATCHUP_LABEL" >/dev/null 2>&1 && "$LAUNCHCTL" bootout "gui/$UIDN/$CATCHUP_LABEL" >/dev/null 2>&1
+    fi
+    return 0
+}
+
 # unit_state <name>: for a loaded task, US is installed, not-loaded, differs, missing, absent (no unit,
 # as a paused or done task should be) or stale (a unit for a task that is not active).
 unit_state() {
@@ -1338,6 +1411,9 @@ reach_list() {
 cmd_exec() {
     local name="$1" manual=0 trial="" file dir runid start start_e attempts=0 rc=1 st="" sid="" cost="0" a secs delay
     [[ "${2:-}" == --manual ]] && manual=1
+    # A catch-up (schedule.sh catchup) is a scheduled run, started late: it answers the latest due fire,
+    # and its meta says catch_up=1.
+    local catchup=0; [[ "${2:-}" == --catch-up ]] && catchup=1
     # A trial (schedule.sh port trial) runs once by hand, in plan mode unless it is live, and leaves the
     # task as it was: no failure count, no pause, no waiting, no result_to and no notification.
     if [[ "${2:-}" == --trial ]]; then manual=1 trial="${3:-plan}"; fi
@@ -1395,6 +1471,7 @@ cmd_exec() {
     printf '%s\n' "$T_BODY" >"$dir/prompt.txt"
     printf 'task=%s\nrun=%s\ntrigger=%s\nstart=%s\nstart_epoch=%s\nstatus=running\ncwd=%s\n' \
         "$name" "$runid" "$trig" "$start" "$start_e" "$t_cwd" >"$dir/meta"
+    (( catchup )) && printf 'catch_up=1\n' >>"$dir/meta"
 
     dur_secs "$(tv timeout)"; secs=$DS
     # retry_delay: one duration grows with each attempt (2m, 4m, ...); a list is used in order, its last
@@ -1509,6 +1586,7 @@ cmd_exec() {
         printf 'task=%s\nrun=%s\ntrigger=%s\nstart=%s\nstart_epoch=%s\nend=%s\nend_epoch=%s\nstatus=%s\nattempts=%s\nexit=%s\nsession_id=%s\ncost_usd=%s\ncwd=%s\n' \
             "$name" "$runid" "$trig" "$start" "$start_e" "$end" "$(date +%s)" "$st" "$attempts" "$rc" "$sid" "$cost" "$t_cwd"
         [[ -n "$due" ]] && printf 'due=%s\ndue_epoch=%s\n' "$due" "$due_e"
+        (( catchup )) && printf 'catch_up=1\n'
         [[ -n "$window" ]] && printf 'reply_window_secs=%s\n' "$window"
         if [[ -n "$denied" && "$st" == denied ]]; then printf 'reason=refused: %s\n' "$denied"
         elif [[ -n "$denied" ]]; then printf 'refusals=%s\nrefused_calls=%s\n' "$nref" "$denied"; fi
@@ -1555,6 +1633,110 @@ cmd_exec() {
     rm -rf "$lock"; trap - EXIT
     if (( remove_unit )) && [[ -n "$BACKEND" ]]; then unit_remove "$name"; fi
     return 0
+}
+
+# catchup_decide <name> <now epoch>: for one task, CU is run (catch up its latest due fire), missed (it
+# is owed and unanswered, but catch-up is off or the window has passed; CU_WHY says which) or empty, with
+# CU_DUE the fire. Only the latest due fire is weighed, so a task is caught up once, however many fires it missed.
+catchup_decide() {
+    local n="$1" now_e="$2" act d se w next_e nx holder
+    CU="" CU_DUE="" CU_WHY=""
+    task_load "$(task_file "$n")" 2>/dev/null || return 0
+    validate_task || return 0
+    [[ "$(tv status)" == active ]] || return 0
+    parse_schedule "$t_schedule" || return 0
+    # An interval task fires again within its interval, so it has nothing to catch up.
+    [[ "$SK" == every ]] && return 0
+    due_time "$now_e"
+    [[ -n "$DUE_E" ]] || return 0
+    # A fire in the last minute may still be starting on its own.
+    (( DUE_E <= now_e - 60 )) || return 0
+    # Owed: a fire due while the task was active, since it last became active or was last edited.
+    act="$(awk -F'\t' '$2 == "active" { e = $1 } END { print e }' "$S_DATA/state/$n.events" 2>/dev/null)"
+    [[ -n "$act" ]] || act="$(local_to_epoch "$t_created" 2>/dev/null)"
+    [[ -n "$act" ]] && (( act > DUE_E )) && return 0
+    # Answered: a run that started at or after the fire, scheduled or by hand (not a trial), or one that
+    # holds the lock now.
+    while IFS= read -r d; do
+        [[ -n "$d" ]] || continue
+        [[ "$(meta_get "$d" trigger)" == trial-* ]] && continue
+        se="$(meta_get "$d" start_epoch)"
+        [[ -n "$se" ]] && (( se >= DUE_E )) && return 0
+    done < <(runs_of "$n")
+    holder="$(cat "$S_DATA/locks/$n/pid" 2>/dev/null)"
+    [[ -n "$holder" ]] && kill -0 "$holder" 2>/dev/null && return 0
+    # Already weighed at an earlier boot.
+    grep -qF "	$DUE	" "$S_DATA/state/$n.missed" 2>/dev/null && return 0
+    CU_DUE="$DUE"
+    if [[ "$(tv catch_up)" == none ]]; then CU=missed CU_WHY="catch_up is none"; return 0; fi
+    dur_secs "$(tv catch_up)"; w=$DS
+    # Past half the gap to the next fire, the next run is the nearer one, so the missed one is not run.
+    now_parts; next_times 1
+    nx="${NX%%$'\n'*}"; nx="${nx:0:16}"
+    if [[ -n "$nx" ]] && next_e="$(local_to_epoch "$nx")" && [[ -n "$next_e" ]]; then
+        (( (next_e - DUE_E) / 2 < w )) && w=$(( (next_e - DUE_E) / 2 ))
+    fi
+    if (( now_e - DUE_E <= w )); then CU=run
+    else CU=missed CU_WHY="past its catch-up window of $(fmt_dur "$w")"; fi
+}
+# note_missed <name> <due> <why>: a fire not caught up, in state/<name>.missed for the session-start line
+# ("<noted run id><TAB><due><TAB><why>"), and to the person: the desktop, and the task's notify command
+# with SCHEDULER_STATUS=missed, unless its notify_on is never.
+note_missed() {
+    local name="$1" due="$2" why="$3" title msg
+    printf '%s\t%s\t%s\n' "$(date '+%Y%m%d-%H%M%S')" "$due" "$why" >>"$S_DATA/state/$name.missed"
+    [[ "$(tv notify_on)" == never ]] && return 0
+    title="Scheduled task $name missed a run"
+    msg="Due $due while the machine was off, and not caught up: $why. 'schedule.sh run $name' runs it now."
+    if [[ "${SCHEDULER_NOTIFY_DESKTOP:-1}" != 0 ]]; then
+        if have osascript; then
+            osascript -e 'on run argv' -e 'display notification (item 2 of argv) with title (item 1 of argv)' -e 'end run' "$title" "$msg" >/dev/null 2>&1
+        elif have notify-send; then
+            notify-send "$title" "$msg" >/dev/null 2>&1
+        fi
+    fi
+    if [[ -n "$t_notify" ]]; then
+        SCHEDULER_TASK="$name" SCHEDULER_STATUS=missed SCHEDULER_DUE="$due" SCHEDULER_RUN="" SCHEDULER_RUN_DIR="" \
+            SCHEDULER_SUMMARY="$msg" SCHEDULER_QUESTION="" SCHEDULER_RESUME="" SCHEDULER_RESULT_FILE="" \
+            run_with_timeout 60 "$S_DATA/logs/$name.missed-notify.out" "$S_DATA/logs/$name.missed-notify.err" /dev/null /bin/sh -c "$t_notify" \
+            || printf 'notify command exited %s\n' "$?" >>"$S_DATA/logs/$name.missed-notify.err"
+    fi
+}
+# cmd_catchup: run at login by the catch-up agent (launchd) or at boot by the @reboot line (cron). Each
+# task's latest due fire that no run answered is run once, late, inside its catch_up window, or noted as
+# missed. The runs go in parallel, as the OS would start them, and this waits for them: under launchd an
+# agent's children end with it. --dry-run says what it would do, and runs, notes and notifies nothing.
+cmd_catchup() {
+    local dry=0
+    [[ "${1:-}" == --dry-run ]] && dry=1
+    [[ -f "$S_DATA/env" ]] && . "$S_DATA/env"
+    S_HOME="${SCHEDULER_HOME:-$S_HOME}"; resolve_tasks
+    set_tools
+    BACKEND="${SCHEDULER_BACKEND:-${SCHEDULER_SYNCED_BACKEND:-}}"
+    if [[ "$BACKEND" == systemd ]]; then
+        echo "systemd runs a timer missed while the machine was off when it starts again (Persistent=true), so there is nothing to catch up here."
+        return 0
+    fi
+    mkdir -p "$S_DATA/state" "$S_DATA/logs"
+    local n now_e said=0
+    if [[ -n "${SCHEDULER_NOW:-}" ]]; then now_e=$(( $(local_to_epoch "$SCHEDULER_NOW") + 30 )); else now_e="$(date +%s)"; fi
+    for n in $(task_names); do
+        catchup_decide "$n" "$now_e"
+        case "$CU" in
+            run)
+                said=1
+                if (( dry )); then echo "$n: would catch up the fire due $CU_DUE"; continue; fi
+                echo "$n: catching up the fire due $CU_DUE"; runner_log "$n: catching up the fire due $CU_DUE"
+                /bin/bash "$SELF" exec "$n" --catch-up & ;;
+            missed)
+                said=1
+                if (( dry )); then echo "$n: would note the fire due $CU_DUE as missed ($CU_WHY)"; continue; fi
+                echo "$n: missed the fire due $CU_DUE ($CU_WHY)"; runner_log "$n: missed the fire due $CU_DUE ($CU_WHY)"
+                note_missed "$n" "$CU_DUE" "$CU_WHY" ;;
+        esac
+    done
+    (( said )) || echo "Nothing to catch up."
+    wait
 }
 
 # cmd_reply <name> [--run <id>] (<text> | --file <file|->): answers a run that is awaiting a reply by
@@ -1711,6 +1893,8 @@ Usage:
   schedule.sh port start|status|check|ack|trial|activate|cloud-paused|rollback|skip|done   move tasks from a
                                                  cloud scheduler, a step at a time ('port help')
   schedule.sh exec <name> [--manual]             the runner, as the OS calls it
+  schedule.sh catchup [--dry-run]                at login or boot: each task's latest fire missed while the
+                                                 machine was off, run once if inside catch_up, else reported
   schedule.sh parse [--describe] <when>          how a schedule reads (cron fields expanded); --describe in words
   schedule.sh prev <when> [--at 'YYYY-MM-DD HH:MM']   the latest fire time at or before then
 
@@ -1729,7 +1913,9 @@ Fields (--<field> with hyphens or underscores):
   timezone, chrome (true: --chrome), requires (connector names, for doctor), awaits_reply (true: a
   good run ends awaiting a reply), reply_window (24h), reach (desktop: answer in the app or the terminal;
   remote: a waiting run also starts a Remote Control session, so it can be answered from a phone),
-  result_to (a path; {date} and {name} filled)
+  result_to (a path; {date} and {name} filled), catch_up (12h: a fire missed while the machine was off
+  runs at the next login or boot if that is within 12h of it and before half the gap to the next fire;
+  none: it is reported, not run)
 
 Files:
   tasks   the folder 'schedule.sh home' names (default ~/.config/agentic-workspace-kit/scheduler/tasks/)
@@ -2185,7 +2371,7 @@ cmd_report() {
     local names n f
     names="$( { task_names; for f in "$S_DATA/runs"/*/; do [[ -d "$f" ]] && basename "$f"; done
                for f in "$S_DATA/state"/*.events; do [[ -f "$f" ]] && basename "$f" .events; done; } | sort -u)"
-    local T_retried=0 T_recovered=0 T_withref=0 T_refused=0 T_pending=0 T_missedn=0 T_due=0 T_ran=0 T_ok=0 T_failed=0 T_timeout=0 T_denied=0 T_waiting=0 T_expired=0 T_skipped=0 T_late=0 T_maxlate=0 T_manual=0
+    local T_caught=0 T_retried=0 T_recovered=0 T_withref=0 T_refused=0 T_pending=0 T_missedn=0 T_due=0 T_ran=0 T_ok=0 T_failed=0 T_timeout=0 T_denied=0 T_waiting=0 T_expired=0 T_skipped=0 T_late=0 T_maxlate=0 T_manual=0
     local rows="" jrows="" misses="" jmiss=""
     for n in $names; do
         # The active segments, from the event log; a task with none counts from its creation.
@@ -2219,7 +2405,7 @@ cmd_report() {
         local nf=0; [[ -n "$fires" ]] && nf="$(printf '%s' "$fires" | sed '/^$/d' | wc -l | tr -d ' ')"
         due=$((nf + every_due))
         # The scheduled runs that started in the window, and the fires they answer.
-        local withref=0 ran=0 ok=0 failed=0 timeout=0 denied=0 refused=0 waiting=0 expired=0 skipped=0 late=0 maxlate=0 manual=0 answered="" d st trig ds
+        local caught=0 withref=0 ran=0 ok=0 failed=0 timeout=0 denied=0 refused=0 waiting=0 expired=0 skipped=0 late=0 maxlate=0 manual=0 answered="" d st trig ds
         while IFS= read -r d; do
             [[ -n "$d" ]] || continue
             ds="$(meta_get "$d" start_epoch)"
@@ -2235,6 +2421,7 @@ cmd_report() {
                 *) failed=$((failed + 1)) ;;
             esac
             [[ -n "$(meta_get "$d" refusals)" ]] && withref=$((withref + 1))
+            [[ "$(meta_get "$d" catch_up)" == 1 ]] && caught=$((caught + 1))
             if [[ -n "$(meta_get "$d" first_failure)" ]]; then
                 T_retried=$((T_retried + 1)); [[ "$st" == ok ]] && T_recovered=$((T_recovered + 1))
             fi
@@ -2266,18 +2453,18 @@ cmd_report() {
         (( due == 0 && ran == 0 && manual == 0 )) && continue
         local ml="-"; (( maxlate > 0 )) && ml="$(fmt_dur "$maxlate")"
         rows+="$(printf '%-24s %4s %4s %4s %6s %7s %6s %7s %7s %7s %4s %8s %6s %6s' "$n" "$due" "$ran" "$ok" "$failed" "$timeout" "$denied" "$waiting" "$expired" "$skipped" "$late" "$ml" "$missed" "$manual")"$'\n'
-        jrows+="$(printf '{"task":%s,"due":%s,"ran":%s,"ok":%s,"failed":%s,"timeout":%s,"denied":%s,"refused":%s,"waiting":%s,"expired":%s,"skipped":%s,"late":%s,"max_late_secs":%s,"missed":%s,"manual":%s,"with_refusal":%s}' \
-            "$(json_str "$n")" "$due" "$ran" "$ok" "$failed" "$timeout" "$denied" "$refused" "$waiting" "$expired" "$skipped" "$late" "$maxlate" "$missed" "$manual" "$withref"),"
+        jrows+="$(printf '{"task":%s,"due":%s,"ran":%s,"ok":%s,"failed":%s,"timeout":%s,"denied":%s,"refused":%s,"waiting":%s,"expired":%s,"skipped":%s,"late":%s,"max_late_secs":%s,"missed":%s,"manual":%s,"with_refusal":%s,"caught_up":%s}' \
+            "$(json_str "$n")" "$due" "$ran" "$ok" "$failed" "$timeout" "$denied" "$refused" "$waiting" "$expired" "$skipped" "$late" "$maxlate" "$missed" "$manual" "$withref" "$caught"),"
         T_due=$((T_due + due)) T_ran=$((T_ran + ran)) T_ok=$((T_ok + ok)) T_failed=$((T_failed + failed)) T_timeout=$((T_timeout + timeout))
         T_denied=$((T_denied + denied)) T_refused=$((T_refused + refused)) T_waiting=$((T_waiting + waiting)) T_expired=$((T_expired + expired)) T_skipped=$((T_skipped + skipped))
-        T_late=$((T_late + late)) T_manual=$((T_manual + manual)) T_missedn=$((T_missedn + missed)) T_withref=$((T_withref + withref)); (( maxlate > T_maxlate )) && T_maxlate=$maxlate
+        T_late=$((T_late + late)) T_manual=$((T_manual + manual)) T_missedn=$((T_missedn + missed)) T_withref=$((T_withref + withref)) T_caught=$((T_caught + caught)); (( maxlate > T_maxlate )) && T_maxlate=$maxlate
     done
     local T_missed=$T_missedn
     # A due fire that ran is one a scheduled run answered: the due fires less the misses.
     local fires_ran=$((T_due - T_missedn)); (( fires_ran < 0 )) && fires_ran=0
     if (( json )); then
-        printf '{"window":{"since":%s,"until":%s},"tasks":[%s],"totals":{"due":%s,"due_ran":%s,"ran":%s,"ok":%s,"failed":%s,"timeout":%s,"denied":%s,"waiting":%s,"expired":%s,"skipped":%s,"late":%s,"max_late_secs":%s,"manual":%s,"pending":%s,"with_refusal":%s,"retried":%s,"recovered":%s},"missed":[%s]}\n' \
-            "$(json_str "$since")" "$(json_str "$until")" "${jrows%,}" "$T_due" "$fires_ran" "$T_ran" "$T_ok" "$T_failed" "$T_timeout" "$T_denied" "$T_waiting" "$T_expired" "$T_skipped" "$T_late" "$T_maxlate" "$T_manual" "$T_pending" "$T_withref" "$T_retried" "$T_recovered" "${jmiss%,}"
+        printf '{"window":{"since":%s,"until":%s},"tasks":[%s],"totals":{"due":%s,"due_ran":%s,"ran":%s,"ok":%s,"failed":%s,"timeout":%s,"denied":%s,"waiting":%s,"expired":%s,"skipped":%s,"late":%s,"max_late_secs":%s,"manual":%s,"pending":%s,"with_refusal":%s,"retried":%s,"recovered":%s,"caught_up":%s},"missed":[%s]}\n' \
+            "$(json_str "$since")" "$(json_str "$until")" "${jrows%,}" "$T_due" "$fires_ran" "$T_ran" "$T_ok" "$T_failed" "$T_timeout" "$T_denied" "$T_waiting" "$T_expired" "$T_skipped" "$T_late" "$T_maxlate" "$T_manual" "$T_pending" "$T_withref" "$T_retried" "$T_recovered" "$T_caught" "${jmiss%,}"
         return 0
     fi
     echo "Scheduled runs, $since to $until (local time)"
@@ -2291,6 +2478,7 @@ cmd_report() {
     (( T_withref > 0 )) && tl+="; $T_withref of $T_ran runs carried on past a refused tool call"
     (( T_retried > 0 )) && tl+="; $T_recovered of $T_retried runs with a failed first attempt recovered on a retry"
     tl+="; late $T_late of $T_ran runs"; (( T_maxlate > 0 )) && tl+=" (at most $(fmt_dur "$T_maxlate"))"
+    (( T_caught > 0 )) && tl+="; $T_caught of the late runs caught up a fire missed while the machine was off"
     tl+="; $T_manual run(s) by hand, not counted against the schedule"
     (( T_pending > 0 )) && tl+="; $T_pending fire(s) in the last five minutes not yet run, left out"
     tl+="; $since to $until"
@@ -2307,7 +2495,7 @@ cmd_log() {
     local a st; a="$(meta_get "$d" attempts)"; st="$(run_status "$d")"
     echo "Run $(basename "$d") of $name: $(status_text "$d")$( r="$(meta_get "$d" reason)"; [[ -n "$r" ]] && printf ' (%s)' "$r")"
     local due lt; due="$(meta_get "$d" due)"; lt="$(late_of "$d")"
-    [[ -n "$due" ]] && echo "  due $due${lt:+, started $lt}"
+    [[ -n "$due" ]] && echo "  due $due${lt:+, started $lt}$([[ "$(meta_get "$d" catch_up)" == 1 ]] && printf ', catching up a fire missed while the machine was off')"
     if [[ "$st" == running || "$st" == interrupted ]]; then
         echo "  started $(meta_get "$d" start); $st"
     else
@@ -2438,6 +2626,7 @@ cmd_sync() {
                   n="$(basename "$p" .cron)"; [[ -f "$(task_file "$n")" ]] || { rm -f "$p"; orphan=$((orphan + 1)); }
               done ;;
     esac
+    catchup_unit --sync
     echo "Synced on $BACKEND: $ok active task(s) installed, $off paused or done with no unit, $bad with problems, $orphan orphan unit(s) removed."
     [[ $bad -eq 0 ]]
 }
@@ -2723,6 +2912,7 @@ main() {
         doctor) cmd_doctor "$@" ;;
         keepalive) cmd_keepalive "$@" ;;
         exec) [[ $# -ge 1 ]] || usage_die "exec needs a name"; cmd_exec "$@" ;;
+        catchup) cmd_catchup "$@" ;;
         port)
             # shellcheck source=lib/port.sh
             . "$SELF_DIR/lib/port.sh" || die "lib/port.sh is missing beside this script"

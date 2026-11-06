@@ -37,9 +37,12 @@ failed runs in a row the task pauses itself, with the reason in its file. `log <
 **Can a run wait for me?** A task with `awaits_reply: true` ends a good run `waiting`;
 `reply <name> '<answer>'` continues that run's session, here or from any later session.
 
-**What if the machine was asleep?** systemd timers catch up at the next start, and launchd starts a
-missed calendar job when the Mac wakes; `runs` marks such a run `late`, and `doctor` gives the
-`pmset` wake command to run yourself. A run already going is never doubled.
+**What if the machine was asleep, or off?** launchd starts a calendar job missed during sleep when the
+Mac wakes, and systemd timers catch up at the next start. A fire missed while the machine was off runs
+once at the next login (launchd) or boot (cron) if it is within the task's `catch_up` window, 12h by
+default; otherwise it is reported as missed, at session start and through `notify`. `runs` marks such a
+run `late`, and `doctor` gives the `pmset` wake command to run yourself. A run already going is never
+doubled.
 
 **Time zones?** Local time, or a `CRON_TZ=` prefix; another zone than the machine's works on systemd,
 and launchd and cron refuse it with a line saying so.
