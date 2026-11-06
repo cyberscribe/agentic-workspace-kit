@@ -10,7 +10,8 @@ You will have, at the end:
 - a team and personal setup filled in by an interview;
 - one real project with a checkable finish line;
 - the habit that makes the rest worth it: a closeout at the end of each working session;
-- and, when you want them, a build paired between two sessions, and the weekly and monthly upkeep.
+- and, when you want them, a build paired between two sessions, tasks that run on a schedule on your
+  own machine, and the weekly and monthly upkeep.
 
 Allow half an hour for sections 1 to 4. The rest is learned by using it.
 
@@ -52,7 +53,7 @@ bash agentic-workspace-kit/setup.sh new my-workspace --team "Data Platform" --ow
 ```
 
 Leave out `--team` and `--owner` and setup asks for them. For one person, the team is you. Add
-`--pilot` if you want to measure a pilot (section 10), and `--cowork` if you use Cowork.
+`--pilot` if you want to measure a pilot (section 11), and `--cowork` if you use Cowork.
 
 Setup runs ten stages: prerequisites, identity, the workspace and its files, the git hooks and the
 remote's privacy, submodule settings, outside folders, the plugins, Cowork, a verification pass, and
@@ -267,7 +268,84 @@ see change from week to week.
 
 ---
 
-## 10. Measure it (optional)
+## 10. Schedule work: `/scheduler:tasks`
+
+Some work should happen without you starting it: a weekly digest, a morning check, a report on the
+first of the month. The scheduler runs a Claude Code task on your own machine at the times you set,
+through the machine's own scheduler: launchd on macOS, a systemd user timer on Linux and WSL2, or cron.
+Nothing runs in the cloud but Claude itself, and every run is billed to your Claude login, never to an
+API key.
+
+1. **Describe it.** In a session, type `/scheduler:tasks` and say what you want and when: "every
+   weekday at 7:30, summarise the new feedback in `reports/` and write it to `summaries/`". It drafts
+   the task, which is one Markdown file: the schedule, the folder it runs in, the model, the tools it
+   may use, and the prompt as the body. It shows you the file and writes it on a yes, paused.
+2. **Name its tools.** Nobody is there to answer a permission prompt during a scheduled run, so a task
+   runs in `dontAsk` mode: it may use the tools in `allowed_tools` and is refused anything else. Name
+   shell commands exactly (`Bash(python3 fetch.py)`) rather than allowing any command. Fixed steps go
+   best in a script the task runs; the run then spends its effort on judgement.
+3. **Try it once.** `/scheduler:tasks` offers a trial: one real run now, with the task's own settings.
+   It reports what the run did, any tool it was refused, and whether the task's own check passed (the
+   `verify` field: a command such as "today's summary file exists"). Change the file and try again until
+   the trial is clean.
+4. **Turn it on.** Resume the task and it is handed to your machine's scheduler. `list` shows when it
+   runs next.
+
+Day to day, ask `/scheduler:tasks` in words, or run the script,
+`kit/plugins/scheduler/scripts/schedule.sh`, directly:
+
+| To | Run |
+|---|---|
+| See every task and when it runs next | `schedule.sh list` |
+| See one task's settings and prompt | `schedule.sh show <name>` |
+| Pause it, or resume it | `schedule.sh pause <name>`, `schedule.sh resume <name>` |
+| Run it now, whatever the schedule | `schedule.sh run <name>` |
+| See what its runs did | `schedule.sh runs <name>`, `schedule.sh log <name>` |
+| See a week at a glance: due, ran, failed, missed | `schedule.sh report` |
+| Check that a task can run | `schedule.sh doctor <name>` |
+
+An alias saves typing: `alias scheduled-tasks="bash ~/<workspace>/kit/plugins/scheduler/scripts/schedule.sh"`.
+
+**When a run fails**, it tries again once (the `retries` field), then shows a desktop notification.
+After three failed runs in a row a task pauses itself and says why. To be told somewhere else, such as
+your email or phone, set `notify` to a script of your own: it runs after each run with the outcome and
+the run's details in its environment.
+
+**A task can wait for you.** With `awaits_reply: true`, a run does its part, such as drafting a
+shortlist for you to choose from, then stops and waits. Answer it with
+`schedule.sh reply <name> '<your answer>'`, or in the run's own session; with `reach: remote`, that
+session is open in the Claude app on your phone. The run carries on from where it stopped. An answer
+not given within `reply_window` (a day, by default) lets the run expire.
+
+**Coming from a cloud scheduler?** `schedule.sh port` moves tasks one checked step at a time:
+
+1. `start` imports them, paused.
+2. `check` flags anything that only worked in the cloud.
+3. `trial` runs each one once.
+4. `activate` turns it on here.
+5. `cloud-paused` records that you paused the cloud copy. It is paused, not deleted, so `rollback` can
+   always go back.
+
+**Where the files live.** Task files are in `~/.config/agentic-workspace-kit/scheduler/tasks/` unless
+you choose a folder: `schedule.sh home ~/<workspace>/scheduled` keeps them in your workspace, so they
+are versioned with everything else.
+
+**Your machine has to be on.** If it is asleep at a run's time, macOS and systemd run it when it wakes,
+and `report` counts it as late. If it is switched off, cron and launchd drop that run: `report` lists it
+as missed, and `schedule.sh run <name>` runs it by hand. The scheduler never wakes your machine or
+changes its power settings. On a Mac, `doctor` prints the optional command to wake it before the
+earliest task, if you want that.
+
+If the workspace turns on Claude Code's sandbox, a run's network calls reach only the domains it
+allows. A run that fetches from the web needs its hosts on that list, and `doctor <name>` shows the
+list.
+
+**It worked if** a week's `schedule.sh report` shows every due run ran, and a failed or waiting run
+reached you without you going to look.
+
+---
+
+## 11. Measure it (optional)
 
 For a pilot, setup's `--pilot` adds `pilot/build-list.md`. Two scripts in the kit read the rest:
 
@@ -279,7 +357,7 @@ For a pilot, setup's `--pilot` adds `pilot/build-list.md`. Two scripts in the ki
 
 ---
 
-## 11. Stay current
+## 12. Stay current
 
 When a new kit is released:
 
@@ -315,6 +393,8 @@ sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` ag
 | Cowork skills missing | They appear in the next session; `kit/setup.sh skills --check` says whether a refresh is due |
 | The engineer in a pairing does not hear the PM | It was started without the launcher: type `/projects:pair join` in its session |
 | A session opens with `Workspace:` lines | Each names something out of step and the command that fixes it |
+| A scheduled run did not happen | `schedule.sh report` says whether it was missed (the machine was off) or failed; `schedule.sh run <name>` runs it now |
+| A scheduled run is waiting | It wants your answer: `schedule.sh list` shows which, and `schedule.sh reply <name> '<answer>'` gives it |
 | An update says a change does not fit a file | Your file has its own wording there; merge that change by hand, then answer n next time to stop the offer |
 
 ---
@@ -326,4 +406,5 @@ sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` ag
 - **`docs/commands/`**, one page per command: what it does, when to reach for it, common questions, and
   how to tell it is working.
 - **`docs/memory-layers.md`**, the taxonomy the closeout classifies against.
+- **`plugins/scheduler/README.md`**, every task field and scheduler command.
 - **`CHANGELOG.md`**, for what each release changed and how to update to it.
