@@ -49,20 +49,20 @@ and hold that file under 120 lines deliberately.
 
 ## House rules
 
-- Surgical edits only. Never rewrite an existing doc wholesale.
+- Edit the line that changed; an existing doc is not rewritten wholesale.
 - Convert relative dates to absolute before writing. "Last Tuesday" rots.
 - Verify every technical claim against current code before recording it.
-- One claim per entry, with the reason it is true, not just the assertion.
+- One claim per entry, with what shows it is true, so the next reader can check it.
 - `handbook/` and `docs/` are committed; anything under `~/.claude/` reaches
-  nobody but you, so never leave a team-relevant learning there.
+  nobody but you, so a learning the team needs belongs in the committed files.
 
 ## Before closing out
 
 - Move finished work to DONE and return abandoned work to TODO in the tracker.
 - Release any locks this session holds.
 - Report which tier each promoted item landed in.
-- For anything promoted to standing rules or playbooks, offer an ablation: what
-  task would go worse without it? If there is one, draft `pilot/ablations/<id>.md`
+- For anything promoted to standing rules or playbooks, offer a leave-out test:
+  what task would go worse without it? If there is one, draft `pilot/ablations/<id>.md`
   in the same commit. If nobody can say, reconsider the tier. Offered, not required.
 
 ## Who needs to know

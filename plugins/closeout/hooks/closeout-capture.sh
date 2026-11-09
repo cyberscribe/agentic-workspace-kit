@@ -186,32 +186,69 @@ You are reviewing a just-ended Claude Code session for this project to capture
 durable learnings before they are lost. Read the session transcript (JSONL) at:
   $transcript_path
 
-Identify only durable facts a future agent would otherwise have to re-derive:
-architectural/structural decisions made, non-obvious constraints discovered,
-state of in-progress work, and gotchas. Ignore routine edits and chit-chat.
+Memory is for the next session in this project. It starts without this
+conversation and acts on what the files tell it. Write down what would leave it
+better placed: what it would otherwise re-derive, get wrong or redo. Judge that
+from this session, not from a list of kinds.
 
 Classify every item you keep on two axes before writing it down.
 
 $taxonomy
 
-Default to the cheapest tier that still works, and prefer a narrower scope when
-in doubt. The always-loaded tier is a budget paid by every future session, not a
+Default to the cheapest tier that still works. Scope decides who it reaches:
+shared reaches the team's sessions, individual only this person's. The always-loaded tier is a budget paid by every future session, not a
 folder: put something there only if a session that never thought to ask for it
 would still go wrong without it. Everything else is cheaper as reference that
 loads on demand.
 
+A note that is wrong costs more than a missing one, because the next session
+acts on it. So check every item against the transcript before you write it
+down. Find the line that supports it, then read on to the end of the transcript
+for the same subject: a later turn can reverse an earlier one (a fix that was
+reverted, a belief corrected after a test), and the latest word holds. Give each
+item one result:
+
+  supported     the record shows it and nothing later reverses it; cite the
+                line or lines that show it
+  contradicted  a later turn reverses it; cite the earlier line as "was" and
+                the later one as "evidence", then either state what the record
+                now shows as the correction, or drop it and say why
+  unsupported   nothing in the record shows it; say what is missing. It is
+                never written as fact: the person decides whether it is kept,
+                marked unverified
+
+The person's words and a tool's output show what happened; the agent's own
+words show what it believed at the time. An item bound for the always-loaded
+tier needs the strictest check: supported, with at least one cited line that is
+the person's words or a tool's output. A correction bound there is written as
+an item of its own, supported by the line that corrects it.
+
 Write a concise markdown summary of candidate documentation updates to:
   $draft_file
 
-One section per item, in this shape:
+Begin the file with this line, exactly, so the review can find the record:
+
+  transcript: $transcript_path
+
+Then one section per item, in this shape:
 
   ### <one-line claim>
   - tier: <tier name>
   - scope: shared | individual
   - destination: <the specific file or directory>
   - why this tier: <one sentence; say what would go wrong at a cheaper tier>
+  - check: supported | contradicted | unsupported
+  - evidence: L<n> "<a span copied exactly from line n of the transcript>"
+  - was: L<n> "<what the record said first>"            (contradicted only)
+  - correction: <what the record shows>                 (contradicted, kept)
+  - dropped: <why>                                      (contradicted, dropped)
+  - missing: <what would support it>                    (unsupported only)
 
   <the note itself, one to three sentences>
+
+L<n> is the line number the Read tool shows for the transcript. The span is
+copied exactly from that line and short enough to read at a glance, twenty words
+at most. Give as many evidence lines as the item needs.
 
 Leave in-repo documentation to the person; this run writes only the scratch summary
 file. You are proposing; a human approves the tier before anything is promoted.
@@ -220,7 +257,7 @@ If nothing durable was learned, do not create the file at all.${team_section}${c
 EOF
 
 # (8) Spawn fully detached so the human's session exit is never blocked.
-# Blast radius is bounded deliberately: Read/Write tools only, and the child runs
+# Blast radius is bounded deliberately: Read, Grep and Write only (Grep reads nothing Read cannot), and the child runs
 # from the draft directory, so writes to the repository fall outside the
 # directories acceptEdits auto-approves. --add-dir adds to the working directory
 # rather than restricting it, which is why the cd matters: spawned from the
@@ -231,7 +268,7 @@ child_args=(
     "$CLAUDE_BIN" -p "$PROMPT"
     --model "${CLOSEOUT_MODEL:-sonnet}"
     --permission-mode acceptEdits
-    --allowedTools "Read,Write"
+    --allowedTools "Read,Grep,Write"
     --add-dir "$DRAFT_DIR"
     --add-dir "$(dirname "$transcript_path")"
 )

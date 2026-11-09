@@ -100,7 +100,7 @@ Every script is linted with `shellcheck -x`, which section 11 of the suite runs 
 shellcheck -x setup.sh install.sh lib/*.sh lib/setup/*.sh scripts/*.sh githooks/pre-commit \
     githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh githooks/lib/common.sh \
     plugins/workspace/scripts/state.sh plugins/*/hooks/*.sh plugins/closeout/hooks/lib/config.sh \
-    plugins/projects/hooks/lib/*.sh plugins/projects/scripts/*.sh plugins/scheduler/scripts/*.sh pilot/*.sh \
+    plugins/projects/hooks/lib/*.sh plugins/projects/scripts/*.sh plugins/scheduler/scripts/*.sh plugins/closeout/scripts/*.sh pilot/*.sh \
     tests/run.sh tests/sections/*.sh
 ```
 

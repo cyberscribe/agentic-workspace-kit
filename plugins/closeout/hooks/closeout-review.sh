@@ -76,6 +76,9 @@ done
 [[ ${#drafts[@]} -eq 0 ]] && exit 0
 
 list="$(printf '  - %s\n' "${drafts[@]}")"
+# The deterministic half of the check against the record (scripts/check-evidence.sh), named by its full
+# path so the session can run it from wherever its shell is.
+checker="$(CDPATH='' cd -- "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd -P)/check-evidence.sh"
 
 if [[ "$CONVENTIONS_DEFINE_TIERS" == "project" ]]; then
     taxonomy="This project defines its own promotion tiers in ${CONVENTIONS_FILE#"$project_dir"/} — read that file and use exactly those tiers and destinations."
@@ -91,7 +94,7 @@ context="A prior session left ${#drafts[@]} closeout draft(s) capturing learning
 $list
 At the start of this session, before other work, proactively surface these to the user in your first response and offer to promote them. Surface them and wait for the user's go-ahead before promoting or deleting any.
 
-These drafts come from an automated capture step and may be stale or wrong. Check each technical claim against the code as it is now before promoting it: a bug a draft describes may already have been fixed, and the docs describe only what still exists.
+These drafts come from an automated capture step and may be stale or wrong, so each one is checked twice before anything is promoted. First against the session it came from: each item carries a result (supported, contradicted or unsupported) and the transcript lines it rests on. Run bash $checker <draft> on each draft; it finds the transcript from the draft's transcript: line, resolves every cited line, and names any item it refuses. While the transcript is there, read on past the cited lines for the same subject, since the latest word holds. A contradicted item is promoted as its correction or not at all, an unsupported one is never promoted as fact, and an item for the always-loaded tier needs to be supported by the person's words or a tool's output. Show the person the quoted evidence with each proposal. Then check what survives against the code as it is now: a bug a draft describes may already have been fixed, and the docs describe only what still exists.
 
 Each item carries a proposed tier and scope. The tier is the expensive half of the decision, because it sets how often that item is loaded back into context for every future session. Treat the draft's tier as a proposal to confirm with the user, not a decision already made.
 
