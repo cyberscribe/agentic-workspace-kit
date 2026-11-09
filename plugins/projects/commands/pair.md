@@ -294,9 +294,10 @@ end of its next turn.
 
 When the phase's checks pass, or the person ends it: write a last `PM-NNN`
 saying the pairing is closed, and create `.closed` in the mailbox, which lets
-the engineer's session stop rather than wait. Copy the decisions made in the
-mailbox into the project's decisions log in its own format, and offer to update
-the Current state block. Stop the check-ins and clear them away: delete the
+the engineer's session stop rather than wait. Carry into the project's decisions
+log, in its own format, what a later session on this project would need from the
+mailbox — the decisions and why — since the mailbox itself is not kept. Then
+offer to update the Current state block. Stop the check-ins and clear them away: delete the
 task named in `.pm-checkin`, then list this account's scheduled tasks with
 fired one-shots included and delete every one-shot bound to this session or
 named for this pairing (its slug with check-in, follow-up, after-check or

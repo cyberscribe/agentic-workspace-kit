@@ -65,7 +65,9 @@ a long-running session can never mute captures indefinitely.
 The child is an unattended agent run triggered by exiting a session. That deserves
 tight bounds:
 
-- `--allowedTools "Read,Write"` — no Bash, no network.
+- `--allowedTools "Read,Grep,Write"` — no Bash, no network. Grep reads nothing Read
+  cannot already reach; it lets the child search the transcript for a later mention
+  of the same subject without paging through it.
 - It runs from the draft directory, so writes to the repository fall outside the
   directories `acceptEdits` approves unprompted, and a headless run has nobody to
   approve them. `--add-dir` adds to the working directory rather than
@@ -134,13 +136,13 @@ The agent is also told to default to the cheapest tier that works. The bias has 
 be explicit, because "put it where it will definitely be seen" is the locally
 rational choice every time.
 
-## Ablations, offered at promotion
+## Leave-out tests, offered at promotion
 
 The budget rule stops the always-loaded tier growing unexamined; it does nothing
 about a line already in it. A line promoted there is never retired unless
 something tests it. So when a line lands in either of the two most-loaded tiers,
 `/closeout` asks what task would go worse without it, and where the repository
-runs ablations it drafts one: that task as a prompt, a Check, and the exact lines
+runs leave-out tests it drafts one: that task as a prompt, a Check, and the exact lines
 just promoted, which a runner later removes to compare a session with the line
 against one without it. The question is asked at promotion because that is the
 only moment someone knows what the line was for.
@@ -149,9 +151,82 @@ It is offered, not required. Required is the stronger discipline, but it adds a
 step to every closeout at the point a new team decides whether the ritual is
 worth its weight. The offer still does work when it is declined: a person who
 cannot name a task that would go worse has said something about the tier, and
-the command says so. An ablation tests only what its author thought the line was
+the command says so. A leave-out test checks only what its author thought the line was
 for, the same limit a unit test has, and a no-difference result proposes a
 demotion; it never makes one.
+
+## Checked against the record before promotion
+
+Checking a claim against the files as they are now catches a fact that has gone
+stale. It does not catch a session that misremembered itself: a fix believed to
+work and later reverted, a cause named before a test showed another. The capture
+child and the closing agent both summarise from memory of a long conversation,
+and the first plausible line is the one that sticks. Anthropic's write-up of its
+agent-memory experiments ("The components of agent memory", November 2026)
+reports the cost: in a long game run, an offline pass that checked a wrong
+memory note against the session transcript and rewrote it let the run reach a
+goal that the run carrying the uncorrected note never reached.
+
+So every candidate is checked against the session's own record before it is
+promoted, and gets one of three results. **Supported** may be promoted as fact.
+**Contradicted** is promoted as its correction or dropped, and the report says
+which. **Unsupported** is never promoted as fact. A contradiction usually sits
+later than the claim, in a turn that reverses it, so the check reads the record
+to its end and the latest word holds.
+
+The record depends on where the closeout runs:
+
+| Surface | Record | Found by |
+|---|---|---|
+| `/closeout` in Claude Code | the session's transcript (JSONL) | `CLAUDE_CODE_SESSION_ID`, under `CLAUDE_CONFIG_DIR` or `~/.claude`, in `projects/*/<id>.jsonl` |
+| The capture child | the transcript it is given | `transcript_path`; it writes it as the draft's first line, `transcript: <path>` |
+| A draft promoted later | that transcript, while it exists | the `transcript:` line, else the draft's name (`<session-id>.md`) |
+| A draft whose transcript is gone | the draft's own quotes | the report says so |
+| Cowork and other surfaces | the conversation in context | the report says so |
+
+**Evidence travels with the candidate.** Each item carries its result and
+`evidence: L<n> "<quote>"` lines: a line of the transcript and a short span
+copied from it. A contradicted item adds `was:` (what the record said first) and
+`correction:` or `dropped:`; an unsupported one, `missing:`. The line number is
+stable because a transcript is only appended to, and the quote is what a person
+approving the item reads.
+
+**The always-loaded tier gets the strictest check.** A wrong line there is read
+by every session. A line goes there only when it is supported, every cited line
+resolves, and at least one is the person's own words or a tool's output. The
+agent's own statement that something works is evidence that it believed so; a
+test result, or the person deciding, is evidence that it holds. A correction
+bound for that tier is restated as its own supported candidate, so it passes the
+same check.
+
+**What is checked by script, and what is judged.** `scripts/check-evidence.sh`
+is deterministic: the format, each anchor resolving (the line exists, is a turn
+of the conversation rather than a hook injection or an attachment, and holds the
+quote), who spoke on it, a contradiction's evidence sitting later than what it
+reverses, and the gate for the always-loaded tier. Whether a quote supports its
+claim, whether a later turn reverses it, and which result a candidate gets are
+the model's judgement, and then the person's. The script proves the evidence is
+where it is said to be; it cannot prove the reading. Section 4 of the kit's suite
+runs it against a fixture transcript; the judged half has no test.
+
+The review hook names the script rather than running it, which keeps session
+start fast. The capture child cannot run it (it has no shell); the next session
+does.
+
+## Guidance says what memory is for
+
+The same write-up reports that telling an agent what memory is for helps, and
+telling it what to record does not: one added rule, "record only failures", cut
+the gain from memory on a database task by 0.150 to 0.234, depending on the
+model. A list of kinds narrows what gets noticed to the kinds listed.
+
+So the capture prompt, the command and the ritual say what the next session
+needs (to start without this conversation, and act on what the files tell it)
+and leave the judgement of what serves that to the session. Three things stay as
+rules, because they are boundaries rather than advice about what is worth
+keeping: privacy (a sensitive project's learnings stay in its folder, the
+roster's contact-detail filter, nothing sent), the bounded always-loaded tier,
+and commit ownership with no attribution lines.
 
 ## Two levels of override, and why not a schema
 

@@ -68,8 +68,9 @@ then you get `/closeout` only. `/hooks` lists what is active.
 | Part | What it does |
 |------|--------------|
 | `/closeout` command | A saved prompt. Type it before ending a session and the agent reviews learnings and updates durable docs **live, with full context** — the highest-quality path — then reconciles the project's tracking: ticks its Done when list and brings its Current state block up to date — state, blocker, date and a dated line. |
-| Capture hook (`SessionEnd`) | Spawns a **detached, tool-restricted** headless `claude -p` that reads the just-ended transcript and writes candidate notes to a draft file outside the repo. The automatic backstop. |
-| Review hook (`SessionStart`) | If drafts exist, injects a reminder instructing the agent to surface them first-thing and offer to promote — confirm the proposed tier, verify each claim against current code, then promote and delete the draft, only with your go-ahead. Never silently. |
+| Capture hook (`SessionEnd`) | Spawns a **detached, tool-restricted** headless `claude -p` that reads the just-ended transcript and writes candidate notes to a draft file outside the repo, each checked against the transcript and carrying the lines it rests on. The automatic backstop. |
+| Review hook (`SessionStart`) | If drafts exist, injects a reminder instructing the agent to surface them first-thing and offer to promote — confirm the proposed tier, check each item against the session's record with `scripts/check-evidence.sh` and then against current code, then promote and delete the draft, only with your go-ahead. Never silently. |
+| `scripts/check-evidence.sh` | Resolves each candidate's cited transcript lines and refuses what does not hold. See below. |
 | Who needs to know | *Optional.* When two or more people are known for the project, `/closeout` and the capture draft end with a short table of who should hear about what, why them, how, and what to offer. `auto`, `ask` or `off`. Nothing is sent; see below. |
 
 ```
@@ -150,12 +151,39 @@ bounded: it updates or condenses where it can, and makes the case where it adds.
 other tier is additive. That rule is the point of the taxonomy: without it an
 always-on file grows monotonically and every future session pays for it.
 
-For a promotion to either of the top two tiers, `/closeout` also offers an
-ablation: it asks what task would go worse without the line and, where the
+For a promotion to either of the top two tiers, `/closeout` also offers a
+leave-out test: it asks what task would go worse without the line and, where the
 repository keeps `pilot/ablations/`, drafts a test that runs that task with the
 line and without it. The offer can be declined. If nobody can name such a task,
 the command says that is evidence about the tier. The reasoning is in
 [`docs/DESIGN.md`](docs/DESIGN.md).
+
+### Checked against the session first
+
+Before anything is promoted, each candidate is checked against what the session
+actually said and did, read to its end, since a later turn can reverse an earlier
+one. It comes out **supported** (may be promoted as fact), **contradicted**
+(promoted as its correction, or dropped) or **unsupported** (never promoted as
+fact; recorded as unverified, or left out). Each carries its evidence: a
+transcript line and a short quote from it, which is what you read when you
+approve it.
+
+```
+### Raising the worker timeout to 30s fixes the flake
+- check: contradicted
+- was: L6 "Raising the timeout to 30s fixes the flake"
+- evidence: L8 "It flaked again on CI after the change"
+- correction: Raising the timeout did not fix the flake; the change was reverted.
+```
+
+`scripts/check-evidence.sh <draft>` finds the transcript, resolves every cited
+line and names what it refuses. A line bound for the always-loaded file passes only
+when it is supported and at least one cited line is your words or a tool's output,
+not just the agent's. The script proves each cited line exists and says what is
+quoted; whether the quote supports the claim is still a reading, the agent's and
+then yours. Where no transcript is readable (a desktop assistant), the check runs
+against the conversation, and the report says so. The reasoning is in
+[`docs/DESIGN.md`](docs/DESIGN.md#checked-against-the-record-before-promotion).
 
 ### Overriding it
 
@@ -287,7 +315,7 @@ Each non-trivial session close spawns one headless run billed to your account.
 
 The capture child is deliberately boxed in:
 
-- `--allowedTools "Read,Write"` — no Bash, no network tools.
+- `--allowedTools "Read,Grep,Write"` — no Bash, no network tools.
 - It runs from the draft directory, so that is its working directory: writes to
   your repository fall outside what `acceptEdits` approves unprompted, and a
   headless run has nobody to approve them. The transcript's directory, added with
@@ -321,8 +349,10 @@ your approval.
   basename share a draft directory. Set `CLOSEOUT_DRAFT_ROOT` per checkout if that
   bites you.
 - **Drafts can be stale or wrong.** They are written by an automated pass over a
-  transcript. The review prompt insists on verifying each claim against current
-  code before promotion — a bug the draft describes may already be fixed.
+  transcript. Each item is checked against that transcript first, by the capture
+  pass and again by `scripts/check-evidence.sh` at review while the transcript
+  exists, and then against current code, since a bug the draft describes may
+  already be fixed.
 
 ## Why a detached child, and not the agent itself
 

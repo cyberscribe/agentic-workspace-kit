@@ -13,13 +13,15 @@ at once, so the person's exit is never held up. That child:
   the state of work in progress, gotchas;
 - classifies each by tier and scope, using the project's own promotion tiers (`.claude/closeout.md`),
   the person's (`~/.claude/closeout.md`), or the kit's default table, in that order of precedence;
-- writes them to `~/.claude/closeout-drafts/<folder name>/<session id>.md`, one section per item with
-  its tier, scope, destination and reason; when nothing durable was learned, it is told to write no
-  file at all;
+- checks each item against the transcript, read to its end, as supported, contradicted (with the
+  correction, or dropped) or unsupported, citing transcript lines with a short quote;
+- writes them to `~/.claude/closeout-drafts/<folder name>/<session id>.md`, starting with a
+  `transcript:` line, one section per item with its tier, scope, destination, reason, result and
+  evidence; when nothing durable was learned, it is told to write no file at all;
 - ends the draft with a "Who needs to know" section when two or more people are known for the
   repository and the setting is not `off`.
 
-The child runs from the drafts folder with the Read and Write tools only, so the repository is not
+The child runs from the drafts folder with the Read, Grep and Write tools only, so the repository is not
 one of its auto-approved folders. It proposes; a person approves before anything is promoted.
 
 It does nothing when the session ended with `/clear`, when there is no transcript, when the transcript

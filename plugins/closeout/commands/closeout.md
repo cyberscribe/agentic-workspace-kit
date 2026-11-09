@@ -11,11 +11,11 @@ can check a claim against the files before it gets a permanent home. Be selectiv
 and honest — a short closeout that records the one decision that mattered is a
 good one.
 
-A learning is worth recording if a future session would otherwise re-derive it.
-Working code and finished deliverables are the work, already saved; the constraint
-that shaped them is the learning. So are a decision and the option it beat, a
-behaviour a tool's documentation does not mention, a correction to something
-believed before, and a boundary that turned out to matter.
+Memory is for the session that comes next: it starts without this conversation,
+and what it finds in the files is what it acts on. Record what would leave it
+better placed — what it would otherwise re-derive, get wrong or redo — judged
+from this session rather than from a list. The work itself is already saved; a
+note is for what the files alone do not show.
 
 If the user typed anything after the command (it follows this prompt), start from
 it: it is what they most want kept. With no end-of-session capture behind it — a
@@ -84,7 +84,8 @@ is unclear, it stays in the project — promotion is cheap, demotion is not. Use
 log's own entry format.
 
 **Scope** — shared (committed, reaches teammates) or individual (this machine and
-user only, such as `~/.claude/`). Prefer committed: a teammate cannot use the other.
+user only, such as `~/.claude/`). Shared is for what a teammate's session would
+need too; individual for what is only this person's.
 
 Default to the cheapest tier that still works; most things are project reference.
 The always-loaded tier is a budget paid by every future session, not a folder.
@@ -94,7 +95,50 @@ get the user's agreement. Every other tier is additive.
 
 ## Verify before you record
 
-Check each technical claim against the current state of the code or file. A
+Two checks, in this order: against what this session said and did, then against
+the files as they are now.
+
+**Against the session's record.** A line promoted from a misremembered session
+carries the mistake into every later session that reads it. So write each
+candidate in the shape the capture draft uses — tier, scope, destination, then
+`check:`, `evidence: L<n> "<quote>"`, and `was:`, `correction:` or `dropped:`, or
+`missing:` as its result needs (the full shape is in the plugin's
+`docs/DESIGN.md`) — and check it against the record. Find the turn that
+supports it, then read on to the end for the same subject: a later turn can
+reverse an earlier one — a fix reverted, a belief corrected after a test — and
+the latest word holds.
+
+- **supported** — the record shows it and nothing later reverses it. It may be
+  promoted as fact.
+- **contradicted** — promoted as what the record now shows, or dropped; the
+  report says which.
+- **unsupported** — never promoted as fact. It is recorded as unverified, with
+  what is missing, or left out.
+
+The record depends on the surface. In Claude Code it is this session's
+transcript: write the candidates to a scratch file and run
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-evidence.sh" <file> --session "$CLAUDE_CODE_SESSION_ID"
+```
+
+Where that path has not been filled in, the script is `scripts/check-evidence.sh`
+beside the `commands/` folder this file sits in: `kit/plugins/closeout/scripts/`
+in a workspace built on the kit. It resolves each `L<n>` against the transcript
+and names what it refuses. A capture draft names its record on its
+`transcript:` line; if that file is gone, the report says the check rested on
+the draft's own quotes. Where no transcript is readable, as on a desktop
+assistant, the check runs against the conversation in context, and the report
+says that is what it was checked against. The script proves that each cited
+line exists and says what is quoted; whether the quote supports the claim is
+still a reading, the agent's and then the person's.
+
+The always-loaded tier gets the strictest check, because a wrong line there is
+read by every session: a line goes there only when it is supported, with at
+least one cited line that is the person's own words or a tool's output rather
+than the agent's, and the proposal shows those quotes.
+
+**Against the files.** Check each technical claim against the current state of the code or file. A
 behaviour that changed during this session is not a finding, and a claim written
 from memory of what happened two hours ago is how a wrong fact gets a permanent
 home.
@@ -114,10 +158,10 @@ any file the repository fences from agent editing. Nothing is deleted: supersede
 material is marked superseded, keeps its wording, and points at what replaced it.
 
 When a line is promoted, or proposed for promotion, to one of the two tiers
-loaded most often (by default working standards and general reference), offer an
-ablation; it is an offer, and a no ends it. Ask what task would go worse without
-the line. If there is one and the repository has `pilot/ablations/`, draft the
-ablation file there — that task as the prompt, a Check, and the lines exactly as
+loaded most often (by default working standards and general reference), offer a
+leave-out test; it is an offer, and a no ends it. Ask what task would go worse
+without the line. If there is one and the repository has `pilot/ablations/`,
+draft the test's file there — that task as the prompt, a Check, and the lines exactly as
 they will read (format in `pilot/README.md`, or copy a file already in
 `pilot/ablations/`) — listed in the commit plan with the promotion once it is agreed. If nobody can
 name a task, say so plainly: that is evidence about the tier, and the cheaper
@@ -202,7 +246,9 @@ there, on an explicit yes.
 
 - What was promoted, and at which tier.
 - What is proposed and still needs a decision.
-- Any ablation offered: drafted, declined, or the tier reconsidered.
+- What each candidate was checked against (the transcript, the draft's quotes,
+  or the conversation), and which were corrected, dropped or left unverified.
+- Any leave-out test offered: drafted, declined, or the tier reconsidered.
 - Tracking, reported apart from the learnings: boxes ticked, how far from the
   finish line, and the Current state block's new state, blocker and date.
 - Who needs to know what, if that step applied.

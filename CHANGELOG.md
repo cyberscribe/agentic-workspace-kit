@@ -19,6 +19,25 @@ rewriting — the record of what a version claimed is part of what the version i
   closeout* (session, project, workspace and method, each with its cadence and destination) and *context
   as an investment*: why grounding improves results, how the gain compounds, and why the same loop prunes.
 
+- **Closeout checks each candidate against the session before it promotes it.** Every candidate, from
+  `/closeout` or a capture draft, is checked against the session's own record, read to its end, and
+  comes out supported (promoted as fact), contradicted (promoted as its correction, or dropped) or
+  unsupported (never promoted as fact). Each carries its evidence as `evidence: L<n> "<quote>"`, a
+  transcript line and a short span from it. The new `plugins/closeout/scripts/check-evidence.sh`
+  resolves those lines and refuses what does not hold. A line for the always-loaded file passes only
+  when supported by the person's words or a tool's output, not the agent's alone. The capture draft
+  starts with a `transcript:` line, the review reminder names the script, and the capture child gains
+  the read-only `Grep` tool. Where no transcript is readable, the check runs against the conversation
+  and the report says so. The ritual carries the same step.
+
+- **Closeout guidance says what memory is for.** The capture prompt, `/closeout` and the ritual
+  replace their lists of kinds worth recording with the purpose: the next session starts without this
+  conversation, so record what would leave it better placed. The capture prompt and the command now
+  agree on scope, and `/projects:pair`'s closing carries what a later session needs from the mailbox
+  into the decisions log. Privacy, the bounded always-loaded tier and commit ownership stay as rules.
+  In the closeout plugin's prose, the offer at promotion is now a "leave-out test"; the
+  `pilot/ablations/` path is unchanged.
+
 ---
 
 ## v3.5.0 — 2026-10-30

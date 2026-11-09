@@ -1031,6 +1031,18 @@ if capture "$P3" s-three; then
     grep -qF "$TRANSCRIPT" <<<"$prompt" && ok "4 capture prompt names the transcript" || ko "4 capture prompt names the transcript"
     grep -qF "$DRAFTS/three/s-three.md" <<<"$prompt" && ok "4 capture prompt names the per-session draft file" || ko "4 capture prompt names the per-session draft file"
     grep -qF '| Working standards |' <<<"$prompt" && ok "4 capture prompt carries the default tier table" || ko "4 capture prompt carries the default tier table"
+    # The record check: the prompt asks for the three results read to the end of the transcript, starts
+    # the draft with the transcript: line, and its item shape names every field check-evidence.sh reads.
+    bad=""
+    grep -qxF "  transcript: $TRANSCRIPT" <<<"$prompt" || bad+="no transcript: line naming the record"$'\n'
+    for w in '- check: supported | contradicted | unsupported' '- evidence: L<n> "' '- was: L<n> "' '- correction:' '- dropped:' '- missing:' \
+        'read on to the end of the transcript' 'the latest word holds' "the person's words or a tool's output"; do
+        grep -qF -- "$w" <<<"$prompt" || bad+="no: $w"$'\n'
+    done
+    for w in check evidence was correction dropped missing; do
+        grep -qE "\\\$2 == \"$w\"|get $w|\"$w\"" "$KIT/plugins/closeout/scripts/check-evidence.sh" || bad+="the checker does not read $w"$'\n'
+    done
+    empty "4 capture prompt checks each item against the record, with the fields the checker reads" "$bad"
     if grep -qF 'People known for this repository' <<<"$prompt" && grep -qF 'Who needs to' <<<"$prompt" \
         && grep -qE '^  - casey$' <<<"$prompt"; then
         ok "4 capture prompt adds who-needs-to-know for three people, naming them"
@@ -1041,10 +1053,10 @@ if capture "$P3" s-three; then
     [[ "$(cat "$REC.pwd")" == "$(cd "$DRAFTS/three" && pwd -P)" ]] \
         && ok "4 capture child runs from the draft directory" || ko "4 capture child runs from the draft directory" "pwd was $(cat "$REC.pwd")"
     [[ "$(cat "$REC.child")" == "1" ]] && ok "4 capture child carries the recursion guard" || ko "4 capture child carries the recursion guard"
-    if grep -qx -- '--allowedTools' "$REC.args" && grep -qx 'Read,Write' "$REC.args" \
+    if grep -qx -- '--allowedTools' "$REC.args" && grep -qx 'Read,Grep,Write' "$REC.args" \
         && grep -qx -- '-p' "$REC.args" && grep -qxF "$DRAFTS/three" "$REC.args"; then
-        ok "4 capture child is limited to Read,Write with the draft directory added"
-    else ko "4 capture child is limited to Read,Write with the draft directory added" "$(cat "$REC.args" | grep -E '^--' )"; fi
+        ok "4 capture child is limited to Read,Grep,Write with the draft directory added"
+    else ko "4 capture child is limited to Read,Grep,Write with the draft directory added" "$(cat "$REC.args" | grep -E '^--' )"; fi
 else
     ko "4 capture: spawns the claude found on PATH" "the stub never ran"
 fi
@@ -1101,6 +1113,10 @@ if jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' <<<"$outr" >/dev/
     && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF "$DR/s1.md"; then
     ok "4 review: a pending draft is surfaced as SessionStart additionalContext"
 else ko "4 review: a pending draft is surfaced as SessionStart additionalContext" "$outr"; fi
+rchk="$(jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -oE 'bash [^ ]+/check-evidence\.sh' | sed 's/^bash //')"
+if [[ -n "$rchk" && -f "$rchk" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF 'never promoted as fact'; then
+    ok "4 review: names the evidence checker by a path that exists, and the three results"
+else ko "4 review: names the evidence checker by a path that exists, and the three results" "checker: ${rchk:-none}"; fi
 jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF 'Take the step only when two or more are known for this project' \
     && ok "4 review: names the who-needs-to-know step when the project has a team" || ko "4 review: names the who-needs-to-know step when the project has a team"
 empty "4 review: the injected context has no capitals-for-emphasis" \
@@ -1277,6 +1293,74 @@ grep -qF 'team/people.md' "$KIT/plugins/projects/commands/new.md" || bad+="proje
 grep -qxF -- '- **Who needs to know:** auto' "$KIT/templates/workspace/closeout.md" || bad+="templates/workspace/closeout.md: no setting line"$'\n'
 grep -qE '^\| Name \| Role \| Default relationship \| Channel \| Handle \|$' "$KIT/templates/workspace/closeout.md" || bad+="templates/workspace/closeout.md: no roster example"$'\n'
 empty "4 who needs to know: the setting, the roster, precedence and How / Offer in the command, ritual, conventions, audit and /projects:new" "$bad"
+
+# Checked against the record (closeout, Unreleased): scripts/check-evidence.sh resolves each candidate's
+# anchors in a fixture transcript (a timeout raise that "fixed" a flake, the person reporting it flaked
+# again, the revert, and the real cause shown by a test). Deterministic: the format, anchors resolving,
+# who spoke, the order of a contradiction, and the gate for the always-loaded tier. Whether a quote
+# supports its claim is the model's judgement, and nothing here tests it.
+CHK="$KIT/plugins/closeout/scripts/check-evidence.sh" CFX="$KIT/tests/fixtures/closeout-record"
+ce() { cout="$(env -u CLOSEOUT_TIER_ALWAYS CLAUDE_CONFIG_DIR="$SCRATCH/no-config" bash "$CHK" "$@" 2>&1)"; crc=$?; }
+ce "$CFX/candidates.md"
+if [[ $crc -eq 0 ]] && grep -qF '4 items: 2 supported, 1 contradicted, 1 unsupported (unverified); 0 refused' <<<"$cout"; then
+    ok "4 evidence: a supported control, a contradicted item and an unsupported one pass, counted by result"
+else ko "4 evidence: a supported control, a contradicted item and an unsupported one pass, counted by result" "rc=$crc"$'\n'"$cout"; fi
+grep -qF 'evidence L13 (tool): ok' <<<"$cout" && grep -qF 'evidence L8 (person): ok' <<<"$cout" && grep -qF 'was L6 (agent): ok' <<<"$cout" \
+    && ok "4 evidence: each anchor resolves into the transcript and names who spoke (tool, person, agent)" \
+    || ko "4 evidence: each anchor resolves into the transcript and names who spoke (tool, person, agent)" "$cout"
+grep -qF '→ corrected: Raising the timeout did not fix the flake' <<<"$cout" \
+    && ok "4 evidence: a contradicted item is reported with its correction" || ko "4 evidence: a contradicted item is reported with its correction" "$cout"
+grep -qF '→ unverified: missing nothing in the session measured the runner' <<<"$cout" \
+    && ok "4 evidence: an unsupported item is reported unverified, with what is missing" || ko "4 evidence: an unsupported item is reported unverified, with what is missing" "$cout"
+grep -qF 'Every worker script removes a stale lock on start  [always-loaded]' <<<"$cout" \
+    && ok "4 evidence: a working-standards item cited by the person and a test passes the strict check" \
+    || ko "4 evidence: a working-standards item cited by the person and a test passes the strict check" "$cout"
+
+ce "$CFX/refused.md"
+bad=""
+[[ $crc -eq 1 ]] || bad+="exit $crc, not 1"$'\n'
+for want in \
+    'four workers: unsupported, and bound for the always-loaded tier' \
+    "whole cause of the flake: for the always-loaded tier, cited only by the agent's own words" \
+    'Sixty runs passed after the fix: an anchor does not resolve' \
+    'ran a hundred times: an anchor does not resolve' \
+    'the contradicting evidence (L5) is not later than what it reverses (L6)' \
+    'timeout fixes the flake: an anchor does not resolve' \
+    'written in bash: no check: line' \
+    'L13 (tool): the quote is not on this line' \
+    'L99: past the end of the record (16 lines)' \
+    'L7: not a turn of the conversation' \
+    '7 refused'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 evidence: refused, each by name — unsupported or agent-only for working standards, a quote not on its line, a line past the end, a hook injection, a contradiction no later than what it reverses, no result" "$bad"
+
+# The record, found four ways: the transcript: line (relative to the draft), --transcript, --session and
+# the draft's own name under CLAUDE_CONFIG_DIR; and gone, which resolves nothing and holds back the
+# always-loaded item.
+CCFG="$SCRATCH/evidence-config" CDR="$SCRATCH/evidence-drafts"
+mkdir -p "$CCFG/projects/-some-project" "$CDR"
+cp "$CFX/transcript.jsonl" "$CCFG/projects/-some-project/sess-ev1.jsonl"
+sed '1d' "$CFX/candidates.md" > "$CDR/sess-ev1.md"
+sed '1s|.*|transcript: /nonexistent/gone.jsonl|' "$CFX/candidates.md" > "$CDR/gone.md"
+bad=""
+ce "$CFX/candidates.md"
+grep -qF "record: $CFX/transcript.jsonl (16 lines)" <<<"$cout" || bad+="the transcript: line, relative to the draft"$'\n'
+ce "$CDR/gone.md" --transcript "$CFX/transcript.jsonl"; [[ $crc -eq 0 ]] || bad+="--transcript"$'\n'
+cout="$(CLAUDE_CONFIG_DIR="$CCFG" bash "$CHK" "$CDR/sess-ev1.md" 2>&1)" || bad+="the draft's name as a session id"$'\n'
+cout="$(CLAUDE_CONFIG_DIR="$CCFG" bash "$CHK" "$CDR/gone.md" --session sess-ev1 2>&1)" || bad+="--session"$'\n'
+empty "4 evidence: the record is found by the transcript: line, --transcript, --session and the draft's own name" "$bad"
+ce "$CDR/gone.md"
+if [[ $crc -eq 1 ]] && grep -qF 'record: none found (/nonexistent/gone.jsonl is gone)' <<<"$cout" \
+    && grep -qF 'evidence L11: not resolved (no record)' <<<"$cout" && grep -qF '1 refused' <<<"$cout" \
+    && grep -qF 'removes a stale lock on start: for the always-loaded tier, and the record is not here' <<<"$cout"; then
+    ok "4 evidence: with the transcript gone, nothing resolves, the report says so, and only the always-loaded item is held back"
+else ko "4 evidence: with the transcript gone, nothing resolves, the report says so, and only the always-loaded item is held back" "rc=$crc"$'\n'"$cout"; fi
+sed 's/^- destination: CLAUDE.md$/- destination: GUIDELINES.md/; s/^- tier: Working standards$/- tier: Standing rules/' "$CFX/refused.md" > "$CDR/moved.md"
+cout="$(env CLOSEOUT_TIER_ALWAYS=GUIDELINES.md bash "$CHK" "$CDR/moved.md" --transcript "$CFX/transcript.jsonl" 2>&1)"
+grep -qF "cited only by the agent's own words" <<<"$cout" \
+    && ok "4 evidence: CLOSEOUT_TIER_ALWAYS moves the strict check with the always-loaded file, whatever the tier is called" \
+    || ko "4 evidence: CLOSEOUT_TIER_ALWAYS moves the strict check with the always-loaded file, whatever the tier is called" "$cout"
 
 fi
 # ---------------------------------------------------------------------------------------------------
@@ -2006,19 +2090,31 @@ for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
 done
 [[ -z "$bad" ]] && ok "9 closeout parity: the command and the ritual carry the same core rules" \
     || ko "9 closeout parity: the command and the ritual carry the same core rules" "$bad"
-# The ablation offer at promotion: only for the two tiers loaded most often, offered and not required,
+# The leave-out test offer at promotion: only for the two tiers loaded most often, offered and not required,
 # made on a proposal as well as a promotion, asked as "what task would go worse", and reported.
 bad=""
 for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
     flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
     grep -qE 'two tiers loaded most often|always-loaded tier or general reference' <<<"$flat" || bad+="$f: the offer is not limited to the top two tiers"$'\n'
-    grep -qF 'offer an ablation' <<<"$flat" || bad+="$f: no offer of an ablation"$'\n'
+    grep -qF 'offer a leave-out test' <<<"$flat" || bad+="$f: no offer of a leave-out test"$'\n'
     grep -qE 'a no ends it|offered, not required' <<<"$flat" || bad+="$f: the offer is not optional"$'\n'
     grep -qF 'proposed for promotion' <<<"$flat" || bad+="$f: the offer does not ride with a proposal"$'\n'
     grep -qF 'what task would go worse' <<<"$flat" || bad+="$f: no question about what task would go worse"$'\n'
-    grep -qF -- '- Any ablation offered' "$KIT/$f" || bad+="$f: no report line for the ablation offer"$'\n'
+    grep -qF -- '- Any leave-out test offered' "$KIT/$f" || bad+="$f: no report line for the leave-out test offer"$'\n'
 done
-empty "9 closeout parity: the command and the ritual both offer an ablation on the top two tiers, optionally, and report it" "$bad"
+empty "9 closeout parity: the command and the ritual both offer a leave-out test on the top two tiers, optionally, and report it" "$bad"
+# The check against the session's record: both copies name the three results, reading to the end,
+# the strict check for the always-loaded tier, the surface with no transcript, and the report line.
+bad=""
+for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
+    flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
+    for w in "Against the session's record" '**supported**' '**contradicted**' '**unsupported**' 'never promoted as fact' \
+        'the latest word holds' 'strictest check' "the person's own words or a tool's output" 'against the conversation in context' \
+        'checked against'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="$f: no $w"$'\n'
+    done
+done
+empty "9 closeout parity: the command and the ritual both check candidates against the session's record, with the same results and the strict tier" "$bad"
 
 fi
 # ---------------------------------------------------------------------------------------------------
@@ -2889,7 +2985,8 @@ sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugin
     githooks/pre-commit githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh
     githooks/lib/common.sh)
 for f in "$KIT"/scripts/*.sh "$KIT"/lib/setup/*.sh "$KIT"/plugins/workspace/hooks/*.sh \
-         "$KIT"/plugins/projects/hooks/*.sh "$KIT"/plugins/projects/hooks/lib/*.sh "$KIT"/plugins/projects/scripts/*.sh; do
+         "$KIT"/plugins/projects/hooks/*.sh "$KIT"/plugins/projects/hooks/lib/*.sh "$KIT"/plugins/projects/scripts/*.sh \
+         "$KIT"/plugins/closeout/scripts/*.sh; do
     sc_list+=("${f#"$KIT"/}")
 done
 if command -v shellcheck >/dev/null 2>&1; then
