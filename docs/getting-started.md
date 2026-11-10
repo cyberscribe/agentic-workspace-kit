@@ -126,7 +126,8 @@ is loaded into every session, so keep it short: README Part 3 explains the budge
 ## 5. Your first project
 
 A project is anything with a finish line. If you cannot say what done looks like, it is an ongoing area
-instead, and its notes belong in `docs/`.
+instead: something kept up rather than finished, with standards to keep in place of a finish line. The
+same command starts one, in `ongoing/<slug>/`, when the interview finds no finish line.
 
 ```
 /projects:new
