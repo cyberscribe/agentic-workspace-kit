@@ -8,7 +8,7 @@ load at stage 9.*
 ## The rule
 
 Claude Code reads `.claude/settings.json` in the folder a session is opened on, and not in the folders
-above it. The workspace's settings register the kit's marketplace and enable its three plugins, so on
+above it. The workspace's settings register the kit's marketplace and enable its four plugins, so on
 their own they reach a session opened on the workspace's own folder and no other. Setup therefore also
 installs the plugins for the person (user scope), and the plugins' hooks keep to kit workspaces.
 

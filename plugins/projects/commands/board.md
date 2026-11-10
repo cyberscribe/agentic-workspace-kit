@@ -151,7 +151,7 @@ After the project columns, when the workspace has ongoing areas (the
 conventions' **Areas** setting, else `ongoing/<slug>/` with a README), one more
 section, headed with its count. Areas are not in flight and never done, so they
 sit apart from the columns and outside the counts line. One line per area,
-active first, then dormant; retired areas are left off:
+active first, then dormant; archived areas are left off:
 
 ```
 - **<name>** · <owner> · <state> · <n> standards · checked <n>d ago (every <cadence>) · <k> live projects
@@ -163,8 +163,8 @@ has no cadence and is older than the staleness setting; a dormant area is never
 either. `<k> live projects` counts the links in its Projects section whose
 project is not done, and is left out at zero. A gap is named in place, as on a
 project card: `no standards`, `standards not yet named`, `no owner`.
-Flags for areas join the list below: an active area due for its check-in, one
-with no standards named, and a project whose What this is names an area that
+Flags for areas join the list below, each pointing at its command: an active area due for its check-in (`/ongoing:review`), one
+with no standards named (`/ongoing:review`), and a project whose What this is names an area that
 does not exist.
 
 ## Flags

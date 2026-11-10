@@ -67,14 +67,15 @@ passes every check.
 ## 3. Open a session
 
 Start Claude Code in the workspace folder (or in any folder inside it) and trust the folder when asked.
-Type `/` and look for the kit's commands: `/closeout`, the `/projects:` commands and the `/workspace:`
+Type `/` and look for the kit's commands: `/closeout`, the `/projects:`, `/ongoing:` and `/workspace:`
 commands.
 
-Setup installed the three plugins for you, so they load in any folder inside the workspace, and their
+Setup installed the four plugins for you, so they load in any folder inside the workspace, and their
 hooks act only inside a kit workspace. If the commands are missing, install them yourself:
 
 ```bash
 claude plugin install closeout@agentic-workspace
+claude plugin install ongoing@agentic-workspace
 claude plugin install projects@agentic-workspace
 claude plugin install workspace@agentic-workspace
 ```
@@ -126,8 +127,9 @@ is loaded into every session, so keep it short: README Part 3 explains the budge
 ## 5. Your first project
 
 A project is anything with a finish line. If you cannot say what done looks like, it is an ongoing area
-instead: something kept up rather than finished, with standards to keep in place of a finish line. The
-same command starts one, in `ongoing/<slug>/`, when the interview finds no finish line.
+instead: something kept up rather than finished, with a desired state and standards to keep in place
+of a finish line. `/ongoing:new` starts one in `ongoing/<slug>/`, and `/projects:new` hands over to it when
+the interview finds no finish line.
 
 ```
 /projects:new
@@ -298,6 +300,9 @@ claude plugin update --scope user closeout@agentic-workspace
 claude plugin update --scope user projects@agentic-workspace
 claude plugin update --scope user workspace@agentic-workspace
 ```
+
+An update that adds a plugin (the `ongoing` plugin arrived this way) needs it installed once:
+`claude plugin install ongoing@agentic-workspace`.
 
 `--scope user` matters: without it the update reaches only the copy for the folder you ran it in, and
 sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` again and upload the new

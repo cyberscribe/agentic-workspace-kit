@@ -7,30 +7,40 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased
 
-**To update:** run `kit/setup.sh update` and accept the workspace-map change. Nothing moves on its own:
-a long-running project you would rather keep as an area is converted by `/projects:adopt`, and the folder
-move is yours to make.
+**To update:** run `kit/setup.sh update` and accept the template changes, which enable the new `ongoing`
+plugin in `.claude/settings.json`; then each person runs `claude plugin install ongoing@agentic-workspace`
+once. Nothing moves on its own: a long-running project you would rather keep as an area is converted by
+`/ongoing:adopt`, and the folder move is yours to make.
 
-- **Ongoing areas are first-class.** Work with no finish line — a practice, a responsibility, something
-  kept up rather than finished — used to be turned away by `/projects:new` towards general reference,
-  or kept as a project whose finish line was never crossed and whose card was always stale. It now has a
-  home of its own: `ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant / Retired), from
-  a new template, `templates/area-readme.md`. An area keeps the project's machinery — the `Versioned:` and
-  `Sensitivity:` lines, the Current state labels, People, Resources — and changes the measure: **Standards
-  to keep** stand where Done when stands, two to five standards someone else could check; `State:` is
-  `active`, `dormant` or `retired`, never `done`; staleness is the area's own `Check-in:` cadence, and a
-  dormant area is never stale; areas do not count against the in-flight limit. The two kinds meet in the
-  area's **Projects** section: a piece of an area with a finish line is a project, linked from the area,
-  whose What this is names the area.
-- **The commands know about areas.** `/projects:new` offers an area when the interview finds no finish
-  line, with a quick path of its own (what is kept up, the standards, the cadence, versioning, owner),
-  and creates the area register with the first area. `/projects:adopt` converts a long-running project to
-  an area's shape when its owner says it is one. `/projects:board` lists areas in a section of their own,
-  outside the project counts, and flags an active area due for its check-in, one with no standards
-  named, and a project naming an area that does not exist. The conventions file's **Areas**, **Area
-  register** and **Area template** lines move any of it, as the example conventions show. The project
-  template, the plugin README, the getting-started guide and the workspace map say where areas go.
-  Section 17 of the suite checks the template's shape and each instruction.
+- **Ongoing areas are first-class, with a plugin of their own.** Work with no finish line — a practice, a
+  responsibility, something kept up rather than finished — used to be turned away by `/projects:new`
+  towards general reference, or kept as a project whose finish line was never crossed and whose card was
+  always stale. It now has a home: `ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant /
+  Archived), from a new template, `templates/area-readme.md`. An area keeps the project's machinery — the
+  `Versioned:` and `Sensitivity:` lines, the Current state labels, People and its five roles, Resources —
+  and changes the measure: a **Desired state** stands where a project has its Desired outcome, a direction
+  kept true rather than a finish line; **Standards to keep** stand where Done when stands, two to five
+  standards someone else could check; `State:` is `active`, `dormant` or `archived`, never `done`;
+  staleness is the area's own `Check-in:` cadence, and a dormant area is never stale; areas do not count
+  against the in-flight limit. The two kinds meet in the area's **Projects** section: a piece of an area
+  with a finish line is a project, linked from the area, whose What this is names the area.
+- **A fourth plugin, ongoing (0.1.0), five commands.** `/ongoing:new` interviews for the desired state,
+  the standards, the check-in cadence, versioning and sensitivity on the quick path, and people and roles,
+  recurring routines, child projects, precedents, constraints, open questions and resources on the full
+  one. `/ongoing:review` is the check-in: each standard met, slipped or not known, with the evidence the
+  repository holds, and a slipped standard whose fix has a finish line turned into a project.
+  `/ongoing:adopt` gives an existing folder, or a long-running project, the area's shape as small proposed
+  insertions, keeping a former Done when list under Projects, and shows the move with the live paths to
+  repoint. `/ongoing:pause` sets an area dormant with a reason and a look-again date; `/ongoing:drop`
+  archives one that is no longer relevant, settling its child projects first. Setup installs and enables
+  it with the other three.
+- **The projects plugin hands over.** `/projects:new` offers `/ongoing:new` when the interview finds no
+  finish line, and links a new project to the area it serves; `/projects:adopt` hands a project that is
+  really an area to `/ongoing:adopt`; `/projects:board` lists areas in a section of their own, outside the
+  project counts, and flags an active area due for its check-in, one with no standards named, and a
+  project naming an area that does not exist. The conventions file's **Areas**, **Area register** and
+  **Area template** lines move any of it, as the example conventions show. Sections 9 and 17 of the suite
+  check the sixteen commands, the template's shape and each instruction.
 - **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
   the hook stays silent, and the metrics count no areas.
 

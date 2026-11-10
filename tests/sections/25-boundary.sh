@@ -199,12 +199,12 @@ if mkws "$s25/setup-ws" >/dev/null 2>&1; then
     s25_bad=""
     [[ "$(head -n 1 "$s25/calls.log")" == "plugin marketplace add --scope user $s25/setup-link/kit" ]] \
         || s25_bad+="marketplace add, by the symlink: $(head -n 1 "$s25/calls.log")"$'\n'
-    for s25_p in closeout projects workspace; do
+    for s25_p in closeout ongoing projects workspace; do
         grep -qxF "plugin install $s25_p@agentic-workspace --scope user" "$s25/calls.log" || s25_bad+="no user-scope install of $s25_p"$'\n'
     done
     grep -q 'plugins_scope=user' "$s25/setup1.log" || s25_bad+="stage 9 does not report plugins_scope=user"$'\n'
     grep -q '^  7\. [^:]*: done' "$s25/setup1.log" || s25_bad+="stage 7: $(grep '^  7\. ' "$s25/setup1.log" | tail -n 1)"$'\n'
-    empty "25 setup, unattended: the marketplace added for the person by the spelling they came in by, the three plugins installed for them, stage 9 says so" "$s25_bad"
+    empty "25 setup, unattended: the marketplace added for the person by the spelling they came in by, the four plugins installed for them, stage 9 says so" "$s25_bad"
 
     : > "$s25/calls2.log"
     s25_setup "$s25/setup2.log" "$s25/calls2.log" "$s25_cc" "$s25/setup-link"
@@ -265,13 +265,13 @@ S25PY
         grep -qF "6. If agentic-workspace is listed at another path" "$s25/$1.7" || s25_bad+="$1: no re-pointing step"$'\n'
         ! grep -qF "Type / and check" "$s25/$1.7" || s25_bad+="$1: the installed-for-you steps"$'\n'
     }
-    s25_att att-user "$s25_cl" "$s25/cc-att-user" '[["Were all three listed?", "n"]]'
+    s25_att att-user "$s25_cl" "$s25/cc-att-user" '[["Were all four listed?", "n"]]'
     if grep -q '^S25-NO-PTY' "$s25/att-user.log"; then
         skp "25 setup attended, stage 7 by path — no pseudo-terminal here ($(sed -n 's/^S25-NO-PTY //p' "$s25/att-user.log"))"
     else
         s25_bad=""
         grep -q '^S25-RC 0$' "$s25/att-user.log" || s25_bad+="exit: $(grep '^S25-RC' "$s25/att-user.log")"$'\n'
-        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 4 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
+        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 5 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
         grep -qF "2. Start a new one there:  cd $(printf '%q' "$s25/setup-link") && claude" "$s25/att-user.7" || s25_bad+="step 2 does not name the folder by the symlink"$'\n'
         grep -qF "4. Type / and check that /closeout, /projects:new and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
         grep -qF "start one more new one there" "$s25/att-user.7" || s25_bad+="no second-session step"$'\n'
