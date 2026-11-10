@@ -25,6 +25,7 @@ age at different rates.
 | How guidance prose should read | `kit/docs/documentation-register.md` |
 | Cross-project decisions | `logs/decisions.md` |
 | Active projects | `projects/INDEX.md` |
+| Ongoing areas | `ongoing/INDEX.md` — created with the first area |
 | Project conventions | `.claude/projects.md` |
 | End-of-session promotion conventions | `.claude/closeout.md`, with the ritual in `kit/rituals/closeout.md` |
 | Remotes confirmed private, and other workspace settings | `.claude/workspace.md` |
@@ -60,6 +61,10 @@ workspace/
       decisions.md         ← when the project earns one
     _done/<slug>/          ← finished projects
 
+  ongoing/                 ← ongoing areas: kept up, no finish line (created with the first)
+    INDEX.md               ← the register: Active / Dormant / Retired
+    <slug>/README.md       ← what is kept up, standards to keep, the Current state block, child projects
+
   skills/                  ← the team's own skills
   logs/
     decisions.md           ← cross-project decisions
@@ -75,6 +80,7 @@ workspace/
 | Kind of content | Location |
 |---|---|
 | Per-project working files | `projects/<slug>/` — and a row in `projects/INDEX.md` |
+| An ongoing area — kept up, no finish line | `ongoing/<slug>/`, from `kit/templates/area-readme.md` — and a row in `ongoing/INDEX.md` |
 | Something reusable the team has built | One line in `docs/catalogue.md` |
 | Per-person notes | `memory/people/<name>.md` |
 | Per-organisation or per-topic notes | `memory/context/<topic>.md` |

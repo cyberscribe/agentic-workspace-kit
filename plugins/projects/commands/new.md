@@ -63,7 +63,11 @@ Anything it does not mention falls back to the defaults.
    The boundary saves more time than the scope.
 3. **Desired outcome** — one sentence. If there is no finish line, no named
    deliverable, no question it exists to answer, say so gently: it may be an
-   ongoing area rather than a project, and it belongs in general reference instead.
+   ongoing area rather than a project — a practice or responsibility that is kept
+   up, not finished. Offer it as one, and if they agree, follow *When it is an
+   ongoing area* below instead of the rest of this list. Ask, too, whether some
+   piece of it has a finish line: that piece can be a project of its own, linked
+   from the area.
 4. **Done when** — three to five criteria someone else could check without asking
    the owner. "Stakeholders are happy" becomes "the sponsor has signed off the
    rollout plan in writing". This is the project's closeout state: every later
@@ -197,6 +201,41 @@ of the workspace.
 Where the repository has no `kit/` (the plugin installed on its own), the
 versioning question is still asked and written down, and the hooks and the
 Public and Private remote lines are left out, with a line saying so.
+
+## When it is an ongoing area
+
+An area is first-class, not a lesser project: it has its own folder, register and
+template, the same versioning and sensitivity lines, and a Current state block the
+same readers find. What differs is what it is measured against.
+
+- **Where it lives:** the conventions file's **Areas** setting, else
+  `ongoing/<slug>/`, with its register at **Area register**, else
+  `ongoing/INDEX.md` (sections Active, Dormant, Retired). When the register does
+  not exist yet, create it with a one-paragraph header saying what an area is and
+  those three sections, each a table of Area · Folder · One-liner.
+- **Ask, on the quick path:** the name and slug, what is kept up (one sentence),
+  the **standards to keep** — two to five, each one someone else could check, the
+  way a Done when item is checkable ("every tree is watered on a hot day", not
+  "look after the trees") — how often it should be checked (the `Check-in:`
+  cadence), how it is versioned and whether it is sensitive, and who owns it.
+  Push back on vague standards as you would on a vague Done when. When they cannot
+  name standards yet, write `- not yet named` rather than inventing them.
+- **Full path:** add what keeps the standards met without anyone remembering
+  (Recurring: scheduled tasks, reminders), any child projects, and the optional
+  sections as for a project.
+- **State:** `active`, unless it is seasonal or set aside now, which is
+  `dormant`. Areas do not count against the in-flight limit.
+- **What to write:** `ongoing/<slug>/README.md` from the area template (the one
+  the conventions file names, else `kit/templates/area-readme.md`, else
+  `templates/area-readme.md`), keeping its order and removing its instructions;
+  only sections with something true in them; a row in the area register; and the
+  versioning steps above, each on its own yes. Show the README before writing it.
+- **A child project** the conversation turns up is started with this command in
+  its own right; its What this is names the area, and the area's Projects section
+  links it.
+
+End in one line: the state the area starts in, its check-in cadence, who owns it
+and how it is versioned.
 
 ## Close with the finish line and the state
 

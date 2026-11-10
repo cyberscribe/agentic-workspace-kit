@@ -145,6 +145,28 @@ as written: `· blocked by <what> (<n>d)`. A card with a gap says so in place �
 Open the board with one line of counts — "9 active: 2 ready · 4 doing · 1
 blocked · 2 paused" — and close it with the paused and not-read-from-here lines.
 
+### Ongoing areas
+
+After the project columns, when the workspace has ongoing areas (the
+conventions' **Areas** setting, else `ongoing/<slug>/` with a README), one more
+section, headed with its count. Areas are not in flight and never done, so they
+sit apart from the columns and outside the counts line. One line per area,
+active first, then dormant; retired areas are left off:
+
+```
+- **<name>** · <owner> · <state> · <n> standards · checked <n>d ago (every <cadence>) · <k> live projects
+```
+
+`checked` is the `Check-in:` line's last date, else `Updated:`. An active area
+is **due** when that date is older than its own cadence, and **stale** when it
+has no cadence and is older than the staleness setting; a dormant area is never
+either. `<k> live projects` counts the links in its Projects section whose
+project is not done, and is left out at zero. A gap is named in place, as on a
+project card: `no standards`, `standards not yet named`, `no owner`.
+Flags for areas join the list below: an active area due for its check-in, one
+with no standards named, and a project whose What this is names an area that
+does not exist.
+
 ## Flags
 
 Under the board, one line per flag, `- <project>: <what>`, grouped in this

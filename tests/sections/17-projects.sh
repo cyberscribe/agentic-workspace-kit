@@ -351,3 +351,39 @@ s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Seven commands' '/projects
 s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" 'Folder moves' 'Versioned default' \
     'Not adopted' 'projects/_done/<slug>/' 'kit/templates/project-readme.md')"
 empty "17 the plugin README and the example conventions describe the 3.0 lifecycle" "$s17_bad"
+
+# ---- ongoing areas ---------------------------------------------------------------------------------
+# An area is the other kind of work: standards to keep in place of Done when, three states of its own,
+# its own folder and register. The template carries the shape the commands write; the commands and docs
+# point at it rather than at general reference.
+
+s17_t="$KIT/templates/area-readme.md"
+check "17 areas: templates/area-readme.md exists" test -f "$s17_t"
+s17_bad="$(s17_has "$s17_t" '- **Versioned:**' '- **Sensitivity:**' '## Standards to keep' '## Current state' \
+    '- **State:** <active · dormant · retired>' '- **Check-in:**' '- **Updated:**' '## Projects' \
+    'ongoing/<slug>/README.md' 'ongoing/INDEX.md')"
+s17_bad+="$(s17_before "$s17_t" '## Standards to keep' '## Current state')"
+s17_bad+="$(s17_before "$s17_t" '## Current state' '## Projects')"
+grep -qF '## Done when' "$s17_t" && s17_bad+="area-readme.md: has a Done when section"$'\n'
+empty "17 areas: the template has Standards to keep, then Current state with active · dormant · retired, then Projects" "$s17_bad"
+
+s17_bad="$(s17_has "$KIT/templates/project-readme.md" 'ongoing/<slug>/' 'templates/area-readme.md')"
+grep -qF 'belongs in general reference instead' "$KIT/templates/project-readme.md" \
+    && s17_bad+="project-readme.md: still sends an area to general reference"$'\n'
+empty "17 areas: the project template routes work with no finish line to an area" "$s17_bad"
+
+s17_bad="$(s17_has "$s17_n" '## When it is an ongoing area' 'ongoing/<slug>/' 'ongoing/INDEX.md' \
+    'kit/templates/area-readme.md' 'standards to keep' '- not yet named' \
+    'Areas do not count against the in-flight limit')"
+s17_bad+="$(s17_before "$s17_n" '## When it is an ongoing area' '## Close with the finish line and the state')"
+grep -qF 'it belongs in general reference instead' "$s17_n" && s17_bad+="new.md: still sends an area to general reference"$'\n'
+s17_bad+="$(s17_has "$s17_a" 'ongoing/<slug>/' 'Standards to keep in place of Done when')"
+s17_bad+="$(s17_has "$s17_b" '### Ongoing areas' 'outside the counts line' 'a dormant area is never either')"
+empty "17 areas: new offers an area, adopt converts one, board lists them apart and flags the due ones" "$s17_bad"
+
+s17_bad="$(s17_has "$KIT/plugins/projects/README.md" '## Ongoing areas' 'templates/area-readme.md' \
+    'active · dormant · retired')"
+s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" '## Ongoing areas' \
+    'kit/templates/area-readme.md' '**Area register:**')"
+s17_bad+="$(s17_has "$KIT/templates/workspace/workspace-map.md" 'ongoing/INDEX.md')"
+empty "17 areas: the plugin README, the example conventions and the workspace map describe areas" "$s17_bad"

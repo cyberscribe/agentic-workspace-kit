@@ -39,6 +39,10 @@ And what it offers, if you want it:
 - **Resources** — material the project uses that lives outside the repository,
   named in the README and mapped to real paths on each machine.
 
+Not everything has a finish line. A practice, a responsibility or anything kept
+up rather than finished is an **ongoing area**, and it is first-class here: see
+*Ongoing areas* below.
+
 ## How a project is kept
 
 Two lines sit directly under each README's title, outside the Current state
@@ -142,6 +146,35 @@ the metrics:
   version, is still read as the block. The session-start line says it is in the
   earlier format, the board lists it as not yet converted, and
   `/projects:adopt` offers the conversion.
+
+## Ongoing areas
+
+Some work is never done: a practice you keep up, a responsibility you hold, a
+garden. Forcing it into a project gives it a finish line that is never crossed
+and a card that is always stale. An ongoing area is the other kind of thing,
+with the same machinery and a different measure:
+
+| | Project | Ongoing area |
+|---|---|---|
+| Lives in | `projects/<slug>/` | `ongoing/<slug>/` |
+| Register | `projects/INDEX.md` | `ongoing/INDEX.md` (Active / Dormant / Retired) |
+| Template | `templates/project-readme.md` | `templates/area-readme.md` |
+| Measured against | **Done when** — finished when every box is ticked | **Standards to keep** — healthy while they are met |
+| `State:` | ready · doing · blocked · paused · done | active · dormant · retired |
+| Stale when | `Updated:` is older than the team's staleness setting | its own `Check-in:` cadence has passed; never while dormant |
+| In-flight limit | counts | does not count |
+
+The two lines under the title, the Current state labels, People, Resources and
+the rest are the same. The two meet in the area's **Projects** section: when a
+piece of an area has a finish line — a season's repot, an exam — that piece is a
+project, linked from the area, whose What this is names the area. A small one
+may sit inline in the area until it earns a folder.
+
+`/projects:new` offers an area when the interview finds no finish line,
+`/projects:adopt` offers the same for a long-running project whose files say it
+is one, and `/projects:board` lists areas in a section of their own, with the
+ones due for their check-in flagged. The conventions file's **Areas**, **Area
+register** and **Area template** lines move any of it.
 
 ## Adopting existing projects
 

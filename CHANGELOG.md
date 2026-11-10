@@ -91,6 +91,33 @@ it in every folder.
 
 - **`list` reads at a glance.** Its NAME column is as wide as the longest task name, so every row lines up, and a schedule on a few days of the week reads as their names ("Tue, Thu 07:50", "weekends 09:00") rather than as cron fields.
 
+**To update (ongoing areas):** run `kit/setup.sh update` and accept the workspace-map change. Nothing moves on its own:
+a long-running project you would rather keep as an area is converted by `/projects:adopt`, and the folder
+move is yours to make.
+
+- **Ongoing areas are first-class.** Work with no finish line — a practice, a responsibility, something
+  kept up rather than finished — used to be turned away by `/projects:new` towards general reference,
+  or kept as a project whose finish line was never crossed and whose card was always stale. It now has a
+  home of its own: `ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant / Retired), from
+  a new template, `templates/area-readme.md`. An area keeps the project's machinery — the `Versioned:` and
+  `Sensitivity:` lines, the Current state labels, People, Resources — and changes the measure: **Standards
+  to keep** stand where Done when stands, two to five standards someone else could check; `State:` is
+  `active`, `dormant` or `retired`, never `done`; staleness is the area's own `Check-in:` cadence, and a
+  dormant area is never stale; areas do not count against the in-flight limit. The two kinds meet in the
+  area's **Projects** section: a piece of an area with a finish line is a project, linked from the area,
+  whose What this is names the area.
+- **The commands know about areas.** `/projects:new` offers an area when the interview finds no finish
+  line, with a quick path of its own (what is kept up, the standards, the cadence, versioning, owner),
+  and creates the area register with the first area. `/projects:adopt` converts a long-running project to
+  an area's shape when its owner says it is one. `/projects:board` lists areas in a section of their own,
+  outside the project counts, and flags an active area due for its check-in, one with no standards
+  named, and a project naming an area that does not exist. The conventions file's **Areas**, **Area
+  register** and **Area template** lines move any of it, as the example conventions show. The project
+  template, the plugin README, the getting-started guide and the workspace map say where areas go.
+  Section 17 of the suite checks the template's shape and each instruction.
+- **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
+  the hook stays silent, and the metrics count no areas.
+
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,
   pairing, pausing and closing, the weekly and monthly passes, measurement and updates, and ends each
