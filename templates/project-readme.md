@@ -30,8 +30,9 @@ scope.
 ## Desired outcome
 
 What finishing looks like. A project has a defined outcome, a finish line, or a named deliverable;
-if this section is hard to write, the thing may be an ongoing area rather than a project, and it
-belongs in general reference instead.
+if this section is hard to write, the thing may be an ongoing area rather than a project: it then
+lives in `ongoing/<slug>/`, from `templates/area-readme.md`, with standards to keep instead of a finish
+line. A project that serves an area names it in What this is.
 
 ## Done when
 

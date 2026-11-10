@@ -21,7 +21,9 @@ makes the folder moves it shows, on a yes; a new project is tracked by the
 workspace unless it says otherwise; folders under `projects/` starting with `_` or
 `.` are not projects; lowercase hyphenated slugs with no prefix; an in-flight
 limit of 3; a project flagged stale when its `Updated:` date is more than a week
-old; the README from `kit/templates/project-readme.md`.
+old; the README from `kit/templates/project-readme.md`; ongoing areas in
+`ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant / Retired),
+from `kit/templates/area-readme.md`.
 
 Everything below the line is the example itself — a team that files work by status
 folder, moves folders by hand, keeps its published site in the work folder, uses a
@@ -58,6 +60,20 @@ explain each choice; delete them in your copy.
 > being versioned the moment a project is put on hold there. A folder whose name
 > starts with `_` or `.` is never read as a project, so `work/_paused/` is not
 > one. Not adopted names folders the projects commands leave alone unless asked.
+
+## Ongoing areas
+
+- **Areas:** `areas/<slug>/`
+- **Area register:** `areas/README.md`, with the sections `Kept up`, `Seasonal`
+  and `Stopped`.
+- **Area template:** `.github/templates/area.md`
+
+> An ongoing area is work with no finish line — a practice, a responsibility,
+> something kept up. It has Standards to keep where a project has Done when, a
+> `State:` of `active`, `dormant` or `retired`, and its own `Check-in:` cadence,
+> which the board measures it against. When a piece of an area has a finish line,
+> that piece is a project, linked from the area's Projects section. The default
+> home is `ongoing/`; this team calls the folder `areas/`.
 
 ## How projects are kept
 
