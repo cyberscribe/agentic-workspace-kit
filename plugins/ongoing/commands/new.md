@@ -127,6 +127,9 @@ do not count against the in-flight limit.
   <today> — Started.
   ```
 
+  No `Standards met:` line yet: `/ongoing:review` adds it at the first check-in, and until
+  then the area reads as not yet reviewed.
+
 - **A row in the area register** under its Active section (Dormant for a dormant
   area): name, link to the folder, one line. When the register does not exist yet,
   create it with a one-paragraph header saying what an area is and its three sections.

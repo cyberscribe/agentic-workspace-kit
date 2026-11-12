@@ -71,7 +71,9 @@ when it does, that is the most important line of the review.
 Show each before it is made, together, and write them on a yes.
 
 - **Current state block:** `Check-in:` gets `last <today>` (its cadence unchanged
-  unless they changed it), `Updated:` today, and the dated line rewritten as
+  unless they changed it), `Standards met:` is set to `<n> of <m> — <today>` in exactly
+  that form, added below `Check-in:` when the area has none yet (the session-start line
+  and the metrics read it, and a standard not known counts as not met), `Updated:` today, and the dated line rewritten as
   `<today> — Reviewed: <n> of <m> standards met; <what slipped, and what was set in
   motion>.`
 - **Standards to keep, Desired state, Recurring, Projects** — only where the review

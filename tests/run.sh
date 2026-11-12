@@ -1515,6 +1515,45 @@ grep -qF 'Project: Old — ' <<<"$msg" && grep -qF 'State: paused' <<<"$msg" \
     && ok "4b session-start: the most specific location wins (paused inside active)" \
     || ko "4b session-start: the most specific location wins (paused inside active)" "$msg"
 
+# Ongoing areas: one line inside an area folder, with the desired state, the standards met as last
+# reviewed (or not yet reviewed, never zero), the state, and the check-in against its own cadence.
+# pa <folder> <state> <check-in> [standards met]: an area README in that folder, from the template's shape.
+pa() {
+    mkdir -p "$1/notes"
+    { printf '# %s\n\n## What this is\n\nAn area for the tests.\n\n## Desired state\n\nThe %s collection stays\nhealthy all year.\n\n## Standards to keep\n\n- every tree checked weekly\n\n## Current state\n\n- **State:** %s\n- **Check-in:** %s\n' \
+        "${1##*/}" "${1##*/}" "$2" "$3"
+      [[ -z "${4:-}" ]] || printf -- '- **Standards met:** %s\n' "$4"
+      printf -- '- **Updated:** 2026-10-01\n\n2026-10-01 — Started.\n'; } > "$1/README.md"
+}
+pa "$PF/ongoing/bonsai" active "every 2 weeks — last 2026-10-20" "3 of 5 — 2026-10-20"
+pa "$PF/ongoing/garden" active "monthly — last 2026-11-01"
+pa "$PF/ongoing/kiln" dormant "every 2 weeks — last 2026-01-01" "2 of 4 — 2026-01-01"
+pa "$PF/ongoing/press" archived "every 2 weeks — last 2026-01-01"
+pa "$PF/ongoing/loom" active "each season"
+s4b_area() { pstart "$1" PROJECTS_HOOK_TODAY=2026-11-11 | pmsg; }
+bad=""
+msg="$(s4b_area "$PF/ongoing/bonsai/notes")"
+[[ "$msg" == "Area: bonsai — desired state: The bonsai collection stays healthy all year. — standards met: 3 of 5 (2026-10-20) — State: active; check-in due (last 2026-10-20, 22 days ago, every 14 days) — /ongoing:review" ]] \
+    || bad+="due, reviewed, from a subfolder: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/garden")"
+[[ "$msg" == *"— standards met: not yet reviewed — State: active; next check-in in 20 days" ]] || bad+="not yet reviewed, not due: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/kiln")"
+[[ "$msg" == *"— standards met: 2 of 4 (2026-01-01) — State: dormant; no check-in while dormant" ]] || bad+="dormant: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/press")"
+[[ "$msg" == *"— State: archived; no check-in once archived" ]] || bad+="archived: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/loom")"
+[[ "$msg" == *"— State: active; next check-in in 50 days" ]] || bad+="a season, dated by Updated with no last date: $msg"$'\n'
+[[ "$(printf '%s\n' "$(s4b_area "$PF/ongoing/bonsai")" | grep -c .)" == 1 ]] || bad+="more than one line"$'\n'
+jq -e '.hookSpecificOutput.additionalContext | contains("ongoing/bonsai/README.md")' <<<"$(pstart "$PF/ongoing/bonsai" PROJECTS_HOOK_TODAY=2026-11-11)" >/dev/null 2>&1 \
+    || bad+="the agent's context does not name the file"$'\n'
+empty "4b session-start: one line inside an area — desired state, standards met or not yet reviewed, state, check-in due against its own cadence and never while dormant or archived" "$bad"
+# The conventions' Areas line moves them: the example conventions keep areas in areas/<slug>/.
+pa "$PX/areas/darkroom" active "every week — last 2026-11-01" "1 of 2 — 2026-11-01"
+msg="$(s4b_area "$PX/areas/darkroom")"
+[[ "$msg" == *"standards met: 1 of 2 (2026-11-01) — State: active; check-in due (last 2026-11-01, 10 days ago, every 7 days)"* ]] \
+    && ok "4b session-start: follows the conventions' Areas location" \
+    || ko "4b session-start: follows the conventions' Areas location" "$msg"
+
 # Silent on failure, and fast.
 errs=""
 for input in 'not json' '{"cwd":"/nonexistent/place"}' ''; do
@@ -1585,6 +1624,16 @@ printf '# Blair\n' > "$F/memory/people/blair.md"
 fx_readme beta ready
 mkdir -p "$F/audits"; printf '# Audits\n' > "$F/audits/README.md"; printf 'report\n' > "$F/audits/hygiene-1.md"
 printf '# Build list\n\n| # | Item | Owner | Due | Status |\n|---|---|---|---|---|\n| 1 | Thing one | Alex | soon | exists |\n| 2 | Thing two | Blair | later | planned |\n' > "$F/pilot/build-list.md"
+# Three ongoing areas, in the default location: one active and due (every 2 weeks, last checked 30 days
+# ago) and reviewed at 3 of 5; one active, monthly, checked 12 days ago and not yet reviewed; one dormant.
+fx_area() { # <slug> <state> <check-in> [standards met]
+    mkdir -p "$F/ongoing/$1"
+    { printf '# %s\n\n## Desired state\n\nIt is kept up.\n\n## Standards to keep\n\n- one\n\n## Current state\n\n- **State:** %s\n- **Check-in:** %s\n' "$1" "$2" "$3"
+      [[ -z "${4:-}" ]] || printf -- '- **Standards met:** %s\n' "$4"; } > "$F/ongoing/$1/README.md"
+}
+fx_area kept active "every 2 weeks — last $(days_ago 30)" "3 of 5 — $(days_ago 30)"
+fx_area tended active "monthly — last $(days_ago 12)"
+fx_area resting dormant "every 2 weeks — last $(days_ago 100)"
 fx_commit 11 Blair blair@example.test "Start beta"
 
 decision 4 3
@@ -1624,8 +1673,8 @@ bad="$(
     expect 3 audit_reports 1; expect 3 doc_commits_7d 2; expect 3 doc_contributors_7d 2
 )"
 empty "5 every established column counts the fixture history correctly, week by week" "$bad"
-empty "5 metrics.csv holds counts only — a date, fifteen integers, the median days (empty until a project is done), the three ablation counts, and the agent-read counts with their date" \
-    "$(tail -n +2 "$CSV" | grep -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]+){15},[0-9]*,[0-9]+,[0-9]*,[0-9]*(,[0-9]*){6},([0-9]{4}-[0-9]{2}-[0-9]{2})?$' || true)"
+empty "5 metrics.csv holds counts only — a date, fifteen integers, the median days (empty until a project is done), seven area counts, the three ablation counts, and the agent-read counts with their date" \
+    "$(tail -n +2 "$CSV" | grep -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]+){15},[0-9]*(,[0-9]+){7},[0-9]+,[0-9]*,[0-9]*(,[0-9]*){6},([0-9]{4}-[0-9]{2}-[0-9]{2})?$' || true)"
 
 # --- F12: the project columns ---------------------------------------------------------------------
 # In the fixture above, alpha is created 18 days ago in state doing and set to done 4 days ago (14
@@ -1634,12 +1683,13 @@ empty "5 metrics.csv holds counts only — a date, fifteen integers, the median 
 # project reaches done.
 known="$(printf '%s\n' ${base//,/ } projects_active projects_blocked projects_with_done_when \
     projects_done blocked_over_14d max_in_flight_per_person median_days_to_done \
+    areas_active areas_dormant areas_archived areas_due_checkin areas_not_reviewed area_standards_met area_standards_reviewed \
     ablations_named ablations_discriminating ablations_no_difference \
     agent_sessions_7d sessions_reading_reference_7d reference_reads_7d reference_searches_7d \
     reference_files_read_7d reference_files_total transcripts_from)"
-[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done,ablations_named,ablations_discriminating,ablations_no_difference,agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from" ]] \
-    && ok "5 F12 the header carries the seven project columns, the three ablation columns, then the seven agent-read columns, in order" \
-    || ko "5 F12 the header carries the seven project columns, the three ablation columns, then the seven agent-read columns, in order" "$(head -n 1 "$CSV")"
+[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done,areas_active,areas_dormant,areas_archived,areas_due_checkin,areas_not_reviewed,area_standards_met,area_standards_reviewed,ablations_named,ablations_discriminating,ablations_no_difference,agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from" ]] \
+    && ok "5 F12 the header carries the seven project columns, the seven area columns, the three ablation columns, then the seven agent-read columns, in order" \
+    || ko "5 F12 the header carries the seven project columns, the seven area columns, the three ablation columns, then the seven agent-read columns, in order" "$(head -n 1 "$CSV")"
 bad=""
 for c in $(head -n 1 "$CSV" | tr , ' '); do grep -qxF "$c" <<<"$known" || bad+="unknown column $c"$'\n'; done
 empty "5 every metrics.csv column is a known one" "$bad"
@@ -1652,6 +1702,17 @@ bad="$(
     expect 3 blocked_over_14d 0; expect 3 max_in_flight_per_person 0; expect 3 median_days_to_done 14
 )"
 empty "5 F12 the project columns count the fixture history correctly, week by week" "$bad"
+# Areas, apart from the projects: none before they are added 11 days ago; then two active (one due,
+# one not yet reviewed, which is not a zero in the standards columns) and one dormant, never due.
+bad="$(
+    for c in areas_active areas_dormant areas_archived areas_due_checkin areas_not_reviewed area_standards_met area_standards_reviewed; do expect 1 "$c" 0; done
+    for r in 2 3; do
+        expect "$r" areas_active 2; expect "$r" areas_dormant 1; expect "$r" areas_archived 0; expect "$r" areas_due_checkin 1
+        expect "$r" areas_not_reviewed 1; expect "$r" area_standards_met 3; expect "$r" area_standards_reviewed 5
+    done
+    expect 2 projects_active 2; expect 3 projects_active 1
+)"
+empty "5 the area columns count areas by state, those due for their check-in, those not yet reviewed and the standards met, and leave the project columns alone" "$bad"
 
 # A second history exercises the data-model rules: a conventions file with its own locations,
 # register and a Done when alias; plain and bold labels; honest gaps; a Blocked by line by date; the
@@ -1703,7 +1764,7 @@ tcsv="$SCRATCH/measure-out/t.csv"
 tout="$(cd "$SCRATCH" && MEASURE_ALWAYS_LOADED="CLAUDE.md" bash "$KIT/pilot/measure.sh" --target "$G/work" --backfill 0 --out measure-out/t.csv 2>&1)"; trc=$?
 # The repository's own copy of measure.sh has no reads.sh to call and the kit's does, so the rows are
 # compared up to the agent-read columns.
-[[ $trc -eq 0 && "$(cut -d, -f1-20 "$tcsv" 2>/dev/null)" == "$(cut -d, -f1-20 "$gcsv")" && ! -e "$G/pilot/metrics.csv" ]] \
+[[ $trc -eq 0 && "$(cut -d, -f1-27 "$tcsv" 2>/dev/null)" == "$(cut -d, -f1-27 "$gcsv")" && ! -e "$G/pilot/metrics.csv" ]] \
     && ok "5 --target measures that repository from another directory, the same rows as from inside it" \
     || ko "5 --target measures that repository from another directory, the same rows as from inside it" "rc=$trc $tout"
 
@@ -1837,12 +1898,12 @@ aflags="$(cd "$A" && bash pilot/ablate.sh --target "$A" --report 2>&1 | awk -F'|
 # Without the runner beside it, measure.sh counts the files and leaves the two result counts empty; a
 # kit checkout named in .claude/plugins/VENDORED supplies the runner.
 mkdir -p "$SCRATCH/measure-lone"; cp "$KIT/pilot/measure.sh" "$SCRATCH/measure-lone/measure.sh"
-lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$lrow" == "4,," ]] && ok "5 without the runner, ablations_named is counted and the other two are empty" \
     || ko "5 without the runner, ablations_named is counted and the other two are empty" "got $lrow"
 mkdir -p "$A/.claude/plugins"
 printf 'Vendored from github.com/example/kit (plugins/)\nkit commit: 0000000\nkit checkout: %s (on the machine that ran the installer)\n' "$KIT" > "$A/.claude/plugins/VENDORED"
-lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$lrow" == "4,3,0" ]] && ok "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" \
     || ko "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" "got $lrow"
 
@@ -2764,7 +2825,7 @@ early="$(grep -F '| early | 2026-09-21 |' <<<"$aout")"
 # measure.sh counts by the same rule: only `discriminates` as discriminating, only `no difference (both
 # pass)` as no difference; a lean and a check failing both arms count in neither.
 for x in gap3 gap2 gap2low gap1 gap1low weak same; do printf -- '---\nfile: CLAUDE.md\nablate:\n  - "A line."\n---\n' > "$AF/pilot/ablations/$x.md"; done
-mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$mrow" == "9,3,1" ]] \
     && ok "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" \
     || ko "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" "got $mrow"

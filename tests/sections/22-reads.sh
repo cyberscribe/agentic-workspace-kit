@@ -299,11 +299,11 @@ s22_out="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$KIT/pilo
 s22_cols="agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from"
 s22_bad=""
 [[ $s22_rc -eq 0 ]] || s22_bad+="measure.sh --backfill exited $s22_rc: $s22_out"$'\n'
-[[ "$(head -n 1 "$s22_csv" | cut -d, -f21-)" == "$s22_cols" ]] || s22_bad+="the header's last columns are: $(head -n 1 "$s22_csv" | cut -d, -f21-)"$'\n'
-s22_got="$(tail -n +2 "$s22_csv" | cut -d, -f1,21- | paste -sd' ' -)"
+[[ "$(head -n 1 "$s22_csv" | cut -d, -f28-)" == "$s22_cols" ]] || s22_bad+="the header's last columns are: $(head -n 1 "$s22_csv" | cut -d, -f28-)"$'\n'
+s22_got="$(tail -n +2 "$s22_csv" | cut -d, -f1,28- | paste -sd' ' -)"
 s22_want="$(s22_d 14),,,,,,10,$s22_from $(s22_d 7),1,1,1,0,1,10,$s22_from $s22_today,3,2,17,5,9,11,$s22_from"
 [[ "$s22_got" == "$s22_want" ]] || s22_bad+="rows: want $s22_want"$'\n'"      got  $s22_got"$'\n'
-[[ "$(awk -F, '{ print NF }' "$s22_csv" | sort -u)" == 27 ]] || s22_bad+="not every row has 27 fields"$'\n'
+[[ "$(awk -F, '{ print NF }' "$s22_csv" | sort -u)" == 34 ]] || s22_bad+="not every row has 34 fields"$'\n'
 empty "22 measure.sh --backfill: the seven columns after the ablation columns, a row per week, a pruned week empty" "$s22_bad"
 
 # Counts only: no path or file name of the fixture, no session id, no folder of the machine.
@@ -320,9 +320,9 @@ empty "22 metrics.csv holds dates and counts only: no file name, path or session
 # no reads.sh to call.
 printf 'date,always_loaded_bytes\n%s,1\n' "$(s22_d 7)" > "$s22_dir/old.csv"
 s22_out="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$KIT/pilot/measure.sh" --target "$s22_w" --out "$s22_dir/old.csv" 2>&1)"
-s22_got="$(tail -n +2 "$s22_dir/old.csv" | cut -d, -f1,21- | paste -sd' ' -)"
+s22_got="$(tail -n +2 "$s22_dir/old.csv" | cut -d, -f1,28- | paste -sd' ' -)"
 mkdir -p "$s22_dir/lone" && cp "$KIT/pilot/measure.sh" "$s22_dir/lone/measure.sh"
-s22_lone="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$s22_dir/lone/measure.sh" --target "$s22_w" --print 2>/dev/null | tail -n 1 | cut -d, -f21-)"
+s22_lone="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$s22_dir/lone/measure.sh" --target "$s22_w" --print 2>/dev/null | tail -n 1 | cut -d, -f28-)"
 [[ "$s22_got" == "$(s22_d 7),1,1,1,0,1,10,$s22_from $s22_today,3,2,17,5,9,11,$s22_from" && "$s22_lone" == ",,,,,," ]] \
     && ok "22 measure.sh: the daily row and a recomputed older CSV carry the columns; without reads.sh they are empty, not zero" \
     || ko "22 measure.sh: the daily row and a recomputed older CSV carry the columns; without reads.sh they are empty, not zero" "rows: $s22_got"$'\n'"lone: $s22_lone"$'\n'"$s22_out"
@@ -340,7 +340,7 @@ mkdir -p "$s22_dir/unreadable-system-config"
 s22_sys() { env -u GIT_CONFIG_NOSYSTEM -u GIT_ATTR_NOSYSTEM -u READS_TRANSCRIPTS GIT_CONFIG_SYSTEM="$s22_dir/unreadable-system-config" CLAUDE_CONFIG_DIR="$s22_cfg" "$@"; }
 s22_bad=""
 s22_sys git -C "$s22_w" rev-parse HEAD >/dev/null 2>&1 && s22_bad+="plain git still reads the repository, so this check proves nothing"$'\n'
-s22_got="$(s22_sys bash "$KIT/pilot/measure.sh" --target "$s22_w" --print 2>&1 | tail -n 1 | cut -d, -f1,2,21-)"
+s22_got="$(s22_sys bash "$KIT/pilot/measure.sh" --target "$s22_w" --print 2>&1 | tail -n 1 | cut -d, -f1,2,28-)"
 [[ "$s22_got" == "$s22_today,$(( $(wc -c < "$s22_w/CLAUDE.md") + $(wc -c < "$s22_w/kit/CLAUDE.kit.md") + $(wc -c < "$s22_w/docs/always.md") )),3,2,17,5,9,11,$s22_from" ]] \
     || s22_bad+="measure.sh --print: $s22_got"$'\n'
 s22_got="$(s22_sys bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"

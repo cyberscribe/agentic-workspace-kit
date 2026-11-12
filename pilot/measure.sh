@@ -76,6 +76,7 @@ first_day="$(TZ=UTC git log --reverse --format=%cd --date=format-local:%F 2>/dev
 
 header="date,always_loaded_bytes,decisions_logged,doc_files,people_profiles,audit_reports,build_items_named,build_items_exist,doc_commits_7d,doc_contributors_7d"
 header+=",projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done"
+header+=",areas_active,areas_dormant,areas_archived,areas_due_checkin,areas_not_reviewed,area_standards_met,area_standards_reviewed"
 header+=",ablations_named,ablations_discriminating,ablations_no_difference"
 header+=",agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from"
 
@@ -148,6 +149,7 @@ is_label($0, "active")   && first_tick($0) != "" { print "active", folder(first_
 is_label($0, "paused")   && first_tick($0) != "" { print "paused", folder(first_tick($0)) }
 is_label($0, "done")     && first_tick($0) != "" { print "done",   folder(first_tick($0)) }
 is_label($0, "register") && first_tick($0) != "" { print "register", first_tick($0) }
+is_label($0, "areas")    && first_tick($0) != "" { print "areas",  folder(first_tick($0)) }
 is_label($0, "entry point") && first_tick($0) != "" { print "entry", first_tick($0) }
 (is_label($0, "default owner") || is_label($0, "owner")) && first_tick($0) != "" { print "owner", tolower(first_tick($0)) }
 is_label($0, "section names") { if (names != "") aliases(names); names = $0; next }
@@ -336,6 +338,73 @@ projects_row() {
     # zero would read as instant.
     printf ',%s\n' "$(printf '%s' "$durations" | grep -E '^[0-9]+$' | sort -n | awk '{ v[NR] = $1 }
         END { if (NR) print (NR % 2 ? v[(NR + 1) / 2] : int((v[NR / 2] + v[NR / 2 + 1] + 1) / 2)) }')"
+}
+
+# --- Areas ----------------------------------------------------------------------------------------
+# Ongoing areas are counted apart from projects: they are never in flight and never done. They live
+# where the conventions' **Areas** line says, else ongoing/<slug>/, each with a README from
+# templates/area-readme.md. Read with the same label rules as a project:
+#   - State is active, dormant or archived; one that cannot be read counts as active, as for projects;
+#   - an active area is due for its check-in when the days since the Check-in line's "last" date (else
+#     the Updated date) reach its cadence ("every 2 weeks", "monthly", "quarterly"); a dormant or
+#     archived area is never due, and one with no cadence or no date is not counted due;
+#   - "Standards met: 3 of 5 — <date>", which /ongoing:review writes, gives the standards met as last
+#     reviewed. An active area without that line counts as not yet reviewed, never as none met, and the
+#     two standards columns sum over the active areas that have one.
+
+# One area README in, one tab-separated line out: state, last check-in date, cadence in days, standards
+# met, standards reviewed ("-" for each that is missing).
+# shellcheck disable=SC2016  # an awk program, as above
+area_awk='
+function clean(v) { gsub(/`|\*\*/, "", v); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
+function label(line, name,   re) {
+    re = "^[ \t]*([-*+][ \t]+)?(\\*\\*)?" name "(\\*\\*)?:(\\*\\*)?"
+    return match(tolower(line), re) ? clean(substr(line, RSTART + RLENGTH)) : "\001"
+}
+function missing(v) { v = tolower(v); return v == "" || v ~ /^(<|none found|not yet named)/ || v ~ /^(none|n\/a|-|—)$/ }
+function cadence(v,   n, u) {
+    v = tolower(v)
+    if (v ~ /daily/) return 1; if (v ~ /fortnightly/) return 14; if (v ~ /weekly/) return 7
+    if (v ~ /monthly/) return 30; if (v ~ /(quarterly|season)/) return 91; if (v ~ /(yearly|annually)/) return 365
+    if (!match(v, /every[ \t]+[0-9]*[ \t]*(day|week|fortnight|month|quarter|year)/)) return 0
+    u = substr(v, RSTART, RLENGTH); n = u; gsub(/[^0-9]/, "", n); n = (n == "" ? 1 : n + 0)
+    if (u ~ /day/) return n; if (u ~ /fortnight/) return 14 * n; if (u ~ /week/) return 7 * n
+    if (u ~ /month/) return 30 * n; if (u ~ /quarter/) return 91 * n; return 365 * n
+}
+/^[ \t]*```/ { fence = !fence; next }
+fence || /^[ \t]*<!--/ { next }
+state == "" && (v = label($0, "state")) != "\001" { if (missing(v)) next; state = tolower(v); sub(/^[^a-z]+/, "", state); sub(/[^a-z].*/, "", state); next }
+ci == "" && (v = label($0, "check-in")) != "\001" { if (missing(v)) next; ci = v; next }
+up == "" && (v = label($0, "updated")) != "\001" { if (!missing(v) && match(v, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) up = substr(v, RSTART, 10); next }
+met == "" && (v = label($0, "standards met")) != "\001" {
+    if (match(v, /[0-9]+[ \t]+of[ \t]+[0-9]+/)) { split(substr(v, RSTART, RLENGTH), f, /[ \t]+of[ \t]+/); met = f[1] + 0; tot = f[2] + 0 }
+    next
+}
+END {
+    if (state !~ /^(active|dormant|archived)$/) state = "-"
+    last = up; if (match(tolower(ci), /last[ \t]+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) last = substr(ci, RSTART + RLENGTH - 10, 10)
+    printf "%s\t%s\t%d\t%s\t%s\n", state, (last == "" ? "-" : last), cadence(ci), (met == "" ? "-" : met), (met == "" ? "-" : tot)
+}'
+
+areas_row() {
+    local rev="$1" day="$2" loc dir records=""
+    loc="$(conventions "$rev" | awk "$settings_awk" | awk '$1 == "areas" { print $2; exit }')"
+    loc="${loc:-^ongoing/[^/_.][^/]*\$}"
+    while IFS= read -r dir; do
+        [[ -n "$dir" ]] || continue
+        records+="$(git show "$rev:$dir/README.md" | awk "$area_awk")"$'\n'
+    done < <(git ls-tree -r --name-only "$rev" | { grep -E '/README\.md$' || true; } | sed 's#/[^/]*$##' | sort -u | { grep -E "$loc" || true; })
+    printf '%s' "$records" | awk -F'\t' -v day="$day" '
+        function jdn(s,   y, m, d, a) { y = substr(s, 1, 4) + 0; m = substr(s, 6, 2) + 0; d = substr(s, 9, 2) + 0
+            a = int((14 - m) / 12); y += 4800 - a; m += 12 * a - 3
+            return d + int((153 * m + 2) / 5) + 365 * y + int(y / 4) - int(y / 100) + int(y / 400) - 32045 }
+        NF < 5 { next }
+        $1 == "dormant" { dormant++; next }
+        $1 == "archived" { archived++; next }
+        { active++
+          if ($3 > 0 && $2 ~ /^[0-9]/ && jdn(day) - jdn($2) >= $3) due++
+          if ($4 == "-") unreviewed++; else { met += $4; tot += $5 } }
+        END { printf "%d,%d,%d,%d,%d,%d,%d", active, dormant, archived, due, unreviewed, met, tot }'
 }
 
 # --- Ablations ------------------------------------------------------------------------------------
@@ -543,7 +612,7 @@ reads_cols() { awk -F, -v d="$1" '$1 == d { sub(/^[^,]*,/, ""); print; f = 1; ex
 row_for() {
     local day="$1" rev bytes=0 decisions doc_files people audits named exist commits authors since
     rev="$(git rev-list -1 --before="$day 23:59:59" HEAD 2>/dev/null || true)"
-    if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0,$(reads_cols "$day")"; return; fi
+    if [[ -z "$rev" ]]; then echo "$day,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,0,0,0,$(reads_cols "$day")"; return; fi
 
     bytes="$(always_bytes "$rev")"
 
@@ -571,7 +640,7 @@ row_for() {
     commits="$(git log --since="$since 23:59:59" --until="$day 23:59:59" --format=%H -- "${doc_paths[@]}" | wc -l | tr -d ' ')"
     authors="$(git log --since="$since 23:59:59" --until="$day 23:59:59" --format=%ae -- "${doc_paths[@]}" | sort -u | grep -c . || true)"
 
-    echo "$day,$bytes,$decisions,$doc_files,$people,$audits,$named,$exist,$commits,$authors,$(projects_row "$rev" "$day"),$(ablations_row "$rev" "$day"),$(reads_cols "$day")"
+    echo "$day,$bytes,$decisions,$doc_files,$people,$audits,$named,$exist,$commits,$authors,$(projects_row "$rev" "$day"),$(areas_row "$rev" "$day"),$(ablations_row "$rev" "$day"),$(reads_cols "$day")"
 }
 
 days=()

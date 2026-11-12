@@ -125,8 +125,15 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   project naming an area that does not exist. The conventions file's **Areas**, **Area register** and
   **Area template** lines move any of it, as the example conventions show. Sections 9 and 17 of the suite
   check the seventeen commands, the template's shape and each instruction.
-- **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
-  the hook stays silent, and the metrics count no areas.
+- **Areas in the session-start line and the metrics.** Inside an area's folder the projects hook gives
+  one line: the desired state, the standards met as last reviewed, the state, and whether the check-in
+  is due against the area's own `Check-in:` cadence (never while dormant or archived). `/ongoing:review`
+  records `- **Standards met:** 3 of 5 — <date>` in the Current state block, in that fixed form; an area
+  without the line reads as not yet reviewed, never as none met. `pilot/measure.sh` gains seven area
+  columns after the project columns — `areas_active`, `areas_dormant`, `areas_archived`,
+  `areas_due_checkin`, `areas_not_reviewed`, `area_standards_met`, `area_standards_reviewed` — so a
+  `metrics.csv` from before is recomputed in the new columns on its next run. The hook reads the
+  conventions' **Areas** line. Sections 4b and 5 cover both.
 - **`kit/setup.sh update` leaves a kit on a side branch where it is.** When `kit/` is checked out on a
   branch other than the one `.gitmodules` tracks (a trial branch, a kit developer's work), `update` says
   so and does not advance it: with `update = rebase`, advancing rebased that branch's own commits onto

@@ -10,8 +10,10 @@
 # .claude/resources.local.md, a fourth line says which, once per set of unmapped
 # names per machine. A folder the conventions list under "Not adopted" (a published
 # site's home page, say) and whose entry point has no Current state block gets a
-# note for the agent only: it is not offered /projects:adopt unprompted. Anywhere
-# else it says nothing, except at most once a day per repository: one line when an
+# note for the agent only: it is not offered /projects:adopt unprompted. Inside an
+# ongoing area's folder (the conventions' Areas location, else ongoing/<slug>) it
+# gives one line: the desired state, the standards met as last reviewed, the state,
+# and whether the check-in is due. Anywhere else it says nothing, except at most once a day per repository: one line when an
 # active project has been blocked for more than 14 days. A clean day prints nothing
 # and records nothing.
 #
@@ -218,6 +220,74 @@ Sections marked \"proposed\" were drafted by /projects:adopt and are still for t
     [[ -n "$resource_context" ]] && context="$context
 $resource_context"
     emit "$lines" "$context"
+fi
+
+# ---- Inside an ongoing area --------------------------------------------------
+# One line: the desired state, the standards met as /ongoing:review last recorded them ("not yet
+# reviewed" without that line, never zero), the State, and whether the check-in is due against the
+# area's own Check-in cadence. A dormant or archived area is never due. The rules are the ones
+# pilot/measure.sh counts by: due when the days since the Check-in line's "last" date (else Updated)
+# reach the cadence.
+area=""
+[[ -n "$rel" ]] && area="$(projects_match "$AREAS_PATTERN" "$rel")"
+if [[ -n "$area" && -f "$root/$area/README.md" ]]; then
+    today="${PROJECTS_HOOK_TODAY:-$(date +%Y-%m-%d)}"
+    line="$(awk -v today="$today" -v slug="${area##*/}" '
+        function clean(v) { gsub(/`|\*\*/, "", v); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
+        function label(line, name,   re) {
+            re = "^[ \t]*([-*+][ \t]+)?(\\*\\*)?" name "(\\*\\*)?:(\\*\\*)?"
+            return match(tolower(line), re) ? clean(substr(line, RSTART + RLENGTH)) : "\001"
+        }
+        function missing(v) { v = tolower(v); return v == "" || v ~ /^(<|none found|not yet named)/ || v ~ /^(none|n\/a|-|—)$/ }
+        function dayno(d,   y, m, a) {
+            y = substr(d, 1, 4) + 0; m = substr(d, 6, 2) + 0
+            a = int((14 - m) / 12); y = y + 4800 - a; m = m + 12 * a - 3
+            return substr(d, 9, 2) + int((153 * m + 2) / 5) + 365 * y + int(y / 4) - int(y / 100) + int(y / 400)
+        }
+        function cadence(v,   n, u) {
+            v = tolower(v)
+            if (v ~ /daily/) return 1; if (v ~ /fortnightly/) return 14; if (v ~ /weekly/) return 7
+            if (v ~ /monthly/) return 30; if (v ~ /(quarterly|season)/) return 91; if (v ~ /(yearly|annually)/) return 365
+            if (!match(v, /every[ \t]+[0-9]*[ \t]*(day|week|fortnight|month|quarter|year)/)) return 0
+            u = substr(v, RSTART, RLENGTH); n = u; gsub(/[^0-9]/, "", n); n = (n == "" ? 1 : n + 0)
+            if (u ~ /day/) return n; if (u ~ /fortnight/) return 14 * n; if (u ~ /week/) return 7 * n
+            if (u ~ /month/) return 30 * n; if (u ~ /quarter/) return 91 * n; return 365 * n
+        }
+        /^[ \t]*```/ { fence = !fence; next }
+        fence || /^[ \t]*<!--/ { next }
+        title == "" && /^# / { title = $0; sub(/^# +/, "", title); next }
+        /^##+[ \t]/ { h = tolower($0); sub(/^#+[ \t]+/, "", h); section = h; next }
+        section ~ /^desired state/ && !done_desired {
+            if ($0 ~ /^[ \t]*$/) { if (desired != "") done_desired = 1; next }
+            if ($0 ~ /^[ \t]*[*_]/) next
+            t = $0; sub(/^[ \t]+/, "", t); desired = desired (desired == "" ? "" : " ") t; next
+        }
+        state == "" && (v = label($0, "state")) != "\001" { if (!missing(v)) { state = tolower(v); sub(/^[^a-z]+/, "", state); sub(/[^a-z].*/, "", state) }; next }
+        ci == "" && (v = label($0, "check-in")) != "\001" { if (!missing(v)) ci = v; next }
+        up == "" && (v = label($0, "updated")) != "\001" { if (!missing(v) && match(v, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) up = substr(v, RSTART, 10); next }
+        met == "" && (v = label($0, "standards met")) != "\001" { if (match(v, /[0-9]+[ \t]+of[ \t]+[0-9]+/)) { met = substr(v, RSTART, RLENGTH); if (match(v, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) met = met " (" substr(v, RSTART, 10) ")" }; next }
+        END {
+            if (title == "" || title ~ /^</) title = slug
+            if (missing(desired)) desired = "no Desired state found"
+            else if (length(desired) > 160) desired = substr(desired, 1, 157) "…"
+            s = "Area: " title " — desired state: " desired " — standards met: " (met == "" ? "not yet reviewed" : met)
+            s = s " — State: " (state == "" ? "not set" : state)
+            if (state == "dormant") s = s "; no check-in while dormant"
+            else if (state == "archived") s = s "; no check-in once archived"
+            else {
+                last = up; if (match(tolower(ci), /last[ \t]+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) last = substr(ci, RSTART + RLENGTH - 10, 10)
+                c = cadence(ci)
+                if (c == 0) s = s "; no check-in cadence"
+                else if (last == "") s = s "; no check-in date recorded"
+                else { d = dayno(today) - dayno(last)
+                       if (d >= c) s = s "; check-in due (last " last ", " d " days ago, every " c " days) — /ongoing:review"
+                       else s = s "; next check-in in " (c - d) " days" }
+            }
+            print s
+        }' "$root/$area/README.md")"
+    [[ -n "$line" ]] || exit 0
+    emit "$line" "Where this session's ongoing area stands, from the projects plugin's session-start line (read from $area/README.md; the file is canonical, and this is a summary of it):
+$line"
 fi
 
 # ---- Anywhere else: at most one line a day ----------------------------------

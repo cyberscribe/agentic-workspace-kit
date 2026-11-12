@@ -40,6 +40,7 @@ the print log", not "keep good records". The board and the check-in read the are
 
 - **State:** <active · dormant · archived>
 - **Check-in:** <every 2 weeks — last YYYY-MM-DD>
+- **Standards met:** <n of m — YYYY-MM-DD>
 - **Updated:** <YYYY-MM-DD>
 
 <YYYY-MM-DD> — <one or two sentences: how the area stands against its standards, and what slipped.>
@@ -49,7 +50,9 @@ of three: **active** (kept up now, checked on its cadence), **dormant** (seasona
 purpose, and not flagged as stale; `/ongoing:pause`) and **archived** (no longer relevant, kept for the
 record; `/ongoing:drop`). `/ongoing:review` is the check-in against the standards. `Check-in:` is the area's own
 cadence, and the board measures staleness against it, since an area checked quarterly is not stale
-after a week. `Blocked by:` is not used: a standard that cannot be met is written in the dated line.
+after a week. `Standards met:` is written by `/ongoing:review` in exactly this form (`3 of 5 — 2026-11-11`),
+so the session-start line and the metrics can read it; a new area leaves it out until its first review,
+and an area without it reads as not yet reviewed. `Blocked by:` is not used: a standard that cannot be met is written in the dated line.
 
 ## Projects *(optional)*
 
