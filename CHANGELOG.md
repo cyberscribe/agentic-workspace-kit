@@ -133,6 +133,13 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   the tracked branch. The template offers, the engine and the rest still run, against the kit as it
   stands and from the commit the workspace records for `kit/`, and the command it ran is printed.
   `--advance` moves it as before. Section 15 covers both.
+- **The copy check knows which way a copy ran, at the push.** At the kit's pre-push, a pushed line or
+  file that a workspace file also holds counts as a copy of that file only when the file held it no
+  later than the kit commit that brought it in: its mtime, or for a tracked file the first workspace
+  commit holding it, with a minute's clock skew on the refusing side. A snapshot, transcript or note
+  written after the commit reads as quoting the kit; a file copied in with an old mtime is refused. The
+  pre-commit is unchanged. The rule, and the options it was chosen over, are in the new
+  `docs/design-notes.md`. Section 13 covers it.
 - **Section 22 fits a small disk.** The timing check's 230 MB of transcripts is skipped, with the free
   space named, when `TMPDIR` has under 300 MB, and the interrupt checks use twenty transcripts of their
   own, so a Cowork VM's small `/sessions` disk no longer fails three checks.
