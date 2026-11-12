@@ -651,6 +651,30 @@ if s15_need kitsrc engine state hooks; then
 else
     skp "15 stage 4, attended: the person's yes records the origin — needs $s15_why"
 fi
+# update at a terminal, with a CHANGELOG change inside one version: the diff is printed straight to the
+# terminal. A pager there would take the answers meant for the template questions after it.
+if [[ ${s15_engine:-0} -eq 1 ]]; then
+    s15_pg="$SCRATCH/s15-update-pager"
+    cp -R "$s15_u" "$s15_pg"
+    s15_rec="$(git -C "$s15_pg/kit" rev-parse HEAD)"
+    printf '%s\n' '#!/bin/sh' ": >\"$SCRATCH/s15-pager-ran\"" 'cat' >"$SCRATCH/s15-pager"; chmod +x "$SCRATCH/s15-pager"
+    sed 's/^A second commit, for the update test in section 15\.$/A second commit, reworded within 9.9.9./' \
+        "$s15_pg/kit/CHANGELOG.md" >"$SCRATCH/s15-cl" && cat "$SCRATCH/s15-cl" >"$s15_pg/kit/CHANGELOG.md"
+    git -C "$s15_pg/kit" -c commit.gpgsign=false commit -q -am "Reword within 9.9.9"
+    rm -f "$SCRATCH/s15-pager-ran"
+    (cd "$SCRATCH" && env -u AW_WIZARD_NONINTERACTIVE GIT_PAGER="$SCRATCH/s15-pager" PAGER="$SCRATCH/s15-pager" \
+        python3 "$SCRATCH/s15-pty.py" "$s15_pg.log" '\(y/n\) \[[yn]\]: $=>' 'Press Enter[^\n]*$=>' -- \
+        "$st_bash" "$s15_pg/kit/lib/setup/update.sh" --target "$s15_pg" --after-advance --old "$s15_rec" >/dev/null 2>&1); s15_rc=$?
+    if [[ $s15_rc -eq 77 ]]; then
+        skp "15 update at a terminal: the CHANGELOG diff is not paged — no pseudo-terminal can be opened here"
+    else
+        [[ ! -e "$SCRATCH/s15-pager-ran" ]] && grep -q '^+A second commit, reworded within 9\.9\.9\.$' "$s15_pg.log" \
+            && ok "15 update at a terminal: the CHANGELOG diff within one version is printed, not paged" \
+            || ko "15 update at a terminal: the CHANGELOG diff within one version is printed, not paged" "pager ran: $([[ -e "$SCRATCH/s15-pager-ran" ]] && echo yes || echo no); $(head -n 12 "$s15_pg.log")"
+    fi
+else
+    skp "15 update at a terminal: the CHANGELOG diff is not paged — needs ${s15_why:-the update fixture above}"
+fi
 
 # --- --developer ------------------------------------------------------------------------------------
 if s15_need kitsrc; then

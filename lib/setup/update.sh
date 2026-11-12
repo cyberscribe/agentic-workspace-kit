@@ -150,7 +150,9 @@ else
     echo
     # From the top down to the old version's heading; the same version, the diff; else the first 60 lines.
     if [[ -n "$old_version" && "$old_version" == "$new_version" ]]; then
-        "${KG[@]}" diff --no-color "$OLD..HEAD" -- CHANGELOG.md
+        # --no-pager: at a terminal git would open the diff in less, which takes the answers meant for the
+        # questions that follow.
+        "${KG[@]}" --no-pager diff --no-color "$OLD..HEAD" -- CHANGELOG.md
     elif [[ -n "$old_version" ]] && excerpt="$(awk -v v="## v$old_version" '
             index($0, v) == 1 && substr($0, length(v) + 1, 1) !~ /[0-9.]/ { found = 1; exit }
             { print }
