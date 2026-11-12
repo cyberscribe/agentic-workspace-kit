@@ -826,6 +826,24 @@ grep -q 'received' "$s23_ex/README.md" && grep -q 'watch --role pm' "$s23_ex/REA
 grep -q 'received' "$s23_ex/KICKOFF.md" && grep -q "date '+%Y-%m-%d %H:%M %z'" "$s23_ex/KICKOFF.md" || s23_bad+="KICKOFF: received lines and the clock"$'\n'
 grep -q '{token}' "$s23_ex/PM-KICKOFF.md" && grep -q '{watch}' "$s23_ex/PM-KICKOFF.md" && grep -q 'commands/pair.md' "$s23_ex/PM-KICKOFF.md" || s23_bad+="PM-KICKOFF: token, watch, the role's source"$'\n'
 empty "23 guidance (PM-057): the command's PM watch and kinds of PM, the PM's rule, the README, KICKOFF and PM-KICKOFF" "$s23_bad"
+# One default manager, said the same way wherever pairing is described: the command, the projects README's
+# Pair section and the getting-started guide's pairing section. Each section is read with its line breaks
+# folded, and the check-in is named by what it is, not by a scheduler's internal call or a fixed interval.
+s23_bad=""
+s23_section() { awk -v h="$2" 'index($0, h) == 1 { on = 1; next } on && /^## / { exit } on' "$1" | tr '\n' ' ' | tr -s ' '; }
+s23_default='Cowork by default, with Claude Code as the fallback'
+for s23_doc in "$s23_cmd|" "$KIT/plugins/projects/README.md|## Pair" "$KIT/docs/getting-started.md|## 7. "; do
+    s23_f="${s23_doc%%|*}"; s23_h="${s23_doc#*|}"
+    if [[ -z "$s23_h" ]]; then s23_txt="$(tr '\n' ' ' <"$s23_f" | tr -s ' ')"; else s23_txt="$(s23_section "$s23_f" "$s23_h")"; fi
+    [[ -n "$s23_txt" ]] || { s23_bad+="${s23_f#"$KIT"/}: no ${s23_h:-text} to read"$'\n'; continue; }
+    [[ "$s23_txt" == *"$s23_default"* ]] || s23_bad+="${s23_f#"$KIT"/}: lacks \"$s23_default\""$'\n'
+    for s23_w in update_trigger run_once_at 'every 30 minutes'; do
+        [[ "$s23_txt" != *"$s23_w"* ]] || s23_bad+="${s23_f#"$KIT"/}: names $s23_w"$'\n'
+    done
+done
+grep -q 'While the machine sleeps' "$s23_cmd" && grep -q 'Testing from a chat' "$s23_cmd" || s23_bad+="command: no sleep note or no chat manager's testing"$'\n'
+grep -rqi 'caffeinate\|systemd-inhibit' "$KIT/plugins/projects" && s23_bad+="the projects plugin keeps the machine awake: $(grep -rli 'caffeinate\|systemd-inhibit' "$KIT/plugins/projects")"$'\n'
+empty "23 one default manager (Cowork, Claude Code the fallback) in the command, the projects README and getting-started; check-ins named without an internal call; sleep documented, nothing kept awake" "$s23_bad"
 # PM-057 review: a beat clears a stale end mark (a /clear, or a session that goes on after SessionEnd); with no
 # recorded pid and a fresh beat the state reads working, not ended; a mailbox path with a space is shell-quoted
 # in the PM's printed command.

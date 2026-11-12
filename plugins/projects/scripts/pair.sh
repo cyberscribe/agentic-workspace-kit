@@ -12,8 +12,8 @@
 #   --ultracode     start at ultracode effort, for a phase that fans out across many pieces
 #   --mode MODE     the permission mode (default auto; PAIR_PERMISSION_MODE sets it too)
 #   --pm            start, or resume, the PM's own Claude Code session, named <slug>-pm, with the PM's
-#                   prompt (examples/pair/PM-KICKOFF.md). A PM's session is for a build pairing; a Cowork
-#                   PM is started from Cowork instead
+#                   prompt (examples/pair/PM-KICKOFF.md): the fallback manager, where Cowork is not used. A
+#                   Cowork PM is started from Cowork instead
 #   --print         print the command it would run, and run nothing
 #
 # The PM writes the mailbox and its KICKOFF.md first (/projects:pair). This script runs on the person's

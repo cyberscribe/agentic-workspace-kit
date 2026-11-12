@@ -232,8 +232,8 @@ passed, and `/projects:pickup` resumes it.
 ## Pair
 
 **`/projects:pair <slug>`** splits building from directing. The session that runs
-it — Cowork is the natural home — becomes the project's product manager and
-end-to-end tester; one Claude Code session becomes its engineer. They talk
+it becomes the project's product manager and end-to-end tester: Cowork by default,
+with Claude Code as the fallback; one Claude Code session becomes its engineer. They talk
 through a mailbox in the project folder: `to-cc.md` and `to-pm.md`, append only,
 each message with a `Status:` line that only its reader edits. The command reads
 the workspace's own rules and quotes them into the brief, writes the first brief
@@ -247,12 +247,13 @@ On your machine that resumes the engineer's last session if its transcript is
 still there, or starts a new one, in auto permission mode, with the pairing hooks
 loaded for that session only. Between turns a background watch the engineer starts
 wakes it when a message arrives, so one written while it was idle is picked up
-without you relaying it, and the session stays free for you to type into. The PM checks back every 30 minutes, tests what is reported against evidence,
-and accepts it or writes the next brief; `close` ends the pairing.
+without you relaying it, and the session stays free for you to type into. A Cowork PM checks back
+by a scheduled message into its own conversation, re-armed at each check-in; either way the PM tests what
+is reported against evidence, and accepts it or writes the next brief. `close` ends the pairing.
 
-A build pairing can have a Claude Code PM too: `scripts/pair.sh <project folder> --pm` starts (or resumes)
-its session, named `<slug>-pm`, whose watch on `to-pm.md` wakes it when the engineer writes. Cowork suits
-a PM whose work is mostly outward (mail, Slack, documents). The engineer's state is derived from evidence
+Claude Code is the fallback manager, where Cowork is not available or when you ask for it:
+`scripts/pair.sh <project folder> --pm` starts (or resumes) its session, named `<slug>-pm`, whose watch on
+`to-pm.md` wakes it when the engineer writes. The engineer's state is derived from evidence
 (its process, its last activity and its watch) and printed with that evidence, so a PM asks rather than
 guessing; each message's pickup is recorded as a `received` line in the reader's status file.
 
@@ -262,6 +263,12 @@ to the mailbox (`leave` undoes it). If the PM sees an open message and no
 engineer listening, its check-in says so in one line. Message ids are taken under
 a lock (`hooks/pair.sh post`), and any small file several sessions share is
 edited with `scripts/registry.sh`, which locks it and keeps its header.
+
+**While the machine sleeps.** The engineer's session and its watch run on your computer, and they pause
+while it sleeps. Check-ins that come due then arrive late, or find nothing new, and the work picks up when
+it wakes. For an overnight pairing, leave the computer on and awake. The scheduler's note on sleep,
+"Your machine has to be on" in §10 of [`docs/getting-started.md`](../../docs/getting-started.md), explains
+what each system does.
 
 ## Pick up
 

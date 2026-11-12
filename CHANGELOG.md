@@ -160,6 +160,14 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   carriage returns. An editor that dropped those carriage returns left a bare `Icon`, which ignores
   nothing, and the next update offered the line again. A workspace with the older line is offered the
   new one once; the older line can then go. Sections 14, 15 and 20 cover it.
+- **Pairing from the chat app.** `/projects:pair`'s manager is Cowork by default, with Claude Code as the
+  fallback where Cowork is not available or the person asks for it; the command, the projects README,
+  the getting-started guide and the README now say so in the same words. A Cowork manager's check-in is
+  a one-shot scheduled message back into its conversation, re-armed at each check-in and timed by what
+  is in flight. `pair.md` says how a manager in a chat app tests (the device shell, a shell on the
+  person's computer, the person's browser, each with what it suits) and that the suite stays with the
+  engineer or the person; why there are two roles; and that a pairing pauses while the machine sleeps,
+  pointing at the scheduler's note. Section 23 checks the one default and the sleep note.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

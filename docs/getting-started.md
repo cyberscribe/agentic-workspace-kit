@@ -206,10 +206,11 @@ told.
 For work that is mostly building, split it between two sessions: one holds the outcome and tests, the
 other builds. You direct and decide, rather than relaying messages between windows.
 
-1. **In the session you will direct from** (Claude Code or Cowork), in the project, type
-   `/projects:pair`. That session becomes the product manager. It reads the project's README and your
-   standing rules, sets up a mailbox, and writes the first brief: the outcome and Done when items, the
-   order of work, and the gates where the engineer stops for you.
+1. **In the session you will direct from**, in the project, type `/projects:pair`: Cowork by default,
+   with Claude Code as the fallback where Cowork is not available or when you would rather use it. That
+   session becomes the product manager. It reads the project's README and your standing rules, sets up a
+   mailbox, and writes the first brief: the outcome and Done when items, the order of work, and the gates
+   where the engineer stops for you.
 2. **Start the engineer.** The PM gives you one command, with the prompt it sends shown beneath it:
 
    ```bash

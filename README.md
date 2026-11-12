@@ -827,8 +827,8 @@ folder to `projects/_done/<slug>/`.
 `/projects:pair` splits a build between two sessions, so the person directs and decides rather than
 relaying messages between windows.
 
-- **The product manager** — the session where `/projects:pair` was typed, in Cowork or Claude Code —
-  holds the outcome. It writes each brief, re-runs the evidence behind each report, and accepts the
+- **The product manager** — the session where `/projects:pair` was typed: Cowork by default, with
+  Claude Code as the fallback — holds the outcome. It writes each brief, re-runs the evidence behind each report, and accepts the
   work or says what to fix.
 - **The engineer** — always a Claude Code session — owns the doing: the design inside the brief, the
   code, the tests, and the evidence that it works.
