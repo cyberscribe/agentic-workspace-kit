@@ -1172,8 +1172,8 @@ else
     mg_declined="$MG_TMP/declined"
     mg_vread .claude/kit-templates.lock 2>/dev/null | awk -F '\t' '$1 == "!declined" && $2 == ".gitignore" { print $3 }' > "$mg_declined"
     mg_added=0
-    # Only spaces and tabs are trimmed: a carriage return can be part of a pattern (macOS names its
-    # folder-icon file Icon followed by one, and the template's line ends in two, since git drops one).
+    # Only spaces and tabs are trimmed: a carriage return can be part of a pattern (an older kit's macOS
+    # Icon line ended in two).
     mg_blank=$' \t'
     while IFS= read -r mg_l || [[ -n "$mg_l" ]]; do
         mg_l="${mg_l%"${mg_l##*[!"$mg_blank"]}"}"

@@ -155,6 +155,11 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
 - **`kit/setup.sh update` prints the CHANGELOG diff without a pager.** When the old and new kit share a
   version, the diff went through git's pager at a terminal, which took the answers meant for the
   template questions after it. Section 15 runs it on a pseudo-terminal.
+- **The macOS Icon line is all visible characters.** `templates/workspace.gitignore` ignores folder-icon
+  files with `Icon[! -~]`, Icon and one character outside printable ASCII, in place of `Icon` and two
+  carriage returns. An editor that dropped those carriage returns left a bare `Icon`, which ignores
+  nothing, and the next update offered the line again. A workspace with the older line is offered the
+  new one once; the older line can then go. Sections 14, 15 and 20 cover it.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

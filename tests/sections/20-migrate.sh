@@ -156,10 +156,10 @@ PY
     git -C "$s20_ws" check-ignore -q _delete/x && ok "20 _delete/ is ignored before anything moves into it" \
         || ko "20 _delete/ is ignored before anything moves into it"
     if [[ -z "$s20_wait" ]]; then
-        [[ "$(grep -c "^Icon$(printf '\r\r')\$" "$s20_ws/.gitignore")" == 1 ]] && git -C "$s20_ws" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
-            && grep -q '^edit \.gitignore: + Icon\\r\\r$' "$s20_scr/real.act" \
-            && ok "20 M10 writes the template's macOS Icon line with both carriage returns, and prints them as \\r" \
-            || ko "20 M10 writes the template's macOS Icon line with both carriage returns, and prints them as \\r" "$(grep -n Icon "$s20_ws/.gitignore" | od -c | head -n 3)"
+        [[ "$(grep -cxF 'Icon[! -~]' "$s20_ws/.gitignore")" == 1 ]] && git -C "$s20_ws" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
+            && grep -qxF 'edit .gitignore: + Icon[! -~]' "$s20_scr/real.act" \
+            && ok "20 M10 writes the template's macOS Icon line" \
+            || ko "20 M10 writes the template's macOS Icon line" "$(grep -n Icon "$s20_ws/.gitignore" | od -c | head -n 3)"
     fi
     [[ -f "$s20_ws/skills/field-notes/SKILL.md" ]] && ! grep -q 'skills/field-notes' "$s20_scr/real.act" \
         && ok "20 a skill without the generator's marker stays in skills/" || ko "20 a skill without the generator's marker stays in skills/"

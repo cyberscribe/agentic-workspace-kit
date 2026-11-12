@@ -375,8 +375,7 @@ GI_HEADER='# Added by the agentic workspace kit (kit/templates/workspace.gitigno
 # gi_missing <.gitignore or /dev/null> <declined list or /dev/null>: the template's lines (not blank,
 # not a # line) that the file does not have and the person has not declined, in template order. Lines
 # compare after one carriage return (a CRLF file's) and then trailing spaces are trimmed. A template
-# line is written with only its trailing spaces trimmed: the macOS Icon line ends in two carriage
-# returns, which are the pattern.
+# line is written with only its trailing spaces trimmed.
 gi_missing() {
     awk '
         { l = $0; sub(/\r$/, "", l); sub(/[ \t]+$/, "", l); o = $0; sub(/[ \t]+$/, "", o) }

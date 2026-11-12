@@ -582,6 +582,19 @@ if [[ -n "${s15_engine:-}" && ${s15_engine:-0} -eq 1 ]]; then
     grep -q '^  applied                \.claude/closeout\.md$' "$s15_c.log" && grep -q '^  applied                \.gitignore$' "$s15_c.log" \
         || s15_bad+="the summary does not list both as applied"$'\n'
     empty "15 update --yes: the template change and .gitignore lines are applied without a question, the diffs printed, both listed" "$s15_bad"
+
+    # The macOS Icon line after an editor that drops carriage returns has saved .gitignore: the line is
+    # all visible characters, so it comes through unchanged, still ignores Icon<CR>, and is not offered
+    # again.
+    s15_c="$SCRATCH/s15-update-icon"
+    cp -R "$s15_u" "$s15_c"
+    tr -d '\r' <"$s15_c/.gitignore" >"$SCRATCH/s15-gi" && cat "$SCRATCH/s15-gi" >"$s15_c/.gitignore"
+    (cd "$SCRATCH" && AW_WIZARD_NONINTERACTIVE=1 "$st_bash" "$s15_c/kit/setup.sh" update --no-fetch </dev/null >"$s15_c.log" 2>&1)
+    s15_bad=""
+    git -C "$s15_c" check-ignore -q --no-index -- "$(printf 'Icon\r')" || s15_bad+="Icon<CR> is not ignored"$'\n'
+    git -C "$s15_c" check-ignore -q --no-index -- Icons && s15_bad+="Icons is ignored"$'\n'
+    grep -q "Lines the kit's .gitignore template has" "$s15_c.log" && s15_bad+="the .gitignore lines are offered again: $(grep -n '^+' "$s15_c.log" | head -n 3)"$'\n'
+    empty "15 update: the macOS Icon line survives an editor that drops carriage returns, and is not offered again" "$s15_bad"
 else
     skp "15 update, attended: a template diff and .gitignore lines applied or declined — needs ${s15_why:-the update fixture above}"
 fi
