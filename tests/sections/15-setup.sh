@@ -459,6 +459,38 @@ PYK2
     else
         skp "15 update again: the kit is already current — needs ${s15_why:-a ledger in the fixture}"
     fi
+    # The kit on a side branch, with a commit of its own that changes a template, while the tracked
+    # branch moves on upstream: update leaves the branch where it is, runs the offers against the kit as
+    # it stands from the commit the workspace records, and says so. --advance moves it as before.
+    if [[ $s15_engine -eq 1 ]]; then
+        s15_sb="$SCRATCH/s15-update-side"
+        cp -R "$s15_u" "$s15_sb"
+        s15_rec="$(git -C "$s15_sb" ls-files -s -- kit | awk '{ print $2 }')"
+        git -C "$s15_sb/kit" checkout -q -b trial
+        printf '\nA line the trial branch adds.\n' >> "$s15_sb/kit/templates/workspace/closeout.md"
+        git -C "$s15_sb/kit" add -A && git -C "$s15_sb/kit" -c commit.gpgsign=false commit -q -m "Trial work"
+        s15_trial="$(git -C "$s15_sb/kit" rev-parse HEAD)"
+        printf 'upstream\n' > "$s15_k2/upstream.md"
+        git -C "$s15_k2" add -A && git -C "$s15_k2" -c commit.gpgsign=false commit -q -m "Upstream moves on"
+        s15_up="$(git -C "$s15_k2" rev-parse HEAD)"
+        (cd "$SCRATCH" && AW_WIZARD_NONINTERACTIVE=1 "$st_bash" "$s15_sb/kit/setup.sh" update </dev/null >"$s15_sb.log" 2>&1); s15_rc=$?
+        s15_bad=""
+        [[ $s15_rc -eq 0 ]] || s15_bad+="status $s15_rc"$'\n'
+        [[ "$(git -C "$s15_sb/kit" rev-parse HEAD)" == "$s15_trial" ]] || s15_bad+="the kit moved off the trial branch's commit"$'\n'
+        [[ "$(git -C "$s15_sb/kit" symbolic-ref -q --short HEAD)" == trial ]] || s15_bad+="the kit is no longer on the branch trial"$'\n'
+        [[ "$(git -C "$s15_sb/kit" rev-list --count "$s15_rec..trial")" == 2 ]] || s15_bad+="the trial branch's history changed: $(git -C "$s15_sb/kit" log --oneline "$s15_rec..trial" | paste -sd'|' -)"$'\n'
+        grep -q '^kit/ is on the branch trial, not main, the branch \.gitmodules tracks\. It is not advanced:' "$s15_sb.log" || s15_bad+="it does not say the kit is left on its branch"$'\n'
+        grep -qF -- "--after-advance --old $s15_rec" "$s15_sb.log" || s15_bad+="it does not name the after-advance run and the --old it used ($s15_rec)"$'\n'
+        grep -q 'changed   \.claude/closeout\.md' "$s15_sb.log" || s15_bad+="the template offers did not run"$'\n'
+        grep -q 'kit/setup.sh update --advance' "$s15_sb.log" || s15_bad+="it does not name --advance"$'\n'
+        empty "15 update with kit/ on a side branch: not advanced, the branch's commits untouched, the template offers run, and it names what it ran" "$s15_bad"
+        (cd "$SCRATCH" && AW_WIZARD_NONINTERACTIVE=1 "$st_bash" "$s15_sb/kit/setup.sh" update --advance </dev/null >"$s15_sb-advance.log" 2>&1)
+        git -C "$s15_sb/kit" merge-base --is-ancestor "$s15_up" HEAD 2>/dev/null \
+            && ok "15 update --advance with kit/ on a side branch: advanced as before" \
+            || ko "15 update --advance with kit/ on a side branch: advanced as before" "$(head -n 12 "$s15_sb-advance.log")"
+    else
+        skp "15 update with kit/ on a side branch — needs ${s15_why:-a ledger in the fixture}"
+    fi
 else
     skp "15 update — needs $s15_why"
 fi

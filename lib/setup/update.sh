@@ -2,15 +2,18 @@
 # lib/setup/update.sh: kit/setup.sh update. Brings a newer kit into the workspace and offers what came
 # with it.
 #
-#   update.sh --target WS [--no-fetch] [--yes]
+#   update.sh --target WS [--no-fetch] [--yes] [--advance]
 #
 #   --yes, -y   answer yes to the template-change and .gitignore offers, attended or not; the diffs are
 #               still printed. The migration question keeps its n default.
+#   --advance   advance kit/ even when it is on a branch other than the one .gitmodules tracks.
 #
 # 1. A workspace still in the 2.x layout goes to the migration instead: its dry run is shown, and an
 #    attended run is asked whether to run it for real.
 # 2. The kit submodule is advanced (git submodule update --remote -- kit). The rest then runs from the
-#    new kit's own copy of this script (--after-advance), so the steps below are the new kit's.
+#    new kit's own copy of this script (--after-advance), so the steps below are the new kit's. A kit
+#    on a branch other than the tracked one is not advanced; the rest runs against it as it stands,
+#    with --old the commit the workspace records for kit/, and the command it ran is printed.
 # 3. The CHANGELOG since the old version is printed.
 # 4. Each template the kit changed since a file of yours was made from it is offered as a diff, one at
 #    a time (an attended run asks; an unattended one lists them and records nothing). The diff is
@@ -35,7 +38,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 # shellcheck disable=SC2034  # read by lib/wizard.sh
 WZ_STATE_SH="$KIT/plugins/workspace/scripts/state.sh"
 
-WS="" NO_FETCH=0 AFTER=0 OLD="" YES=0
+WS="" NO_FETCH=0 AFTER=0 OLD="" YES=0 ADVANCE=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --target|--old)
@@ -45,7 +48,8 @@ while [[ $# -gt 0 ]]; do
         --no-fetch) NO_FETCH=1; shift ;;
         --yes|-y) YES=1; shift ;;
         --after-advance) AFTER=1; shift ;;
-        -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --advance) ADVANCE=1; shift ;;
+        -h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "update.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
@@ -90,6 +94,29 @@ if [[ $AFTER -eq 0 ]]; then
 
     # --- Advance ------------------------------------------------------------------------------------
     name="$(aw_kitname "$WS")"
+    # A kit checked out on a branch other than the one the workspace tracks (a trial branch, a kit
+    # developer's work) is left as it is. submodule update --remote would move it to the tracked branch,
+    # and with update = rebase it rebases the branch's own commits onto it, rewriting their history.
+    # The steps after the advance still run, against the kit as it stands, from the commit the
+    # workspace records for kit/: what the workspace was last committed with is what its files reflect.
+    branch="$("${KG[@]}" symbolic-ref -q --short HEAD 2>/dev/null)"
+    track="$("${WG[@]}" config -f .gitmodules "submodule.$name.branch" 2>/dev/null)"
+    if [[ -z "$track" ]]; then
+        track="$("${KG[@]}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+        track="${track#origin/}"
+    fi
+    track="${track:-main}"
+    if [[ -n "$branch" && "$branch" != "$track" && $ADVANCE -eq 0 ]]; then
+        rec="$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print $2; exit }')"
+        say "kit/ is on the branch $branch, not $track, the branch .gitmodules tracks. It is not advanced:"
+        say "that would move it to $track and rebase or leave behind $branch's own commits."
+        say "The template offers run against the kit as it stands ($(printf '%.7s' "$old")), from the commit this"
+        say "workspace records for kit/ ($(printf '%.7s' "$rec")):"
+        step "kit/lib/setup/update.sh --target $(printf '%q' "$WS") --after-advance --old $rec"
+        note "kit/setup.sh update --advance moves kit/ to $track as before."
+        yes=(); [[ $YES -eq 0 ]] || yes=(--yes)
+        exec "${BASH:-bash}" "$WS/kit/lib/setup/update.sh" --target "$WS" --after-advance --old "$rec" ${yes[@]+"${yes[@]}"}
+    fi
     url="$("${WG[@]}" config "submodule.$name.url" 2>/dev/null)"
     [[ -n "$url" ]] || url="$("${WG[@]}" config -f .gitmodules "submodule.$name.url" 2>/dev/null)"
     pc=(); is_local_url "$url" && pc=(-c protocol.file.allow=always)

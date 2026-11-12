@@ -127,6 +127,12 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   check the seventeen commands, the template's shape and each instruction.
 - **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
   the hook stays silent, and the metrics count no areas.
+- **`kit/setup.sh update` leaves a kit on a side branch where it is.** When `kit/` is checked out on a
+  branch other than the one `.gitmodules` tracks (a trial branch, a kit developer's work), `update` says
+  so and does not advance it: with `update = rebase`, advancing rebased that branch's own commits onto
+  the tracked branch. The template offers, the engine and the rest still run, against the kit as it
+  stands and from the commit the workspace records for `kit/`, and the command it ran is printed.
+  `--advance` moves it as before. Section 15 covers both.
 - **Section 22 fits a small disk.** The timing check's 230 MB of transcripts is skipped, with the free
   space named, when `TMPDIR` has under 300 MB, and the interrupt checks use twenty transcripts of their
   own, so a Cowork VM's small `/sessions` disk no longer fails three checks.
