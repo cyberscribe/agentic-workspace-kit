@@ -29,9 +29,10 @@ ticked off; the standards below are how it is checked.
 
 ## Standards to keep
 
-Two to five standards someone else could check without asking the owner. Each says what "kept up"
-looks like, the way a Done when item says what "finished" looks like: "every print pulled has a row in
-the print log", not "keep good records". The board and the check-in read the area against this list.
+Two to five standards the owner holds the area to, each concrete enough that a review can say
+whether it was kept. Each says what "kept up" looks like, the way a Done when item says what
+"finished" looks like: "every print pulled has a row in the print log", not "keep good records".
+The board and the check-in read the area against this list.
 
 - <observable standard>
 - <…>

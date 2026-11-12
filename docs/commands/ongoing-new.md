@@ -9,8 +9,8 @@ interview, then writes its README and register row. Source: `plugins/ongoing/com
   people directory and the versioning default. Without them, areas go in `ongoing/<slug>/`, registered
   in `ongoing/INDEX.md` (Active / Dormant / Archived), from `kit/templates/area-readme.md`.
 - Offers two depths. The quick path asks the name, the **desired state** (what you want to be true here,
-  in one sentence), two to five **standards to keep** that someone else could check, the check-in
-  cadence, how it is versioned and whether it is sensitive, and the owner.
+  in one sentence), two to five **standards to keep** (the owner's own, concrete enough to review), the
+  check-in cadence, how it is versioned and whether it is sensitive, and the owner.
 - The full path adds people and their five roles, recurring routines that keep the standards met, child
   projects, precedents, constraints, open questions and resources.
 - Pushes back on vague standards, and writes `- not yet named` rather than inventing them.

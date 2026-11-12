@@ -11,7 +11,7 @@ area is healthy while its standards are met. Your job in the first ten minutes i
 help them say what they want to be true here, and how anyone would know it is.
 
 Most of what follows is optional, and a light touch is the right default. The power is
-in three answers: the desired state, standards someone else could check, and one owner.
+in three answers: the desired state, the standards the owner holds it to, and one owner.
 
 If the user typed a name or description after the command, start from it.
 
@@ -61,10 +61,10 @@ Area · Folder · One-liner), and the template `kit/templates/area-readme.md`, e
    the area is kept up ("the collection in optimal health and looking its best"). It
    is a direction, not a finish line, so it may be broad; the standards make it
    checkable.
-4. **Standards to keep** — two to five, each one someone else could check without
-   asking the owner, together covering the desired state. "Look after the trees"
-   becomes "no tree dries out in the growing season" and "each tree is photographed
-   from the same front each season". Offer candidates drawn from what they have said.
+4. **Standards to keep** — two to five, the owner's own, each concrete enough that
+   a review can say whether it was kept, together covering the desired state. "Look
+   after the trees" becomes "no tree dries out in the growing season" and "each tree
+   is photographed from the same front each season". Offer candidates drawn from what they have said.
    When they cannot name standards yet, write `- not yet named` rather than inventing
    them; `/ongoing:review` comes back to it.
 5. **Check-in cadence** — how often the area should be looked at against its
