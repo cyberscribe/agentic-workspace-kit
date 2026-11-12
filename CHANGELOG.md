@@ -127,6 +127,9 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   check the seventeen commands, the template's shape and each instruction.
 - **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
   the hook stays silent, and the metrics count no areas.
+- **Section 22 fits a small disk.** The timing check's 230 MB of transcripts is skipped, with the free
+  space named, when `TMPDIR` has under 300 MB, and the interrupt checks use twenty transcripts of their
+  own, so a Cowork VM's small `/sessions` disk no longer fails three checks.
 - `hooks/lib/boundary.sh` says it is carried by each plugin that has hooks; the `ongoing` plugin has
   none, and section 25 checks that a plugin without hooks carries no copy.
 

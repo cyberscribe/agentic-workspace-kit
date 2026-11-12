@@ -391,13 +391,14 @@ empty "22 the pilot README has the Agent reads section, its limits (a floor; a s
 # --- Speed --------------------------------------------------------------------------------------------
 # 200 transcripts of 2,000 lines, read with the tools macOS ships (/usr/bin first on PATH, so its awk,
 # sed, find and jq where they exist). One line in four is a tool call, half of those worth parsing.
-s22_big="$s22_dir/big"
-python3 - "$s22_big" "$s22_w" <<'PYBIG'
+# gen.py writes <count> of them to a folder. The full set (about 230 MB) is for the timing alone, and the
+# interrupt checks below get twenty of their own, so neither depends on the other having been written.
+cat > "$s22_dir/gen.py" <<'PYBIG'
 import datetime, json, os, sys
-big, W = sys.argv[1:3]
+big, W, count = sys.argv[1], sys.argv[2], int(sys.argv[3])
 day = (datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=1)).isoformat()
 filler = "x" * 300
-for s in range(200):
+for s in range(count):
     sid = "%08d-3333-4333-8333-333333333333" % s
     d = os.path.join(big, "projects", "-ws"); os.makedirs(d, exist_ok=True)
     lines = []
@@ -414,21 +415,34 @@ for s in range(200):
             e = {"type": "assistant", "sessionId": sid, "isSidechain": False, "cwd": W, "timestamp": ts, "message": {"role": "assistant", "content": [t]}}
         lines.append(json.dumps(e))
     with open(os.path.join(d, sid + ".jsonl"), "w") as f: f.write("\n".join(lines) + "\n")
+if count < 200: sys.exit(0)
 # One more, quiet for twenty days, so the transcripts reach back past the window.
 old = (datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=20)).isoformat()
 with open(os.path.join(big, "projects", "-ws", "old.jsonl"), "w") as f:
     f.write(json.dumps({"type": "assistant", "sessionId": "old", "isSidechain": False, "cwd": "/nowhere", "timestamp": old + "T12:00:00.000Z", "message": {"content": []}}) + "\n")
 PYBIG
+# s22_room <KB>: success when the folder this section writes to has that much free. A small disk (a
+# Cowork VM's /sessions, where TMPDIR points, had 192 MB) cannot hold the timing fixture, and filling it
+# fails every check after it for a reason that is not theirs.
+s22_room() { [[ "$(df -Pk "$s22_dir" 2>/dev/null | awk 'NR == 2 { print $4 }')" -ge "$1" ]] 2>/dev/null; }
+s22_free() { df -Pk "$s22_dir" 2>/dev/null | awk 'NR == 2 { printf "%d MB", $4 / 1024 }'; }
+s22_big="$s22_dir/big"
+if ! s22_room 300000; then
+    skp "22 200 transcripts of 2,000 lines are read in under 10 seconds — $(s22_free) free in TMPDIR, under the 300 MB its 230 MB of transcripts need"
+else
+python3 "$s22_dir/gen.py" "$s22_big" "$s22_w" 200
 s22_t0="$(python3 -c 'import time; print(time.time())')"
 s22_got="$(PATH="/usr/bin:/bin:$PATH" READS_TRANSCRIPTS="$s22_big/projects" bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"
 s22_secs="$(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$s22_t0")"
 [[ "$s22_got" == "$s22_today,200,200,50000,0,2,11,$s22_from" ]] && python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) < 10 else 1)' "$s22_secs" \
     && ok "22 200 transcripts of 2,000 lines are read in under 10 seconds ($s22_secs s): 200 sessions, 50,000 reads of 2 files" \
     || ko "22 200 transcripts of 2,000 lines are read in under 10 seconds ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s; got $s22_got"
+fi
+rm -rf "$s22_big"
 
 # --- The scratch folder -------------------------------------------------------------------------------
 # While it runs, reads.sh keeps the workspace's reference paths in a scratch folder: under TMPDIR, this
-# user's only, and gone however the run ends. The long run above is interrupted mid-read, as Ctrl-C
+# user's only, and gone however the run ends. A run over twenty transcripts is interrupted mid-read, as Ctrl-C
 # and a kill would do it (the signal goes to the script and the tools it started).
 s22_tmp="$s22_dir/tmp"
 mkdir -p "$s22_tmp/done" "$s22_tmp/fail" "$s22_tmp/int" "$s22_tmp/term" "$s22_dir/stub"
@@ -459,12 +473,19 @@ except subprocess.TimeoutExpired:
     rc = "still running; " + " | ".join(l.strip() for l in tree.splitlines())
 print("seen=%d open=%s left=%d rc=%s" % (seen, ",".join(open_modes) or "none", len(glob.glob(os.path.join(tmp, "*"))), rc))
 PYINT
-s22_got="int: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_big/projects" "$s22_tmp/int" "$s22_today" SIGINT)
-term: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_big/projects" "$s22_tmp/term" "$s22_today" SIGTERM)"
+# Twenty transcripts (about 23 MB) keep reads.sh busy for about a second, long enough to interrupt.
+s22_small="$s22_dir/small"
+if ! s22_room 60000; then
+    skp "22 interrupted mid-read (INT, TERM), reads.sh removes its scratch folder — $(s22_free) free in TMPDIR, under the 60 MB its 23 MB of transcripts need"
+else
+python3 "$s22_dir/gen.py" "$s22_small" "$s22_w" 20
+s22_got="int: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_small/projects" "$s22_tmp/int" "$s22_today" SIGINT)
+term: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_small/projects" "$s22_tmp/term" "$s22_today" SIGTERM)"
 [[ "$s22_got" == "int: seen=1 open=none left=0 rc=130
 term: seen=1 open=none left=0 rc=143" ]] \
     && ok "22 interrupted mid-read (INT, TERM), reads.sh removes its scratch folder; while it ran, the folder and its files were this user's only" \
     || ko "22 interrupted mid-read (INT, TERM), reads.sh removes its scratch folder; while it ran, the folder and its files were this user's only" "$s22_got"
+fi
 
 # A run that finishes and a run that fails part-way (an awk that exits 7) leave nothing either.
 printf '#!/bin/sh\nexit 7\n' > "$s22_dir/stub/awk" && chmod +x "$s22_dir/stub/awk"
