@@ -699,13 +699,15 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
 - **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
   `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
   diff to apply or skip. Files the team owns are created once and never overwritten.
-- **The kit's plugins, and their twelve commands, are wired in** from the directory marketplace at `kit`:
+- **The kit's plugins, and their seventeen commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `kit/docs/memory-layers.md`, so there is one taxonomy.
   - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close`, `pickup` and `pair`, the life of a
     project from its first interview to done, kept in each project's README, with a session-start
     line that says where the folder's project stands. `.claude/projects.md` holds the team's own
     conventions.
+  - **ongoing** — `/ongoing:new`, `review`, `adopt`, `pause` and `drop`, the areas kept up rather than
+    finished: a desired state and standards to keep in place of a finish line, in `ongoing/<slug>/`.
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
     `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check;
     and a session-start summary of what is out of step.
@@ -863,6 +865,11 @@ it, common questions, and how to tell it is working.
 | `/projects:pickup` | projects | A cold-start brief, and resuming a paused project | [docs/commands/projects-pickup.md](docs/commands/projects-pickup.md) |
 | `/projects:pair` | projects | A PM session and a Claude Code engineer working a project through a mailbox | [docs/commands/projects-pair.md](docs/commands/projects-pair.md) |
 | `/projects:close` | projects | Finishing: evidence, retrospective, archive | [docs/commands/projects-close.md](docs/commands/projects-close.md) |
+| `/ongoing:new` | ongoing | Starting an ongoing area: a desired state and standards to keep, no finish line | [docs/commands/ongoing-new.md](docs/commands/ongoing-new.md) |
+| `/ongoing:review` | ongoing | The check-in: an area against its standards | [docs/commands/ongoing-review.md](docs/commands/ongoing-review.md) |
+| `/ongoing:adopt` | ongoing | A folder or long-running project that is really an area | [docs/commands/ongoing-adopt.md](docs/commands/ongoing-adopt.md) |
+| `/ongoing:pause` | ongoing | Setting an area dormant with its reason and a look-again date | [docs/commands/ongoing-pause.md](docs/commands/ongoing-pause.md) |
+| `/ongoing:drop` | ongoing | Archiving an area that is no longer relevant | [docs/commands/ongoing-drop.md](docs/commands/ongoing-drop.md) |
 | `/workspace:quick-start` | workspace | The first-time interview, and the check that the kit is reachable | [docs/commands/workspace-quick-start.md](docs/commands/workspace-quick-start.md) |
 | `/workspace:hygiene` | workspace | The weekly pass over where context lives | [docs/commands/workspace-hygiene.md](docs/commands/workspace-hygiene.md) |
 | `/workspace:register-audit` | workspace | The monthly pass over how guidance reads | [docs/commands/workspace-register-audit.md](docs/commands/workspace-register-audit.md) |
@@ -925,7 +932,7 @@ once in the workspace and is the workspace's from then on:
 | `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public (a repository marked as a template, as the published one is, is skipped) |
 | `closeout.md` | `.claude/closeout.md` | Points the closeout plugin (and the `kit-closeout` skill) at `kit/docs/memory-layers.md`, so there is one taxonomy rather than two |
 | `projects.md` | `.claude/projects.md` | The team's project conventions — where projects live, register sections, naming, in-flight limit, staleness — read first by every projects command |
-| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects, scheduler and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
+| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, ongoing, projects, scheduler and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
 | `gemini-settings.json` | `.gemini/settings.json` (merged) | With `--surfaces claude,gemini` only: makes Gemini CLI load `AGENTS.md` as its context file |
 | `CODEOWNERS` | `.github/CODEOWNERS` | Routes changes to the always-loaded tier through the standards owner |
 | `pull_request_template.md` | `.github/pull_request_template.md` | Asks a documentation PR which tier it touches, and why an addition to working standards earns its place |

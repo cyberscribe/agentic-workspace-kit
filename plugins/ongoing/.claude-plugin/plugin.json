@@ -1,0 +1,18 @@
+{
+  "name": "ongoing",
+  "version": "0.1.0",
+  "description": "Ongoing areas — work with no finish line, kept up rather than finished — kept in the area's README: /ongoing:new interviews for the desired state, the standards to keep, people, cadence and versioning; /ongoing:review checks the area against its standards and turns a slipped standard with a fix into a project; /ongoing:adopt gives an existing folder or long-running project the area's shape; /ongoing:pause sets an area dormant and /ongoing:drop archives one that is no longer relevant.",
+  "author": {
+    "name": "Robert Peake",
+    "url": "https://github.com/cyberscribe"
+  },
+  "keywords": [
+    "areas",
+    "standards",
+    "responsibilities",
+    "review",
+    "documentation"
+  ],
+  "homepage": "https://github.com/cyberscribe/agentic-workspace-kit",
+  "repository": "https://github.com/cyberscribe/agentic-workspace-kit"
+}

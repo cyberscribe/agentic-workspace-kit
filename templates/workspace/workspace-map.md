@@ -62,7 +62,7 @@ workspace/
     _done/<slug>/          ← finished projects
 
   ongoing/                 ← ongoing areas: kept up, no finish line (created with the first)
-    INDEX.md               ← the register: Active / Dormant / Retired
+    INDEX.md               ← the register: Active / Dormant / Archived
     <slug>/README.md       ← what is kept up, standards to keep, the Current state block, child projects
 
   skills/                  ← the team's own skills

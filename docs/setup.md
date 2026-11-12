@@ -13,7 +13,7 @@ deletes and commits nothing; the last stage prints the commit to make.
 |---|---|---|
 | 1 | Prerequisites | bash 3.2 or later, git and jq; claude and gh are optional |
 | 2 | Identity | The team, its standards owner and their handle, from flags, earlier answers or questions |
-| 3 | The workspace | Starts a repository (`new`), adds the kit as a submodule at `kit/` where it is missing, then runs the engine, `kit/install.sh`, which creates the team's own files once and records them in `.claude/kit-templates.lock`. Where `.claude/settings.json` was there first, it offers to enable the kit's three plugins in it, and prints the `claude plugin enable` commands for any left off |
+| 3 | The workspace | Starts a repository (`new`), adds the kit as a submodule at `kit/` where it is missing, then runs the engine, `kit/install.sh`, which creates the team's own files once and records them in `.claude/kit-templates.lock`. Where `.claude/settings.json` was there first, it offers to enable the kit's plugins in it, and prints the `claude plugin enable` commands for any left off |
 | 4 | Remotes and privacy | Sets the git hooks, and records `origin` as private once GitHub (with `gh`) or the person confirms it |
 | 5 | Submodule configuration | The git settings that keep submodules visible and pushed |
 | 6 | Outside folders | Runs `link` for material projects name under `## Resources` |
@@ -53,7 +53,7 @@ terminal: an agent's sandbox may refuse to write `.claude/skills/` or git settin
 
 **After a migration, the plugins are missing in Claude Code.** Commit the migration first. Then each
 person re-points Claude Code at the marketplace in `kit/` and installs the kit's plugins:
-`claude plugin install closeout@agentic-workspace`, `projects@agentic-workspace`,
+`claude plugin install closeout@agentic-workspace`, `ongoing@agentic-workspace`, `projects@agentic-workspace`,
 `scheduler@agentic-workspace` and `workspace@agentic-workspace`. That step leaves the repository alone: `git diff .claude/settings.json`
 is empty afterwards. Until then, the workspace session-start line names the install command when the
 bridge's `kit-` skills are present, and those skills hand over to the plugin commands in Claude Code.

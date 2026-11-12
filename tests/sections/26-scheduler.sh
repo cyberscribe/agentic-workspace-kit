@@ -1436,7 +1436,7 @@ s26_out="$(s26_x create --file "$KIT/plugins/scheduler/examples/task.md" --cwd "
     || ko "26 examples/task.md is a valid task: create --file --dry-run shows it with weekday 07:30 fire times" "$s26_out"
 # Installed by setup like the kit's other plugins; it does nothing until someone creates a task.
 s26_bad=""
-grep -q '^KIT_PLUGINS="closeout projects scheduler workspace"$' "$KIT/setup.sh" || s26_bad+="setup.sh's KIT_PLUGINS: $(grep '^KIT_PLUGINS=' "$KIT/setup.sh")"$'\n'
+grep -q '^KIT_PLUGINS="closeout ongoing projects scheduler workspace"$' "$KIT/setup.sh" || s26_bad+="setup.sh's KIT_PLUGINS: $(grep '^KIT_PLUGINS=' "$KIT/setup.sh")"$'\n'
 jq -e '.enabledPlugins["scheduler@agentic-workspace"] == true' "$KIT/templates/workspace/settings.json" >/dev/null || s26_bad+="the workspace template does not enable it"$'\n'
 grep -qF 'installed, it schedules nothing' "$KIT/setup.sh" || s26_bad+="setup's offer does not say that installed is not acting"$'\n'
 empty "26 setup installs and the workspace template enables the scheduler, and the offer says installed schedules nothing" "$s26_bad"

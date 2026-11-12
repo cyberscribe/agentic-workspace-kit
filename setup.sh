@@ -159,7 +159,7 @@ lock_value() {
 kit_gitlink() { [[ "$("${TG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print "y"; exit }')" == y ]]; }
 # The kit's plugins, as .claude/settings.json names them: <name>@agentic-workspace.
 # In the order the state check reports them (sorted), so the list compares with plugins_registered.
-KIT_PLUGINS="closeout projects scheduler workspace"
+KIT_PLUGINS="closeout ongoing projects scheduler workspace"
 # plugins_off: those the workspace's settings do not enable, from the last state check.
 plugins_off() {
     local p out=""
@@ -665,7 +665,7 @@ else
     # Installed for the person from this kit, there is nothing left to accept: the session only shows
     # whether they loaded. The offer and the re-pointing steps are for the other paths.
     if key_is plugins_scope user && key_is plugins_user_kit this; then
-        step "4. Type / and check that /closeout, /projects:new, /scheduler:tasks and /workspace:hygiene are listed."
+        step "4. Type / and check that /closeout, /ongoing:review, /projects:new, /scheduler:tasks and /workspace:hygiene are listed."
         step "5. If they are not, leave the session and start one more new one there: the first session after"
         step "   the folder is trusted can come up without them, and the next one has them."
         echo
@@ -690,8 +690,8 @@ else
         step "   hooks come with them. closeout has two: one keeps a draft when a session ends, one offers it"
         step "   when the next one starts. projects has one: the line that says where a project stands when a"
         step "   session opens in its folder. workspace has two: the line that names anything out of step when a"
-        step "   session opens, and a guard that keeps an agent from bypassing the git hooks. scheduler acts only"
-        step "   on tasks someone creates with /scheduler:tasks; installed, it schedules nothing."
+        step "   session opens, and a guard that keeps an agent from bypassing the git hooks. ongoing has none."
+        step "   scheduler acts only on tasks someone creates with /scheduler:tasks; installed, it schedules nothing."
         step "5. Type /plugin and check that ${KIT_PLUGINS// /, } are listed from agentic-workspace,"
         step "   at $reach/kit."
         step "6. If agentic-workspace is listed at another path, your user settings still name it there (a"

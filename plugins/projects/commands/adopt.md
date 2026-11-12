@@ -169,13 +169,9 @@ names):
   or earlier with no confirmation in the files stays unticked. For a long-running
   practice or a goal years off, scope the list to the nearest milestone the files
   name, and say so in the dated line and the summary: it may be an area rather
-  than a project, which is the person's call. If they say it is, it moves to
-  `ongoing/<slug>/` (the conventions' **Areas** setting) — the move is theirs to
-  make — and takes the area template's shape: Standards to keep in place of Done
-  when, `State:` one of `active`, `dormant` or `retired`, the nearest milestone
-  kept inline under Projects, and a row in the area register in place of the
-  project row. The same small insertions apply: nothing already there is
-  rewritten.
+  than a project, which is the person's call. If they say it is, hand over to
+  `/ongoing:adopt <folder>`, which gives it the area's shape (Standards to keep
+  in place of Done when, the milestone kept under Projects) and shows the move.
 - **Current state** —
   - `State:` the first that holds: `done` if the files say it is finished;
     `blocked` if the work cannot move until something outside the team happens

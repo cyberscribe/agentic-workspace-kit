@@ -3,14 +3,14 @@
 - **Versioned:** <workspace · own-repo · untracked>
 - **Sensitivity:** <normal · sensitive>
 
-*Copy to `ongoing/<slug>/README.md` and add a row to `ongoing/INDEX.md`, or run `/projects:new` —
-when the interview finds no finish line, it offers this template instead of the project one. Sections
-marked optional are deleted when they would be empty, rather than left as placeholders. Delete this
-block.*
+*Copy to `ongoing/<slug>/README.md` and add a row to `ongoing/INDEX.md`, or run `/ongoing:new` to be
+interviewed for it; `/ongoing:adopt` gives an existing folder or long-running project this shape.
+Sections marked optional are deleted when they would be empty, rather than left as placeholders.
+Delete this block.*
 
 *An ongoing area is work with no finish line: a practice, a responsibility, something kept up. Where a
 project has Done when, an area has Standards to keep, and it is healthy while they are met. It is
-never done; it is active, dormant or retired. When a piece of an area has a finish line, that piece is
+never done; it is active, dormant or archived. When a piece of an area has a finish line, that piece is
 a project in `projects/`, and the area's Projects section links it. The two lines under the title work
 exactly as they do for a project.*
 
@@ -20,6 +20,12 @@ exactly as they do for a project.*
 
 One paragraph. What is kept up here, and what is not — the neighbouring work it is often confused
 with, and where that lives instead.
+
+## Desired state
+
+One sentence: what you want to be true here, for as long as the area is kept up — the area's
+counterpart to a project's Desired outcome. It is a direction rather than a finish line, so it is not
+ticked off; the standards below are how it is checked.
 
 ## Standards to keep
 
@@ -32,7 +38,7 @@ the print log", not "keep good records". The board and the check-in read the are
 
 ## Current state
 
-- **State:** <active · dormant · retired>
+- **State:** <active · dormant · archived>
 - **Check-in:** <every 2 weeks — last YYYY-MM-DD>
 - **Updated:** <YYYY-MM-DD>
 
@@ -40,7 +46,8 @@ the print log", not "keep good records". The board and the check-in read the are
 
 The tracking block, with the same labels a project uses so the same readers find it. `State:` is one
 of three: **active** (kept up now, checked on its cadence), **dormant** (seasonal or set aside on
-purpose, and not flagged as stale) and **retired** (no longer kept up). `Check-in:` is the area's own
+purpose, and not flagged as stale; `/ongoing:pause`) and **archived** (no longer relevant, kept for the
+record; `/ongoing:drop`). `/ongoing:review` is the check-in against the standards. `Check-in:` is the area's own
 cadence, and the board measures staleness against it, since an area checked quarterly is not stale
 after a week. `Blocked by:` is not used: a standard that cannot be met is written in the dated line.
 

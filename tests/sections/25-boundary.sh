@@ -205,7 +205,7 @@ if mkws "$s25/setup-ws" >/dev/null 2>&1; then
     s25_bad=""
     [[ "$(head -n 1 "$s25/calls.log")" == "plugin marketplace add --scope user $s25/setup-link/kit" ]] \
         || s25_bad+="marketplace add, by the symlink: $(head -n 1 "$s25/calls.log")"$'\n'
-    for s25_p in closeout projects scheduler workspace; do
+    for s25_p in closeout ongoing projects scheduler workspace; do
         grep -qxF "plugin install $s25_p@agentic-workspace --scope user" "$s25/calls.log" || s25_bad+="no user-scope install of $s25_p"$'\n'
     done
     grep -q 'plugins_scope=user' "$s25/setup1.log" || s25_bad+="stage 9 does not report plugins_scope=user"$'\n'
@@ -277,9 +277,9 @@ S25PY
     else
         s25_bad=""
         grep -q '^S25-RC 0$' "$s25/att-user.log" || s25_bad+="exit: $(grep '^S25-RC' "$s25/att-user.log")"$'\n'
-        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 5 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
+        [[ "$(wc -l < "$s25/att-user.calls" | tr -d ' ')" -eq 6 ]] || s25_bad+="claude calls: $(cat "$s25/att-user.calls")"$'\n'
         grep -qF "2. Start a new one there:  cd $(printf '%q' "$s25/setup-link") && claude" "$s25/att-user.7" || s25_bad+="step 2 does not name the folder by the symlink"$'\n'
-        grep -qF "4. Type / and check that /closeout, /projects:new, /scheduler:tasks and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
+        grep -qF "4. Type / and check that /closeout, /ongoing:review, /projects:new, /scheduler:tasks and /workspace:hygiene are listed." "$s25/att-user.7" || s25_bad+="no step 4 to look for the commands"$'\n'
         grep -qF "start one more new one there" "$s25/att-user.7" || s25_bad+="no second-session step"$'\n'
         grep -qF "  claude plugin list" "$s25/att-user.7" || s25_bad+="the fallback does not name claude plugin list"$'\n'
         ! grep -qiF "offer" "$s25/att-user.7" || s25_bad+="names an install offer: $(grep -iF offer "$s25/att-user.7")"$'\n'
@@ -330,11 +330,11 @@ if cc_gate "25 the same plugins enabled for the person and by the workspace load
         s25_want="$(cat "$KIT"/plugins/*/hooks/hooks.json | jq -s '[.[].hooks.SessionStart[]? | select((.matcher // "") | test("startup")) | .hooks[]] | length')"
         s25_bad=""
         for s25_f in "$s25_lw/.claude/settings.json" "$s25_ccc/settings.json"; do
-            [[ "$(jq -c '[.enabledPlugins // {} | to_entries[] | select(.key | endswith("@agentic-workspace")) | select(.value)] | length' "$s25_f")" == 4 ]] \
-                || s25_bad+="${s25_f##*/} in $(basename "$(dirname "$s25_f")") does not enable all four"$'\n'
+            [[ "$(jq -c '[.enabledPlugins // {} | to_entries[] | select(.key | endswith("@agentic-workspace")) | select(.value)] | length' "$s25_f")" == 5 ]] \
+                || s25_bad+="${s25_f##*/} in $(basename "$(dirname "$s25_f")") does not enable all five"$'\n'
         done
         s25_names="$(jq -r 'select(.subtype == "init") | .plugins[] | select(.path != "builtin") | .name' "$s25/live-2.jsonl" | sort | paste -sd, -)"
-        [[ "$s25_names" == closeout,projects,scheduler,workspace ]] || s25_bad+="the second session loads: ${s25_names:-nothing}"$'\n'
+        [[ "$s25_names" == closeout,ongoing,projects,scheduler,workspace ]] || s25_bad+="the second session loads: ${s25_names:-nothing}"$'\n'
         s25_got="$(jq -c 'select(.subtype == "hook_started" and .hook_event == "SessionStart")' "$s25/live-2.jsonl" | wc -l | tr -d ' ')"
         [[ "$s25_got" == "$s25_want" ]] || s25_bad+="$s25_got SessionStart hooks started, against $s25_want in the kit's hooks.json files"$'\n'
         empty "25 the same plugins enabled for the person and by the workspace load once, each SessionStart hook run once" "$s25_bad"

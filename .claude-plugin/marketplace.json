@@ -1,6 +1,6 @@
 {
   "name": "agentic-workspace",
-  "description": "The workspace context kit's plugins: closeout, the end-of-session promotion ritual; projects, the life of a project from its start to its close; workspace, the first-time setup and the upkeep that follows; and scheduler, Claude Code tasks on a schedule on the person's own machine.",
+  "description": "The workspace context kit's plugins: closeout, the end-of-session promotion ritual; projects, the life of a project from its start to its close; ongoing, the areas kept up rather than finished; workspace, the first-time setup and the upkeep that follows; and scheduler, Claude Code tasks on a schedule on the person's own machine.",
   "owner": {
     "name": "Robert Peake",
     "url": "https://github.com/cyberscribe"
@@ -10,6 +10,13 @@
       "name": "closeout",
       "description": "A safety net for the end-of-session documentation ritual: /closeout promotes learnings live and brings the project's Current state block and Done when list up to date, and if you forget, a SessionEnd hook captures the learnings into a draft the next session offers to promote.",
       "source": "./plugins/closeout",
+      "category": "productivity",
+      "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
+    },
+    {
+      "name": "ongoing",
+      "description": "Ongoing areas — work with no finish line, kept up rather than finished — kept in the area's README: /ongoing:new interviews for the desired state, the standards to keep, people, cadence and versioning; /ongoing:review checks the area against its standards and turns a slipped standard with a fix into a project; /ongoing:adopt gives an existing folder or long-running project the area's shape; /ongoing:pause sets an area dormant and /ongoing:drop archives one that is no longer relevant.",
+      "source": "./plugins/ongoing",
       "category": "productivity",
       "homepage": "https://github.com/cyberscribe/agentic-workspace-kit"
     },
