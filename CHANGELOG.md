@@ -127,6 +127,8 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   check the seventeen commands, the template's shape and each instruction.
 - **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
   the hook stays silent, and the metrics count no areas.
+- `hooks/lib/boundary.sh` says it is carried by each plugin that has hooks; the `ongoing` plugin has
+  none, and section 25 checks that a plugin without hooks carries no copy.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

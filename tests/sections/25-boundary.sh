@@ -19,11 +19,19 @@ s25_real() { (cd "$1" && pwd -P); }
 
 # --- The helper -------------------------------------------------------------------------------------
 s25_bad=""
-for s25_p in closeout projects scheduler; do
-    cmp -s "$KIT/plugins/workspace/hooks/lib/boundary.sh" "$KIT/plugins/$s25_p/hooks/lib/boundary.sh" \
-        || s25_bad+="plugins/$s25_p/hooks/lib/boundary.sh differs from the workspace plugin's"$'\n'
+# Every plugin with hooks carries the same copy; a plugin with none (ongoing) carries no copy to drift.
+for s25_d in "$KIT"/plugins/*/; do
+    s25_p="$(basename "$s25_d")"
+    if [[ -f "$s25_d/hooks/hooks.json" ]]; then
+        cmp -s "$KIT/plugins/workspace/hooks/lib/boundary.sh" "$s25_d/hooks/lib/boundary.sh" \
+            || s25_bad+="plugins/$s25_p/hooks/lib/boundary.sh differs from the workspace plugin's"$'\n'
+    elif [[ -e "$s25_d/hooks/lib/boundary.sh" ]]; then
+        s25_bad+="plugins/$s25_p has no hooks but carries hooks/lib/boundary.sh"$'\n'
+    fi
 done
-empty "25 each plugin carries the same hooks/lib/boundary.sh" "$s25_bad"
+grep -qF 'Each plugin that has hooks carries a byte-identical copy' "$KIT/plugins/workspace/hooks/lib/boundary.sh" \
+    || s25_bad+="boundary.sh does not say the copies are in the plugins that have hooks"$'\n'
+empty "25 each plugin with hooks carries the same hooks/lib/boundary.sh, and one without carries none" "$s25_bad"
 
 # Fixtures: a workspace marked by its kit, one marked by the ledger alone, a symlink to the first, and a
 # folder with neither (a git repository with the projects conventions, which the hooks once accepted).

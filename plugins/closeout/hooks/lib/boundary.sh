@@ -7,8 +7,9 @@
 # kit, as the workspace's submodule) or .claude/kit-templates.lock (the ledger setup writes). The folder
 # is resolved with pwd -P first, so a workspace entered through a symlink counts.
 #
-# Each plugin carries a byte-identical copy at hooks/lib/boundary.sh, because an installed plugin can
-# reach only its own folder. tests/sections/25-boundary.sh checks that the copies match.
+# Each plugin that has hooks carries a byte-identical copy at hooks/lib/boundary.sh, because an
+# installed plugin can reach only its own folder; a plugin with no hooks (ongoing) needs none.
+# tests/sections/25-boundary.sh checks that the copies match.
 #
 # Written for bash 3.2, with no jq: the guard and the pair hooks run without it.
 
