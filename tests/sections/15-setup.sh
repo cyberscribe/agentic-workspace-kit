@@ -689,6 +689,42 @@ else
     skp "15 update at a terminal: the CHANGELOG diff is not paged — needs ${s15_why:-the update fixture above}"
 fi
 
+# update at a terminal, on a workspace whose glossary holds its terms (from before the vocabulary split):
+# the move to memory/terms.md is offered, a no leaves the file as it is, and a yes moves it and adds the
+# plain-words glossary.
+if [[ ${s15_engine:-0} -eq 1 ]]; then
+    s15_vt=""
+    for s15_ans in n y; do
+        s15_vw="$SCRATCH/s15-vocab-$s15_ans"
+        cp -R "$s15_u" "$s15_vw"
+        printf '# Glossary\n\n| Term | Meaning |\n|---|---|\n| QBR | quarterly business review |\n' > "$s15_vw/memory/glossary.md"
+        rm -f "$s15_vw/memory/terms.md"
+        s15_oh="$(git hash-object --no-filters --stdin < "$s15_vw/kit/templates/workspace/glossary.md")"
+        awk -F '\t' -v h="$s15_oh" 'BEGIN { OFS = "\t" } $1 == "memory/terms.md" { next } $1 == "memory/glossary.md" { $2 = "templates/workspace/glossary.md"; $4 = h } { print }' \
+            "$s15_vw/.claude/kit-templates.lock" > "$SCRATCH/s15-vocab.lock" && cat "$SCRATCH/s15-vocab.lock" > "$s15_vw/.claude/kit-templates.lock"
+        s15_rec="$(git -C "$s15_vw/kit" rev-parse HEAD)"
+        (cd "$SCRATCH" && env -u AW_WIZARD_NONINTERACTIVE GIT_PAGER=cat python3 "$SCRATCH/s15-pty.py" "$s15_vw.log" \
+            "Move memory/glossary\\.md to memory/terms\\.md\\? \\(y/n\\) \\[n\\]: \$=>$s15_ans" \
+            '\(y/n\) \[[yn]\]: $=>' 'Press Enter[^\n]*$=>' -- \
+            "$st_bash" "$s15_vw/kit/lib/setup/update.sh" --target "$s15_vw" --after-advance --old "$s15_rec" >/dev/null 2>&1); s15_rc=$?
+        [[ $s15_rc -eq 77 ]] && { s15_vt=skip; break; }
+        grep -qF "memory/glossary.md holds this workspace's terms." "$s15_vw.log" || s15_vt+="$s15_ans: the move is not offered"$'\n'
+        if [[ $s15_ans == n ]]; then
+            grep -q 'QBR' "$s15_vw/memory/glossary.md" && [[ ! -e "$s15_vw/memory/terms.md" ]] || s15_vt+="n: the files changed"$'\n'
+        else
+            grep -q 'QBR' "$s15_vw/memory/terms.md" 2>/dev/null && grep -q 'Plain words' "$s15_vw/memory/glossary.md" 2>/dev/null \
+                || s15_vt+="y: not moved, or no plain-words glossary: $(tail -n 20 "$s15_vw.log")"$'\n'
+        fi
+    done
+    if [[ "$s15_vt" == skip ]]; then
+        skp "15 update at a terminal: the vocabulary move is offered — no pseudo-terminal can be opened here"
+    else
+        empty "15 update at a terminal: a glossary holding the terms is offered the move to memory/terms.md; no leaves it, yes moves it and adds the plain-words glossary" "$s15_vt"
+    fi
+else
+    skp "15 update at a terminal: the vocabulary move is offered — needs ${s15_why:-the update fixture above}"
+fi
+
 # --- --developer ------------------------------------------------------------------------------------
 if s15_need kitsrc; then
     # s15_devws <dir> <main commit or -> <HEAD: commit or branch:name>: a workspace whose kit/ is a clone
@@ -863,7 +899,7 @@ if s15_need kitsrc engine; then
     s15_bad=""
     [[ $s15_rc -eq 0 ]] || s15_bad+="status $s15_rc: $(tail -n 4 "$s15_t.log")"$'\n'
     s15_list="$(git -C "$s15_t" ls-files | LC_ALL=C sort | paste -sd' ' -)"
-    s15_want=".claude/closeout.md .claude/projects.md .claude/settings.json .github/CODEOWNERS .github/pull_request_template.md .github/workflows/stay-private.yml .gitignore .gitmodules AGENTS.md CLAUDE.md README.md audits/README.md docs/.gitkeep docs/workspace-map.md kit logs/.gitkeep logs/decisions.md memory/.gitkeep memory/glossary.md memory/people/README.md projects/.gitkeep projects/INDEX.md skills/.gitkeep"
+    s15_want=".claude/closeout.md .claude/projects.md .claude/settings.json .github/CODEOWNERS .github/pull_request_template.md .github/workflows/stay-private.yml .gitignore .gitmodules AGENTS.md CLAUDE.md README.md audits/README.md docs/.gitkeep docs/workspace-map.md kit logs/.gitkeep logs/decisions.md memory/.gitkeep memory/glossary.md memory/people/README.md memory/terms.md projects/.gitkeep projects/INDEX.md skills/.gitkeep"
     [[ "$s15_list" == "$s15_want" ]] || s15_bad+="file list: $s15_list"$'\n'
     [[ "$(git -C "$s15_t" rev-list --count HEAD 2>/dev/null)" == 1 ]] || s15_bad+="not exactly one commit"$'\n'
     [[ "$(git -C "$s15_t" log -1 --format='%an <%ae>|%cn <%ce>' 2>/dev/null)" == "agentic workspace kit <kit@invalid>|agentic workspace kit <kit@invalid>" ]] \

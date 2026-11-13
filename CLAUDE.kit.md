@@ -44,6 +44,9 @@ Full rule and translation table: `kit/docs/documentation-register.md`.
 - Layout, the canonical-fact table and where new files go: `docs/workspace-map.md`, the workspace's.
 - Which store a durable fact belongs in: `kit/docs/memory-layers.md`.
 - Which surfaces read what: the surface table in §4 of the workspace's `CLAUDE.md`.
+- The shared vocabulary: `memory/terms.md` (the team's own terms) and `memory/glossary.md` (plain words
+  for AI-speak), and each project's and area's own `terms.md`, `glossary.md` and `decisions.md`. Say
+  things to the person in the glossary's plain words.
 
 Drift between surfaces is the failure mode to avoid. When adding a fact, add it once to the canonical
 location and point at it from the always-loaded file.

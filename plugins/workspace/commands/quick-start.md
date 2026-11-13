@@ -52,7 +52,7 @@ names what it reads, so the same keys come from reading those files yourself.
 | `person`, `person_profile`, `person_profile_candidates` | The person in front of you, from `git config user.name`, to confirm rather than assume; whether their profile is in `people_dir`; and profiles that may be theirs under another name |
 | `authors`, `author_names`, `readme`, `codeowners` | What the repository already says about the team: offer it as suggested answers, so people confirm rather than compose. One author is the cue for a Default owner line |
 | `conventions_not_set`, `in_flight_limit`, `staleness`, `default_owner` | The settings in `.claude/projects.md`. Each one still reading "not set yet" is a question for the team part |
-| `register_rows`, `glossary_terms`, `build_list`, `verification`, `catalogue` | What an earlier run already answered: offer only the questions still open |
+| `register_rows`, `glossary_terms`, `terms_rows`, `build_list`, `verification`, `catalogue` | What an earlier run already answered: offer only the questions still open |
 | `signs` | What says a system was here first, by key. The files the kit created, as created or as filled in, are never signs |
 | `legacy` | Traces of a 2.x install. They are the migration's, not this interview's: `kit/setup.sh migrate --dry-run` shows what moves, and the person runs it |
 | `kit_import`, `hooks`, `origin_visibility` | Whether the workspace is wired: the kit's standards imported, the git hooks active, the origin confirmed private. Anything else is `kit/setup.sh`'s to set: name the command, and leave running it to the person |
@@ -109,8 +109,10 @@ file with a one-line pointer.
 The rest of the team part lives in its own files rather than in `CLAUDE.md`, so
 none of it costs the always-loaded budget.
 
-7. *Optional* — **Five glossary terms** a newcomer or an agent would stumble on,
-   into `memory/glossary.md`.
+7. *Optional* — **Five terms** a newcomer or an agent would stumble on (the
+   team's acronyms, internal names, words used in a sense of its own), into
+   `memory/terms.md`, or into `memory/glossary.md` where `terms=missing` and the
+   glossary still holds the team's terms from before the kit split the two.
 8. *Optional* — **How projects run here**, into `.claude/projects.md`: the
    default **in-flight limit** (how many projects one person has in the `doing`
    state at once — 200, if the team has no view yet) and the **staleness**

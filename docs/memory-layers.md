@@ -16,11 +16,17 @@ surface, this user).
 
 Most placement mistakes are one of these two answered wrongly, and the expensive one is tier.
 
-**The test every promotion passes first.** Keep only what the next session could not find for itself.
-The code, the files and their history are already there to be read; a note earns a place when it
-records what they do not show: a decision and the reason for it, a trap that cost an afternoon, a fact
-that lives in someone's head. Whatever the next session would find by reading is left out, at every
-tier. Tier and scope are asked only of what passes.
+**What the stores are for.** Two things, and a store earns its place by one or both:
+
+1. **Common ground between the person and the AI:** where each kind of information lives, the words
+   both use, the working standards and the person's preferences.
+2. **Context the AI cannot find anywhere else.**
+
+**The test every promotion passes first: is it otherwise discoverable?** Could a future session find it
+by itself, in the code, the files, the docs, `git log` or a tool's own help? If so, it is not promoted;
+say where it is already found, and move on. A note earns a place when it records what none of those
+show: a decision and the reason for it, a correction the person made, a trap that cost an afternoon, a
+fact that lives in someone's head. Tier and scope are asked only of what passes.
 
 **Tracking is not context.** Task lists, project status and who is doing what this week get
 reconciled, not promoted. Conflating the two is how an end-of-session knowledge pass turns into a
@@ -54,7 +60,7 @@ content-first one absorbs the new tool as another column.
 | Type | Shared — committed, reaches the team | Individual — one person, one machine |
 |---|---|---|
 | Working standards | `CLAUDE.md`, whose first line imports `kit/CLAUDE.kit.md` (the kit's standards, updated with the kit); `AGENTS.md` routes other tools to the same two files | `~/.claude/CLAUDE.md`, and each other surface's own file |
-| General reference | `docs/` (including `docs/workspace-map.md`, and `docs/catalogue.md` and `docs/verification.md` once the team keeps them), `memory/glossary.md`, `memory/people/`, `memory/context/`; the kit's own reference in `kit/docs/` | Claude Code auto-memory under `~/.claude/projects/`, holding a **pointer** at most |
+| General reference | `docs/` (including `docs/workspace-map.md`, and `docs/catalogue.md` and `docs/verification.md` once the team keeps them), `memory/terms.md` and `memory/glossary.md` (with each project's and area's own), `memory/people/`, `memory/context/`; the kit's own reference in `kit/docs/` | Claude Code auto-memory under `~/.claude/projects/`, holding a **pointer** at most |
 | Project reference | `projects/<slug>/` — canonical, whether the workspace tracks it, it is its own repository, or it stays untracked (its README's `Versioned:` line) — and the project's own `decisions.md`; material outside the repository is named under the README's `## Resources` | Per-surface memory, holding a **pointer** to the project folder; `.claude/resources.local.md`, which maps resource names to this machine's paths |
 | Templates | `kit/templates/` and `kit/rituals/` (the kit's), `skills/` (the team's own), `.claude/agents/`, `.claude/commands/` (and `.gemini/commands/` where Gemini CLI is set up) | `~/.claude/agents/`, `~/.claude/commands/`, and `.claude/skills/`, the skills bridge written on each machine for Cowork |
 | *Tracking (other axis)* | Each project README's **Current state** block, `projects/INDEX.md`, `pilot/build-list.md` | None; the kit keeps tracking shared |
@@ -103,9 +109,9 @@ standing cost.
 
 Put a number on it and report it weekly. Growth becomes arguable once it is visible.
 
-**An ablation is the test of a tier.** Run the task a line was promoted for with the line and without
+**A leave-out test is the test of a tier.** Run the task a line was promoted for with the line and without
 it: if the result is the same, the line is not earning its place at that load rate. A line in the
-always-loaded tier is expected to have an ablation that discriminates; one that shows no difference in
+always-loaded tier is expected to have a leave-out test that discriminates; one that shows no difference in
 three consecutive weeks is a demotion candidate, and the person who holds the budget decides. At
 promotion the question is offered rather than required — what task would go worse without it? — and a
 line nobody can answer that for usually belongs in a cheaper tier. The runner and its limits are in the
@@ -134,7 +140,7 @@ filter the decisions log applies: strip out the specifics and see whether anythi
 always-loaded tier filling with plausible material nobody chose.
 
 **Demotion is real and mostly unattended.** Stores go stale as the world moves. A stale `ALWAYS`
-entry is the expensive case, because it primes every session regardless. An ablation that stops
+entry is the expensive case, because it primes every session regardless. A leave-out test that stops
 discriminating is how that gets noticed (§5).
 
 Five house rules that travel:

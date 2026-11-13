@@ -137,6 +137,13 @@ do not count against the in-flight limit.
   create it with a one-paragraph header saying what an area is and its three sections.
   For a sensitive area the line stays neutral.
 - **The versioning steps**, each on its own yes.
+- **The three vocabulary files**, beside the README: `decisions.md` from
+  `kit/templates/project-decisions.md`, `glossary.md` from `kit/templates/glossary.md`
+  and `terms.md` from `kit/templates/terms.md` (or the repository's own templates
+  of those names where it keeps them). Fill in what the interview settled: a
+  decision the kickoff made, a term of the area's own the person used. Each
+  is otherwise left as its template has it, ready for the first entry. For a
+  sensitive area they stay with it, untracked or in its own repository.
 - **Nothing else by default.** New person profiles only with the user's yes.
 
 Show the README before writing it, and write it only once the user is content. End in

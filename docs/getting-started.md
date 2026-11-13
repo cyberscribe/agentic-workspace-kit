@@ -376,7 +376,7 @@ For a pilot, setup's `--pilot` adds `pilot/build-list.md`. Two scripts in the ki
 - `bash kit/pilot/measure.sh` counts, weekly, from the repository and its history: projects by state
   and how long they take, decisions logged, audit reports, the always-loaded size, and whether agent
   sessions read the reference material. Counts only, so safe to share outside the team.
-- The ablation runner tests whether one line of context changes what an agent does on the task it was
+- The leave-out test runner checks whether one line of context changes what an agent does on the task it was
   written for, by running that task with the line and without it. `kit/pilot/README.md` describes it.
 
 ---

@@ -58,6 +58,7 @@ docs/workspace-map.md
 logs/decisions.md
 memory/glossary.md
 memory/people/README.md
+memory/terms.md
 projects/INDEX.md"
 s14_set="$(printf '%s\n' "$s14_set" | LC_ALL=C sort)"
 
@@ -274,7 +275,7 @@ s14_T="$s14_root/template-change"
 s14_ws "$s14_T" "$s14_KR"
 s14_run "$s14_T" >/dev/null 2>&1
 printf '\nOne more house rule, added upstream.\n' >> "$s14_KR/templates/workspace/closeout.md"
-printf '| Example | An entry the template now carries |\n' >> "$s14_KR/templates/workspace/glossary.md"
+printf '| Example | An entry the template now carries | |\n' >> "$s14_KR/templates/glossary.md"
 git -C "$s14_KR" -c commit.gpgsign=false commit -qam "A template change" 2>/dev/null
 git -C "$s14_T/kit" fetch -q origin 2>/dev/null && git -C "$s14_T/kit" checkout -q --detach origin/main 2>/dev/null
 s14_newkit="$(git -C "$s14_T/kit" rev-parse HEAD)"
@@ -359,6 +360,40 @@ if [[ ! -e "$s14_R/CLAUDE.md" && ! -e "$s14_R/.gitignore" && "$(s14_status "$s14
     && grep -qF 'CLAUDE.md is recorded in .claude/kit-templates.lock but is not here' <<<"$s14_out"; then
     ok "14 a recorded file that is gone is not recreated (removed), and a template the kit no longer has reads dropped"
 else ko "14 a recorded file that is gone is not recreated (removed), and a template the kit no longer has reads dropped" "$s14_out"; fi
+
+# ---- The vocabulary split: a glossary from before it is the workspace's terms file ----------------------
+# A workspace made before the split has memory/glossary.md from templates/workspace/glossary.md, holding
+# its terms. The engine leaves it alone, creates no memory/terms.md beside it, and says so in the ledger;
+# once the person moves it to memory/terms.md, the next run adds the plain-words glossary.
+s14_V="$s14_root/vocab-legacy"
+s14_ws "$s14_V" && s14_run "$s14_V" >/dev/null 2>&1
+s14_bad=""
+grep -q 'Plain words' "$s14_V/memory/glossary.md" || s14_bad+="a new workspace's glossary has no Plain words column"$'\n'
+grep -q '| Term | Meaning |' "$s14_V/memory/terms.md" 2>/dev/null || s14_bad+="a new workspace has no memory/terms.md"$'\n'
+printf '# Glossary\n\nThe team'"'"'s vocabulary, acronyms and internal names. One line each.\n\n| Term | Meaning |\n|---|---|\n| QBR | quarterly business review |\n' > "$s14_V/memory/glossary.md"
+rm -f "$s14_V/memory/terms.md"
+s14_oh="$(git hash-object --no-filters --stdin < "$KIT/templates/workspace/glossary.md")"
+awk -F '\t' -v h="$s14_oh" 'BEGIN { OFS = "\t" } $1 == "memory/terms.md" { next } $1 == "memory/glossary.md" { $2 = "templates/workspace/glossary.md"; $4 = h } { print }' \
+    "$s14_V/.claude/kit-templates.lock" > "$s14_root/vocab.lock" && cat "$s14_root/vocab.lock" > "$s14_V/.claude/kit-templates.lock"
+cp "$s14_V/memory/glossary.md" "$s14_root/vocab-before.md"
+s14_out="$(s14_run "$s14_V" 2>&1)"
+cmp -s "$s14_V/memory/glossary.md" "$s14_root/vocab-before.md" || s14_bad+="the old glossary was changed"$'\n'
+[[ ! -e "$s14_V/memory/terms.md" ]] || s14_bad+="memory/terms.md was created beside the old glossary"$'\n'
+grep -q $'^!vocabulary\tmemory/glossary.md\t' "$s14_V/.claude/kit-templates.lock" || s14_bad+="the ledger does not say the glossary holds the terms"$'\n'
+grep -qF "memory/glossary.md holds this workspace's terms" <<<"$s14_out" || s14_bad+="the run does not say so: $s14_out"$'\n'
+[[ "$(s14_status "$s14_V" memory/glossary.md)" == current ]] || s14_bad+="the old glossary is offered a change: $(s14_status "$s14_V" memory/glossary.md)"$'\n'
+s14_out="$(s14_run "$s14_V" 2>&1)"
+cmp -s "$s14_V/memory/glossary.md" "$s14_root/vocab-before.md" || s14_bad+="a second run changed the old glossary"$'\n'
+empty "14 vocabulary split: a glossary from before it is left alone as the terms file, with no terms.md beside it, and the ledger says so" "$s14_bad"
+s14_bad=""
+mv "$s14_V/memory/glossary.md" "$s14_V/memory/terms.md"
+s14_out="$(s14_run "$s14_V" 2>&1)"
+cmp -s "$s14_V/memory/terms.md" "$s14_root/vocab-before.md" || s14_bad+="the moved terms file was changed"$'\n'
+grep -q 'Plain words' "$s14_V/memory/glossary.md" 2>/dev/null || s14_bad+="no plain-words glossary after the move"$'\n'
+grep -q '^!vocabulary' "$s14_V/.claude/kit-templates.lock" && s14_bad+="the !vocabulary line is still in the ledger"$'\n'
+[[ "$(s14_field "$s14_V" memory/glossary.md 2)" == templates/glossary.md ]] || s14_bad+="the glossary's ledger line is not the new template's"$'\n'
+[[ "$(s14_field "$s14_V" memory/terms.md 5)" == kept ]] || s14_bad+="memory/terms.md is not recorded as kept: $(s14_field "$s14_V" memory/terms.md 5)"$'\n'
+empty "14 vocabulary split: after the move to memory/terms.md, the next run adds the plain-words glossary and keeps the terms" "$s14_bad"
 
 # ---- .gitignore in its three modes ------------------------------------------------------------------
 s14_tpl_lines="$(grep -vE '^(#|[[:space:]]*$)' "$KIT/templates/workspace.gitignore")"

@@ -252,6 +252,12 @@ once, ahead of the person who will confirm them.
 - The project register is left as it is. If the project has no row in it, say so
   in the summary and offer to add one (interactive mode only).
 
+**The vocabulary files.** Where the project has no `decisions.md`, `glossary.md` or
+`terms.md`, offer the missing ones from `kit/templates/` (`project-decisions.md`,
+`glossary.md`, `terms.md`), in one question, after the insertions. A file that does
+the same job under another name (a `DECISIONS.md`, a glossary of the project's own
+terms) is left where it is: say which file serves, and do not add a second.
+
 ## Close
 
 Summarise per project in a line or two: what was added, what was left alone,

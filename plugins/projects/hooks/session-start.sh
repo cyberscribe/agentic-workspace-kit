@@ -27,7 +27,7 @@
 #
 # Environment:
 #   PROJECTS_HOOK_DISABLED=1     turn the hook off
-#   AW_HEADLESS_RUN=1            a headless run (an ablation arm): say nothing and record nothing
+#   AW_HEADLESS_RUN=1            a headless run (a leave-out test arm): say nothing and record nothing
 #   PROJECTS_HOOK_STATE_DIR      where the once-a-day and resource stamps live
 #                                (default ~/.claude/projects-hook; outside any repo)
 #   PROJECTS_HOOK_TODAY          YYYY-MM-DD to use as today (for tests)

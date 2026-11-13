@@ -407,15 +407,15 @@ areas_row() {
         END { printf "%d,%d,%d,%d,%d,%d,%d", active, dormant, archived, due, unreviewed, met, tot }'
 }
 
-# --- Ablations ------------------------------------------------------------------------------------
-# ablations_named is the number of ablation files in pilot/ablations/; of those, the other two count
-# the ablations whose latest result on or before the row's day is `discriminates`, or `no difference
+# --- Leave-out tests ------------------------------------------------------------------------------------
+# ablations_named is the number of leave-out test files in pilot/ablations/; of those, the other two count
+# the leave-out tests whose latest result on or before the row's day is `discriminates`, or `no difference
 # (both pass)`. The result comes from ablate.sh --outcomes, the rule its report flags with, so these
 # counts and the report agree; `leans with, rerun at k=5`, `check fails both arms`, `inconclusive` and
 # the comparator-only results count in neither.
 # Past rows read the files and pilot/ablation-results.csv as committed at that revision, so backfill
 # works. Today's row reads them from the working tree: the runner writes results that are committed
-# with the row, and the weekly pass measures again after it runs the ablations.
+# with the row, and the weekly pass measures again after it runs the leave-out tests.
 # The runner is the kit's: beside this script in a kit checkout, else in the workspace's kit/, else
 # (a 2.x install) in the checkout the installer recorded when it vendored the plugins here.
 # pilot_script <name>: that script of the kit's by the same search, or nothing.
@@ -559,7 +559,7 @@ always_walk() {
 always_bytes() { always_walk "$1" | awk -F'\t' '{ n += $1 } END { print n + 0 }'; }
 
 # --- Agent reads ----------------------------------------------------------------------------------
-# The seven agent-read columns are counted by reads.sh, the kit's, found as the ablation runner is.
+# The seven agent-read columns are counted by reads.sh, the kit's, found as the leave-out test runner is.
 # It reads Claude Code's transcripts once for every date asked of it, so the dates are handed over
 # together before the rows are written. Without reads.sh, without jq, or with no transcripts on this
 # machine, the columns are left empty rather than guessed.

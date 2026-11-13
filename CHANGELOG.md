@@ -209,6 +209,29 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   repository the worktree shares with `kit/` back to the workspace, and the hooks and
   `scripts/build-template.sh` use it. Section 13 commits a listed word from such a worktree and sees it
   refused.
+- **What the kit is for.** The README says it plainly, after the welcome: common ground between the
+  person and the assistant (where information lives, the words both use, the working standards and the
+  person's preferences), and what the assistant cannot find for itself. `docs/memory-layers.md` §1 takes
+  the two as its yardstick, and its one test for every promotion is now "is it otherwise discoverable?"
+  (in the code, the files, the docs, `git log` or a tool's own help). `docs/principles.md` sets out
+  thirteen principles of working with and handing work to an AI, each naming the file that carries it
+  out. `docs/purpose-audit.md` reads every plugin, command, hook, template and script against the two
+  purposes and proposes, without removing anything, what serves neither: the scheduler published as a
+  plugin of its own, `/projects:board` folded into `/projects:pickup`, the 2.x migration and most pilot
+  measures retired.
+- **Three vocabulary files.** `templates/glossary.md` (plain words for the terms AI models fall into,
+  plain words first), `templates/terms.md` (the work's own terms) and `templates/project-decisions.md`,
+  each opening with what it is for. A new workspace gets `memory/terms.md` and `memory/glossary.md`
+  beside `logs/decisions.md`; `/projects:new` and `/ongoing:new` put all three in the new folder, and
+  both adopt commands offer the missing ones without adding a second file that does the same job. In a
+  workspace made before this, `memory/glossary.md` holds the team's terms: the engine leaves it alone,
+  creates no `memory/terms.md` beside it, and records that with a `!vocabulary` line in the ledger;
+  `kit/setup.sh update` offers the move to `memory/terms.md`, at a terminal and on a yes, after which
+  the plain-words glossary is added. `CLAUDE.kit.md` names where the vocabulary lives,
+  `/workspace:register-audit` flags a glossary term in prose a person reads with its plain words as the
+  fix, and the kit's own `docs/glossary.md` starts with eight terms seen in its prose. "Ablation" in the
+  kit's prose is now "leave-out test"; paths, CSV columns, variables and the `ablate:` key keep their
+  names. Sections 12, 14, 15 and 21 cover it, the move at a pseudo-terminal with a no and a yes.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

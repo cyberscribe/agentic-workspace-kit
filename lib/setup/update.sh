@@ -273,6 +273,38 @@ $status_out
 EOF
     rm -f "$diff_file"
 
+    # The vocabulary split (install.sh says what it is): a glossary that still holds the workspace's terms
+    # is offered the move to memory/terms.md. Only at a terminal, and only on a yes: --yes takes template
+    # changes, and this is a move of the person's own file. A no leaves it, and it is offered again.
+    gl="$WS/memory/glossary.md"
+    if [[ -f "$gl" && ! -e "$WS/memory/terms.md" ]] && ! grep -q 'Plain words' "$gl"; then
+        listed=$((listed + 1))
+        bold "memory/glossary.md holds this workspace's terms."; echo
+        say "  The kit now keeps a workspace's own terms in memory/terms.md, and uses memory/glossary.md for the"
+        say "  plain words beside the terms AI models fall into. Moving the file keeps every term, and the new"
+        say "  glossary starts empty. Files that name memory/glossary.md are yours to update afterwards:"
+        say "  grep -rn 'memory/glossary.md' --include='*.md' . lists them."
+        if ! attended; then
+            step "left as it is; kit/setup.sh update, run at a terminal, offers the move"
+        elif confirm "Move memory/glossary.md to memory/terms.md?" n; then
+            moved=0
+            if "${WG[@]}" ls-files --error-unmatch memory/glossary.md >/dev/null 2>&1; then
+                "${WG[@]}" mv memory/glossary.md memory/terms.md && moved=1
+            else
+                mv "$gl" "$WS/memory/terms.md" && moved=1
+            fi
+            if [[ $moved -eq 1 ]]; then
+                ACCEPTED+=(memory/glossary.md memory/terms.md)
+                APPLIED+=("memory/glossary.md -> memory/terms.md")
+                check "moved; the plain-words glossary is created below" true
+            else
+                warn "the move did not happen; memory/glossary.md is as it was"
+            fi
+        else
+            note "left as it is: memory/glossary.md stays the terms file, and the move is offered again next time"
+        fi
+    fi
+
     # .gitignore: the template's lines the file does not have yet, as one diff (the engine exits 3 when
     # none is missing).
     if [[ -f "$WS/.gitignore" ]]; then

@@ -91,9 +91,9 @@ kept ([Agent reads](#agent-reads), below). `metrics.csv` contains counts only.
 | `areas_due_checkin` | Active areas whose last check-in (the `Check-in:` line's `last` date, else `Updated:`) is as old as their own cadence or older | Whether the check-ins keep pace. A dormant or archived area is never due. |
 | `areas_not_reviewed` | Active areas with no `Standards met:` line yet | Areas never checked against their standards; they are left out of the two columns below rather than counted as none met. |
 | `area_standards_met`, `area_standards_reviewed` | Summed over active areas, the standards met and the standards reviewed, from each `Standards met: n of m` line `/ongoing:review` writes | How well the areas are kept, as of each one's last review. |
-| `ablations_named` | Ablation files in `pilot/ablations/` | How much of the context the team keeps has a test at all. The denominator for the two columns below it. |
-| `ablations_discriminating` | Of those, the ablations whose latest result is `discriminates` | The ablations' headline number, as a share of `ablations_named`: lines shown to change what the agent does on the task written for them. |
-| `ablations_no_difference` | Of those, the ablations whose latest result is `no difference (both pass)` | Lines not pulling their weight at their tier, on that task; three weeks of it makes a demotion candidate. A lean by one run and a check that fails both arms count in neither column. |
+| `ablations_named` | Leave-out test files in `pilot/ablations/` | How much of the context the team keeps has a test at all. The denominator for the two columns below it. |
+| `ablations_discriminating` | Of those, the leave-out tests whose latest result is `discriminates` | The leave-out tests' headline number, as a share of `ablations_named`: lines shown to change what the agent does on the task written for them. |
+| `ablations_no_difference` | Of those, the leave-out tests whose latest result is `no difference (both pass)` | Lines not pulling their weight at their tier, on that task; three weeks of it makes a demotion candidate. A lean by one run and a check that fails both arms count in neither column. |
 | `agent_sessions_7d` | Claude Code sessions started in the workspace in which the agent answered that week; sessions started in `kit/` are kit development and are left out | The denominator for `sessions_reading_reference_7d`. |
 | `reference_reads_7d` | Reads of reference files that week: one per tool call and file | Volume. Read alongside the sessions, never alone: one long session can account for most of it. |
 | `reference_searches_7d` | Searches aimed at a reference folder (`docs/`, `memory/`, `logs/`) that week: a `Grep` or `Glob` call, or a Bash `grep`, `rg`, `find` or `ls` on the folder | Activity at the reference folders. It includes a plain listing (`ls`, `find`), so it does not say the agent looked something up; read it beside the reads, never in place of them. |
@@ -126,7 +126,7 @@ between them as the layout change, not as the team's doing.
 ## Agent reads
 
 The kit's claim is that context written down gets used. `measure.sh` counts what people write, and the
-ablations test single lines on a set task; `reads.sh` counts whether agents, in the team's real
+leave-out tests check single lines on a set task; `reads.sh` counts whether agents, in the team's real
 sessions, go and read the reference material. From the workspace root:
 
 ```bash
@@ -175,7 +175,7 @@ that it looked something up. An edit or a write is not a read, nor is a file a c
 
 **The limits, to state in any readout:**
 
-- A read shows the agent looked, not that it acted on what it read. The ablations cover that half.
+- A read shows the agent looked, not that it acted on what it read. The leave-out tests cover that half.
 - Cowork and claude.ai sessions leave no transcript on the machine, so the count is Claude Code only.
 - It is one person's machine. Each row counts the sessions of whoever ran `measure.sh`; a team's
   figure is each person's `--print` for the same week, added up by hand.
@@ -192,13 +192,13 @@ were never read in the window, go only to `pilot/reads.local.md`, which the work
 keeps out of git (`*.local.*`); `--report` writes nothing where that line is missing. No prompt,
 command or file content leaves a transcript.
 
-## Context ablations
+## Leave-out tests
 
 `ablate.sh` tests whether one line of the always-loaded or reference context changes what the
 agent does on the task it was promoted for. It stays in the kit's own `pilot/` and is not copied into
 a workspace: from the workspace root, `bash kit/pilot/ablate.sh` tests the workspace around that kit
 checkout, and `--target <repository>` names another, so every team runs the one current version. A
-kit checkout is not a target: its files reach a session only through a workspace. The ablations and their results live in the target: each ablation in
+kit checkout is not a target: its files reach a session only through a workspace. The leave-out tests and their results live in the target: each leave-out test in
 `<target>/pilot/ablations/<id>.md` names the line, a realistic prompt and a Check; the runner runs the
 prompt headless in a fresh worktree of HEAD with the line (`with`) and without it (`without`), grades
 each run, and appends a row per run to `<target>/pilot/ablation-results.csv`, with
@@ -206,7 +206,7 @@ each run, and appends a row per run to `<target>/pilot/ablation-results.csv`, wi
 arm it grades) and `AW_ABLATION_STREAM` (the path of the run's captured stream, for reading its tool
 calls) set. `ablate.sh --help` lists the rest. Each run is a headless
 `claude -p` session on the person's own subscription login, with a usage guard per run: the
-ablation's `max_budget_usd`, a cap on the run's API-equivalent cost.
+leave-out test's `max_budget_usd`, a cap on the run's API-equivalent cost.
 
 Three columns need reading with care. `input_tokens` is uncached input plus cache writes: with prompt
 caching on, the always-loaded context lands in the cache-write figure, and that is the load being
@@ -225,18 +225,18 @@ It stops at the first init event that reports any source other than `none`. `AW_
 allows both, for a team that means to pay per token. The `CLAUDE_CODE_OAUTH_TOKEN` path below is a
 subscription login, not API billing.
 
-What an arm loads: repository files come from the worktree, so ablating `CLAUDE.md`, `AGENTS.md` or
+What an arm loads: repository files come from the worktree, so leaving out `CLAUDE.md`, `AGENTS.md` or
 a file under `docs/` is faithful. Plugins resolve through each person's own marketplace registry,
-which points at the kit checkout's working tree, so an ablation of a file inside the kit stops with
+which points at the kit checkout's working tree, so a leave-out test of a file inside the kit stops with
 status `error` rather than run a `without` arm that changes nothing. The user-level file
 (`~/.claude/CLAUDE.md`) is present in the `with` and `without` arms, as in a real session.
 
 Two modes follow from the login. By default each arm uses the person's own Claude Code login, which
-cannot follow a copied config directory, so the user-level file cannot be ablated and `file:
-~user/CLAUDE.md` ablations are listed as not run. With `CLAUDE_CODE_OAUTH_TOKEN` set in the
+cannot follow a copied config directory, so the user-level file cannot be left out and `file:
+~user/CLAUDE.md` leave-out tests are listed as not run. With `CLAUDE_CODE_OAUTH_TOKEN` set in the
 environment (a token from `claude setup-token`), each run gets a temporary config directory holding
 only `settings.json`, `CLAUDE.md`, the plugin list and the marketplace registry, and a temporary
-`HOME`; both are removed on exit. User-level ablations then run against that copy. The plugin list and
+`HOME`; both are removed on exit. User-level leave-out tests then run against that copy. The plugin list and
 registry point into the person's own plugin cache, so plugin files are still read from there; the copy
 turns marketplace auto-update off and each run gets `DISABLE_AUTOUPDATER=1`, so nothing is fetched into
 it. The runner passes the token through the environment to each headless run, never to a Check, and
@@ -253,7 +253,7 @@ the run's temporary config directory and `HOME`.
 and is recorded as `bare`; without it, it is recorded as `bare-repo` and reported as "repository tier
 emptied; user-level tier present".
 
-An ablation with a `## Judge` rubric also gets a blind comparison: run i of `with` and run i of
+A leave-out test with a `## Judge` rubric also gets a blind comparison: run i of `with` and run i of
 `without` go to `claude -p` unlabelled and in random order, with the prompt in `pilot/lib/judge.md`,
 and it answers A, B or tie with one sentence. The unblinded winner goes in the `judge` column of the
 `with` row, and the comparator's own tokens and API-equivalent cost go on a row of arm `judge`. The
@@ -264,7 +264,7 @@ verdicts, under `$TMPDIR`; the worktrees go either way. `--judge-kept DIR` judge
 `--keep` run left in DIR, without running the arms again, and writes each verdict on the row of that
 run's own date; a pair already judged is left alone.
 
-The report has one row per ablation, from that ablation's own latest date, and its flag column reads
+The report has one row per leave-out test, from that leave-out test's own latest date, and its flag column reads
 the whole history. The gap is `with` passes minus `without` passes, in runs, and the first rule that
 applies wins. `stale`: the line no longer matches. `error`: a run failed; for a line inside a plugin
 file the report says why. `without preferred`: the Check failed on most `with` runs and passed on most
@@ -288,7 +288,7 @@ pilot/ablation-report.md` rewrites the report from the CSV, as after a change to
 The weekly hygiene pass offers the run after `measure.sh`, with the number of runs and the
 API-equivalent cost stated first, and the person decides; `measure.sh` then runs again so the week's row counts the new results.
 The three `ablations_` columns come from `ablate.sh --outcomes`, the same rule the report's flags use,
-so the two never disagree. A past row reads the ablation files and results as committed at that
+so the two never disagree. A past row reads the leave-out test files and results as committed at that
 revision, so backfill works; today's row reads them from the working tree, since the results are
 committed with it. Without the runner (no `ablate.sh` beside `measure.sh`, none at `kit/pilot/`, and,
 for a 2.x install, no kit checkout named in `.claude/plugins/VENDORED`), `ablations_named` is still
@@ -306,8 +306,8 @@ caused a change in effectiveness, and a write-up that says so will not survive a
 With agent reads it can say in how many of its Claude Code sessions the agent consulted the reference
 material, and how much of that material was never opened; that is evidence of looking, on one
 machine, not of acting.
-With ablations it can also say, line by line and at a stated n, which lines of its context changed
-what the agent did on the task written for them. An ablation tests what its author thought the line
+With leave-out tests it can also say, line by line and at a stated n, which lines of its context changed
+what the agent did on the task written for them. A leave-out test checks what its author thought the line
 was for, the same limit a unit test has, and the demotion rule only ever proposes.
 
 A useful honesty check at week 4: if `audit_reports` has not moved and `doc_contributors_7d` is at one,

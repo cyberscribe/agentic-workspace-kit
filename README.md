@@ -19,6 +19,21 @@ It runs with [Claude Code](https://code.claude.com/docs/en/overview), on a Mac o
 Cowork in the Claude desktop app can work in the same folder. You do not need to be a programmer:
 setting it up is copying a few lines into a terminal and answering questions.
 
+## What the kit is for
+
+Two things, and every part of the kit is measured against them.
+
+1. **Common ground between you and the assistant.** The same names for the same things: where each kind
+   of information lives, the words you both use, how you work together and what you prefer. When the
+   assistant says something in its own idiom, the kit keeps the plain words beside it.
+2. **What the assistant cannot find for itself.** The decision and the reason for it, the correction you
+   made last Tuesday, the term only your team uses. Anything already in the code, the files or their
+   history is left for the assistant to read there.
+
+Both last. A model can learn a codebase by reading it, but it cannot learn what only your team knows, or
+how you talk, unless someone writes it down. [The principles](docs/principles.md) behind the kit, and
+[the audit](docs/purpose-audit.md) of each of its parts against these two, say more.
+
 ## Quick start
 
 About twenty minutes. Each step says what you should see.
@@ -231,7 +246,7 @@ workspace/
   skills/                  ← the team's own skills and templates
   logs/
     decisions.md           ← cross-project decisions that generalise
-  memory/                  ← canonical cross-surface facts: glossary, people, per-topic context
+  memory/                  ← canonical cross-surface facts: terms, glossary, people, per-topic context
   audits/                  ← dated reports from the periodic checks
 ```
 
@@ -426,7 +441,7 @@ that kind of learning appears.
 Inside a session pass, the tier is the size of the investment. A line in project reference is paid for
 only when that project is open; a line in working standards is paid for on every turn of every session,
 which is why it needs a person's yes (§3.1). A line promoted to one of the two most-loaded tiers is
-offered an *ablation*: a realistic task, run with the line and without it and graded by a check
+offered a *leave-out test*: a realistic task, run with the line and without it and graded by a check
 (`pilot/ablate.sh`). A line that changes nothing on the task it was promoted for is a candidate for a
 cheaper tier. That test is what separates investment from accumulation.
 
@@ -452,7 +467,7 @@ material is marked rather than silently kept, and why the always-loaded tier has
 investment is reviewed; a hoard is not.
 
 *This rests on experience in the workspace the kit came from, not on a controlled comparison. The
-ablation runner is how a team tests it for itself, one promoted line at a time.*
+leave-out test runner is how a team tests it for itself, one promoted line at a time.*
 
 ### 4.2 Weekly hygiene — is everything where it belongs?
 
@@ -925,12 +940,16 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 |---|---|
 | `CLAUDE.kit.md` | The kit's working standards — stance, conventions, map, log formats — imported by the first line of a workspace's `CLAUDE.md` |
 | `docs/getting-started.md` | The walkthrough: install, the first session, the quick-start, a first project, the daily closeout, pairing, upkeep and updates, each with how to tell it worked |
+| `docs/principles.md` | The principles of working with and delegating to an AI that the kit carries out, each with the file that carries it |
+| `docs/purpose-audit.md` | Every plugin, command, hook and template against the kit's two purposes, with what serves neither proposed for retirement |
 | `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion; §3 pre-filled for a team sharing one repository |
 | `docs/documentation-register.md` | The register rule, the translation table, and how to scan for drift |
 | `docs/plugin-scope.md` | Where the kit's plugins load, by the folder a session is opened on and the surface; setup's install for the person, and the workspace boundary their hooks keep to |
 | `rituals/closeout.md` | The end-of-session pass, as a procedure an agent can follow |
 | `rituals/weekly-hygiene.md` | The weekly placement-and-budget pass |
-| `templates/project-decisions.md` | Per-project decisions log skeleton |
+| `templates/project-decisions.md` | The decisions log skeleton, copied into each project and area as `decisions.md` |
+| `templates/glossary.md` | Plain words for the terms AI models fall into, one row each; the workspace's lands at `memory/glossary.md`, a project's or area's in its own folder |
+| `templates/terms.md` | The terms that belong to the work, and what each means; the workspace's lands at `memory/terms.md` |
 | `templates/project-readme.md` | Per-project README skeleton |
 | `templates/person-profile.md` | One file per person: what they own, and when to go to them |
 | `templates/verification-standard.md` | What counts as checked, per kind of work |
@@ -950,7 +969,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `docs/commands/`, `docs/hooks/` | One page per command and per hook, in four parts: what it does, when to reach for it, common questions, how to tell it is working |
 | `CONTRIBUTING.md` | Changing the kit: fork it, point the workspace's `kit/` at the fork, commit there, and open a pull request; running the tests and shellcheck |
 | `templates/workspace/` | The files a workspace starts from and then owns — see the table below |
-| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, `reads.sh` for agent reads from Claude Code's transcripts, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
+| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, `reads.sh` for agent reads from Claude Code's transcripts, and `ablate.sh` for leave-out tests (run from the kit checkout with `--target`; not copied into a team's repository) |
 | `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |
 
 The files in `templates/workspace/` are sources for the installer, not files to copy by hand. Each lands
@@ -963,7 +982,8 @@ once in the workspace and is the workspace's from then on:
 | `AGENTS.md` | `AGENTS.md` | A router: the kit's standards, then the team's `CLAUDE.md` |
 | `README.md` | `README.md` | The workspace's own README, opening with how it started |
 | `workspace.md` | `.claude/workspace.md` | Confirmed private remotes, published public ones, the private word list, and the skills the bridge leaves out |
-| `INDEX.md`, `decisions.md`, `glossary.md`, `people-README.md`, `audits-README.md` | `projects/INDEX.md`, `logs/decisions.md`, `memory/glossary.md`, `memory/people/README.md`, `audits/README.md` | The register, the decisions log, the glossary and the starting notes for people and audits |
+| `INDEX.md`, `decisions.md`, `people-README.md`, `audits-README.md` | `projects/INDEX.md`, `logs/decisions.md`, `memory/people/README.md`, `audits/README.md` | The register, the decisions log and the starting notes for people and audits |
+| `glossary.md` | — | The glossary from before the split, which held the team's terms; a workspace made before it keeps comparing against this copy. A new workspace gets `templates/glossary.md` and `templates/terms.md` instead |
 | `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public (a repository marked as a template, as the published one is, is skipped) |
 | `closeout.md` | `.claude/closeout.md` | Points the closeout plugin (and the `kit-closeout` skill) at `kit/docs/memory-layers.md`, so there is one taxonomy rather than two |
 | `projects.md` | `.claude/projects.md` | The team's project conventions — where projects live, register sections, naming, in-flight limit, staleness — read first by every projects command |
@@ -1012,7 +1032,7 @@ workspace teaches something. Issues are read; there is no support commitment.
 
 *Version 3.0 — 2026-09-30: the kit is a submodule of the workspace at `kit/`, read in place; setup,
 the engine and the migration; git hooks for privacy; versioning, sensitivity and resources for
-projects; the skills bridge (see CHANGELOG). Version 2.2 — 2026-09-29: context ablations, the state check, a validation gate, a lighter
+projects; the skills bridge (see CHANGELOG). Version 2.2 — 2026-09-29: leave-out tests, the state check, a validation gate, a lighter
 quick-start and closeout, and a who-needs-to-know setting with a team roster (see CHANGELOG).
 Version 2.1 — 2026-09-29: the Current state block, Planned and five project states; nine commands
 across three plugins (see CHANGELOG). Version 2.0 — 2026-09-29: the tracking axis, skills, and the

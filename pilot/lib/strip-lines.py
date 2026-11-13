@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remove exact lines from a file: the `without` arm of an ablation.
+"""Remove exact lines from a file: the `without` arm of a leave-out test.
 
     strip-lines.py FILE LINE [LINE...]
 
@@ -8,7 +8,7 @@ a whole line: a LINE that is only part of a longer line does not count. Every li
 removed and the file is rewritten in place.
 
 When any LINE matches nothing, the file is left untouched, each missing LINE is named on stderr and
-the exit status is 2. The runner records that ablation as stale: the line moved, was reworded or is
+the exit status is 2. The runner records that leave-out test as stale: the line moved, was reworded or is
 gone, which is a finding in itself, so nothing here tries to match loosely.
 """
 import sys
@@ -20,7 +20,7 @@ def main(argv):
         return 64
     path, wanted = argv[1], [w.strip() for w in argv[2:]]
     if any(not w for w in wanted):
-        sys.stderr.write("strip-lines.py: an empty line cannot be ablated\n")
+        sys.stderr.write("strip-lines.py: an empty line cannot be left out\n")
         return 64
     try:
         with open(path, encoding="utf-8", newline="") as f:

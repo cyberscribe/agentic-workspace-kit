@@ -201,6 +201,7 @@ logs/decisions.md
 memory/.gitkeep
 memory/glossary.md
 memory/people/README.md
+memory/terms.md
 projects/.gitkeep
 projects/INDEX.md
 skills/.gitkeep"

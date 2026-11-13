@@ -272,10 +272,14 @@ block.
   private — with the figures, names and other detail left to its README.
 - **The versioning steps** above, each on its own yes: the `own-repo` setup, or
   the `.gitignore` line for `untracked`.
-- **Nothing else by default.** A `decisions.md` is created when the project makes
-  its first decision worth preserving, from `kit/templates/project-decisions.md`
-  (or `templates/project-decisions.md` where the repository keeps its own) — if the kickoff itself settled something, offer it then.
-  New person profiles only with the user's yes.
+- **The three vocabulary files**, beside the README: `decisions.md` from
+  `kit/templates/project-decisions.md`, `glossary.md` from `kit/templates/glossary.md`
+  and `terms.md` from `kit/templates/terms.md` (or the repository's own templates
+  of those names where it keeps them). Fill in what the interview settled: a
+  decision the kickoff made, a term of the project's own the person used. Each
+  is otherwise left as its template has it, ready for the first entry. For a
+  sensitive project they stay with it, untracked or in its own repository.
+- **Nothing else by default.** New person profiles only with the user's yes.
 
 If the repository has no `projects/` directory and no conventions file saying
 where projects live, ask rather than inventing a layout; offer `projects/` as the

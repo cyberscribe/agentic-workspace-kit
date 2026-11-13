@@ -561,7 +561,7 @@ out1="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot </dev
 if [[ $rc1 -eq 0 ]]; then ok "1 first run exits 0"; else ko "1 first run exits 0" "$out1"; fi
 missing=""
 for f in CLAUDE.md AGENTS.md README.md .claude/settings.json .gitignore .claude/closeout.md .claude/projects.md \
-         .claude/workspace.md projects/INDEX.md logs/decisions.md memory/glossary.md memory/people/README.md \
+         .claude/workspace.md projects/INDEX.md logs/decisions.md memory/glossary.md memory/terms.md memory/people/README.md \
          audits/README.md docs/workspace-map.md .github/CODEOWNERS .github/pull_request_template.md \
          .github/workflows/stay-private.yml pilot/build-list.md .claude/kit-templates.lock; do
     [[ -e "$T1/$f" ]] || missing+="$f"$'\n'

@@ -126,3 +126,31 @@ done
 grep -qE '^  templates/' <<<"$s12_tree" && s12_bad+="the Part 2 tree puts templates/ at the workspace root"$'\n'
 grep -qF 'read, check and correct' "$KIT/README.md" || s12_bad+="the welcome does not say the files are there to read, check and correct"$'\n'
 empty "12 README: the Quick start reaches an area, hygiene and Cowork; Part 2 is drawn from the workspace map" "$s12_bad"
+
+# --- What the kit is for: the README's two purposes, the principles and the audit ------------------
+s12_bad=""
+s12_wf="$(awk '/^## What the kit is for$/ { f = 1; next } f && /^## / { exit } f' "$KIT/README.md")"
+for s12_w in '**Common ground between you and the assistant.**' '**What the assistant cannot find for itself.**' \
+    'docs/principles.md' 'docs/purpose-audit.md' 'cannot learn what only your team knows'; do
+    grep -qF -- "$s12_w" <<<"$s12_wf" || s12_bad+="What the kit is for: no '$s12_w'"$'\n'
+done
+# Every principle names the file that carries it, and every path it names is in the kit.
+s12_np="$(grep -cE '^\*\*[0-9]+\. ' "$KIT/docs/principles.md")"
+[[ "$s12_np" -ge 8 && "$(grep -c '^\*In the kit:\*' "$KIT/docs/principles.md")" == "$s12_np" ]] \
+    || s12_bad+="principles.md: $s12_np principles, not each with an 'In the kit:' line"$'\n'
+while IFS= read -r s12_p; do
+    [[ -e "$KIT/$s12_p" ]] || s12_bad+="principles.md names $s12_p, which is not in the kit"$'\n'
+done < <(grep -oE '`(plugins|templates|docs|rituals|pilot|scripts)/[A-Za-z0-9_./-]+`' "$KIT/docs/principles.md" | tr -d '`' | sort -u)
+# The audit has a row for every command, hook script and template, and each verdict is one of the five.
+s12_au="$KIT/docs/purpose-audit.md"
+for s12_c in "$KIT"/plugins/*/commands/*.md; do
+    s12_n="$(basename "$(dirname "$(dirname "$s12_c")")"):$(basename "$s12_c" .md)"
+    s12_n="${s12_n/closeout:closeout/closeout}"
+    grep -qF "/$s12_n" "$s12_au" || s12_bad+="purpose-audit.md: no row for /$s12_n"$'\n'
+done
+for s12_t in "$KIT"/templates/*.md; do
+    grep -qF "templates/$(basename "$s12_t")" "$s12_au" || s12_bad+="purpose-audit.md: no row for templates/$(basename "$s12_t")"$'\n'
+done
+s12_v="$(awk -F '|' '/^\| / && $3 !~ /Serves|---/ { v = $3; gsub(/^ +| +$/, "", v); print v }' "$s12_au" | sort -u | grep -vxE 'Both|1|2|Rail|Neither, (fold in|retire)')"
+[[ -z "$s12_v" ]] || s12_bad+="purpose-audit.md: verdicts outside the five: $s12_v"$'\n'
+empty "12 what the kit is for: the README's two purposes, principles that each name a kit file, and an audit row for every command and template" "$s12_bad"

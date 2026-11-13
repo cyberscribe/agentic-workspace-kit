@@ -80,6 +80,12 @@ offer a link at the old path, kept out of git, until those are rebuilt.
 The project's register row moves to the area register's Active section; when the
 area register does not exist yet, create it as `/ongoing:new` does.
 
+**The vocabulary files.** Where the area has no `decisions.md`, `glossary.md` or
+`terms.md`, offer the missing ones from `kit/templates/` (`project-decisions.md`,
+`glossary.md`, `terms.md`), in one question, after the insertions. A file that does
+the same job under another name (a `DECISIONS.md`, a glossary of the area's own
+terms) is left where it is: say which file serves, and do not add a second.
+
 ## Close
 
 Show every insertion before writing it. Then one line: the area's state, its cadence

@@ -1,7 +1,10 @@
 # Decisions — <project name>
 
-*Copy this file to `projects/<slug>/decisions.md` when the project first makes a call worth
-preserving. Delete this italic block and the example entry on arrival.*
+*What this is for: the decisions that stop a wrong turn later, with the road not taken. One of the
+three files every project and area keeps, beside `glossary.md` and `terms.md`.*
+
+*`/projects:new` and `/ongoing:new` copy this file to the folder as `decisions.md`. Delete this italic
+block and the example entry once the first real decision is in.*
 
 *Scope: decisions belonging to **this** project — architecture, tooling, framing, anything a later
 session would otherwise re-derive or re-litigate. A decision that still means something with every
