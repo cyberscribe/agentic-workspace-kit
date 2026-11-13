@@ -48,6 +48,10 @@ which one. Read the area's README and its Current state block, bold or plain.
 - **No standards, or `not yet named`.** Start there: help name two to five, as
   `/ongoing:new` does, before reviewing anything against them.
 
+A run started by a schedule, with nobody there yet, gathers what the repository shows
+for each standard and then asks the walk-through's questions and waits; it makes no
+edit until the owner has answered and said yes to the edits.
+
 ## The walk-through
 
 Read the Desired state aloud in one line, then take the standards one at a time:

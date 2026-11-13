@@ -8,7 +8,7 @@ measure. Five commands:
 
 | Command | What it is for |
 |---|---|
-| **`/ongoing:new`** | Start an area: a short interview for its desired state, the standards to keep, people, cadence and versioning, then its README and register row. |
+| **`/ongoing:new`** | Start an area: a short interview for its desired state, the standards to keep, people, cadence and versioning, then its README and register row, and an offer to put the check-in on a schedule at the area's cadence. |
 | **`/ongoing:review [slug]`** | The check-in: walk each standard with the owner, note what is met and what slipped, and turn a slipped standard whose fix has an end into a project. |
 | **`/ongoing:adopt <folder>`** | Give an existing folder, or a long-running project with no real finish line, the area's shape as small insertions. |
 | **`/ongoing:pause [slug]`** | Set an area dormant — seasonal or set aside — with a reason and a date to look again. |

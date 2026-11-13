@@ -134,7 +134,13 @@ apart.
   them as waiting, and they do not stop a week from being clean.
 - **Promotion candidates.** Entries in project `decisions.md` files carrying a
   *Generalises as* field whose title does not appear in the cross-project
-  decisions log.
+  decisions log. Then the entries without that field, read against the
+  decisions log's filter (`kit/CLAUDE.kit.md`, Decisions log): strip every
+  reference to the project, technology, file path and stakeholder, and list an
+  entry when what is left still says something another project could use. Give
+  the stripped sentence beside the entry, as the general form a promotion would
+  carry, and mark these as suggested rather than flagged by their author. An
+  entry that means nothing once stripped stays where it is, unlisted.
 - **Staleness.** Guidance files (the kinds `kit/docs/documentation-register.md` says
   prime a session) whose own "Last updated" line is more than 120 days old.
   Give the stated date and the file's last commit side by side: a commit well

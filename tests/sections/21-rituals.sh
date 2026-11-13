@@ -273,3 +273,34 @@ empty "21 quick-start: the one-person offer names CODEOWNERS and the PR template
 s21_v="$(jq -r '.enabledPlugins["closeout@closeout-marketplace"]' "$KIT/templates/workspace/settings.json" 2>/dev/null)"
 [[ "$s21_v" == false ]] && ok "21 the workspace settings turn the standalone closeout off, so the kit's copy runs alone" \
     || ko "21 the workspace settings turn the standalone closeout off, so the kit's copy runs alone" "closeout@closeout-marketplace: ${s21_v:-absent}"
+
+# --- Cadence: the passes and the area check-in on a schedule, offered and never installed -------------
+# The two shipped task files are valid as the scheduler reads them once their folder is set, run their
+# command with `report`, and may write only under audits/: no git add, commit, mv or rm in their tools.
+s21_bad=""
+s21_sw="$s21_dir/sched-ws"; mkdir -p "$s21_sw"
+for s21_t in hygiene-weekly register-audit-monthly; do
+    s21_tf="$KIT/plugins/workspace/scheduled/$s21_t.md"
+    [[ -f "$s21_tf" ]] || { s21_bad+="no plugins/workspace/scheduled/$s21_t.md"$'\n'; continue; }
+    sed "s#^cwd: .*#cwd: $s21_sw#" "$s21_tf" > "$s21_dir/$s21_t.md"
+    s21_o="$(SCHEDULER_HOME="$s21_dir/sched-home" SCHEDULER_DATA="$s21_dir/sched-data" SCHEDULER_BACKEND=none \
+        bash "$KIT/plugins/scheduler/scripts/schedule.sh" create --file "$s21_dir/$s21_t.md" --dry-run 2>&1)" \
+        || s21_bad+="$s21_t: the scheduler refuses it: $s21_o"$'\n'
+    grep -qx 'cwd: /path/to/your/workspace' "$s21_tf" || s21_bad+="$s21_t: its folder is not left for quick-start to set"$'\n'
+    s21_tools="$(sed -n 's/^allowed_tools: //p' "$s21_tf")"
+    grep -qF 'Edit(audits/**)' <<<"$s21_tools" || s21_bad+="$s21_t: writing is not limited to audits/"$'\n'
+    grep -qE '(^| )(Write|Edit)( |$)|git (add|commit|mv|rm|push)|Bash\(rm' <<<"$s21_tools" && s21_bad+="$s21_t: its tools reach past a report: $s21_tools"$'\n'
+    grep -qF 'with the argument `report`' <<<"$(s21_flat "plugins/workspace/scheduled/$s21_t.md")" || s21_bad+="$s21_t: does not run in report mode"$'\n'
+done
+s21_bad+="$(s21_needs plugins/workspace/commands/quick-start.md 'kit/plugins/workspace/scheduled/hygiene-weekly.md' \
+    '`register-audit-monthly.md`' 'nothing is scheduled without one' '--dry-run' 'In Cowork, give the person the scheduled task')"
+s21_bad+="$(s21_needs plugins/ongoing/commands/new.md '## Offer the check-in on a schedule' 'nothing is scheduled without a yes' \
+    '`awaits_reply: true`' '/scheduler:tasks' 'kit-ongoing-review' 'A dormant area gets no offer')"
+s21_bad+="$(s21_needs plugins/ongoing/commands/review.md 'it makes no edit until the owner has answered')"
+empty "21 cadence: report-only task files for hygiene and the register audit, offered by quick-start; /ongoing:new offers a scheduled check-in" "$s21_bad"
+
+# Hygiene's promotion candidates include decisions without a Generalises as field, read through the filter.
+s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'Then the entries without that field' \
+    'strip every reference to the project, technology, file path and stakeholder' 'Give the stripped sentence beside the entry')"
+s21_bad+="$(s21_needs rituals/weekly-hygiene.md 'and those without one that still say something once the strip filter has run')"
+empty "21 hygiene: promotion candidates include decisions with no Generalises as field that pass the strip filter" "$s21_bad"

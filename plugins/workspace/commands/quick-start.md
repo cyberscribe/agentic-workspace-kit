@@ -299,7 +299,23 @@ order, and take a "not now" as an answer.
    plainly: a month with no closeout artefacts and no Current state updates
    means the system is a plan, not a practice. The baseline is team-level: when
    joining with `metrics_csv=present`, skip it.
-4. **First real use.** End on the first thing to do in one real project, with
+4. **The weekly and monthly passes.** Offer to put the two checks on a
+   schedule, report only: the hygiene pass weekly and the register audit
+   monthly, each writing its dated report to `audits/` and changing nothing
+   else, so the person works through it in a session when it suits. Each is
+   its own yes, and nothing is scheduled without one. In Claude Code, with the
+   scheduler plugin loaded, the kit ships both as task files:
+   `kit/plugins/workspace/scheduled/hygiene-weekly.md` and
+   `register-audit-monthly.md`. Copy one to the scratch folder, set its `cwd:`
+   to this workspace's root (and the schedule, if they want another day or
+   time), show what `bash kit/plugins/scheduler/scripts/schedule.sh create
+   --file <copy> --dry-run` prints, and run it without `--dry-run` on a yes;
+   `/scheduler:tasks` does the same in words. In Cowork, give the person
+   the scheduled task to make there, with its cadence and a prompt such as
+   "Run the kit-workspace-hygiene skill in this folder, report only, and write
+   its report to audits/". Where neither is available, say that the passes are
+   run by hand, and when.
+5. **First real use.** End on the first thing to do in one real project, with
    who does it, and suggest ending today's session with `/closeout`.
 
 ## Close

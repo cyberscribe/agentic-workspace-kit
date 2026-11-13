@@ -267,6 +267,10 @@ Each runs as a scan, then a pass through the findings with you: the uncontested 
 anything touching what loads every session one at a time. Type `report` after either for the scan
 alone.
 
+Both can run on their own, report only: `/workspace:quick-start` offers them as scheduled tasks, from
+the task files in `kit/plugins/workspace/scheduled/` in Claude Code, or as Cowork scheduled tasks. A
+scheduled run writes its report and changes nothing else; you work through it in a session.
+
 **It worked if** the reports accumulate in `audits/`, and the always-loaded size is a number you can
 see change from week to week.
 

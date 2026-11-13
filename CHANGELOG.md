@@ -180,6 +180,17 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   the same folder. Part 2's tree is redrawn from the workspace map, with `kit/`, `ongoing/` and the
   kit's templates inside `kit/`, and §2.4 says where the team's own templates go. Section 12 checks all
   three.
+- **Cadence, offered.** The workspace plugin ships the weekly hygiene and the monthly register audit
+  as report-only task files for the scheduler (`plugins/workspace/scheduled/`): each runs its command
+  with `report`, may write only under `audits/`, and leaves the judgement pass for a session.
+  `/workspace:quick-start` offers them, each on its own yes, with the folder set to the workspace and a
+  dry run shown first, and gives the Cowork scheduled task to make where that is the surface.
+  `/ongoing:new` offers to put an area's check-in on a schedule at its cadence: a run that gathers the
+  evidence and waits for the owner's answers, made through `/scheduler:tasks`, or a Cowork scheduled
+  task. `/ongoing:review` started by a schedule makes no edit until the owner has answered. Hygiene's
+  promotion candidates now include decisions with no *Generalises as* field that still say something
+  once the decisions log's strip filter has run, each with its stripped form beside it. Section 21
+  checks the task files against the scheduler and the wording.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

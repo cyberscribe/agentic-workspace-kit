@@ -20,7 +20,7 @@ remember to ask.
 | **Strays** | Durable-looking files outside the conventions — loose at the root, loose in `projects/`, or sitting in a scratch directory long enough to have stopped being scratch |
 | **Registers** | Project folders against the rows in the index, in both directions: active and paused folders against their sections, and `projects/_done/<slug>/` against the Done section |
 | **Promised, absent** | Paths the canonical-fact table names that do not exist on disk |
-| **Promotion candidates** | Project decisions carrying a *Generalises as* field that have not reached the cross-project log |
+| **Promotion candidates** | Project decisions carrying a *Generalises as* field that have not reached the cross-project log, and those without one that still say something once the strip filter has run |
 | **Staleness** | Guidance whose own "last updated" line has gone quiet |
 | **Pending work** | Proposals the other rituals left unconfirmed |
 | **Drafts sweep** | Closeout's drafts for this repository and each project folder, oldest first: drafts not yet promoted, and the files of other kinds and subdirectories that the drafts' retention never touches |

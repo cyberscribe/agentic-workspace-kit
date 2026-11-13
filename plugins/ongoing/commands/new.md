@@ -140,3 +140,26 @@ do not count against the in-flight limit.
 Show the README before writing it, and write it only once the user is content. End in
 one line: the state, the check-in cadence, who owns it and how it is versioned. Leave
 the commit to them — they write the message.
+
+## Offer the check-in on a schedule
+
+Once the README is written, offer once to put the check-in on a schedule at the
+area's cadence, so the review comes round without anyone remembering it. It is an
+offer: nothing is scheduled without a yes, and a "not now" is a fine answer. A
+dormant area gets no offer.
+
+- **In Claude Code, with the scheduler plugin loaded,** hand over to `/scheduler:tasks`
+  with the request in words: at the area's cadence ("every 2 weeks" as `every 14d`,
+  "monthly" on a day they choose, "each season" as four dates a year), in this
+  workspace, a run that awaits a reply (`awaits_reply: true`), with the prompt "Start
+  `/ongoing:review <slug>` for the owner: read the area and gather what the repository
+  shows for each standard, then ask the walk-through's questions and wait for the
+  answers". `/scheduler:tasks` shows it as a dry run and creates it on a yes. The
+  person answers with `reply`, and the review's edits are still shown before they are
+  made.
+- **In Cowork,** give the person the scheduled task to make there, at the same cadence,
+  with the prompt "Run the kit-ongoing-review skill for <slug> in this folder".
+- **Without either,** say that the session-start line names the check-in when it is
+  due, and leave it there.
+
+When a task is made, name it under the README's Recurring section as one line.

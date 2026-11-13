@@ -584,7 +584,8 @@ the code; the road not taken is visible nowhere. This is what stops the same rej
 re-proposed with enthusiasm next quarter.
 
 **Generalises as** is the promotion mechanism made visible. An entry that grows one is a candidate for
-the cross-project log, and a weekly scan can find them.
+the cross-project log, and a weekly scan can find them. The same scan also reads the entries without
+one through the strip filter, and suggests any that still say something once the specifics are gone.
 
 **Status** is what lets you correct by appending. A dated log is corrected by a later entry, never by
 rewriting an earlier one — the record of what you believed in March is itself information.
