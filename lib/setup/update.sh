@@ -172,13 +172,38 @@ else
 fi
 
 # --- Template diffs ---------------------------------------------------------------------------------
+# hunk_kind <hunk> <file>: what a hunk that neither applies nor is there amounts to, from its own lines
+# against the file's, each trimmed. A team that customised a file has often made the kit's change
+# already in its own words, or rewritten the passage the change edits, and then there is nothing to
+# merge. Short lines (a fence, a table rule) are left out, since they match anywhere.
+#   merged  none of the lines it removes is in the file, and every line it adds is
+#   gone    none of the lines it removes is in the file, and not every line it adds is: the passage
+#           it edits reads differently in this copy
+#   left    a line it removes is still in the file, or it only adds lines and they are not all there:
+#           a merge by hand
+hunk_kind() {
+    awk -v f="$2" '
+        function t(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+        BEGIN { while ((getline l < f) > 0) have[t(l)] = 1 }
+        /^@@/ { on = 1; next }
+        !on { next }
+        /^-/ { s = t(substr($0, 2)); if (length(s) >= 12) { r++; if (s in have) rin++ } next }
+        /^\+/ { s = t(substr($0, 2)); if (length(s) >= 12) { a++; if (s in have) ain++ } next }
+        END {
+            if (r > 0 && rin == 0) print (ain == a ? "merged" : "gone")
+            else if (r == 0 && a > 0 && ain == a) print "merged"
+            else print "left"
+        }' "$1"
+}
+
 # by_hunk check|apply <dest> <diff>: each hunk of a one-file diff taken on its own, since one hunk that
 # no longer fits should not hold back the others. A hunk that applies in reverse has its new side in
-# the file already, so it counts as there. In apply mode a hunk that fits is applied, and one that does
-# neither is printed for hand merging. Sets H_THERE, H_FITS and H_LEFT to the counts.
+# the file already, so it counts as there. One that does neither is merged, gone or left (hunk_kind).
+# In apply mode a hunk that fits is applied, and one left is printed for hand merging. Sets H_THERE,
+# H_FITS, H_MERGED, H_GONE and H_LEFT to the counts.
 by_hunk() {
     local mode="$1" dest="$2" dir i h
-    H_THERE=0 H_FITS=0 H_LEFT=0
+    H_THERE=0 H_FITS=0 H_MERGED=0 H_GONE=0 H_LEFT=0
     dir="$(mktemp -d "${TMPDIR:-/tmp}/aw-hunks.XXXXXX")" || return 1
     # The file header (diff --git, index, ---, +++) is repeated at the top of every hunk's own patch.
     awk -v p="$dir/h." '
@@ -193,19 +218,45 @@ by_hunk() {
         elif "${WG[@]}" apply --check "$h" >/dev/null 2>&1 && { [[ $mode == check ]] || "${WG[@]}" apply "$h" >/dev/null 2>&1; }; then
             H_FITS=$((H_FITS + 1))
         else
-            H_LEFT=$((H_LEFT + 1))
-            if [[ $mode == apply ]]; then
-                say "  This change does not fit $dest as it is now; merge it by hand:"
-                sed -n '/^@@/,$p' "$h" | sed 's/^/    /'
-            fi
+            case "$(hunk_kind "$h" "$WS/$dest")" in
+                merged) H_MERGED=$((H_MERGED + 1)) ;;
+                gone) H_GONE=$((H_GONE + 1)) ;;
+                *)
+                    H_LEFT=$((H_LEFT + 1))
+                    if [[ $mode == apply ]]; then
+                        say "  This change does not fit $dest as it is now; merge it by hand:"
+                        sed -n '/^@@/,$p' "$h" | sed 's/^/    /'
+                    fi ;;
+            esac
         fi
         i=$((i + 1))
     done
     rm -rf "$dir"
 }
 
+# own_words: says which of the hunks that do not apply need nothing, from the counts by_hunk set.
+own_words() {
+    [[ $H_MERGED -eq 0 ]] || say "  Already in your copy in your own words: $H_MERGED of the changes."
+    [[ $H_GONE -eq 0 ]] || say "  Edits lines your copy has rewritten, so there is nothing to merge: $H_GONE of the changes."
+}
+
+# why_none: the same counts in one sentence, for the line that names the file.
+why_none() {
+    local w=""
+    [[ $H_MERGED -eq 0 ]] || w="$H_MERGED already in your own words"
+    [[ $H_GONE -eq 0 ]] || w="${w:+$w; }$H_GONE on lines you have rewritten"
+    [[ $H_THERE -eq 0 ]] || w="${w:+$w; }$H_THERE already there"
+    printf '%s.' "$(printf '%s' "$w" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')"
+}
+
+# hand_prompt <dest>: a request the person can give their assistant, short enough to paste.
+hand_prompt() {
+    say "  To have your assistant merge it, keeping your own edits, give it this:"
+    say "    Merge the kit's latest change to $1 into my copy, keeping my own edits. kit/install.sh --template-diff $1 --target . prints the change."
+}
+
 # Files this update changed, for the commit; and the lists the end summary gives.
-ACCEPTED=() APPLIED=() THERE=() HAND=() GITIGNORE_ADDED=0 RECORDED=0
+ACCEPTED=() APPLIED=() THERE=() OWN=() HAND=() GITIGNORE_ADDED=0 RECORDED=0
 if [[ $offer -eq 1 ]]; then
     status_out="$("${BASH:-bash}" "$WS/kit/install.sh" --template-status --target "$WS" 2>/dev/null)"; rc=$?
     if [[ $rc -ne 0 ]]; then
@@ -222,7 +273,7 @@ if [[ $offer -eq 1 ]]; then
                 if [[ $drc -eq 0 ]]; then
                     by_hunk check "$dest" "$diff_file"
                     # Every hunk already in the file: nothing to offer, only the record to bring up to date.
-                    [[ $((H_FITS + H_LEFT)) -gt 0 ]] || { drc=3; THERE+=("$dest"); }
+                    [[ $((H_FITS + H_MERGED + H_GONE + H_LEFT)) -gt 0 ]] || { drc=3; THERE+=("$dest"); }
                 fi
                 if [[ $drc -eq 3 ]]; then
                     # The template changed in a way that renders the same for this workspace, or the
@@ -245,23 +296,61 @@ if [[ $offer -eq 1 ]]; then
                 bold "The kit's template for $dest has changed:"; echo
                 cat "$diff_file"
                 echo
-                if [[ $YES -eq 1 ]] || confirm "Apply this change to $dest?" n; then
-                    by_hunk apply "$dest" "$diff_file"
-                    [[ $H_FITS -eq 0 ]] || ACCEPTED+=("$dest")
-                    if [[ $H_LEFT -eq 0 ]]; then
+                # by_hunk check has already run on this diff, so the question fits what will happen:
+                # nothing is asked to apply that cannot be applied.
+                all=$((H_THERE + H_FITS + H_MERGED + H_GONE + H_LEFT))
+                if [[ $H_FITS -gt 0 ]]; then
+                    q="Apply this change to $dest?"
+                    if [[ $((H_MERGED + H_GONE + H_LEFT)) -gt 0 ]]; then
+                        say "  $H_FITS of the $all changes fit $dest as it is now."
+                        own_words
+                        [[ $H_LEFT -eq 0 ]] || say "  $H_LEFT do not fit, and are shown for merging by hand once the others are in."
+                        q="Apply the $H_FITS that fit?"
+                    fi
+                    if [[ $YES -eq 1 ]] || confirm "$q" n; then
+                        by_hunk apply "$dest" "$diff_file"
+                        [[ $H_FITS -eq 0 ]] || ACCEPTED+=("$dest")
+                        if [[ $H_LEFT -eq 0 ]]; then
+                            "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
+                            RECORDED=1
+                            APPLIED+=("$dest")
+                            check "applied to $dest" true
+                        else
+                            HAND+=("$dest ($H_LEFT of $all changes)")
+                            [[ $H_FITS -eq 0 ]] || APPLIED+=("$dest ($H_FITS of $all changes)")
+                            hand_prompt "$dest"
+                            note "left for hand merging; offered again next time, with the question whether to stop"
+                        fi
+                    else
+                        "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status skipped --target "$WS" >/dev/null 2>&1
+                        RECORDED=1
+                        note "skipped; offered again only if the template changes again"
+                    fi
+                elif [[ $H_LEFT -eq 0 ]]; then
+                    # Nothing applies, and nothing needs to: the file and the count, then the question.
+                    say "  $dest: none of the $all changes needs applying. $(why_none)"
+                    if [[ $YES -eq 1 ]] || confirm "Stop offering this change to $dest?" y; then
                         "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
                         RECORDED=1
-                        APPLIED+=("$dest")
-                        check "applied to $dest" true
+                        OWN+=("$dest")
+                        note "recorded; offered again only if the template changes again"
                     else
-                        HAND+=("$dest ($H_LEFT of $((H_THERE + H_FITS + H_LEFT)) changes)")
-                        [[ $H_FITS -eq 0 ]] || APPLIED+=("$dest ($H_FITS of $((H_THERE + H_FITS + H_LEFT)) changes)")
-                        note "left for hand merging; offered again next time. Once merged by hand, answer n to stop the offer"
+                        note "offered again next time"
                     fi
                 else
-                    "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status skipped --target "$WS" >/dev/null 2>&1
-                    RECORDED=1
-                    note "skipped; offered again only if the template changes again"
+                    # Nothing applies, and some of it is a merge by hand: no question to apply, only the
+                    # hunks, the prompt and a way to stop the offer once the merge is done.
+                    say "  $dest: none of the $all changes fits as it is; $H_LEFT need merging by hand.$( [[ $((H_MERGED + H_GONE)) -eq 0 ]] || printf ' %s' "$(why_none)")"
+                    by_hunk apply "$dest" "$diff_file"
+                    hand_prompt "$dest"
+                    HAND+=("$dest ($H_LEFT of $all changes)")
+                    if [[ $YES -eq 0 ]] && confirm "Stop offering this change to $dest? Answer y once it is merged by hand." n; then
+                        "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
+                        RECORDED=1
+                        note "recorded as merged; offered again only if the template changes again"
+                    else
+                        note "left for hand merging; offered again next time"
+                    fi
                 fi ;;
             changed-no-base)
                 listed=$((listed + 1))
@@ -383,11 +472,12 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$hook" ]]; then
 fi
 
 # --- What the offers came to ------------------------------------------------------------------------
-if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#HAND[@]} -gt 0 ]]; then
+if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#OWN[@]} -gt 0 || ${#HAND[@]} -gt 0 ]]; then
     echo
     say "Template changes:"
     for p in ${APPLIED[@]+"${APPLIED[@]}"}; do step "applied                $p"; done
     for p in ${THERE[@]+"${THERE[@]}"}; do step "already there          $p"; done
+    for p in ${OWN[@]+"${OWN[@]}"}; do step "in your own words      $p"; done
     for p in ${HAND[@]+"${HAND[@]}"}; do step "left for hand merging  $p"; done
 fi
 
