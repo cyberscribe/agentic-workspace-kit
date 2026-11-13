@@ -286,6 +286,23 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
 - **The tests' kit fixture commits with automatic gc and maintenance off.** Started in the background
   after the commit, they could pack its loose objects while the first fixture's clone was copying them,
   and every fixture after it failed.
+- **The test suite says where its time goes, and spends less of it.**
+  - Every run ends with its wall time, the summed section time and the slowest sections, and writes
+    every section, check and failure to `AW_TIMES` (`tests/README.md`, *Where the time goes*). A
+    failure is listed by the part it ran in.
+  - Section 15 runs as three parts (`15a`, `15b`, `15c`), each its own parallel job, so it no longer
+    sets the length of a run alone. A bare `15` still names all three, in `AW_SECTIONS` and the path
+    map.
+  - The kit fixture repository is built once per run and copied to each job. A workspace that several
+    checks start from fresh is built once and copied, with its hooks pointed at the copy; one check
+    shows a copy runs its own hooks.
+  - The scheduler's runner reads `SCHEDULER_SECOND`, how long one second of its own waits lasts. Section
+    26 sets it to a tenth, so its timeout, lock and retry checks wait a tenth as long, and keeps its
+    first timeout check on the real clock.
+  - A GitHub Actions workflow, `.github/workflows/tests.yml`, runs the full suite on Linux and macOS on
+    every push and pull request, and the private-word check when the repository has an
+    `AW_BANNED_WORDS` secret. It does nothing until the branch is pushed.
+  - The checks are the same, plus the one for copies: 1050.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

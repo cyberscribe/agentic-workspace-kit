@@ -28,7 +28,7 @@ to the kit.
 | 12 | `tests/sections/12-docs.sh`: every command in `plugins/*/commands/` has `docs/commands/<plugin>-<command>.md` (the bare name when the two are the same, as for the skills), and every hook script (`plugins/*/hooks/*.sh`, `githooks/pre-*`, `githooks/commit-msg`) has `docs/hooks/<name>.md` (a plugin hook is `<plugin>-<script>`, or the script's own name when it starts with the plugin's); each page, and `docs/setup.md`, has exactly the H2s What it does · When to reach for it · Common questions · It's working if, in that order (fenced code left out), runs 25 to 70 lines and names its source file; `docs/setup.md` names every mode; every command has a README table row linking its page; no page is left without a command or hook; a probe proves the heading reader |
 | 13 | `tests/sections/13-privacy.sh`: the privacy guards. `check-paths.sh --all` passes on `KITSRC`, and no kit file names a machine path; path refusals (the allow-list, private by name, data-shaped files, symlinks, the workspace `.gitignore` in both forms) and content refusals (an unlisted binary, a private word, never echoed, a derived name, a verbatim copy and a copied long line with `AW_ALLOW_COPY`, an attribution trailer); push walks (every commit, an unknown remote sha, a mirror prefix, a notes ref, and the copy check's direction: a workspace file written after the kit commit reads as quoting it, one that held the line before refuses it by mtime or by its tracked history, a line in an old file and a fresh snapshot refuses naming the old one, a minute's skew refuses, and the pre-commit still refuses the quote); the guard-path change; the workspace pre-commit (a sensitive project's files, HEAD or working tree, a large file, a force-added ignored file, a gitlink); the workspace pre-push (a stub `gh` answering PUBLIC or PRIVATE, `AW_ALLOW_PUBLIC`, the Private remotes list without `gh`, a `via person` line with no terminal, a hanging `gh`, local paths); the project context; the stubs after a deinit and a move into `_done/`; chaining to the person's own hook (it fails: refused; it is absent: the kit's checks only; both pass: allowed; same arguments and stdin); fail closed; `gitconfig.sh`; `guard-git.sh` |
 | 14 | `tests/sections/14-ownership.sh`: the engine's §1.2 set and nothing kit-owned, a no-op second run, kept and stand-in files, an opaque `AGENTS.md`, `--cowork`, template status, diff and record against a clone of `KITSRC`, `.gitignore` merge, report, offer and decline, settings maintenance, 2.x traces, `--stand-ins`, and `--skills-only` with a prefix and a skip list |
-| 15 | `tests/sections/15-setup.sh`: `kit/setup.sh`, the ten stages on `new` and on a second run, the §11.4 green set, adopt, a template copy that lost its gitlink, the 2.x stop, the dispatch table, `update` (advance, `exec`, the CHANGELOG excerpt, template diffs and `.gitignore` lines attended and unattended, a kit on a side branch left unadvanced with the offers run and `--advance` moving it, and the hand-over to `migrate --dry-run` on a 2.x workspace, which changes nothing), `--developer` (four branch cases), `hooks`, stage 4's recorded origin, stages 6 and 8, and `build-template.sh` |
+| 15 | `tests/sections/15a-setup.sh`, `15b-setup.sh` and `15c-setup.sh`, one section run as three parts, with their helpers in `tests/sections/lib/15-setup.sh`: `kit/setup.sh`, the ten stages on `new` and on a second run, the §11.4 green set, adopt, a template copy that lost its gitlink, the 2.x stop, the dispatch table, `update` (advance, `exec`, the CHANGELOG excerpt, template diffs and `.gitignore` lines attended and unattended, a kit on a side branch left unadvanced with the offers run and `--advance` moving it, and the hand-over to `migrate --dry-run` on a 2.x workspace, which changes nothing), `--developer` (four branch cases), `hooks`, stage 4's recorded origin, stages 6 and 8, and `build-template.sh` |
 | 16 | `tests/sections/16-state.sh`: every 3.0 `state.sh` key on fixtures (hooks, submodules by role, the kit's branch and distance, the import, orphan gitlinks, the origin, sensitivity and versioning, an opaque `AGENTS.md`); per-item keys read by `st_key` and `state_key`; the 12-URL table through both copies of `aw_norm_url`; `--quick` (its key set, no `ls` on resources, a git call count that does not grow with the number of projects); `--explain`; the workspace session-start hook's lines, root discovery and silence |
 | 17 | `tests/sections/17-projects.sh`: readme.awk fields 16–20, the old-format line, reserved folders, the resource line and its stamp, the eighteen commands, and the instructions in hold, close, new, adopt, board and pickup, and `Not adopted`; ongoing areas: `templates/area-readme.md` (Desired state, Standards to keep, then Current state with active · dormant · archived, then Projects, no Done when), the project template routing work with no finish line to an area, the `ongoing` plugin's version and its five commands' instructions, `/projects:new` and `/projects:adopt` handing over to them, the board's separate section, and the READMEs, example conventions and workspace map |
 | 18 | `tests/sections/18-resources.sh`: `kit/setup.sh link` — symlinks from `.claude/resources.local.md`, every output line kind, the grant merged into a `settings.local.json` that keeps every key and its order, `info/exclude` for a gitlink project, the inside resource's `.gitignore` line, a no-op second run, `--dry-run`, unattended never writing `resources.local.md` (the attended path needs a pseudo-terminal, SKIP without one), and `state.sh`'s `resource.*` states, full and quick |
@@ -48,16 +48,20 @@ removing one is a deliberate change to that list as well.
 ## The prelude and the section files
 
 Sections from 12 on live in `tests/sections/NN-name.sh`, one file per section, and are sourced in order
-after section 11. Each prints its own heading, prefixes its variables and functions with its number
+after section 11. A long section is split into parts so that each can run as its own parallel job:
+`15a-setup.sh`, `15b-setup.sh` and `15c-setup.sh` are sections `15a`, `15b` and `15c`, and what the
+parts share is in `tests/sections/lib/15-setup.sh`. A bare number names every part, wherever a section
+is named (`AW_SECTIONS="15"`, the path map, the slow tier); a part can be named alone (`AW_SECTIONS=15b`). Each prints its own heading, prefixes its variables and functions with its number
 (`s13_…`), since every section shares one shell, and writes only under `$SCRATCH`. Before section 1 the
 prelude builds what they share:
 
 | Name | What it is |
 |---|---|
-| `KITSRC` | A repository on `main` with one commit whose tree is the kit's working tree, tracked and untracked files alike, modes kept. Every workspace fixture adds the kit from it, so the scripts under test are the working tree's |
+| `KITSRC` | A repository on `main` with one commit whose tree is the kit's working tree, tracked and untracked files alike, modes kept, with automatic gc and maintenance off. Every workspace fixture adds the kit from it, so the scripts under test are the working tree's. A parallel run builds it once and gives each job its own full copy |
 | `mkws_kit <dir>` | A new repository with the kit from `KITSRC` at `kit/` and nothing else: where sections 1, 2b and 11 run the engine directly |
 | `mkws_min <dir>` | The smallest 3.0 workspace with no setup code: the kit from `KITSRC` at `kit/`, the static tree in `tests/fixtures/ws-min/` (its `dot-` names become dot names), and the git hooks set |
 | `mkws <dir> [args…]` | A workspace made with `setup.sh new`, unattended, with the kit from `KITSRC`; setup's output goes to `<dir>.log` |
+| `mkws_copy <dir> [args…]` | The same workspace, built once per job for each set of arguments and copied (`cp -a`), with its git hooks pointed at the copy by the kit's own hooks setup and its log's paths rewritten; for checks that start from a fresh workspace in the runner's own environment. Section 15 checks that a copy runs its own hooks |
 | `mkws2x <dir>` | A workspace in the 2.2.0 layout, for the migration: the kit at `915c528` as a submodule at `templates/agentic-workspace`, its own installer run, everything committed. It returns 3 in a shallow clone |
 | `st_run`, `st_key`, `st_expect`, `st_tree`, `st_bash` | The state-check helpers. `st_key` matches a key by prefix, so per-item keys with `/` and `.` read correctly |
 | `$SCRATCH/bin32/bash` | `/bin/bash` first on `PATH`, so child scripts run under bash 3.2 on macOS |
@@ -80,9 +84,9 @@ that reads another's fixtures or functions brings it along (3 and 9 read 1's, 19
 **In parallel.** `bash tests/run.sh` runs the sections as separate jobs, each a run of `tests/run.sh`
 for its own sections in its own scratch directory, at most `AW_JOBS` at once (default: half the
 processors, at most four, so the machine stays usable). Sections that read one another's fixtures or
-functions run in one job: 1, 3, 9 and 19 (`aw_needs` in `run.sh`). Each job builds its own `KITSRC`:
-a local clone hardlinks its objects, so a shared one would let one job's git change another's
-fixture. Output is printed section by section in serial order, and the lines and the count are those
+functions run in one job: 1, 3, 9 and 19 (`aw_needs` in `run.sh`). `KITSRC` is built once, and each
+job gets a full copy of it: a local clone hardlinks its objects, so a shared one would let one job's
+git change another's fixture. Output is printed section by section in serial order, and the lines and the count are those
 of a serial run; `AW_JOBS=1` is the serial run itself, and the one to use when debugging a section.
 
 **The slow tier.** Sections 10, 15, 16, 20 and 25 build whole workspaces through the installer, the
@@ -94,13 +98,44 @@ release (`AW_REQUIRE_CLAUDE=1`) and CI (`CI` set) always run them.
 working tree and untracked files against `HEAD`. `--changed=staged` takes the index alone, for the
 run just before a commit, and `--changed=<ref>` everything since the ref's merge base, for a branch.
 Each changed path adds the sections of every row below whose pattern matches it; a section file's own
-path (`tests/sections/NN-name.sh`) adds that section; the `always` row is added to every scoped run.
+path (`tests/sections/NN-name.sh`) adds that section, and a split section's shared helpers
+(`tests/sections/lib/NN-name.sh`) add every part of it; the `always` row is added to every scoped run.
 A path no row matches runs the whole suite, slow tier included: an unmapped change is an unknown one.
 The slow tier stays out of a scoped run unless `AW_SLOW=1`, even where a row names it, and the
 `SKIP` line names each one held back, so the full run before a push is where those land.
 
 Routine use: `--changed=staged` before a commit, the full parallel run before a push, and
 `AW_REQUIRE_CLAUDE=1` for a release.
+
+## Where the time goes
+
+Every run ends with a summary of its time: the wall time and the job count, the section time summed
+across jobs, how much of it went on building the fixture repository (`prelude`), and the ten slowest
+sections. Every section, every check and every failure is written to `AW_TIMES` (by default
+`$TMPDIR/aw-test-times.tsv`), one tab-separated line each:
+
+| Line | Meaning |
+|---|---|
+| `S <section> <µs>` | A section's wall time, in microseconds; `prelude` is the time before the first section |
+| `C <section> <µs> <check>` | One check, timed from the check before it, so a check's line carries the work that led to it |
+| `F <section> 0 <check>` | A failure, with the part it ran in; the summary lists them by part (`15b`, not `15`) |
+
+A parallel run's jobs run under `/bin/bash` (3.2 on macOS), which has no sub-second clock, so their
+`S` lines are read through `perl` and they write no `C` lines; a serial run under bash 5
+(`AW_JOBS=1 AW_SECTIONS="15" bash tests/run.sh`) gives every check's time. To read it:
+`sort -t$'\t' -k3 -n -r "$TMPDIR/aw-test-times.tsv" | head` lists the slowest checks.
+
+What it showed when it was added, on a Mac: most of the time is processes being started (bash
+subshells, git, awk, sed) inside the scripts under test, `setup.sh`, the migration and `state.sh`,
+rather than waits. Sections run side by side slow each other down, so beyond four jobs on that machine
+the section time grew as fast as the jobs, and the wall time did not fall.
+
+## The order of work
+
+- While building: `bash tests/run.sh --changed`, or `AW_SECTIONS` for the section in hand.
+- At a gate, and before a push: the full run, `bash tests/run.sh`.
+- Once CI is switched on for the repository (`.github/workflows/tests.yml`), its run on each push and
+  pull request is the record; a local full run is still the check before asking for a review.
 
 ## The path map
 
@@ -203,6 +238,8 @@ The others:
 | `AW_CC_LOG` | `tests/run.sh` | The file each Claude Code run appends one line to; by default `claude-runs.md` in the scratch directory |
 | `AW_SECTIONS` | `tests/run.sh` | A space-separated list of sections to run (`"4b 13"`); unset runs them all |
 | `AW_JOBS` | `tests/run.sh` | How many sections run at once (default: half the processors, at most 4); `1` is the serial run |
+| `AW_TIMES` | `tests/run.sh` | The timing file (above); by default `$TMPDIR/aw-test-times.tsv`, rewritten by each run |
+| `SCHEDULER_SECOND` | `plugins/scheduler/scripts/schedule.sh` | How long one second of the runner's own waits lasts (a timeout's count, the grace before a kill, retry delays, a reply window's stop); 1 when unset. Section 26 sets 0.1, and runs its first timeout check on the real clock |
 | `AW_SLOW=0\|1` | `tests/run.sh` | Leaves out, or runs, the slow tier (10, 15, 16, 20, 25); a full run runs it by default, a `--changed` run does not, a release and CI always do |
 | `PAIR_REGISTRY` | `plugins/projects/hooks/pair.sh` | The registry of joined pairing sessions (default `~/.config/agentic-workspace-kit/pairings`); the runner points it at its scratch directory |
 | `AW_BASH32=0` | `tests/run.sh` | Leaves `PATH` alone, for a pass under the runner's own bash; by default `/bin/bash` comes first |

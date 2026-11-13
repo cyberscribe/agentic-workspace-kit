@@ -78,6 +78,12 @@ when a changed path has no row there, and holds back the slow tier (sections 10,
 one `SKIP` line each) unless `AW_SLOW=1`; the full run before a push, and a release with
 `AW_REQUIRE_CLAUDE=1`, run them. A new folder or root file gets a row in the path map along with it.
 
+The order of work: `--changed` (or `AW_SECTIONS`) while building, the full run at a gate and before a
+push, and, once CI is switched on for the repository, its run on each push and pull request as the
+record. Every run ends with where its time went: the wall time, the slowest sections, and the file
+(`AW_TIMES`) with every section, check and failure timed; `tests/README.md` (*Where the time goes*) says
+how to read it. A failure is listed there by the part it ran in, such as `15b`.
+
 The suite needs `git`, `jq` and `python3` (3.11 or later), and builds everything under one temporary
 folder that it removes on exit (`AW_KEEP=1` keeps it). It runs child scripts under `/bin/bash` where
 there is one, since the kit's scripts are written for bash 3.2; `AW_BASH32=0` leaves `PATH` alone.
@@ -101,7 +107,7 @@ shellcheck -x setup.sh install.sh lib/*.sh lib/setup/*.sh scripts/*.sh githooks/
     githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh githooks/lib/common.sh \
     plugins/workspace/scripts/state.sh plugins/*/hooks/*.sh plugins/closeout/hooks/lib/config.sh \
     plugins/projects/hooks/lib/*.sh plugins/projects/scripts/*.sh plugins/scheduler/scripts/*.sh plugins/closeout/scripts/*.sh pilot/*.sh \
-    tests/run.sh tests/sections/*.sh
+    tests/run.sh tests/sections/*.sh tests/sections/lib/*.sh
 ```
 
 ## Along with the change
