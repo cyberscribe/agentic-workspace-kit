@@ -94,11 +94,11 @@ commit `a1b2c3d`" — and ask the person to confirm it.
      evidence, and add a line directly under the list:
      `<date> — changed "<old wording>" to "<new wording>": <why>`.
   3. **Waive it.** It will not be met, and the project finishes anyway. Before
-     that, name anyone in People marked **ask first** and ask whether they
+     that, name anyone in People marked **consulted** and ask whether they
      have been consulted; offer to draft a short note for the person to send.
      If they have not, the person can pause the close here or go on — their
      call, recorded either way. The item stays unticked and says so:
-     `- [ ] <criterion> — waived <date> by <name>: <why>; <ask-first names> consulted`
+     `- [ ] <criterion> — waived <date> by <name>: <why>; <consulted names> consulted`
      (or `not consulted`). An unticked box with its waiver beside it is the
      truth; a ticked one would not be.
 
@@ -239,11 +239,11 @@ there is no catalogue yet, offer to start one from `kit/templates/catalogue.md`
 When People names anyone besides the person running the close, suggest who
 should hear, using their roles:
 
-- **keep told** — that it has finished, with a pointer to the README.
-- **owns** — if it is not the person in front of you: the tally, and any waiver.
-- **ask first** — any waiver they were not consulted on, so they hear it from a
+- **informed** — that it has finished, with a pointer to the README.
+- **accountable** — if it is not the person in front of you: the tally, and any waiver.
+- **consulted** — any waiver they were not consulted on, so they hear it from a
   person rather than find it later.
-- **does** and **helps** — only with a reason: a loose end handed to them, or a
+- **responsible** and **supporting** — only with a reason: a loose end handed to them, or a
   catalogue line naming them as owner.
 
 Present it as the closeout's short table — who, what they need to know, why

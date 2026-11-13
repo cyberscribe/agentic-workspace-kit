@@ -851,9 +851,10 @@ orientation and pointers, not content, in a fixed order (`templates/project-read
   *blocked*, *paused*, *done*), what blocks it and since when, a check-in cadence if it has one, the
   date it was updated, and one dated line saying where it stands, rewritten rather than added to.
 - **Planned** (optional): the steps foreseen from here, reordered as the work teaches.
-- **People** (optional), one line each, with one of five roles: *owns* (one person per outcome),
-  *does*, *helps*, *ask first* (consulted before a decision) and *keep told* (hears how it went). The
-  roles decide who the closeout's "who needs to know" step names.
+- **People** (optional), one line each, with one of five roles: *accountable* (one person
+  per outcome), *responsible*, *supporting*, *consulted* (asked before a decision) and *informed*
+  (hears how it went). The roles decide who the closeout's "who needs to know" step names; the older
+  words (owns, does, helps, ask first, keep told) still read the same.
 
 The commands follow the project through its life. `/projects:new` interviews for all of this, and
 `/projects:adopt` adds only what an existing project lacks, without rewriting what is there. While the

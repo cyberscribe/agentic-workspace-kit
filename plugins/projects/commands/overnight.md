@@ -127,7 +127,9 @@ conversation), in this order:
 
 1. **What was done**, each item with the evidence it was checked against.
 2. **What is open**, and why.
-3. **The decisions**, one short question each, with the recommended answer.
+3. **The decisions**, one short question each, with the recommended answer, for whoever the project's
+   People section marks accountable. A decision someone is marked consulted on names them, so they are
+   asked before it is taken.
 4. **The one script to run**, with the dry run's output beside it.
 5. **The files worth reading**, surfaced as files rather than described.
 

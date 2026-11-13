@@ -49,7 +49,7 @@ person and easy to find for a script.
   person's own profile can set a different number. Going over it is advice to talk about, not a
   block.
 - **Counting in flight:** a person's count is the active projects whose Current state block reads
-  `State: doing` and whose People section names them as **owns** or **does** — or, where a README
+  `State: doing` and whose People section names them as **accountable** or **responsible** — or, where a README
   has no People section, whose register Owner is them. Their profile is the file in the people
   directory matching their name. The projects commands, the board and the metrics all count this
   way.

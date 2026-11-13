@@ -105,10 +105,11 @@ Look for each section by what it does, not only by its heading.
   left exactly as it is.
 - **People** is present if the README names who is involved under any heading,
   or in a bold inline label such as `**Contacts.**` — "Team", "Who",
-  "Stakeholders". Leave it as written. If no one there is marked as owning the
-  outcome, propose one `- <name> — owns` line (or `- not yet named — owns` when
-  the files give no grounds) directly after it; an **owns** line, even
-  `not yet named`, means this is done. The board, the session-start line and the
+  "Stakeholders". Leave it as written. If no one there is marked as accountable for
+  the outcome, propose one `- <name> — accountable` line (or `- not yet named —
+  accountable` when the files give no grounds) directly after it; an
+  **accountable** line (or an **owns** line, the older word), even `not yet named`,
+  means this is done. The board, the session-start line and the
   metrics see People only under a `People` heading or a **Section names** alias,
   so under any other heading say so in the summary, and in interactive mode
   offer to record the name in `.claude/projects.md`.
@@ -193,10 +194,10 @@ names):
     has passed, a later audit), the line names both and which one it trusted.
     Later updates rewrite this line and leave the prose alone.
 - **People** — one line per person the README, the folder's files or the commit
-  history names, with one of the five roles (**owns**, **does**, **helps**,
-  **ask first**, **keep told**) and their profile if one exists. Name an owner
+  history names, with one of the five roles (**accountable**, **responsible**,
+  **supporting**, **consulted**, **informed**) and their profile if one exists. Name an owner
   only where the files, or an owner rule in the conventions file, give grounds;
-  otherwise `- not yet named — owns`, which the board and metrics read as missing.
+  otherwise `- not yet named — accountable`, which the board and metrics read as missing.
 
 A proposal the person can confirm in a word is the aim; a confident guess is
 harder to catch than an honest gap.

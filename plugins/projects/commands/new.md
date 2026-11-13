@@ -85,10 +85,10 @@ That is the quick path; go straight to the close. The full path continues:
    distinct from done: a measure, a behaviour that changes, a number with its
    baseline and its window.
 7. *Optional* — **People and roles.** Who is involved, and in which of five roles:
-   **owns** (answers for the outcome), **does** (does the work), **helps**
-   (supports it), **ask first** (consulted before a decision is taken), **keep
-   told** (hears how it went). One person owns each outcome; a person can hold
-   two roles, as in "owns, does". Check the people directory (the conventions
+   **accountable** (answers for the outcome), **responsible** (does the work),
+   **supporting** (helps with it), **consulted** (asked before a decision is
+   taken), **informed** (hears how it went). One person is accountable for each
+   outcome; a person can hold two roles, as in "accountable, responsible". Check the people directory (the conventions
    file's, else `memory/people/`, `docs/people/` or `people/`) and link existing
    profiles; offer to start a profile, from the repository's person template if it
    has one, for anyone new. With a team roster (`team/people.md`), offer to seed
@@ -219,7 +219,7 @@ before any work can start, it starts as `blocked`, with a `Blocked by:` line
 saying what, and since today. If the owner means to be working on it from
 today, it starts as `doing` — and first count what they already have in flight:
 the active projects whose Current state block reads `State: doing` and whose
-People section names them as **owns** or **does** (or, where a README has no
+People section names them as **accountable** or **responsible** (or, where a README has no
 People section, whose register Owner is them). Their limit is the **In-flight
 limit** in their profile — the file in the people directory matching their
 name — else the team default in `.claude/projects.md`, else 200. If starting this

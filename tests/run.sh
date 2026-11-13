@@ -1470,14 +1470,23 @@ msg="$(pmsg <<<"$out")"
 if [[ "$(printf '%s\n' "$msg" | grep -c .)" == "3" ]] \
     && grep -qxF 'Project: Project p07 — outcome: The p07 rollout is live for every team.' <<<"$msg" \
     && grep -qxF 'Done when: 2 of 4 ticked' <<<"$msg" \
-    && grep -qxF 'State: doing — owner Sam' <<<"$msg"; then
+    && grep -qxF 'State: doing — accountable Sam' <<<"$msg"; then
     ok "4b session-start: three lines in a project folder — outcome, done-when progress, state and owner"
 else ko "4b session-start: three lines in a project folder — outcome, done-when progress, state and owner" "$msg"; fi
 jq -e '.hookSpecificOutput.hookEventName == "SessionStart" and (.hookSpecificOutput.additionalContext | contains("projects/p07/README.md"))' <<<"$out" >/dev/null 2>&1 \
     && ok "4b session-start: the agent gets the same lines as additionalContext, naming the file" \
     || ko "4b session-start: the agent gets the same lines as additionalContext, naming the file" "$out"
+# People: the owner is the person marked accountable; owns, the older word, reads the same (p07 above).
+PRL="$SCRATCH/projects-roles"
+mkdir -p "$PRL/.claude" "$PRL/projects/roles" && git -C "$PRL" init -q && : > "$PRL/.claude/kit-templates.lock"
+cp "$KIT/templates/workspace/projects.md" "$PRL/.claude/projects.md"
+printf '# Roles\n\n## Current state\n\n- **State:** doing\n\n## People\n\n- Priya — supporting (the copy)\n- Jo — accountable, responsible\n- Alex — informed\n' > "$PRL/projects/roles/README.md"
+msg="$(pstart "$PRL/projects/roles" | pmsg)"
+grep -qxF 'State: doing — accountable Jo' <<<"$msg" \
+    && ok "4b session-start: the owner is the person marked accountable, as owns still reads" \
+    || ko "4b session-start: the owner is the person marked accountable, as owns still reads" "$msg"
 msg="$(pstart "$PF/projects/gap/notes" | pmsg)"
-grep -qF 'Project: Gap (proposed)' <<<"$msg" && grep -qxF 'State: ready — no owner named' <<<"$msg" \
+grep -qF 'Project: Gap (proposed)' <<<"$msg" && grep -qxF 'State: ready — no one accountable named' <<<"$msg" \
     && ok "4b session-start: a 'not yet named' blocker is a gap, and a proposed block says so, from a subfolder" \
     || ko "4b session-start: a 'not yet named' blocker is a gap, and a proposed block says so, from a subfolder" "$msg"
 
@@ -1487,11 +1496,11 @@ mkdir -p "$PF/projects/held" "$PF/projects/snag"
 printf '# Held\n\n## Current state\n\n- **State:** blocked\n- **Blocked by:** the signed budget from finance — since 2026-09-01\n\n## People\n\n- Dana — owns\n' > "$PF/projects/held/README.md"
 printf '# Snag\n\n## Current state\n\n- **State:** doing\n- **Blocked by:** the test rig\n  being rebuilt\n\n## People\n\n- Dana — owns\n' > "$PF/projects/snag/README.md"
 msg="$(pstart "$PF/projects/held" | pmsg)"
-grep -qxF 'State: blocked by the signed budget from finance — since 2026-09-01 — owner Dana' <<<"$msg" \
+grep -qxF 'State: blocked by the signed budget from finance — since 2026-09-01 — accountable Dana' <<<"$msg" \
     && ok "4b session-start: a blocked project names what blocks it and since when" \
     || ko "4b session-start: a blocked project names what blocks it and since when" "$msg"
 msg="$(pstart "$PF/projects/snag" | pmsg)"
-grep -qxF 'State: doing — blocked by the test rig being rebuilt — owner Dana' <<<"$msg" \
+grep -qxF 'State: doing — blocked by the test rig being rebuilt — accountable Dana' <<<"$msg" \
     && ok "4b session-start: a Blocked by line on another state is named after it, joined across a wrapped line" \
     || ko "4b session-start: a Blocked by line on another state is named after it, joined across a wrapped line" "$msg"
 rm -rf "$PF/projects/held" "$PF/projects/snag"
@@ -1543,7 +1552,7 @@ printf '# Projects
 | Reg | `projects/03-reg/` | doing | Kim Lee | x |
 ' > "$PF/projects/INDEX.md"
 msg="$(pstart "$PF/projects/03-reg" | pmsg)"
-grep -qF 'Project: Reg — ' <<<"$msg" && grep -qxF 'State: doing — owner Kim Lee' <<<"$msg" \
+grep -qF 'Project: Reg — ' <<<"$msg" && grep -qxF 'State: doing — accountable Kim Lee' <<<"$msg" \
     && ok "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" \
     || ko "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" "$msg"
 
@@ -1564,7 +1573,7 @@ grep -qF 'Project: Thesis rewrite — ' <<<"$(pstart "$PF/projects/thesis" | pms
 mkdir -p "$PF/projects/legacy"
 printf '# Legacy\n\n## Now\n\n- **State:** doing\n\n## People\n\n- Ana — owns\n' > "$PF/projects/legacy/README.md"
 msg="$(pstart "$PF/projects/legacy" | pmsg)"
-grep -qxF 'State: doing — owner Ana — from an older Now block; /projects:adopt converts it' <<<"$msg" \
+grep -qxF 'State: doing — accountable Ana — from an older Now block; /projects:adopt converts it' <<<"$msg" \
     && ok "4b session-start: an older Now block is read and labelled for conversion by /projects:adopt" \
     || ko "4b session-start: an older Now block is read and labelled for conversion by /projects:adopt" "$msg"
 rm -rf "$PF/projects/legacy"
@@ -1899,6 +1908,23 @@ hcol() { awk -F, -v name="$1" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == nam
 bad="$(for pair in projects_active=3 projects_blocked=1 projects_with_done_when=2 blocked_over_14d=0 max_in_flight_per_person=2; do
     got="$(hcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"; done)"
 empty "5 F12 reads READMEs by the shared rules (headings, checklists, blocked, since-only dates, gaps)" "$bad"
+# People: in flight counts accountable and responsible (and owns and does, the older words), never
+# supporting, consulted or informed. Jo is accountable for x and responsible for y; consulted for z.
+Hr="$SCRATCH/measure-roles"
+mkdir -p "$Hr/pilot" "$Hr/projects/x" "$Hr/projects/y" "$Hr/projects/z" && git -C "$Hr" init -q && cp "$KIT/pilot/measure.sh" "$Hr/pilot/measure.sh"
+for hr_p in x y z; do
+    case "$hr_p" in
+        x) hr_people='- Jo — accountable, responsible\n- Priya — supporting' ;;
+        y) hr_people='- Kim — accountable\n- Jo — responsible' ;;
+        z) hr_people='- Kim — owns, does\n- Jo — consulted\n- Alex — informed' ;;
+    esac
+    printf '# %s\n\n## Done when\n\n- [ ] it ships\n\n## Current state\n\n- **State:** doing\n\n## People\n\n%b\n' "$hr_p" "$hr_people" > "$Hr/projects/$hr_p/README.md"
+done
+git -C "$Hr" add -A && git -C "$Hr" -c commit.gpgsign=false commit -q -m roles
+hrow="$(cd "$Hr" && bash pilot/measure.sh --print 2>/dev/null | tail -n 1)"
+bad="$(for pair in projects_active=3 max_in_flight_per_person=2; do
+    got="$(hcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"; done)"
+empty "5 F12 in flight counts accountable and responsible (and the older owns and does), not consulted or informed" "$bad"
 # A repository with nothing committed has no history to read: a note, and no file.
 Hn="$SCRATCH/measure-empty"
 mkdir -p "$Hn/pilot" && git -C "$Hn" init -q && cp "$KIT/pilot/measure.sh" "$Hn/pilot/measure.sh"

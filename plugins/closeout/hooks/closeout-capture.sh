@@ -161,7 +161,7 @@ if [[ "${TEAM_COUNT:-0}" -ge 2 && "$WHO_NEEDS_TO_KNOW" != "off" ]]; then
         roster_note="
 
 The team roster gives these default relationships and channels. A scoped one,
-such as 'keep told: anything touching measurement', applies only to a change of
+such as 'informed: anything touching measurement', applies only to a change of
 that kind. A project's People section overrides the roster for that project; the
 next session applies that.
 $(printf '%s\n' "$ROSTER_ROWS" | awk -F'|' '{ r = ($2 == "" ? "no default" : $2); h = $3; if ($4 != "") h = h (h == "" ? "" : " ") $4
@@ -174,9 +174,10 @@ $(printf '%s\n' "$TEAM_MEMBERS" | sed 's/^/  - /')${roster_note}
 
 If you write the file, end it with one more section, headed '## Who needs to
 know'. Name a person from that list only where their work is affected by an item
-above — they own the area it touches, a decision changes what they are doing, or
-it blocks or unblocks them — one line each: who, what, which item, and how they
-hear (their channel, where one is given). If nobody in particular needs to hear
+above — they are accountable for the area it touches, a decision changes what
+they are responsible for, it blocks or unblocks them, or they are to be consulted
+before it is decided — one line each: who, what (in the item's plain words),
+which item, and how they hear (their channel, where one is given). If nobody in particular needs to hear
 about anything, write that in one line; if the session's work concerns only one
 of them, leave the section out. You are suggesting; nothing is sent to anyone."
 fi

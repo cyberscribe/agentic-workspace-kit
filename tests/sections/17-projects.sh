@@ -241,7 +241,7 @@ s17_m="$(s17_start "$s17_ws/projects/field-study" | s17_msg)"
 printf '# Legacy\n\n- **Versioned:** untracked\n- **Sensitivity:** sensitive\n\n## Now\n\n- **State:** doing\n\n## People\n\n- Ana — owns\n\n## Resources\n\n- archive — generated\n' \
     > "$s17_ws/projects/legacy/README.md"
 s17_m="$(s17_start "$s17_ws/projects/legacy" | s17_msg)"
-grep -qxF 'State: doing — owner Ana — from an older Now block; /projects:adopt converts it' <<<"$s17_m" \
+grep -qxF 'State: doing — accountable Ana — from an older Now block; /projects:adopt converts it' <<<"$s17_m" \
     && [[ "$(printf '%s\n' "$s17_m" | grep -c .)" == "3" ]] \
     && ok "17 hook: a README in the old Now format still gets the old-format line with fields 16-20 present" \
     || ko "17 hook: a README in the old Now format still gets the old-format line with fields 16-20 present" "$s17_m"
@@ -384,7 +384,7 @@ empty "17 areas: the project template routes work with no finish line to an area
 
 check "17 areas: the ongoing plugin has a plugin.json with a version" jq -e '.name == "ongoing" and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' "$KIT/plugins/ongoing/.claude-plugin/plugin.json"
 s17_bad="$(s17_has "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**' '5. **Check-in cadence**' \
-    '**How it is versioned, and whether anything in it is sensitive**' '**People and roles.**' '**owns**' \
+    '**How it is versioned, and whether anything in it is sensitive**' '**People and roles.**' '**accountable**' \
     '**Recurring.**' '**Projects.**' '**Precedents.**' '- not yet named' 'Areas do not count against the in-flight limit' \
     'ongoing/INDEX.md' '/projects:new')"
 s17_bad+="$(s17_before "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**')"
@@ -397,6 +397,18 @@ for s17_f in new review adopt pause drop; do
     [[ "$s17_f" == new || "$s17_f" == adopt ]] || s17_bad+="$(s17_has "$s17_o/$s17_f.md" '## Which area')"
 done
 empty "17 areas: the five ongoing commands — new asks desired state, standards, cadence, versioning and people; review, adopt, pause and drop do their part" "$s17_bad"
+
+# People: the writers name the five roles in the new words only; the older words appear only where a
+# reader is told they still read the same.
+s17_bad=""
+for s17_f in "$KIT/templates/project-readme.md" "$KIT/templates/area-readme.md" "$KIT/templates/team-roster.md" \
+    "$KIT/plugins/projects/commands/new.md" "$KIT/plugins/ongoing/commands/new.md" "$KIT/plugins/projects/commands/adopt.md" \
+    "$KIT/plugins/projects/commands/close.md" "$KIT/plugins/projects/commands/pickup.md" "$KIT/plugins/closeout/commands/closeout.md"; do
+    s17_hit="$(grep -nE '\*\*(owns|does|helps|ask first|keep told)\*\*|— (owns|does|helps|ask first|keep told)\b|<(owns|ask-first)' "$s17_f" | grep -v 'older' || true)"
+    [[ -n "$s17_hit" ]] && s17_bad+="${s17_f#"$KIT"/}: $s17_hit"$'\n'
+done
+s17_bad+="$(s17_has "$KIT/templates/project-readme.md" '**accountable**' '**responsible**' '**supporting**' '**consulted**' '**informed**' 'still read the same' '<accountable>')"
+empty "17 people: the templates and commands write the new role words, and say the older words still read" "$s17_bad"
 
 s17_bad="$(s17_has "$s17_n" '/ongoing:new' 'serves an ongoing area')"
 grep -qF '## When it is an ongoing area' "$s17_n" && s17_bad+="new.md: still runs the area interview itself"$'\n'

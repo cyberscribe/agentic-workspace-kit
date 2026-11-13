@@ -12,6 +12,18 @@ the scheduler in `.claude/settings.json`; then make the commit it prints. Each p
 `kit/setup.sh` once more, or `claude plugin install scheduler@agentic-workspace --scope user`, to have
 it in every folder.
 
+- **People's roles get new names.** A project or area README's People section, the team roster's
+  default relationship and closeout's "who needs to know" now name the five roles **accountable**
+  (answers for the outcome; one person), **responsible** (does the work), **supporting**,
+  **consulted** (asked before a decision) and **informed** (hears how it went). They replace owns,
+  does, helps, ask first and keep told, one for one. Every reader takes the older words as aliases,
+  so existing READMEs and rosters keep working unchanged: the session-start line and the board find
+  the owner on an `accountable` or an `owns` line, and the in-flight count (`pilot/measure.sh`, and
+  the rule in `.claude/projects.md`) counts a person named accountable or responsible, or owns or
+  does, which is the same set of people as before. The session-start line names that person as
+  accountable (`State: doing — accountable Sam`; `no one accountable named` when there is none). The
+  templates and commands write only the new words. Section 4b and section 5 test both sets of words;
+  section 17 checks that the writers use only the new ones.
 - **A fourth plugin, scheduler (0.1.0).** `/scheduler:tasks` turns "every weekday at 7:30, do X" into
   a scheduled Claude Code task that runs on the person's own machine and outlasts the session: one
   Markdown file per task (front matter for its settings, the body its prompt) in

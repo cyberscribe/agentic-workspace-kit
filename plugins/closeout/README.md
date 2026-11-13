@@ -263,17 +263,18 @@ tell which project a session worked in.
 
 The team roster, `team/people.md` from the kit's `templates/team-roster.md`, has
 one row per person: name, role, default relationship (one of the five roles below,
-optionally scoped, as in `keep told: anything touching measurement`), channel and
+optionally scoped, as in `informed: anything touching measurement`), channel and
 handle. A project's People section wins over it; the roster adds anyone else whose
 default relationship matches what changed. It holds handles only: a cell with an
 email address or phone number is left out of every prompt, and the next session is
 told so.
 
-Where the README's People section gives roles (owns · does · helps · ask first ·
-keep told), `/closeout` uses them: whoever owns the outcome or is to be kept told
-hears about progress on it; whoever is to be asked first hears about decisions not
-yet taken, before they are taken; whoever does or helps hears where their own
-work is affected.
+Where the README's People section gives roles (accountable · responsible ·
+supporting · consulted · informed, or the older owns · does · helps · ask first ·
+keep told), `/closeout` uses them: whoever is accountable for the outcome or is
+informed hears about progress on it; whoever is consulted hears about decisions
+not yet taken, before they are taken; whoever is responsible or supporting hears
+where their own work is affected.
 
 The output is a table — who, what, why them, how they hear, what to offer, and
 where it is recorded — and it is advice, not delivery. The offer is `draft` (a

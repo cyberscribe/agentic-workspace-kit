@@ -12,7 +12,7 @@ carries a Current state block, it shows three lines:
 ```
 Project: field-study — outcome: <the desired outcome>
 Done when: 2 of 5 ticked
-State: doing — owner Sam
+State: doing — accountable Sam
 ```
 
 A blocked project names what blocks it and since when; a finished one gives its date. When the README

@@ -32,11 +32,14 @@ all night.
 into the brief.
 
 **4. Stop where only a person can decide.** Spending, sending, publishing, committing and anything that
-cannot be taken back wait for a yes. Everything short of that edge goes ahead without asking.
+cannot be taken back wait for a yes. Everything short of that edge goes ahead without asking. On a
+team, the yes is from whoever the project marks accountable, and anyone marked consulted is asked
+before the decision rather than told after it.
 *In the kit:* the approval gates in a workspace's `CLAUDE.md` (`templates/workspace/CLAUDE.md`, §3);
 commits left to the person by every command; anything scheduled or written on the person's behalf
 offered, never installed (`plugins/workspace/commands/quick-start.md`, step 4); tools named in advance
-for a run nobody watches (`plugins/scheduler/commands/tasks.md`).
+for a run nobody watches (`plugins/scheduler/commands/tasks.md`); a README's People section, and
+closeout's Who needs to know (`plugins/closeout/commands/closeout.md`).
 
 ## Checking the work
 

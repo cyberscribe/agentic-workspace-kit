@@ -20,7 +20,8 @@ bounds, and one summary in the morning. Source: `plugins/projects/commands/overn
 - Writes the bounds block into the brief: the answers, "take the reversible reading, note it, carry
   on", and what waits for the morning.
 - Puts the mechanisms that keep a night running into the brief, and ends with one morning summary: what
-  was done with its evidence, what is open, decisions as questions, one script, the files to read.
+  was done with its evidence, what is open, decisions as questions for whoever is accountable, one
+  script, the files to read.
 
 ## When to reach for it
 

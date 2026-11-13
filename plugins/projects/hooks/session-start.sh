@@ -174,9 +174,9 @@ EOF
             [[ "$state" == "blocked" ]] && line3="$line3 by $blocked_by" || line3="$line3 — blocked by $blocked_by"
         fi
         if [[ -n "$owner" ]]; then
-            line3="$line3 — owner $owner"
+            line3="$line3 — accountable $owner"
         else
-            [[ "$people_found" == "1" ]] && line3="$line3 — no owner in People" || line3="$line3 — no owner named"
+            [[ "$people_found" == "1" ]] && line3="$line3 — no one accountable in People" || line3="$line3 — no one accountable named"
         fi
         # The block's earlier format (a Now heading) is still read; its states may be ones the
         # kit no longer uses, so the line says where they came from.

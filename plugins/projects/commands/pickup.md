@@ -103,7 +103,7 @@ thing a newcomer can learn.
 **Uncommitted:** <n files changed, or nothing>
 **Open questions:**
 - <each, as written>
-**Who to ask:** owns — <name> (<profile>); ask first — <names>
+**Who to ask:** accountable — <name> (<profile>); consulted — <names>
 **Kept:** <Versioned: value> · <Sensitivity: value>; resources: <names, and any not reachable here>
 **Read first:** <the first one or two items of Read before acting, if it exists>
 **Worth knowing:** <the gaps and staleness below, one line each>
@@ -156,7 +156,7 @@ show the edits and write them:
 - `State: ready` — or `doing` if the person means to work on it from today,
   after counting what the owner already has in flight, as `/projects:new` does:
   the active projects whose Current state block reads `State: doing` and whose
-  People section names them as **owns** or **does**, against the limit in their
+  People section names them as **accountable** or **responsible**, against the limit in their
   profile, else the conventions' default, else 200. Over the limit is said
   plainly, with the names, and is advice, not a block.
 - The look-again `Check-in:` line (`look again on YYYY-MM-DD`) removed. If

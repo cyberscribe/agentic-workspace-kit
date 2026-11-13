@@ -55,8 +55,8 @@ location and point at it from the always-loaded file.
 
 The live list is `projects/INDEX.md`. Load it at startup to know what is running; load a specific
 project folder only when the task touches that project. A session opened in or about a project, or an
-ongoing area, reads its `README.md` before acting on it: that page is where the work stands, and any
-session-start summary of it points there rather than standing in for it.
+ongoing area, reads its `README.md` before acting on it: that page is where the work stands and who is
+accountable for it, and any session-start summary of it points there rather than standing in for it.
 
 ## Session startup
 
