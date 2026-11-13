@@ -34,6 +34,7 @@ folding into something that does, and waits for a decision.*
 | `/projects:pickup` | 1 | A shared picture of where a project stands, for whoever takes it up |
 | `/projects:close` | 2 | Shows the evidence for each finish-line item and promotes what the next similar project should know |
 | `/projects:hold` | 2 | Why the project stopped, and when to look again: context that is nowhere else |
+| `/projects:overnight` | Both | The person's outcome and bounds, settled before they leave: common ground on what the night is for, and calls the agent could not make for them |
 | `/projects:pair` | 1 | The manager and the engineer work from one written brief and one set of gates |
 | `/projects:board` | Neither, fold in | A view computed from the READMEs; nothing it shows is new. Proposed: fold into `/projects:pickup` run with no project named |
 | projects session-start hook | Both | Puts the project's page in front of the agent before it acts |

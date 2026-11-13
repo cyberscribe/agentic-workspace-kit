@@ -49,7 +49,7 @@
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook       9 the seventeen commands, on Claude Code and as skills; the
+#   4b the projects session-start hook       9 the eighteen commands, on Claude Code and as skills; the
 #                                               closeout command and ritual carry the same core rules
 #                                            10 ablations: pilot/ablate.sh against a stub claude; the
 #                                               blind comparator, the bare arm, the login-token switch,
@@ -395,6 +395,8 @@ fi
 # KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
 # and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
 # so the scripts under test are the working tree's, committed or not.
+# Its commit runs with automatic gc and maintenance off: started in the background after a commit, they
+# can pack the loose objects while the first fixture's clone is copying them, and that clone then fails.
 KITSRC="$SCRATCH/kit-src"
 kitsrc_ok=0
 if git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -404,7 +406,8 @@ if git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
         mkdir -p "$KITSRC/$(dirname "$aw_f")" && cp -p "$KIT/$aw_f" "$KITSRC/$aw_f"
     done < <(git --no-optional-locks -C "$KIT" ls-files -z -co --exclude-standard)
     git -C "$KITSRC" add -A \
-        && git -C "$KITSRC" -c commit.gpgsign=false commit -q -m "The kit's working tree, for the tests" \
+        && git -C "$KITSRC" -c commit.gpgsign=false -c gc.auto=0 -c maintenance.auto=false \
+            commit -q -m "The kit's working tree, for the tests" \
         && kitsrc_ok=1
 fi
 [[ $kitsrc_ok -eq 1 ]] || echo "note: the kit is not a git checkout; the fixtures built from KITSRC are not available"
@@ -2136,15 +2139,15 @@ fi
 # ---------------------------------------------------------------------------------------------------
 if aw_want 9; then
 echo
-echo "9 · The seventeen commands, on Claude Code and as skills, from one source each"
+echo "9 · The eighteen commands, on Claude Code and as skills, from one source each"
 
-# The command set is fixed by the contract's command list; an eighteenth, or a missing one, fails here
+# The command set is fixed by the contract's command list; a nineteenth, or a missing one, fails here
 # so the plugins, the skills and this list move together.
-commands="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup
+commands="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup
 scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the seventeen commands" \
-    || ko "9 the kit has exactly the seventeen commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the eighteen commands" \
+    || ko "9 the kit has exactly the eighteen commands" "has: $have"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }

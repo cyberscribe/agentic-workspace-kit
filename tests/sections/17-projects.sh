@@ -275,13 +275,13 @@ empty "17 hook: a folder with no Current state block that is not listed stays si
 empty "17 hook: every run exits quietly (nothing on stderr)" \
     "$(jq -nc --arg c "$s17_ws/projects/field-study" '{cwd: $c}' | PROJECTS_HOOK_STATE_DIR="$s17_stamps" "$st_bash" "$s17_hook" 2>&1 >/dev/null)"
 
-# ---- The seventeen commands --------------------------------------------------------------------------
+# ---- The eighteen commands --------------------------------------------------------------------------
 
-s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the seventeen commands, /projects:hold among them" \
-    || ko "17 the kit has exactly the seventeen commands, /projects:hold among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the eighteen commands, /projects:hold among them" \
+    || ko "17 the kit has exactly the eighteen commands, /projects:hold among them" "has: $s17_got"
 
 # ---- What each projects command says -------------------------------------------------------------
 
@@ -353,7 +353,7 @@ s17_bad+="$(s17_has "$s17_c" "Done section, whatever it is called there")"
 s17_bad+="$(s17_has "$s17_p" "both as the conventions file names them")"
 empty "17 hold, close and pickup move register rows to the sections the conventions name" "$s17_bad"
 
-s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Seven commands' '/projects:hold' 'projects/_done/<slug>/' \
+s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Eight commands' '/projects:hold' 'projects/_done/<slug>/' \
     '## How a project is kept' '## Resources' 'Folder moves' 'Not adopted')"
 s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" 'Folder moves' 'Versioned default' \
     'Not adopted' 'projects/_done/<slug>/' 'kit/templates/project-readme.md')"
@@ -432,3 +432,20 @@ empty "17 one slug rule: slug.sh lowercases, hyphenates and strips, and /project
 s17_bad="$(s17_has "$s17_p" 'a path or link in the README that does not resolve' 'a claim in it that the files plainly contradict' \
     'asking the agent to correct the README')"
 empty "17 pickup: a broken reference and a contradicted claim are flagged, and their fix goes through the agent" "$s17_bad"
+
+# ---- /projects:overnight: the pre-flight, the bounds block, keeping it running, the morning, safety ----
+s17_ov="$s17_cmd/overnight.md"
+s17_bad="$(s17_has "$s17_ov" '**What do you want to wake up to?**' '**What would make it excellent?**' \
+    '*API:* none, or a cap.' 'one token' '*Subscription:* a cap' '**What may leave the machine.**' \
+    '**What may be committed, pushed, published or sent.**' 'push, publish and send nothing' '**Deletion.** Default: none.' \
+    'It stays on and awake.' 'A stop time' '**Permissions, tried now.**' '`git commit --dry-run`' '`git push --dry-run`' \
+    'a patch per step and one script the person runs in the morning' '**Wake time, and how they want the results:**' \
+    '**A manager–engineer pairing**' '**One agent**' '`/projects:pair`' '## Bounds for tonight' \
+    'take the reversible reading, note it under Assumptions, and carry on' 'These wait for the morning:' \
+    '**Check-ins re-armed through the night.**' '**A wake-up on every long job.**' '**Headless children start clean.**' \
+    '**The suite runs on the machine it is meant for.**' '**The private-word check before anything leaves.**' '**A usage warning is a stop.**' \
+    '**What was done**' '**The decisions**' '**The one script to run**' '**The files worth reading**' \
+    '**Nothing leaves the agreed lane.**' '**A stop is a successful outcome**')"
+s17_bad+="$(s17_has "$KIT/docs/getting-started.md" '**Overnight runs.**' '`/projects:overnight`')"
+s17_bad+="$(s17_has "$KIT/docs/principles.md" '**3. Decide before you leave what you would be woken for.**' 'plugins/projects/commands/overnight.md')"
+empty "17 /projects:overnight carries the two outcome questions, each call asked in advance, the shape, the bounds block, the night's mechanisms, the morning summary and the safety lines" "$s17_bad"

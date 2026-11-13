@@ -251,6 +251,13 @@ as a live process and a recent activity beat.
 **It worked if** you never copy a message from one window to the other, and every accepted report
 names evidence the PM re-ran. `docs/commands/projects-pair.md` has the detail.
 
+**Overnight runs.** Before you leave work running while you sleep, type `/projects:overnight`. It asks
+what you want to wake up to and what would make it excellent, then each call you would otherwise be
+woken for, with a default: spend, what may leave the machine, what may be committed or sent,
+deletion, the machine and a stop time, and wake time. It tries the writes the night needs while you are
+still there, suggests one agent or a pairing, and writes the bounds into the brief. In the morning
+there is one summary: what was done, what is open, decisions as short questions, and one script to run.
+
 ---
 
 ## 8. Pause, hand over, finish

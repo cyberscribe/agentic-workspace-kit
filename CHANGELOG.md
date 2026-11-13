@@ -190,7 +190,8 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   task. `/ongoing:review` started by a schedule makes no edit until the owner has answered. Hygiene's
   promotion candidates now include decisions with no *Generalises as* field that still say something
   once the decisions log's strip filter has run, each with its stripped form beside it. Section 21
-  checks the task files against the scheduler and the wording.
+  checks the task files against the scheduler and the wording. Unverified: neither task file has had a
+  live headless run yet, so whether its tool list lets the report be written is still to be seen.
 - **Consistency.** `docs/memory-layers.md` §1 opens with the test every promotion passes first: keep
   only what the next session could not find for itself. Closeout applies it before classifying, and its
   tier table gains a column of what passes at each tier. The table's template destinations now include
@@ -255,6 +256,24 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   attachment, counts as a turn (`(prompt)`); a task notification does not. A capture that saw something
   it could not explain writes it as `check: observed`, cited and never promoted as fact. Section 4
   covers each, the clean environment against a stub `claude`.
+- **`/projects:overnight`, an eighteenth command.** Before the person leaves work running overnight, a
+  short pre-flight: the two questions it always asks (what they want to wake up to, and what would make
+  it excellent), then each call they would otherwise be woken for, asked now with a default: spend (an
+  API cap, the key's credit checked with a one-token call, and a subscription cap), what may leave the
+  machine, what may be committed, pushed, published or sent, deletion, the machine (awake, shared
+  resources, a stop time), permissions tried before they go (`git commit --dry-run`, a scratch file,
+  `git push --dry-run`), and wake time. It suggests one agent or a manager–engineer pairing, hands over
+  to `/projects:pair`, writes a bounds block into the brief, lists what keeps a night running (check-ins
+  re-armed, a wake-up on every long job, clean headless children, the suite on the right machine, the
+  private-word check, a stop at a usage warning) and ends with one morning summary. Its safety lines:
+  nothing leaves the agreed lane, and a stop that needs the person is a good outcome. A plugin's
+  commands carry its name, so it is `/projects:overnight` rather than `/overnight`, and
+  `kit-projects-overnight` in Cowork. `docs/getting-started.md` gains *Overnight runs*, and
+  `docs/principles.md` a principle, "decide before you leave what you would be woken for". Sections 9,
+  12 and 17 count and check it.
+- **The tests' kit fixture commits with automatic gc and maintenance off.** Started in the background
+  after the commit, they could pack its loose objects while the first fixture's clone was copying them,
+  and every fixture after it failed.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

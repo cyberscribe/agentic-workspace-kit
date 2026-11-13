@@ -1,7 +1,7 @@
 # projects — start a project right for agentic co-working
 
 A Claude Code plugin for the life of a project, kept in the project's own
-README so that people and agents read the same thing. Seven commands, one
+README so that people and agents read the same thing. Eight commands, one
 session-start line:
 
 | Command | What it is for |
@@ -12,6 +12,7 @@ session-start line:
 | **`/projects:board`** | Everything in flight on one page, with one-line flags for what needs attention. |
 | **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear, and the folder archived to `projects/_done/`. |
 | **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it; it offers to resume a paused one. |
+| **`/projects:overnight [what to work on]`** | Before leaving work running overnight: the outcome to wake up to, every call that would otherwise wake you settled in advance, the writes tried while you are still there, and one summary in the morning. |
 | **`/projects:pair [slug]`** | Build with a split: this session is product manager and end-to-end tester, a Claude Code session is the engineer, and they talk through a mailbox, in the project folder or any other. |
 
 Most of it is optional. What it insists on, kindly, is the part that decides
