@@ -149,14 +149,15 @@ channel and handle cells, is left out, and the report says whose.*
 
 A project's People section wins over the roster: the role it gives a person stands. The roster adds
 anyone the project does not name whose default relationship matches what changed — a scoped one,
-such as `keep told: anything touching measurement`, only for a change of that kind.
+such as `informed: anything touching measurement`, only for a change of that kind.
 
 Where the project README's People section gives roles, the roles do most of the choosing: whoever
-**owns** the outcome and whoever is to be **kept told** hear about progress on it — a criterion
-ticked, the finish line reached or moved, ownership changing, the project now blocked; whoever is to be **asked
-first** hears about decisions not yet taken — a proposal left open, a criterion someone wants to
-change or waive — before the decision rather than after it; and whoever **does** or **helps** hears
-where their own work is affected.
+is **accountable** for the outcome and whoever is **informed** hear about progress on it — a criterion
+ticked, the finish line reached or moved, ownership changing, the project now blocked; whoever is
+**consulted** hears about decisions not yet taken — a proposal left open, a criterion someone wants to
+change or waive — before the decision rather than after it; and whoever is **responsible** or
+**supporting** hears where their own work is affected. The older role words (owns, does, helps, ask
+first, keep told) mean the same.
 
 Promotion decides where a learning is kept. This step decides who should hear about it now — because a
 file that changed without anyone knowing reaches nobody until they happen to open it. It is the other
@@ -171,7 +172,7 @@ picked per row:
 
 | Who | What they need to know | Why them | How | Offer | Where it is recorded |
 |---|---|---|---|---|---|
-| <name> | <one line> | <owns / keep told / ask first / blocked by / go-to for> | <channel> | draft · note · none | `<path it was promoted to>` |
+| <name> | <one line> | <accountable / informed / consulted / blocked by / go-to for> | <channel> | draft · note · none | `<path it was promoted to>` |
 
 - **Name someone only with a reason.** "Nobody in particular" is a common and correct answer; say it
   in one line.

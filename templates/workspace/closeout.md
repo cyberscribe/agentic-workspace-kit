@@ -56,7 +56,7 @@ their work is affected. A roster row looks like this:
 
 | Name | Role | Default relationship | Channel | Handle |
 |---|---|---|---|---|
-| Priya Shah | Measurement lead | keep told: anything touching measurement | Slack | @priya |
+| Priya Shah | Measurement lead | informed: anything touching measurement | Slack | @priya |
 
 The roster holds handles only, never an email address or a phone number. Each row of the table offers
 a `draft` (a short message in the closer's own voice), a `note` (a line for the next team meeting or

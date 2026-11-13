@@ -80,8 +80,8 @@ Area · Folder · One-liner), and the template `kit/templates/area-readme.md`, e
 That is the quick path; go to the close. The full path continues:
 
 7. *Optional* — **People and roles.** Who is involved, in the five roles projects use:
-   **owns** (answers for the area; one person), **does**, **helps**, **ask first**,
-   **keep told**. Check the people directory (the conventions file's, else
+   **accountable** (answers for the area; one person), **responsible**, **supporting**,
+   **consulted**, **informed**. Check the people directory (the conventions file's, else
    `memory/people/`, `docs/people/` or `people/`) and link existing profiles; offer to
    start a profile for anyone new, and with a team roster (`team/people.md`) offer to
    seed this from it. Two or more people switches on the closeout's "who needs to know"

@@ -27,9 +27,10 @@ whether the work ever finishes:
 
 And what it offers, if you want it:
 
-- **People and roles** — five roles: **owns** (answers for the outcome, one person
-  per outcome), **does**, **helps**, **ask first** (consulted before a decision)
-  and **keep told** (hears how it went), linked to people profiles. Two or more
+- **People and roles** — five roles: **accountable** (answers for the
+  outcome, one person per outcome), **responsible**, **supporting**, **consulted**
+  (asked before a decision) and **informed** (hears how it went), linked to people
+  profiles. The older words (owns, does, helps, ask first, keep told) still read. Two or more
   people switches on the closeout plugin's "who needs to know" step.
 - **Success criteria** — how you'll know it was worth doing, as distinct from done.
 - **Precedents** — it searches finished projects and decisions logs for similar
@@ -133,7 +134,8 @@ the metrics:
   `.claude/projects.md` adds names; backtick only heading names in it.
 - **Done when** counts checklist lines (`- [ ]`, `- [x]`) under that heading.
 - **Blocked by** — one line, dated only by the date after `since`.
-- **The owner** — the **owns** line under People; with no People section, the
+- **The owner** — the **accountable** line under People (or **owns**, the older
+  word); with no People section, the
   register row's Owner, else a backticked **Owner:** in `.claude/projects.md`.
 - **The entry point** — the one `.claude/projects.md` names, else `README.md`,
   else a `CLAUDE.md` in the folder; where there are two, the first with a
@@ -206,7 +208,7 @@ through Done when one item at a time and finds the evidence for each: a path, a
 link or a commit. When the team has a verification standard in
 `docs/verification.md`, it holds that evidence to the standard. If an item is not
 met, you choose: keep working, change the criterion (with a dated line saying
-why), or waive it. The people marked *ask first* are named before a waiver, and
+why), or waive it. The people marked *consulted* are named before a waiver, and
 the waiver is recorded in the README next to the item. Then comes a
 three-question retrospective: what worked, what you would change, and what the
 next similar project should know first. It offers to promote that last answer to
@@ -270,7 +272,7 @@ over or coming back to it. It shows the desired outcome and how many Done when
 criteria are ticked, the Current state block and any Planned steps with day
 counts, the last three decisions and the last five commits to the folder,
 anything not yet committed, the open questions, and who to ask (the owner and
-the *ask first* people). It closes with a short "worth knowing" list of gaps and
+the *consulted* people). It closes with a short "worth knowing" list of gaps and
 stale lines. It quotes the README rather than paraphrasing it, fits in under 40
 lines, and reads while it briefs. Where something needs fixing, it says what
 would fix it and leaves the fixing to you. For a paused project, it then offers
@@ -288,7 +290,7 @@ it, when something does:
 ```
 Project: Rollout — outcome: The rollout is live for every team.
 Done when: 2 of 4 ticked
-State: blocked by the signed budget from finance — since 2026-09-14 — owner Sam
+State: blocked by the signed budget from finance — since 2026-09-14 — accountable Sam
 ```
 
 You see them at the top of the session, and the agent reads them as context. It
@@ -344,7 +346,7 @@ Four lines there shape the 3.0 lifecycle:
 It is also where the team's **in-flight limit** lives — how many projects one
 person has in `doing` at once, 3 unless you say otherwise. A person's profile can
 carry their own. A project counts towards someone when its People section names
-them as **owns** or **does** (or, with no People section, the register names
+them as **accountable** or **responsible** (or, with no People section, the register names
 them as owner). `/projects:new` mentions it when starting a project would take
 the owner over; it is advice, never a block.
 

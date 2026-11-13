@@ -116,7 +116,7 @@ reads the same everywhere.
   against total. A heading with no checklist under it, or a list under another
   name the conventions file does not give, is not seen — that is what the flag
   is for.
-- **The owner** — the line marked **owns** in the section headed `People`, or
+- **The owner** — the line marked **accountable** (or **owns**, the older word) in the section headed `People`, or
   by a name the conventions file gives. If the README has no such section, the
   register's Owner column; failing that, an owner the conventions file names for
   every project. A list of people under another heading ("Team", "Contacts") is
@@ -192,7 +192,7 @@ that one is about what the repository holds.
    not saying on what.
 5. **Over the in-flight limit** — per person: the active projects whose Current
    state block reads `State: doing` and whose People section names them as
-   **owns** or **does**, or, where a README has no People section, whose
+   **accountable** or **responsible**, or, where a README has no People section, whose
    register Owner is them — or however the conventions file says to count.
    Their limit is the **In-flight limit** in their profile (the file in the
    people directory matching their name), else the conventions default, else 200.

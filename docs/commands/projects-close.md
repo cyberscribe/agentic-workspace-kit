@@ -9,7 +9,7 @@ promoted, and the folder archived. Source: `plugins/projects/commands/close.md`.
    path, a link, a commit) and asks the person to confirm it. Where the team has a verification
    standard (`docs/verification.md`), the evidence is held to its row. An item not met is kept open
    (the close ends there), changed with a dated line saying why, or waived, with the reason and whether
-   the **ask first** people were consulted.
+   the **consulted** people were asked.
 2. **A retrospective.** Three questions: what worked, what to change, what the next similar project
    should know first. The answers go into the README as its last section.
 3. **Promotion.** The third answer is tested with the kit's filter. What survives goes to

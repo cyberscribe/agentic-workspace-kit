@@ -107,7 +107,7 @@ explain each choice; delete them in your copy.
 
 > The in-flight limit is a team default; a person's profile can carry their own.
 > It is advice the commands raise, never a block. A person's count is the active
-> projects in `doing` whose People section names them as **owns** or **does**
+> projects in `doing` whose People section names them as **accountable** or **responsible**
 > (the register's Owner, where a README has no People section); say so here if
 > your team counts differently.
 

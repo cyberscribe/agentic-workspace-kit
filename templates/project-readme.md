@@ -78,15 +78,16 @@ or a behaviour that changes.
 
 ## People *(optional)*
 
-One line per person: name — role — profile. The five roles are **owns** (answers for the outcome;
-one person per outcome), **does** (does the work), **helps** (supports it), **ask first** (consulted
-before a decision is taken) and **keep told** (hears how it went). A person can hold two, as in
-"owns, does". Point at their profile in `memory/people/` rather than restating it. When two or more
-people are named, the closeout ritual adds a "who needs to know" step; a line `Who needs to know: ask`
-(or `off`) here overrides the team's setting for this project. A one-person project keeps only the
-owner's line, which is how the board and the register know whose it is.
+One line per person: name — role — profile. The five roles are **accountable** (answers for
+the outcome; one person per outcome), **responsible** (does the work), **supporting** (helps with
+it), **consulted** (asked before a decision is taken) and **informed** (hears how it went). A person
+can hold two, as in "accountable, responsible". The older words (owns, does, helps, ask first, keep
+told) still read the same. Point at their profile in `memory/people/` rather than restating it. When
+two or more people are named, the closeout ritual adds a "who needs to know" step; a line `Who needs
+to know: ask` (or `off`) here overrides the team's setting for this project. A one-person project
+keeps only the owner's line, which is how the board and the register know whose it is.
 
-- <name> — <owns> — `memory/people/<name>.md`
+- <name> — <accountable> — `memory/people/<name>.md`
 
 ## Precedents *(optional)*
 

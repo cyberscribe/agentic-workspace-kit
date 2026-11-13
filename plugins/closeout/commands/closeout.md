@@ -223,13 +223,15 @@ channel and handle cells, is left out, and the report says whose: contact detail
 belong in a profile or an address book, not the repository.
 The project's roles win over the roster's; the roster adds anyone
 else whose default relationship, scoped or not, matches what changed. With one
-person or none, skip this without comment. Where the People section gives roles:
+person or none, skip this without comment. Where the People section gives roles (the older
+words read as the new ones: owns as accountable, does as responsible, helps as supporting, ask
+first as consulted, keep told as informed):
 
-- **owns**, **keep told**: the outcome — a box ticked, the finish line moved,
+- **accountable**, **informed**: the outcome — a box ticked, the finish line moved,
   ownership changed, a block.
-- **ask first**: this closeout's proposals, a Done when change or waiver — before,
+- **consulted**: this closeout's proposals, a Done when change or waiver — before,
   not after.
-- **does**, **helps**: work of theirs changed, blocked, unblocked or passed to them.
+- **responsible**, **supporting**: work of theirs changed, blocked, unblocked or passed to them.
 
 Without roles, name only those whose work is affected so, or whose profile makes
 them the one to go to. Present a short table. **How** is their channel, from the
@@ -240,7 +242,7 @@ there, on an explicit yes.
 
 | Who | What they need to know | Why them | How | Offer | Where it is recorded |
 |---|---|---|---|---|---|
-| <name> | <one line> | <owns / keep told / ask first / blocked by…> | <channel> | draft · note · none | `<path>` |
+| <name> | <one line> | <accountable / informed / consulted / blocked by…> | <channel> | draft · note · none | `<path>` |
 
 ## Report
 

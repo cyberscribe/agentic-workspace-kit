@@ -161,7 +161,7 @@ if [[ "${TEAM_COUNT:-0}" -ge 2 && "$WHO_NEEDS_TO_KNOW" != "off" ]]; then
         roster_note="
 
 The team roster gives these default relationships and channels. A scoped one,
-such as 'keep told: anything touching measurement', applies only to a change of
+such as 'informed: anything touching measurement', applies only to a change of
 that kind. A project's People section overrides the roster for that project; the
 next session applies that.
 $(printf '%s\n' "$ROSTER_ROWS" | awk -F'|' '{ r = ($2 == "" ? "no default" : $2); h = $3; if ($4 != "") h = h (h == "" ? "" : " ") $4

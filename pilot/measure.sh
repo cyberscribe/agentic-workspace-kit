@@ -112,7 +112,8 @@ days_ago() { date -u -d "-$1 days" +%F 2>/dev/null || date -u -v-"$1"d +%F; }
 #   - a heading's name is its text up to the first " — ", " – ", "(" or ":", compared exactly with
 #     Done when, People or an alias the conventions file names; Done when counts checklist lines;
 #   - in flight is the rule under Pace in the conventions: State doing, counted against each person
-#     People names as owns or does, or the register's Owner where there is no People section.
+#     People names as accountable or responsible (or owns or does, the older words), or the
+#     register's Owner where there is no People section.
 
 # The conventions file at that revision, else today's copy (a repository that adopted it recently
 # still gets its layout applied to older rows), else the kit defaults.
@@ -159,7 +160,8 @@ END { if (names != "") aliases(names) }'
 
 # One project entry point in, one tab-separated line out:
 #   state  blocked(0/1)  done_when(0/1)  has_people(0/1)  owners(comma list)  blocked since(date)
-# The owners are the people named owns or does, lower-cased; they are compared, never printed.
+# The owners are the people named accountable or responsible (or the older owns or does),
+# lower-cased; they are compared, never printed.
 # shellcheck disable=SC2016  # an awk program, as above
 readme_awk='
 function clean(v) { gsub(/`|\*\*/, "", v); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
@@ -205,7 +207,7 @@ section == "people" && /^[ \t]*[-*+][ \t]/ {
     line = $0; sub(/^[ \t]*[-*+][ \t]+/, "", line)
     n = split(line, f, / +(—|–|--|-) +/)
     name = tolower(clean(f[1])); roles = tolower(f[2])
-    if (n >= 2 && !missing(name) && roles ~ /(^|[^a-z])(owns|does)([^a-z]|$)/) owners = owners (owners == "" ? "" : ",") name
+    if (n >= 2 && !missing(name) && roles ~ /(^|[^a-z])(accountable|responsible|owns|does)([^a-z]|$)/) owners = owners (owners == "" ? "" : ",") name
 }
 END {
     if (state !~ /^(ready|doing|blocked|paused|done)$/) state = "-"
