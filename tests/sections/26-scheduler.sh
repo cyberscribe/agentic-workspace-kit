@@ -99,13 +99,17 @@ esac
 EOF
 chmod +x "$s26/bin/"*
 
+# The runner's own waits (a timeout's count, retry delays, the grace before a kill) run at a tenth of a
+# second per second here (SCHEDULER_SECOND), so they show the same behaviour in a tenth of the time; the
+# first timeout check runs on the real clock, so the real path is exercised too.
+s26_second=0.1
 # s26_x <args...>: schedule.sh under bash 3.2 with every path and tool pointed at the scratch folder.
 s26_x() {
     env SCHEDULER_HOME="$s26/cfg" SCHEDULER_DATA="$s26/data" SCHEDULER_BACKEND="$s26_backend" \
         SCHEDULER_NOTIFY_DESKTOP=0 SCHEDULER_CLAUDE="$s26/bin/claude" SCHEDULER_UID=501 \
         SCHEDULER_LAUNCHCTL="$s26/bin/launchctl" SCHEDULER_SYSTEMCTL="$s26/bin/systemctl" \
         SCHEDULER_CRONTAB="$s26/bin/crontab" SCHEDULER_LAUNCH_AGENTS="$s26/LaunchAgents" \
-        SCHEDULER_SYSTEMD_DIR="$s26/systemd" ${s26_now:+SCHEDULER_NOW="$s26_now"} \
+        SCHEDULER_SYSTEMD_DIR="$s26/systemd" ${s26_now:+SCHEDULER_NOW="$s26_now"} ${s26_second:+SCHEDULER_SECOND="$s26_second"} \
         CLAUDE_CONFIG_DIR="$s26/ccfg" SCHEDULER_MANAGED_SETTINGS="$s26/managed-settings.json" XDG_CONFIG_HOME="$s26/xdg" \
         "$st_bash" "$s26_sh" "$@"
 }
@@ -515,14 +519,17 @@ s26_run retry
 
 s26_mode hang
 s26_mk slow '0 7 * * *' --timeout 5s --retries 0
-SECONDS=0; s26_run slow; s26_secs=$SECONDS
+# On the real clock: SCHEDULER_SECOND unset, as everywhere outside these tests.
+s26_second=""; SECONDS=0; s26_run slow; s26_secs=$SECONDS; s26_second=0.1
 sleep 1
 # The stub wrote its pid before it became sleep; that process is gone once the timeout has stopped it.
 [[ "$(s26_meta slow status)" == timeout && "$(s26_meta slow exit)" == 124 && $s26_secs -lt 30 ]] && ! kill -0 "$(cat "$s26/bin/hang.pid")" 2>/dev/null \
     && ok "26 runner: a run past its timeout is stopped with its process group and recorded as timeout (${s26_secs}s)" \
     || ko "26 runner: a run past its timeout is stopped with its process group and recorded as timeout (${s26_secs}s)" "$(cat "$(s26_last slow)meta"; ps -p "$(cat "$s26/bin/hang.pid")")"
 
-s26_mk lap '0 7 * * *' --timeout 8s --retries 0
+# The first run holds the lock for its timeout, 30 of the runner's seconds (3 s here), long enough for the
+# second to start and find it held under a loaded machine.
+s26_mk lap '0 7 * * *' --timeout 30s --retries 0
 s26_x run lap >/dev/null 2>&1
 s26_i=0; while [[ ! -d "$s26/data/locks/lap" && $s26_i -lt 50 ]]; do sleep 0.1; s26_i=$((s26_i + 1)); done
 s26_run lap
@@ -1282,11 +1289,14 @@ mkdir -p "$s26/fakesleep"
 printf '#!/bin/sh\ncase "$1" in *.*) exec /bin/sleep "$1" ;; esac\necho "$1" >>"%s/fakesleep-log"\n' "$s26" >"$s26/fakesleep/sleep"; chmod +x "$s26/fakesleep/sleep"
 s26_mk vgrow '0 7 * * *' --retries 2 --retry-delay 1s --pause-after-failures 0
 s26_mk vlist '0 7 * * *' --retries 3 --retry-delay '1s, 2s' --pause-after-failures 0
+# The runner's own clock here, so the whole seconds reach the fake sleep (which does not wait) as written.
+s26_second=""
 rm -f "$s26/fakesleep-log"; PATH="$s26/fakesleep:$PATH" s26_run vgrow
 [[ "$(tr '\n' ' ' <"$s26/fakesleep-log" 2>/dev/null)" == "1 2 " ]] || s26_bad+="a single retry_delay does not grow: $(tr '\n' ' ' <"$s26/fakesleep-log" 2>/dev/null)"$'\n'
 rm -f "$s26/fakesleep-log"; PATH="$s26/fakesleep:$PATH" s26_run vlist
 [[ "$(s26_meta vlist attempts)" == 4 && "$(tr '\n' ' ' <"$s26/fakesleep-log" 2>/dev/null)" == "1 2 2 " ]] \
     || s26_bad+="a retry_delay list is not used in order with its last entry repeated: $(tr '\n' ' ' <"$s26/fakesleep-log" 2>/dev/null)"$'\n'
+s26_second=0.1
 # report counts scheduled runs only, so this one fires on the schedule's clock, not by hand.
 s26_mode failonce
 s26_mk rsched '0 7 * * *' --retries 1 --retry-delay 1s --pause-after-failures 0

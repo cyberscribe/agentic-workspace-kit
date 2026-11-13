@@ -298,7 +298,8 @@ due fire that had no run.
 For tests and unusual setups: `SCHEDULER_HOME` (the tasks' folder's parent), `SCHEDULER_DATA` (the
 state folder), `SCHEDULER_BACKEND`, `SCHEDULER_LAUNCHCTL`, `SCHEDULER_SYSTEMCTL`, `SCHEDULER_CRONTAB`,
 `SCHEDULER_SCHTASKS` (the OS tools), `SCHEDULER_LAUNCH_AGENTS`, `SCHEDULER_SYSTEMD_DIR` (where units
-go), `SCHEDULER_CLAUDE` (the `claude` to record), `SCHEDULER_NOW` (a fixed clock) and
+go), `SCHEDULER_CLAUDE` (the `claude` to record), `SCHEDULER_NOW` (a fixed clock),
+`SCHEDULER_SECOND` (how long one second of the runner's own waits lasts, 0.1 in the suite) and
 `SCHEDULER_NOTIFY_DESKTOP=0`, `SCHEDULER_PORT_RULES` (another rules table) and
 `SCHEDULER_HOOK_DISABLED=1` (silences the session-start line). Section 26 of the kit's suite runs
 every backend against stubs.

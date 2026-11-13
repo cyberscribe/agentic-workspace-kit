@@ -110,6 +110,17 @@ dur_secs() {
 }
 
 # --- Clock ---------------------------------------------------------------------------------------------
+# SCHEDULER_SECOND: how long one second of the runner's own waits lasts (the timeout count, the grace
+# before a stopped run is killed, retry delays, a reply window's stop). It is 1 everywhere except the
+# kit's tests, which shorten it so a five-second timeout shows the same behaviour in half a second. It
+# changes no duration a task file states, and no check on one.
+S_SECOND="${SCHEDULER_SECOND:-1}"
+[[ "$S_SECOND" =~ ^[0-9]+(\.[0-9]+)?$ ]] || S_SECOND=1
+# s_sleep <seconds>: sleep for that many of the runner's seconds.
+s_sleep() {
+    if [[ "$S_SECOND" == 1 ]]; then sleep "$1"
+    else sleep "$(awk -v n="$1" -v s="$S_SECOND" 'BEGIN { printf "%.3f", n * s }')"; fi
+}
 # Local time throughout. NOW_* is the current minute, or SCHEDULER_NOW for a fixed clock.
 now_parts() {
     local s="${SCHEDULER_NOW:-$(date '+%Y-%m-%d %H:%M')}"
@@ -1208,21 +1219,21 @@ rwt_inner() {
             seen=1
             src="$(stream_api_source "$out")"
             if [[ -n "$src" && "$src" != none ]]; then
-                kill -TERM -- "-$pid" 2>/dev/null; sleep 1; kill -KILL -- "-$pid" 2>/dev/null
+                kill -TERM -- "-$pid" 2>/dev/null; s_sleep 1; kill -KILL -- "-$pid" 2>/dev/null
                 { wait "$pid"; } 2>/dev/null
                 return 125
             fi
         fi
-        if (( ticks < 25 && seen == 0 )); then sleep 0.2; ticks=$((ticks + 1)); (( ticks % 5 == 0 )) && waited=$((waited + 1)); continue; fi
+        if (( ticks < 25 && seen == 0 )); then s_sleep 0.2; ticks=$((ticks + 1)); (( ticks % 5 == 0 )) && waited=$((waited + 1)); continue; fi
         if (( waited >= secs )); then
             kill -TERM -- "-$pid" 2>/dev/null
             local g=0
-            while kill -0 "$pid" 2>/dev/null && (( g < 10 )); do sleep 1; g=$((g + 1)); done
+            while kill -0 "$pid" 2>/dev/null && (( g < 10 )); do s_sleep 1; g=$((g + 1)); done
             kill -KILL -- "-$pid" 2>/dev/null
             { wait "$pid"; } 2>/dev/null
             return 124
         fi
-        sleep 1; waited=$((waited + 1))
+        s_sleep 1; waited=$((waited + 1))
     done
     { wait "$pid"; } 2>/dev/null; rc=$?
     return $rc
@@ -1354,7 +1365,7 @@ reach_remote() {
     id="$(printf '%s\n' "$out" | awk '/^backgrounded/ { print $3; exit }')"
     if [[ -z "$id" ]]; then runner_log "$name: reach remote did not start, see reach.out"; return 0; fi
     printf 'reach=remote\nreach_id=%s\nreach_start=%s\n' "$id" "$(now_epoch)" >"$dir/reach"
-    ( sleep "$window"; reach_stop "$dir" ) </dev/null >/dev/null 2>&1 &
+    ( s_sleep "$window"; reach_stop "$dir" ) </dev/null >/dev/null 2>&1 &
 }
 # reach_stop <rundir>: stops the run's remote session, if it has one. Silent; a session already stopped is fine.
 reach_stop() {
@@ -1567,7 +1578,7 @@ cmd_exec() {
         in_list "$kind" "$ron" && (( a < tries )) || break
         if (( ${#RD[@]} == 1 )); then wait_s=$((RD[0] * a))
         else i=$((a - 1)); (( i < ${#RD[@]} )) || i=$((${#RD[@]} - 1)); wait_s=${RD[$i]}; fi
-        sleep "$wait_s"
+        s_sleep "$wait_s"
     done
     (( attempts == 0 )) && : >"$dir/attempt-0.json"
     local end; end="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -2097,6 +2108,7 @@ cmd_run() {
                    SCHEDULER_HOME="$S_HOME" SCHEDULER_TASKS_DIR="$S_TASKS" SCHEDULER_DATA="$S_DATA")
     [[ -n "${SCHEDULER_NOTIFY_DESKTOP:-}" ]] && envv+=(SCHEDULER_NOTIFY_DESKTOP="$SCHEDULER_NOTIFY_DESKTOP")
     [[ -n "${SCHEDULER_BACKEND:-}" ]] && envv+=(SCHEDULER_BACKEND="$SCHEDULER_BACKEND")
+    [[ -n "${SCHEDULER_SECOND:-}" ]] && envv+=(SCHEDULER_SECOND="$SCHEDULER_SECOND")
     if (( wait )); then
         "${envv[@]}" /bin/bash "$RUNNER" exec "$name" --manual
         local d; d="$(last_run "$name")"
