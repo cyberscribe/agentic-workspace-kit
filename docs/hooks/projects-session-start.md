@@ -25,7 +25,10 @@ for the agent only: it is not offered `/projects:adopt` unprompted.
 **Anywhere else** in the repository it says nothing, except at most once a day: one line naming the
 active projects blocked for more than 14 days, pointing at `/projects:board`.
 
-The lines go out twice: as a message the person sees, and as context the agent reads.
+The lines go out twice: as a message the person sees, and as context the agent reads. The agent's copy
+ends by asking it to read the README in full before acting on the project or area: the lines are a
+pointer to the page, not a stand-in for it. Cowork runs no hooks, so there the same instruction comes
+from the kit's standards (`CLAUDE.kit.md`, Active work) and the Cowork row of the surface table.
 
 ## When to reach for it
 

@@ -1546,6 +1546,8 @@ msg="$(s4b_area "$PF/ongoing/loom")"
 [[ "$(printf '%s\n' "$(s4b_area "$PF/ongoing/bonsai")" | grep -c .)" == 1 ]] || bad+="more than one line"$'\n'
 jq -e '.hookSpecificOutput.additionalContext | contains("ongoing/bonsai/README.md")' <<<"$(pstart "$PF/ongoing/bonsai" PROJECTS_HOOK_TODAY=2026-11-11)" >/dev/null 2>&1 \
     || bad+="the agent's context does not name the file"$'\n'
+jq -e '.hookSpecificOutput.additionalContext | contains("Read ongoing/bonsai/README.md in full before acting on this area")' <<<"$(pstart "$PF/ongoing/bonsai" PROJECTS_HOOK_TODAY=2026-11-11)" >/dev/null 2>&1 \
+    || bad+="the agent's context does not ask it to read the area's page"$'\n'
 empty "4b session-start: one line inside an area — desired state, standards met or not yet reviewed, state, check-in due against its own cadence and never while dormant or archived" "$bad"
 # The conventions' Areas line moves them: the example conventions keep areas in areas/<slug>/.
 pa "$PX/areas/darkroom" active "every week — last 2026-11-01" "1 of 2 — 2026-11-01"

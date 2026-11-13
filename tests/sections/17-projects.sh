@@ -209,6 +209,13 @@ s17_c="$(s17_ctx <<<"$s17_out")"
 grep -qF 'never guess one' <<<"$s17_c" && grep -qF '.claude/resources.local.md' <<<"$s17_c" && grep -qF 'kit/setup.sh link field-study' <<<"$s17_c" \
     && ok "17 hook: the agent is asked to offer the mapping once, asking for each path and never guessing" \
     || ko "17 hook: the agent is asked to offer the mapping once, asking for each path and never guessing" "$s17_c"
+# The page, not the summary: Claude Code is told by the hook's context, Cowork (no hooks) by the kit's
+# standards and its row of the surface table.
+s17_bad=""
+grep -qF 'Read projects/field-study/README.md in full before acting on this project' <<<"$s17_c" || s17_bad+="hook context: no instruction to read the page"$'\n'
+grep -qF 'reads its `README.md` before acting on it' "$KIT/CLAUDE.kit.md" || s17_bad+="CLAUDE.kit.md: no instruction to read the page"$'\n'
+grep -qF 'reads its `README.md` before acting' "$KIT/templates/workspace/surface-rows/cowork.md" || s17_bad+="the Cowork surface row: no instruction to read the page"$'\n'
+empty "17 the project page at session start: the hook's context, the kit's standards and the Cowork row each say to read the README before acting" "$s17_bad"
 s17_key="$(printf '%s' "$s17_ws" | sed 's#/#-#g; s#^-##')"
 check "17 hook: the offer is stamped outside the repository with the sorted list it offered" \
     test "$(cat "$s17_stamps/$s17_key.field-study.resources" 2>/dev/null)" = "media"

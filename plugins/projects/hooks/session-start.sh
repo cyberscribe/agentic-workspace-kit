@@ -214,7 +214,8 @@ Resources not mapped on this machine: $names — kit/setup.sh link $slug maps th
     fi
 
     context="Where this session's project stands, from the projects plugin's session-start line (read from ${file#"$root"/}; the file is canonical, and this is a summary of it):
-$lines"
+$lines
+Read ${file#"$root"/} in full before acting on this project: the lines above point at it rather than standing in for it."
     [[ "$proposed" == "1" ]] && context="$context
 Sections marked \"proposed\" were drafted by /projects:adopt and are still for the person to confirm or edit."
     [[ -n "$resource_context" ]] && context="$context
@@ -287,7 +288,8 @@ if [[ -n "$area" && -f "$root/$area/README.md" ]]; then
         }' "$root/$area/README.md")"
     [[ -n "$line" ]] || exit 0
     emit "$line" "Where this session's ongoing area stands, from the projects plugin's session-start line (read from $area/README.md; the file is canonical, and this is a summary of it):
-$line"
+$line
+Read $area/README.md in full before acting on this area: the line above points at it rather than standing in for it."
 fi
 
 # ---- Anywhere else: at most one line a day ----------------------------------

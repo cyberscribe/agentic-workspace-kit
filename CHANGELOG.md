@@ -168,6 +168,11 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   person's computer, the person's browser, each with what it suits) and that the suite stays with the
   engineer or the person; why there are two roles; and that a pairing pauses while the machine sleeps,
   pointing at the scheduler's note. Section 23 checks the one default and the sleep note.
+- **The project page at session start.** A session opened in or about a project or ongoing area reads
+  its `README.md` before acting on it. In Claude Code the projects hook's context ends by asking for
+  that, after its summary lines; Cowork runs no hooks, so the kit's standards (`CLAUDE.kit.md`, Active
+  work) say it for every surface, and the Cowork row of the surface table repeats it. Section 17 and
+  the hook checks cover all three.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,
