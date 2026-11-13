@@ -21,6 +21,8 @@ jobs:
     env:
       AW_WORDS: ${{ secrets.AW_BANNED_WORDS }}
       AW_JOBS: 4
+      # A section that hangs is stopped and named after 15 minutes, well inside the job's own limit.
+      AW_SECTION_TIMEOUT: 900
     steps:
       - uses: actions/checkout@v5
         with:

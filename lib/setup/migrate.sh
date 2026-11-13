@@ -1577,7 +1577,7 @@ while [[ $mg_i -lt ${#MAP_VERB[@]} ]]; do
             printf '%s' "$mg_hl" ;;
         private-term)
             # The term itself is not printed: the run's output may be kept or shared.
-            if mg_vread .claude/private-terms.local 2>/dev/null | grep -qxF -- "$mg_a"; then
+            if grep -qxF -- "$mg_a" <<<"$(mg_vread .claude/private-terms.local 2>/dev/null)"; then
                 mg_act skip "private-term (map line ${MAP_LN[$mg_i]}: in .claude/private-terms.local already)"
             else
                 mg_act edit ".claude/private-terms.local: + the term on map line ${MAP_LN[$mg_i]}"

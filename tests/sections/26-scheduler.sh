@@ -922,15 +922,15 @@ while IFS='	' read -r s26_id s26_hit s26_miss; do
     [[ -n "$s26_id" ]] || continue
     s26_re="$(s26_rule "$s26_id")"
     [[ -n "$s26_re" ]] || { s26_bad+="no rule $s26_id"$'\n'; continue; }
-    printf '%s\n' "$s26_hit" | grep -qiE -- "$s26_re" || s26_bad+="$s26_id misses: $s26_hit"$'\n'
-    printf '%s\n' "$s26_miss" | grep -qiE -- "$s26_re" && s26_bad+="$s26_id matches the near miss: $s26_miss"$'\n'
+    printf '%s\n' "$s26_hit" | grep_all -iE -- "$s26_re" || s26_bad+="$s26_id misses: $s26_hit"$'\n'
+    printf '%s\n' "$s26_miss" | grep_all -iE -- "$s26_re" && s26_bad+="$s26_id matches the near miss: $s26_miss"$'\n'
 done <<<"$s26_corpus"
 s26_nrules=0
 while IFS= read -r s26_r; do
     s26_nrules=$((s26_nrules + 1))
     grep -q "^$s26_r	" <<<"$s26_corpus" || s26_bad+="rule $s26_r has no corpus line"$'\n'
 done < <(awk -F'\t' '!/^#/ && $1 != "id" { print $1 }' "$s26_rules")
-awk -F'\t' '!/^#/ && NF != 5 { print "line " NR " has " NF " fields" }' "$s26_rules" | grep -q . && s26_bad+="a rules line is not five fields"$'\n'
+awk -F'\t' '!/^#/ && NF != 5 { print "line " NR " has " NF " fields" }' "$s26_rules" | grep_all . && s26_bad+="a rules line is not five fields"$'\n'
 empty "26 port-rules.tsv: each of its $s26_nrules rules matches its corpus line and not its near miss, five fields a line" "$s26_bad"
 
 # --- What the live Mac run found ----------------------------------------------------------------------
@@ -1055,7 +1055,7 @@ empty "26 report: a fixture week with a pause, a miss, a late run, a failure, a 
 s26_bad=""
 grep -n -i -E 'delete[a-z_]*(_| )(scheduled_?task|cloud)|(remove|delete) (the|its|their) cloud' \
     "$KIT/plugins/scheduler/scripts/lib/port.sh" "$KIT/plugins/scheduler/commands/tasks.md" "$KIT/plugins/scheduler/README.md" "$KIT/docs/commands/scheduler-tasks.md" \
-    | grep -v -i -E 'never|not |nothing|no step' | grep -q . && s26_bad+="a line that deletes a cloud task: $(grep -n -i -E 'delete[a-z_]*(_| )(scheduled_?task|cloud)|(remove|delete) (the|its|their) cloud' "$KIT/plugins/scheduler/commands/tasks.md")"$'\n'
+    | grep -v -i -E 'never|not |nothing|no step' | grep_all . && s26_bad+="a line that deletes a cloud task: $(grep -n -i -E 'delete[a-z_]*(_| )(scheduled_?task|cloud)|(remove|delete) (the|its|their) cloud' "$KIT/plugins/scheduler/commands/tasks.md")"$'\n'
 s26_cmd="$(tr '\n' ' ' <"$KIT/plugins/scheduler/commands/tasks.md" | tr -s ' ')"
 [[ "$s26_cmd" == *"paused, never deleted"* && "$s26_cmd" == *"no step of this calls a tool that deletes a cloud task"* && "$s26_cmd" == *"port rollback"* ]] \
     || s26_bad+="the command does not say the cloud task is paused, never deleted, with the way back"$'\n'
@@ -1179,7 +1179,7 @@ s26_xh create leaky --schedule '0 7 * * *' --cwd "$s26/work" --prompt 'Post the 
 [[ "$(s26_xh show leaky)" == *"Warning: line "*" look like a credential; keep it in a file the prompt points to."* ]] || s26_bad+="show does not warn of a credential"$'\n'
 [[ "$(s26_xh doctor)" == *"Task leaky: line "*" of its file look like a credential"* ]] || s26_bad+="doctor does not warn of a credential"$'\n'
 [[ "$(s26_xh show leaky | grep 'look like a credential')$(s26_xh doctor | grep 'look like a credential')" != *abcdefghijklmnopqrstu* ]] || s26_bad+="a warning printed the credential's value"$'\n'
-git -C "$s26_vers" status --porcelain | grep -q '^??' || s26_bad+="the scheduler committed something"$'\n'
+git -C "$s26_vers" status --porcelain | grep_all '^??' || s26_bad+="the scheduler committed something"$'\n'
 [[ "$(git -C "$s26_vers" rev-list --count HEAD)" == 1 ]] || s26_bad+="the scheduler made a commit"$'\n'
 empty "26 home in git: an untracked or edited task file is marked alike in show, doctor and doctor <name>, two untracked ones in an untracked folder too; a credential in a task file warns without printing it; the scheduler never commits" "$s26_bad"
 

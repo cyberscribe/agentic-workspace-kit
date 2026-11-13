@@ -12,7 +12,10 @@
 # id and the time it took the lock. A lock whose holder has died is taken over at once. One held for
 # more than a minute is taken over too, since every change here takes milliseconds, and that is said
 # on stderr, naming the holder and how long it held the lock: a live holder losing its lock is the
-# failure this file exists to prevent, so it is never silent. The holder releases the lock from an
+# failure this file exists to prevent, so it is never silent. A minute by the clock is not enough on
+# its own: the clock can step forward (a machine waking, a new virtual machine setting its time), and
+# every lock then looks a minute old at once, a working writer's included. So the waiter must also
+# have seen the same holder, unchanged, for about three seconds of its own waiting. The holder releases the lock from an
 # exit trap, so a script that stops part way still lets go.
 #
 # Written for bash 3.2 and POSIX tools.
@@ -36,14 +39,18 @@ aw_take() {
 
 # aw_lock <lock dir>: 0 once the lock is held; 1 after about ten seconds of a live holder.
 aw_lock() {
-    local l="$1" n=0 holder since
+    local l="$1" n=0 holder since key seen="" same=0
     until mkdir "$l" 2>/dev/null; do
         holder="$(cat "$l/pid" 2>/dev/null)"
         if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
             aw_take "$l" "$holder"
             continue
         fi
-        if [ -n "$(find "$l" -prune -mmin +1 2>/dev/null)" ]; then
+        # How long this waiter has watched one holder, by its own passes: a holder and the time it
+        # took the lock, unchanged since the last pass.
+        key="$holder/$(cat "$l/since" 2>/dev/null)"
+        if [ "$key" = "$seen" ]; then same=$((same + 1)); else seen="$key" same=0; fi
+        if [ "$same" -ge 30 ] && [ -n "$(find "$l" -prune -mmin +1 2>/dev/null)" ]; then
             since="$(cat "$l/since" 2>/dev/null)"
             case "$since" in ''|*[!0-9]*) since="over a minute" ;; *) since="$(( $(date +%s) - since )) seconds" ;; esac
             printf 'lock: taking over %s from process %s, which has held it for %s; its change may be lost\n' \

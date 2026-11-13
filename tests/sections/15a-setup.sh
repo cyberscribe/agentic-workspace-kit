@@ -254,7 +254,7 @@ if s15_need kitsrc; then
         s15_is "$(s15_outcome "$s15_e.log" 3)" done || s15_bad+="stage 3: $(s15_outcome "$s15_e.log" 3)"$'\n'
         s15_is "$(s15_outcome "$s15_e.log" 9)" done || s15_bad+="stage 9: $(s15_outcome "$s15_e.log" 9)"$'\n'
         grep -q 'claude plugin enable ' "$s15_e.log" && s15_bad+="enable commands printed with nothing left to enable"$'\n'
-        grep '^  git add ' "$s15_e.log" | grep -q ' \.claude/settings\.json' || s15_bad+=".claude/settings.json is not in the git add line"$'\n'
+        grep '^  git add ' "$s15_e.log" | grep_all ' \.claude/settings\.json' || s15_bad+=".claude/settings.json is not in the git add line"$'\n'
         empty "15 a settings file of the person's own, unattended: the kit's plugins are enabled in it, its own keys kept, stages 3 and 9 done" "$s15_bad"
         st_expect "15 ... and the state check reads them enabled by the workspace's settings alone" \
             "$(CLAUDE_CONFIG_DIR="$s15_cc" st_run "$s15_e")" plugins_registered=closeout,ongoing,projects,scheduler,workspace plugins_not_loaded= plugins_scope=workspace

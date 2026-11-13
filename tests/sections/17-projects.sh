@@ -125,7 +125,7 @@ done
 s17_bad+="$(s17_has "$s17_pc" 'stays versioned' 'the person' '(`_done`, `_delete`)')"
 # The kit's state check still reads the template as the kit's own conventions.
 grep -qiE '^#+[[:space:]]+Project conventions' "$s17_pc" || s17_bad+="no Project conventions heading"$'\n'
-grep -E '^[[:space:]]*[-*] \*\*' "$s17_pc" | grep -qi 'not set yet' && s17_bad+="a setting still reads not set yet"$'\n'
+grep -E '^[[:space:]]*[-*] \*\*' "$s17_pc" | grep_all -i 'not set yet' && s17_bad+="a setting still reads not set yet"$'\n'
 empty "17 .claude/projects.md template carries the 3.0 values (paused in place, _done, folder moves, versioned default, reserved, Not adopted)" "$s17_bad"
 s17_got="$(grep -E '^## ' "$KIT/templates/workspace/INDEX.md" | paste -sd'|' -)"
 [[ "$s17_got" == '## Active|## Paused|## Done' && "$(grep -c '^| Project | Folder |' "$KIT/templates/workspace/INDEX.md")" == 3 ]] \

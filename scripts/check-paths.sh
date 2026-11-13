@@ -608,7 +608,7 @@ EOF
         sort -u "$tmp/ids" | while IFS=$'\t' read -r kind id; do
             [[ -n "$id" ]] || continue
             lid="$(printf '%s' "$id" | tr '[:upper:]' '[:lower:]')"
-            if [[ -n "$may" ]] && printf '%s\n' "$may" | grep -qxF -- "$lid"; then continue; fi
+            if [[ -n "$may" ]] && grep -qxF -- "$lid" <<<"$may"; then continue; fi
             grep -qxF -- "$lid" "$tmp/inhead" && continue
             printf '%s\n' "$id" > "$tmp/id1"
             hits "$tmp/id1" -iwF "names $kind of the workspace" || cnr R4 "the derived-name scan could not run"

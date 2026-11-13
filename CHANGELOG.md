@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## v3.6.0 — 2026-11-13
+## v3.6.0 — 2026-11-14
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints.
 - **What it offers.** The template changes, which enable the new `scheduler` and `ongoing` plugins in
@@ -355,6 +355,27 @@ rewriting — the record of what a version claimed is part of what the version i
 - **CI runs four sections at once on each runner** (`AW_JOBS=4`), where the suite's default of half
   the cores gave the 3-core macOS runner one, and its serial run passed the 30-minute limit. The limit
   is 45 minutes, and the checkout action is v5.
+- **Three more faults the release's own CI run found.**
+  - **The lock could still lose a write when the clock stepped forward.** A lock held for more than a
+    minute is taken over, and the minute was judged by the clock alone. When the clock steps (a machine
+    waking, a new virtual machine setting its time), every lock looks a minute old at once, and a waiter
+    took a working writer's lock. A waiter now takes a lock over by age only after it has itself watched
+    the same holder, unchanged, for about three seconds; a holder that has died is still taken over at
+    once. Section 23 dates every lock in a copy of the lock back to 2020, where before the fix every
+    round lost a write.
+  - **The PM launcher's token never finished on macOS where SIGPIPE is ignored.** It read
+    `/dev/urandom` through `tr` until `head` had twelve characters, and relied on SIGPIPE to stop `tr`.
+    Claude Code and CI runners start processes with SIGPIPE ignored, and macOS's `tr` then runs for
+    ever: it held the macOS CI jobs until the 45-minute limit. The read is now bounded (`head -c`), and
+    section 23 checks that every read of `/dev/urandom` in the kit is.
+  - **A match at the end of a pipe could read as no match.** `grep -q` stops at the first match, and
+    under `pipefail` the command still writing to it then fails the pipe, by SIGPIPE or, where SIGPIPE
+    is ignored, by a failed write. Six places in setup, the engine, the migration, the template builder
+    and `check-paths.sh` that asked whether a list held a line now give `grep` the list whole. In the
+    suite, `grep_all` (`tests/run.sh`) reads all of its input; sections 4 and 16 failed this way on CI.
+- **A hung section fails in minutes and says where.** `AW_SECTION_TIMEOUT` (seconds; CI sets 900) stops
+  a parallel job that runs past it, its whole process tree, and reports its sections and the last check
+  it finished.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

@@ -15,7 +15,7 @@ s19_run() {
     s19_out="$("$st_bash" "$ws/kit/scripts/skills-bridge.sh" --target "$ws" "$@" </dev/null 2>&1)"; s19_rc=$?
 }
 # s19_has <line pattern>: the bridge's last output has a line matching the extended regex.
-s19_has() { printf '%s\n' "$s19_out" | grep -qE "$1"; }
+s19_has() { printf '%s\n' "$s19_out" | grep_all -E "$1"; }
 # s19_skill <dir> <name> <text>: a minimal skill.
 s19_skill() { mkdir -p "$1" && printf -- '---\nname: %s\ndescription: "%s"\n---\n\n%s\n' "$2" "$3" "$3" > "$1/SKILL.md"; }
 # s19_mk <ws>: a mkws_min workspace with its own skills: daily-notes (an executable script, a link to a
@@ -102,7 +102,7 @@ else skp "19 ten kit-* skills are written — the kit has $s19_ncmd commands (/p
 s19_man="$s19_sk/.kit-generated"
 s19_bad=""
 [[ -f "$s19_man" ]] || s19_bad+="no .claude/skills/.kit-generated"$'\n'
-head -n 1 "$s19_man" 2>/dev/null | grep -q '^# Written by kit/scripts/skills-bridge.sh' || s19_bad+="the manifest's first line is not the header"$'\n'
+head -n 1 "$s19_man" 2>/dev/null | grep_all '^# Written by kit/scripts/skills-bridge.sh' || s19_bad+="the manifest's first line is not the header"$'\n'
 [[ "$(awk -F '\t' '$1 == "kit"' "$s19_man" 2>/dev/null | aw_count)" -eq $s19_n ]] || s19_bad+="kit lines differ from the kit-* folders"$'\n'
 s19_bad+="$(awk -F '\t' '$1 == "kit" && $3 !~ /^plugins\/[^\/]+\/commands\/[^\/]+\.md$/ { print "source of " $2 ": " $3 }' "$s19_man" 2>/dev/null)"
 [[ "$(awk -F '\t' '$1 == "user" { print $2 "=" $3 }' "$s19_man" 2>/dev/null | paste -sd' ' -)" == "daily-notes=skills/daily-notes field-tool=skills/field-tool" ]] \
@@ -194,7 +194,7 @@ s19_run "$s19_w1"
 s19_r1=$s19_rc s19_o1="$s19_out"
 s19_run "$s19_w1" --check
 if [[ $s19_r1 -eq 0 && $s19_rc -eq 0 && "$(st_tree "$s19_w1")" == "$s19_before" ]] \
-    && ! printf '%s\n' "$s19_o1" | grep -qE '  (written|copied)'; then
+    && ! printf '%s\n' "$s19_o1" | grep_all -E '  (written|copied)'; then
     ok "19 a second run reports everything current and changes nothing, and --check exits 0"
 else ko "19 a second run reports everything current and changes nothing, and --check exits 0" "rc $s19_r1/$s19_rc: $s19_o1"; fi
 
@@ -203,7 +203,7 @@ s19_skill "$s19_sk/team-own" team-own "Written by hand."
 s19_skill "$s19_w1/skills/team-own" team-own "From skills/."
 s19_run "$s19_w1"
 [[ $s19_rc -eq 0 ]] && s19_has '^  clash   team-own  — ' && grep -q 'Written by hand' "$s19_sk/team-own/SKILL.md" \
-    && ! awk -F '\t' '$2 == "team-own"' "$s19_man" | grep -q . \
+    && ! awk -F '\t' '$2 == "team-own"' "$s19_man" | grep_all . \
     && ok "19 a folder there already and not listed is reported as a clash, left as it is and not listed" \
     || ko "19 a folder there already and not listed is reported as a clash, left as it is and not listed" "rc $s19_rc: $s19_out"
 
@@ -226,7 +226,7 @@ grep -q 'A line added later' "$s19_sk/daily-notes/SKILL.md" && s19_has '^  user 
 printf 'A second line added later.\n' >> "$s19_w1/skills/daily-notes/SKILL.md"
 s19_run "$s19_w1" --no-user
 [[ $s19_rc -eq 0 ]] && ! grep -q 'A second line' "$s19_sk/daily-notes/SKILL.md" \
-    && awk -F '\t' '$1 == "user" && $2 == "daily-notes"' "$s19_man" | grep -q . && ! s19_has '^  (user|removed) ' \
+    && awk -F '\t' '$1 == "user" && $2 == "daily-notes"' "$s19_man" | grep_all . && ! s19_has '^  (user|removed) ' \
     && ok "19 --no-user writes only the kit's skills and keeps the listed user copies" \
     || ko "19 --no-user writes only the kit's skills and keeps the listed user copies" "rc $s19_rc: $s19_out"
 
@@ -242,7 +242,7 @@ for s19_n in kit-closeout kit-workspace-hygiene; do
     [[ -e "$s19_sk/$s19_n" ]] && s19_bad+="$s19_n is still there"$'\n'
     s19_has "^  skip    $s19_n  \(Kit skills not bridged\)$" || s19_bad+="no skip line for $s19_n"$'\n'
     s19_has "^  removed $s19_n  " || s19_bad+="no removed line for $s19_n"$'\n'
-    awk -F '\t' -v n="$s19_n" '$1 == "skip" && $2 == n' "$s19_man" | grep -q . || s19_bad+="no skip line in the manifest for $s19_n"$'\n'
+    awk -F '\t' -v n="$s19_n" '$1 == "skip" && $2 == n' "$s19_man" | grep_all . || s19_bad+="no skip line in the manifest for $s19_n"$'\n'
 done
 [[ -f "$s19_sk/team-own/SKILL.md" ]] || s19_bad+="the unlisted team-own folder was removed"$'\n'
 [[ -d "$s19_sk/kit-projects-new" ]] || s19_bad+="kit-projects-new was removed"$'\n'
@@ -268,7 +268,7 @@ if mkws_min "$s19_w3"; then
     s19_has '^  removed kit-retired  ' || s19_bad+="no removed line for kit-retired"$'\n'
     [[ -e "$s19_sk3/kit-retired" ]] && s19_bad+="kit-retired is still there"$'\n'
     [[ -f "$s19_sk3/kit-team-extra/SKILL.md" ]] || s19_bad+="the unlisted kit-team-extra was removed"$'\n'
-    awk -F '\t' '$2 == "kit-retired" || $2 == "kit-team-extra"' "$s19_sk3/.kit-generated" | grep -q . && s19_bad+="the manifest still lists kit-retired or lists kit-team-extra"$'\n'
+    awk -F '\t' '$2 == "kit-retired" || $2 == "kit-team-extra"' "$s19_sk3/.kit-generated" | grep_all . && s19_bad+="the manifest still lists kit-retired or lists kit-team-extra"$'\n'
     empty "19 a listed folder that is missing is reported stale and regenerated; a listed one no longer produced is removed; unlisted ones stay" "$s19_bad${s19_bad:+$s19_out}"
 else ko "19 the stale-and-removed fixture builds"; fi
 
@@ -290,7 +290,7 @@ if mkws_min "$s19_w2"; then
     [[ $s19_rc -eq 0 ]] || s19_bad+="rc $s19_rc"$'\n'
     s19_has '^  user    daily-notes  copied \(adopted\)$' || s19_bad+="daily-notes was not adopted"$'\n'
     grep -q 'Current text' "$s19_sk2/daily-notes/SKILL.md" || s19_bad+="the adopted copy was not refreshed"$'\n'
-    awk -F '\t' '$1 == "user" && $2 == "daily-notes"' "$s19_sk2/.kit-generated" | grep -q . || s19_bad+="the adopted copy is not in the manifest"$'\n'
+    awk -F '\t' '$1 == "user" && $2 == "daily-notes"' "$s19_sk2/.kit-generated" | grep_all . || s19_bad+="the adopted copy is not in the manifest"$'\n'
     s19_has "^  legacy  projects-new  — the kit's older unprefixed skill; kit-projects-new replaces it" || s19_bad+="no legacy line for projects-new"$'\n'
     grep -q 'The 2.x skill' "$s19_sk2/projects-new/SKILL.md" || s19_bad+="the legacy folder was changed"$'\n'
     s19_has '^  legacy  workspace-hygiene  — skills/workspace-hygiene was generated' || s19_bad+="no legacy line for skills/workspace-hygiene"$'\n'

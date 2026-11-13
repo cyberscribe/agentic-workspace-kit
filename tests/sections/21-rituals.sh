@@ -335,7 +335,7 @@ s21_bad+="$(s21_needs templates/workspace/workspace-map.md '`memory/terms.md`' '
 s21_rows="$(awk '/^\| Plain words/ { f = 1; getline; next } f && /^\|/' "$KIT/docs/glossary.md")"
 s21_n="$(printf '%s\n' "$s21_rows" | grep -c '^|')"
 [[ "$s21_n" -ge 1 && "$s21_n" -le 10 ]] || s21_bad+="docs/glossary.md has $s21_n rows, not 1 to 10"$'\n'
-printf '%s\n' "$s21_rows" | head -n 1 | grep -q '^| leave out; a leave-out test .*| ablate, ablation |' || s21_bad+="docs/glossary.md: leave-out is not the first row"$'\n'
+printf '%s\n' "$s21_rows" | awk 'NR == 1' | grep_all '^| leave out; a leave-out test .*| ablate, ablation |' || s21_bad+="docs/glossary.md: leave-out is not the first row"$'\n'
 printf '%s\n' "$s21_rows" | awk -F '|' '{ n = $4; gsub(/ /, "", n); if (n == "") bad = 1 } END { exit bad }' || s21_bad+="docs/glossary.md: a row with no note"$'\n'
 empty "21 vocabulary: the glossary, terms and decisions templates, made by both new commands and offered by both adopts, named in CLAUDE.kit.md, checked by the register audit; the kit's glossary seeded" "$s21_bad"
 

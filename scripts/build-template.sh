@@ -108,7 +108,7 @@ if [[ -n "$WSX" ]]; then
         "$WSX/.claude/workspace.md" 2>/dev/null | tr ',' '\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     id() {
         [[ -n "$2" ]] || return 0
-        printf '%s\n' "$may_name" | grep -q -i -x -F -e "$2" && return 0
+        grep -q -i -x -F -e "$2" <<<"$may_name" && return 0
         git --no-optional-locks -C "$KIT" grep -q -i -w -F -e "$2" HEAD -- 2>/dev/null && return 0
         printf '%s\t%s\n' "$1" "$2" >>"$ids"
     }

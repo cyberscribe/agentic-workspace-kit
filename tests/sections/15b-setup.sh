@@ -89,13 +89,13 @@ PYK2
     [[ -z "$s15_old_v" ]] || ! grep -q "^## v$s15_old_v" "$SCRATCH/s15-update.log" || s15_bad+="the excerpt runs past the old version's heading"$'\n'
     grep -q '^  git add kit \.claude/kit-templates\.lock' "$SCRATCH/s15-update.log" || s15_bad+="no git add line naming kit and the ledger"$'\n'
     grep -q "^  git commit -m \"Kit $s15_old_v -> 9\\.9\\.9\"\$" "$SCRATCH/s15-update.log" || s15_bad+="no commit line Kit $s15_old_v -> 9.9.9"$'\n'
-    grep '^  git add ' "$SCRATCH/s15-update.log" | grep -q ' CLAUDE\.md' \
+    grep '^  git add ' "$SCRATCH/s15-update.log" | grep_all ' CLAUDE\.md' \
         || s15_bad+="the workspace has no commit yet, and the git add line leaves out CLAUDE.md (a partial first commit)"$'\n'
     [[ $s15_rc -eq 0 ]] || s15_bad+="status $s15_rc"$'\n'
     empty "15 update: the kit advances, the new kit's update.sh takes over, the CHANGELOG since the old version is printed, one commit named" "$s15_bad"
     if [[ $s15_engine -eq 1 ]]; then
         s15_bad=""
-        grep '^  git add ' "$SCRATCH/s15-update.log" | grep -q ' \.claude/settings\.json' || s15_bad+="the git add line does not name .claude/settings.json, which the engine merged"$'\n'
+        grep '^  git add ' "$SCRATCH/s15-update.log" | grep_all ' \.claude/settings\.json' || s15_bad+="the git add line does not name .claude/settings.json, which the engine merged"$'\n'
         grep -q 'changed   \.claude/closeout\.md' "$SCRATCH/s15-update.log" || s15_bad+="the changed template is not listed"$'\n'
         [[ "$(awk -F '\t' '$1 == ".claude/closeout.md"' "$s15_u/.claude/kit-templates.lock")" == "$s15_lock_before" ]] \
             || s15_bad+="the ledger entry for .claude/closeout.md changed"$'\n'
@@ -160,7 +160,7 @@ if [[ -n "${s15_engine:-}" && ${s15_engine:-0} -eq 1 ]]; then
         s15_st="$(awk -F '\t' '$1 == ".claude/closeout.md" { print $5 }' "$s15_c/.claude/kit-templates.lock")"
         if [[ $s15_ans == y ]]; then
             grep -q '^A line the second kit commit adds\.$' "$s15_c/.claude/closeout.md" && [[ "$s15_st" == accepted ]] \
-                && grep '^  git add ' "$s15_c.log" | grep -q ' \.claude/closeout\.md' \
+                && grep '^  git add ' "$s15_c.log" | grep_all ' \.claude/closeout\.md' \
                 && ok "15 update, attended, y: the template's diff is applied to .claude/closeout.md, recorded accepted, and named in the commit" \
                 || ko "15 update, attended, y: the template's diff is applied to .claude/closeout.md, recorded accepted, and named in the commit" "ledger: $s15_st; $(tail -n 12 "$s15_c.log")"
         else
@@ -177,7 +177,7 @@ if [[ -n "${s15_engine:-}" && ${s15_engine:-0} -eq 1 ]]; then
         (cd "$SCRATCH" && printf 'n\n%s\n' "$s15_ans" | AW_WIZARD_NONINTERACTIVE=0 "$st_bash" "$s15_c/kit/setup.sh" update --no-fetch >"$s15_c.log" 2>&1)
         if [[ $s15_ans == y ]]; then
             grep -q -x '\.DS_Store' "$s15_c/.gitignore" && grep -q -x '_delete/' "$s15_c/.gitignore" \
-                && grep '^  git add ' "$s15_c.log" | grep -q ' \.gitignore' \
+                && grep '^  git add ' "$s15_c.log" | grep_all ' \.gitignore' \
                 && ok "15 update, attended: missing .gitignore lines offered as one diff; y adds them and names .gitignore in the commit" \
                 || ko "15 update, attended: missing .gitignore lines offered as one diff; y adds them and names .gitignore in the commit" "$(tail -n 14 "$s15_c.log")"
         else
@@ -229,7 +229,7 @@ if [[ -n "${s15_engine:-}" && ${s15_engine:-0} -eq 1 ]]; then
     grep -q '^  left for hand merging  \.claude/closeout\.md (1 of 1 changes)$' "$s15_c.log" || s15_bad+="the summary does not list it for hand merging"$'\n'
     empty "15 update, hunk by hunk: nothing fits, so no apply question; the hunk and a prompt for the assistant are printed, and n leaves the ledger" "$s15_bad"
     # The prompt's own command prints the change from the workspace's root.
-    (cd "$s15_c" && "$st_bash" kit/install.sh --template-diff .claude/closeout.md --target . 2>&1) | grep -q '^+A line the second kit commit adds\.$' \
+    (cd "$s15_c" && "$st_bash" kit/install.sh --template-diff .claude/closeout.md --target . 2>&1) | grep_all '^+A line the second kit commit adds\.$' \
         && ok "15 update: the hand-merge prompt's command prints the change, run from the workspace's root" \
         || ko "15 update: the hand-merge prompt's command prints the change, run from the workspace's root"
     # y once merged by hand: recorded, and the next update does not offer it.
@@ -267,7 +267,7 @@ PYSUB
     grep -q '^  left for hand merging  \.claude/closeout\.md (1 of 2 changes)$' "$s15_c.log" || s15_bad+="the summary does not list the one left"$'\n'
     [[ "$(awk -F '\t' '$1 == ".claude/closeout.md"' "$s15_c/.claude/kit-templates.lock")" == "$s15_lock_before" ]] \
         || s15_bad+="the ledger entry changed, so the file would not be offered again"$'\n'
-    grep '^  git add ' "$s15_c.log" | grep -q ' \.claude/closeout\.md' || s15_bad+="the commit does not name .claude/closeout.md"$'\n'
+    grep '^  git add ' "$s15_c.log" | grep_all ' \.claude/closeout\.md' || s15_bad+="the commit does not name .claude/closeout.md"$'\n'
     empty "15 update, hunk by hunk: some fit — the question gives the count, those land, the rest is printed with a prompt and stays offered" "$s15_bad"
 
     # The three shapes a customised workspace showed on a real update, none of which needs a merge:

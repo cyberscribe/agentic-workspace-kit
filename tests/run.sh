@@ -156,6 +156,11 @@ skp()  { skip=$((skip + 1)); printf 'SKIP  %s\n' "$1"; aw_tick "$1"; }
 check() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$d"; else ko "$d"; fi; }
 # empty <description> <text>: passes when the text is empty; otherwise the text is the detail.
 empty() { if [[ -z "$2" ]]; then ok "$1"; else ko "$1" "$2"; fi; }
+# grep_all <grep options and pattern>: grep -q at the end of a pipe, reading all of its input. grep -q
+# stops at the first match, and under pipefail the command still writing then fails the whole pipe: it
+# is killed by SIGPIPE, or, where SIGPIPE is ignored (a CI runner, anything Claude Code starts), its
+# write fails. Either way a check that matched reads as failed, more often the busier the machine.
+grep_all() { grep "$@" >/dev/null; }
 
 # The few checks that time something (4b, 22, 23) read how busy the machine is, so a red run means a
 # fault rather than a busy machine. aw_load prints the 1-minute load average per core. aw_factor prints
@@ -450,7 +455,12 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
         aw_groups+=("${aw_g# }")
     done
     aw_par="$SCRATCH/parallel"; mkdir -p "$aw_par"
-    aw_pids=() aw_next=0 aw_live=0
+    aw_pids=() aw_next=0 aw_live=0 aw_t0=()
+    # AW_SECTION_TIMEOUT=<seconds> (CI sets it): a job running longer is stopped, its whole process tree,
+    # and reported with its sections and the last check it finished, so a hang fails in minutes and says
+    # where it is rather than running into the CI job's own limit.
+    aw_limit="${AW_SECTION_TIMEOUT:-}"; case "$aw_limit" in ''|*[!0-9]*) aw_limit=0 ;; esac
+    aw_kill_tree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do aw_kill_tree "$c"; done; kill -TERM "$1" 2>/dev/null; }
     # An interrupted run stops its jobs, each of which removes its own scratch directory on the way out.
     trap 'for aw_x in ${aw_pids[@]+"${aw_pids[@]}"}; do pkill -TERM -P "$aw_x" 2>/dev/null; kill "$aw_x" 2>/dev/null; done; exit 130' INT TERM
     aw_printed="" aw_pre=""
@@ -476,8 +486,19 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
             ( AW_RUN_CHILD=1 AW_JOBS=1 AW_SLOW=1 AW_SECTIONS="${aw_groups[$aw_started]}" AW_TIMES="$aw_par/$aw_started.times" AW_KITSRC_FROM="$KITSRC" \
                 bash "$KIT/tests/run.sh" > "$aw_par/$aw_started.out" 2>&1
               echo "$?" > "$aw_par/$aw_started.rc"; : > "$aw_par/$aw_started.done" ) &
-            aw_pids+=("$!"); aw_started=$((aw_started + 1)); aw_live=$((aw_live + 1))
+            aw_pids+=("$!"); aw_t0+=("$SECONDS"); aw_started=$((aw_started + 1)); aw_live=$((aw_live + 1))
         done
+        if [[ $aw_limit -gt 0 ]]; then
+            for aw_i in "${!aw_pids[@]}"; do
+                [[ -f "$aw_par/$aw_i.done" ]] && continue
+                [[ $((SECONDS - aw_t0[aw_i])) -gt $aw_limit ]] || continue
+                aw_kill_tree "${aw_pids[$aw_i]}"
+                aw_last="$(awk -F '\t' '$1 == "C" { l = $4 } END { print l }' "$aw_par/$aw_i.times" 2>/dev/null)"
+                printf 'TIMEOUT  section(s) %s stopped after %s s (AW_SECTION_TIMEOUT); the last check to finish: %s\n' \
+                    "${aw_groups[$aw_i]}" "$aw_limit" "${aw_last:-none}" >> "$aw_par/$aw_i.out"
+                echo 124 > "$aw_par/$aw_i.rc"; : > "$aw_par/$aw_i.done"
+            done
+        fi
         aw_live=0
         for aw_i in "${!aw_pids[@]}"; do [[ -f "$aw_par/$aw_i.done" ]] || aw_live=$((aw_live + 1)); done
         aw_flush
@@ -1275,14 +1296,14 @@ printf '### a claim\n' > "$DR/s1.md"
 empty "4 review: silent inside the capture child, and marks nothing" "$(review "$PR" CLOSEOUT_HOOK_CHILD=1)$(find "$DR" -mindepth 1 -maxdepth 1 -name '.seen*' | sed 's#.*/##')"
 outr="$(review "$PR")"
 if jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' <<<"$outr" >/dev/null 2>&1 \
-    && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF "$DR/s1.md"; then
+    && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F "$DR/s1.md"; then
     ok "4 review: a pending draft is surfaced as SessionStart additionalContext"
 else ko "4 review: a pending draft is surfaced as SessionStart additionalContext" "$outr"; fi
 rchk="$(jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -oE 'bash [^ ]+/check-evidence\.sh' | sed 's/^bash //')"
-if [[ -n "$rchk" && -f "$rchk" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF 'never promoted as fact'; then
+if [[ -n "$rchk" && -f "$rchk" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F 'never promoted as fact'; then
     ok "4 review: names the evidence checker by a path that exists, and the three results"
 else ko "4 review: names the evidence checker by a path that exists, and the three results" "checker: ${rchk:-none}"; fi
-jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF 'Take the step only when two or more are known for this project' \
+jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F 'Take the step only when two or more are known for this project' \
     && ok "4 review: names the who-needs-to-know step when the project has a team" || ko "4 review: names the who-needs-to-know step when the project has a team"
 empty "4 review: the injected context has no capitals-for-emphasis" \
     "$(jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -nwE "$shouted" || true)"
@@ -1297,7 +1318,7 @@ age "$DR/.seen.s1.md" 5
 : > "$DR/.seen.gone.md"
 outr="$(review "$PR")"
 check "4 review: a draft first surfaced beyond the retention window is pruned with its marker" test ! -e "$DR/s1.md" -a ! -e "$DR/.seen.s1.md"
-if [[ -f "$DR/s2.md" && -f "$DR/.seen.s2.md" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF "$DR/s2.md"; then
+if [[ -f "$DR/s2.md" && -f "$DR/.seen.s2.md" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F "$DR/s2.md"; then
     ok "4 review: an old draft never yet surfaced is kept and surfaced (retention counts from first surfacing)"
 else ko "4 review: an old draft never yet surfaced is kept and surfaced (retention counts from first surfacing)"; fi
 check "4 review: a marker whose draft is gone is removed" test ! -e "$DR/.seen.gone.md"
@@ -1445,8 +1466,8 @@ for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
     grep -qE '^\| Who \| What they need to know \| Why them \| How \| Offer \| Where it is recorded \|$' "$KIT/$f" || bad+="$f: no Who | … | How | Offer | … table header"$'\n'
     grep -qF '`draft`' "$KIT/$f" && grep -qF '`note`' "$KIT/$f" && grep -qF '`none`' "$KIT/$f" || bad+="$f: the three offers are not all named"$'\n'
     grep -qF 'Who needs to know:' "$KIT/$f" && grep -qF '`ask`' "$KIT/$f" && grep -qF '`off`' "$KIT/$f" || bad+="$f: no auto | ask | off setting"$'\n'
-    tr '\n' ' ' < "$KIT/$f" | grep -qE '`off`[^.;]* (skips this step|leaves it out)' || bad+="$f: off does not skip the step"$'\n'
-    tr '\n' ' ' < "$KIT/$f" | grep -qE '`ask`[^.;]* offers it in one line' || bad+="$f: ask is not a one-line offer"$'\n'
+    tr '\n' ' ' < "$KIT/$f" | grep_all -E '`off`[^.;]* (skips this step|leaves it out)' || bad+="$f: off does not skip the step"$'\n'
+    tr '\n' ' ' < "$KIT/$f" | grep_all -E '`ask`[^.;]* offers it in one line' || bad+="$f: ask is not a one-line offer"$'\n'
     grep -qF 'team/people.md' "$KIT/$f" || bad+="$f: does not name the roster"$'\n'
 done
 grep -qF "The project's roles win over the roster's" "$KIT/plugins/closeout/commands/closeout.md" || bad+="closeout.md: no precedence sentence"$'\n'
@@ -2936,7 +2957,7 @@ for r in "$ALOG"/call.*; do
         || bad+="$(basename "$r"): auto-update not off: $(grep 'autoupdate' "$r" | paste -sd' ' -)"$'\n'
 done
 [[ "$(find "$ALOG" -mindepth 1 -maxdepth 1 -name 'call.*' | grep -c .)" == 6 ]] || bad+="$(find "$ALOG" -mindepth 1 -maxdepth 1 -name 'call.*' | grep -c .) calls, not 6"$'\n'
-if find "$ATMP" -mindepth 1 -maxdepth 1 | sed 's#.*/##' | grep -qE '^ablate-(cfg|home|judge)\.'; then bad+="left in TMPDIR: $(ls "$ATMP")"$'\n'; fi
+if find "$ATMP" -mindepth 1 -maxdepth 1 | sed 's#.*/##' | grep_all -E '^ablate-(cfg|home|judge)\.'; then bad+="left in TMPDIR: $(ls "$ATMP")"$'\n'; fi
 [[ "$(homesum)" == "$home0" ]] || bad+="the person's own config changed"$'\n'
 empty "10 each run gets its own temporary config (the minimum set only) and HOME, removed after, the token passed through, and the person's config untouched" "$bad"
 pick() { grep -l -x "$1" "$ALOG"/call.* | xargs grep -l -x "$2" | grep -c .; }
@@ -3254,7 +3275,7 @@ done
 grep -qF '`kit/plugins/workspace/scripts/state.sh`' "$QS" || bad+="the quick-start does not name the path in kit/"$'\n'
 grep -q 'With no$' "$QS" && grep -q '^shell at all, read `state.sh` as a file' "$QS" || bad+="no fallback for a surface with no shell"$'\n'
 awk '/^## The team part/ { s = 1; next } /^## / { s = 0 } s' "$QS" | tr '\n' ' ' \
-    | grep -q 'start `team/people.md` from *`templates/team-roster.md`' || bad+="the team part does not offer the team roster"$'\n'
+    | grep_all 'start `team/people.md` from *`templates/team-roster.md`' || bad+="the team part does not offer the team roster"$'\n'
 emitted="$(st_run "$SF" | sed 's/=.*//' | sort -u)"
 # Keys are the first column of the discovery table, and any key written with an underscore or as
 # key=value anywhere in the command (the format's own `key=value` aside).

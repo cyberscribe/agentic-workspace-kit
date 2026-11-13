@@ -188,7 +188,7 @@ s16_bad=""
 for s16_k in in_git hooks kit_hooks kit_path kit_submodule kit_import ledger workspace_conventions claude_md agents_md \
     always_loaded plugins_registered plugins_mode submodule_config submodules_attention orphan_gitlinks sensitive_tracked \
     versioned_mismatch external_paths_missing legacy kit_incoming mode origin_visibility; do
-    printf '%s\n' "$r" | grep -q "^$s16_k=" || s16_bad+="$s16_k is not emitted"$'\n'
+    printf '%s\n' "$r" | grep_all "^$s16_k=" || s16_bad+="$s16_k is not emitted"$'\n'
 done
 empty "16 every §11.4 key is emitted by the full check" "$s16_bad"
 s16_M="$s16_S/mkws-new"
@@ -402,7 +402,7 @@ s16_quick_want="$(printf '%s\n' state_version target in_git hooks kit_hooks kit_
 s16_bad=""
 for s16_k in $(s16_keys "$r") $(s16_keys "$(st_run "$s16_U")"); do
     s16_k="${s16_k/submodule.\*/submodule.<path>}"; s16_k="${s16_k/resource.\*/resource.<slug>/<name>}"
-    printf '%s\n' "$s16_hdr" | grep -qxF -- "$s16_k" || s16_bad+="$s16_k is emitted but not in the header's key list"$'\n'
+    printf '%s\n' "$s16_hdr" | grep_all -xF -- "$s16_k" || s16_bad+="$s16_k is emitted but not in the header's key list"$'\n'
 done
 empty "16 every key the full check emits is in the header's key list, so --explain covers it" "$s16_bad"
 

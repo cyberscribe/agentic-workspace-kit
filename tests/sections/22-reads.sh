@@ -205,7 +205,7 @@ done
 s22_never="$(sed -n '/^## Reference files never read/,/^## The kit/p' "$s22_rep" 2>/dev/null | grep -c '^- ')"
 [[ "$s22_never" == 2 ]] || s22_bad+="never read lists $s22_never files, not 2"$'\n'
 for s22_f in docs/late.md projects/_done/two/README.md; do
-    sed -n '/^## Reference files never read/,/^## The kit/p' "$s22_rep" 2>/dev/null | grep -qxF -- "- \`$s22_f\`" || s22_bad+="$s22_f is not listed as never read"$'\n'
+    sed -n '/^## Reference files never read/,/^## The kit/p' "$s22_rep" 2>/dev/null | grep_all -xF -- "- \`$s22_f\`" || s22_bad+="$s22_f is not listed as never read"$'\n'
 done
 grep -qxF -- '- `kit/docs/guide.md` (1)' "$s22_rep" 2>/dev/null || s22_bad+="the kit's guide is not counted apart"$'\n'
 grep -qF 'kit/CLAUDE.kit.md' "$s22_rep" 2>/dev/null && s22_bad+="the always-loaded kit file is counted"$'\n'
@@ -313,7 +313,7 @@ for s22_f in $s22_ref docs/always.md kit/docs/guide.md src/code.md projects/one/
     grep -qF -- "${s22_f##*/}" "$s22_csv" && s22_bad+="the CSV names ${s22_f##*/}"$'\n'
 done
 grep -qE '[0-9a-f]{8}-[0-9a-f]{4}-|toolu_|/' "$s22_csv" && s22_bad+="the CSV carries an id or a path"$'\n'
-grep -vE '^(date,[a-z0-9_,]+|[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]*)*,([0-9]{4}-[0-9]{2}-[0-9]{2})?)$' "$s22_csv" | grep -q . && s22_bad+="a line of the CSV is not a header or dates and counts"$'\n'
+grep -vE '^(date,[a-z0-9_,]+|[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]*)*,([0-9]{4}-[0-9]{2}-[0-9]{2})?)$' "$s22_csv" | grep_all . && s22_bad+="a line of the CSV is not a header or dates and counts"$'\n'
 empty "22 metrics.csv holds dates and counts only: no file name, path or session id from the transcripts" "$s22_bad"
 
 # The daily row, a CSV with the older columns recomputed for its dates, and a copy of measure.sh with

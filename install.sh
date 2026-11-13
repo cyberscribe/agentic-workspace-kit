@@ -204,7 +204,7 @@ generate_commands() { # <format> <plugins dir> <repository root, resolved>
                 dest="$root/.gemini/commands/${ns:+$ns/}$cmd.toml" lab=".gemini/commands/${ns:+$ns/}$cmd.toml"
                 # A TOML literal string cannot hold three single quotes, and Gemini CLI would run !{...}
                 # and expand @{...} rather than pass them through as text.
-                if fm_body "$src" | grep -qE "'''|[!@][{]"; then
+                if grep -qE "'''|[!@][{]" <<<"$(fm_body "$src")"; then
                     die "$src contains ''', !{ or @{, which a Gemini CLI command cannot carry as written"
                 fi
                 {
@@ -483,7 +483,7 @@ fi
 if [[ $MODE == decline ]]; then
     DECLINE="$(printf '%s' "$DECLINE" | sed 's/[[:space:]]*$//')"
     [[ -n "$DECLINE" ]] || usage_error "--gitignore-decline needs a line"
-    if ! aw_ledger_declined "$LEDGER" | grep -qxF -- "$DECLINE"; then
+    if ! grep -qxF -- "$DECLINE" <<<"$(aw_ledger_declined "$LEDGER")"; then
         printf '!declined\t.gitignore\t%s\n' "$DECLINE" >> "$LEDGER" || die "cannot write $AW_LEDGER_REL"
     fi
     exit 0

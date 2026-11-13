@@ -400,6 +400,32 @@ for s23_r in 1 2 3; do
         || s23_bad+="round $s23_r: a writer that said it landed is missing: $(grep -c '^claim ' "$s23_rb") lines, exits $(sort -n "$s23_rb.rc" | awk '{ printf "%s ", $2 }')"$'\n'
 done
 empty "23 lock: a holder that lets go while a waiter is reading it does not cost the next writer its lock (three rounds, the race widened to 50 ms)" "$s23_bad"
+# A clock that steps forward. Every lock then looks a minute old at once, and a waiter that judged age
+# by the clock alone took a working writer's lock (a CI runner lost a write to it). A copy of lock.sh
+# dates each lock back to 2020 as it is taken, and holds 50 ms between reading the file and replacing
+# it; before the fix every round lost a write.
+s23_step="$SCRATCH/s23/step"
+mkdir -p "$s23_step/scripts" "$s23_step/hooks/lib"
+cp "$s23_rs" "$s23_step/scripts/registry.sh"
+s23_bad=""
+python3 - "$KIT/plugins/projects/hooks/lib/lock.sh" "$s23_step/hooks/lib/lock.sh" <<'PYSTEP' || s23_bad+="the lines the check changes are not in lock.sh as it expects"$'\n'
+import sys
+s = open(sys.argv[1]).read()
+taken, read = '    date +%s > "$l/since"\n', '    rc=$?\n'
+if s.count(taken) != 1 or s.count(read) != 1: sys.exit(1)
+s = s.replace(taken, taken + '    touch -t 202001010000 "$l"\n').replace(read, read + '    sleep 0.05\n')
+open(sys.argv[2], "w").write(s)
+PYSTEP
+for s23_r in 1 2 3; do
+    s23_rb="$s23_step/board.$s23_r"; printf '# Claims board\n' > "$s23_rb"; : > "$s23_rb.rc"
+    for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        { bash "$s23_step/scripts/registry.sh" add "$s23_rb" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rb.rc"; } &
+    done
+    wait
+    [[ "$(awk '$2 == 0 { print "claim " $1 }' "$s23_rb.rc" | LC_ALL=C sort)" == "$(grep '^claim ' "$s23_rb" | LC_ALL=C sort)" ]] \
+        || s23_bad+="round $s23_r: a writer that said it landed is missing: $(grep -c '^claim ' "$s23_rb") lines, exits $(sort -n "$s23_rb.rc" | awk '{ printf "%s ", $2 }')"$'\n'
+done
+empty "23 lock: a clock that steps forward does not cost a working writer its lock (three rounds, every lock dated 2020)" "$s23_bad"
 # The checks below start from a known board, whatever the writers managed.
 { printf '# Claims board\n'; for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do printf 'claim %s\n' "$s23_i"; done; } > "$s23_b"
 bash "$s23_rs" replace "$s23_b" "claim 12" "claim 12 done" >/dev/null && bash "$s23_rs" remove "$s23_b" "claim 3" >/dev/null
@@ -479,6 +505,12 @@ s23_out2="$(CLAUDE_CONFIG_DIR="$s23_cfg" bash "$s23_launch" "$s23_p" --print --s
 [[ "$s23_out" == *"--resume sess-777"* && "$s23_out2" == *"no transcript for session sess-none"*"rc=2" ]] \
     && ok "23 launcher: --session resumes that session, and refuses one with no transcript here" \
     || ko "23 launcher: --session resumes that session, and refuses one with no transcript here" "$s23_out"$'\n'"$s23_out2"
+# /dev/urandom never ends, so a command reading it straight ends only when SIGPIPE kills it. Under
+# Claude Code or a CI runner SIGPIPE is ignored, and macOS's tr then spins for ever (the PM launcher's
+# token did, and hung a macOS CI job). Every read of it goes through head -c or od -N.
+s23_bad="$(grep -rn --include='*.sh' '/dev/urandom' "$KIT/setup.sh" "$KIT/install.sh" "$KIT/lib" "$KIT/plugins" "$KIT/scripts" "$KIT/githooks" "$KIT/pilot" 2>/dev/null \
+    | grep -vE 'head -c [0-9]+ /dev/urandom|od [^|]*-N ?[0-9]+[^|]* /dev/urandom' | grep -v '^[^:]*:[0-9]*: *#')"
+empty "23 every read of /dev/urandom is bounded, so nothing spins where SIGPIPE is ignored" "$s23_bad"
 rm -f "$s23_cfg/projects/x/sess-123.jsonl" "$s23_cfg/projects/x/sess-777.jsonl"
 s23_out="$(bash "$s23_launch" "$SCRATCH/s23" --print 2>&1; echo "rc=$?")"
 [[ "$s23_out" == *"no mailbox"*"rc=2" ]] && ok "23 launcher: no mailbox, no launch" || ko "23 launcher: no mailbox, no launch" "$s23_out"

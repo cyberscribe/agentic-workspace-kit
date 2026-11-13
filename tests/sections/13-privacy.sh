@@ -736,7 +736,7 @@ printf 'Closed.\n' >> "$s13_W/projects/_done/lab-log/README.md"
 git -C "$s13_W/projects/_done/lab-log" add README.md
 s13_run git -C "$s13_W/projects/_done/lab-log" commit -q -m "Closed"
 s13_expect "13 stubs: after the project folder moves into _done/, a commit there still goes through the kit's hooks" 0
-[[ "$(grep -c . "$s13_S/moved.marker" 2>/dev/null)" == 2 ]] && tail -n 1 "$s13_S/moved.marker" | grep -q '/_done/lab-log$' \
+[[ "$(grep -c . "$s13_S/moved.marker" 2>/dev/null)" == 2 ]] && tail -n 1 "$s13_S/moved.marker" | grep_all '/_done/lab-log$' \
     && ok "13 ... both before and after the move (the chained hook ran each time)" \
     || ko "13 ... both before and after the move (the chained hook ran each time)" "$(cat "$s13_S/moved.marker" 2>&1)"
 

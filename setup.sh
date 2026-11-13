@@ -747,7 +747,7 @@ else
     printf '%s\n' "$bridge" | sed 's/^/    /'
     state_check "$T"
     if [[ $rc -ne 0 ]] || ! key_is skills_bridge present; then cw+="the bridge did not finish (kit/setup.sh skills); "
-    elif printf '%s\n' "$bridge" | grep -q '^ *clash '; then cw+="clashes in .claude/skills/, named above; "
+    elif grep -q '^ *clash ' <<<"$bridge"; then cw+="clashes in .claude/skills/, named above; "
     else note "Cowork reads skills when a session starts: they appear in the next session, not this one."; fi
     note "kit/setup.sh skills refreshes the bridge; run it from a terminal after an update."
     echo
