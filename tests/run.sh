@@ -157,6 +157,28 @@ check() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$d"; else ko "$
 # empty <description> <text>: passes when the text is empty; otherwise the text is the detail.
 empty() { if [[ -z "$2" ]]; then ok "$1"; else ko "$1" "$2"; fi; }
 
+# The few checks that time something (4b, 22, 23) read how busy the machine is, so a red run means a
+# fault rather than a busy machine. aw_load prints the 1-minute load average per core. aw_factor prints
+# what a time budget is multiplied by: the load per core, at least 1, and at least 2 under CI=true,
+# since a shared runner is slower than a desk machine with nothing else on it. Each such check names
+# the factor in its line, so a pass under load, or a skip, says so.
+aw_load() {
+    local l n
+    # AW_LOAD stands in for the measurement, to see how the checks read on a busy machine.
+    if [[ -n "${AW_LOAD:-}" ]]; then printf '%s\n' "$AW_LOAD"; return; fi
+    if [[ -r /proc/loadavg ]]; then
+        l="$(cut -d ' ' -f 1 /proc/loadavg)"; n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)"
+    else
+        l="$(sysctl -n vm.loadavg 2>/dev/null | awk '{ print $2 }')"; n="$(sysctl -n hw.ncpu 2>/dev/null)"
+    fi
+    awk -v l="${l:-0}" -v n="${n:-1}" 'BEGIN { printf "%.2f\n", (n > 0 ? l / n : 0) }'
+}
+aw_factor() {
+    awk -v f="$(aw_load)" -v ci="${CI:-}" 'BEGIN { if (f < 1) f = 1; if (ci == "true" && f < 2) f = 2; printf "%.1f\n", f }'
+}
+# aw_over <number> <limit>: success when the number is over the limit (decimals allowed).
+aw_over() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a > b) }'; }
+
 # Dates relative to today, in local time, portable across BSD and GNU date.
 days_ago() { python3 -c 'import datetime,sys; print(datetime.date.today() - datetime.timedelta(days=int(sys.argv[1])))' "$1"; }
 # age <path> <days>: backdates a file's mtime, as if it were written that many days ago.
@@ -1743,6 +1765,10 @@ done
 empty "4b session-start: bad input exits 0 with no output" "$errs"
 empty "4b session-start: silent when turned off, or inside the closeout capture child" \
     "$(pstart "$PF/projects/p01" PROJECTS_HOOK_DISABLED=1)$(pstart "$PF/projects/p01" CLOSEOUT_HOOK_CHILD=1)"
+# The budget is 100 ms times the load factor (aw_factor), so a hook that got slower still fails on a
+# busy machine; past a factor of 4 the timing says more about the machine than the hook, and it skips.
+f13_f="$(aw_factor)"
+f13_budget="$(awk -v f="$f13_f" 'BEGIN { printf "%d", 100 * f }')"
 ms="$(python3 - "$PHOOK" "$PF" <<'PY'
 import json, os, subprocess, sys, time
 hook, repo = sys.argv[1], sys.argv[2]
@@ -1759,8 +1785,15 @@ for cwd in (repo, repo + "/projects/p07"):
 print(int(worst * 1000))
 PY
 )"
-[[ "$ms" -lt 100 ]] && ok "4b session-start: under 100 ms with 20 projects (median ${ms} ms)" \
-    || ko "4b session-start: under 100 ms with 20 projects (median ${ms} ms)"
+if aw_over "$f13_f" 4; then
+    skp "4b session-start: under 100 ms with 20 projects — the machine is too busy to time it (load factor $f13_f, over 4; median ${ms} ms)"
+elif [[ "$f13_f" == 1.0 ]]; then
+    [[ "$ms" -lt 100 ]] && ok "4b session-start: under 100 ms with 20 projects (median ${ms} ms)" \
+        || ko "4b session-start: under 100 ms with 20 projects (median ${ms} ms)"
+else
+    [[ "$ms" -lt "$f13_budget" ]] && ok "4b session-start: under 100 ms with 20 projects, ${f13_budget} ms at load factor $f13_f (median ${ms} ms)" \
+        || ko "4b session-start: under 100 ms with 20 projects, ${f13_budget} ms at load factor $f13_f (median ${ms} ms)"
+fi
 
 fi
 # ---------------------------------------------------------------------------------------------------

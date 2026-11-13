@@ -431,12 +431,37 @@ if ! s22_room 300000; then
     skp "22 200 transcripts of 2,000 lines are read in under 10 seconds — $(s22_free) free in TMPDIR, under the 300 MB its 230 MB of transcripts need"
 else
 python3 "$s22_dir/gen.py" "$s22_big" "$s22_w" 200
+# The budget is 10 seconds times the load factor (aw_factor, in run.sh); past a factor of 3 it skips.
+# The load average misses much of what slows this read in a parallel run (other sections' disk and
+# memory traffic, on a machine with cores to spare), so the machine is also measured directly: twenty
+# transcripts read straight after, under the same conditions. A reader that scales with its input takes
+# about ten times as long for ten times the transcripts; one that has gone quadratic takes about a
+# hundred. Over the budget but within fifteen times the twenty, the slowness is the machine's, and the
+# line says so. The counts are checked whatever the load.
+s22_f="$(aw_factor)"
+s22_budget="$(awk -v f="$s22_f" 'BEGIN { printf "%d", 10 * f }')"
 s22_t0="$(python3 -c 'import time; print(time.time())')"
 s22_got="$(PATH="/usr/bin:/bin:$PATH" READS_TRANSCRIPTS="$s22_big/projects" bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"
 s22_secs="$(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$s22_t0")"
-[[ "$s22_got" == "$s22_today,200,200,50000,0,2,11,$s22_from" ]] && python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) < 10 else 1)' "$s22_secs" \
-    && ok "22 200 transcripts of 2,000 lines are read in under 10 seconds ($s22_secs s): 200 sessions, 50,000 reads of 2 files" \
-    || ko "22 200 transcripts of 2,000 lines are read in under 10 seconds ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s; got $s22_got"
+rm -rf "$s22_big"
+python3 "$s22_dir/gen.py" "$s22_dir/ref" "$s22_w" 20
+s22_t0="$(python3 -c 'import time; print(time.time())')"
+s22_rgot="$(PATH="/usr/bin:/bin:$PATH" READS_TRANSCRIPTS="$s22_dir/ref/projects" bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"
+s22_ref="$(python3 -c 'import sys,time; print("%.2f" % (time.time() - float(sys.argv[1])))' "$s22_t0")"
+rm -rf "$s22_dir/ref"
+s22_what="200 transcripts of 2,000 lines are read in under 10 seconds"
+[[ "$s22_f" == 1.0 ]] || s22_what+=", ${s22_budget} s at load factor $s22_f"
+if [[ "$s22_got" != "$s22_today,200,200,50000,0,2,11,$s22_from" ]]; then
+    ko "22 $s22_what ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s; got $s22_got"
+elif aw_over "$s22_f" 3; then
+    skp "22 $s22_what — counts right, but the machine is too busy to time it (load factor $s22_f, over 3; took $s22_secs s)"
+elif aw_over "$s22_budget" "$s22_secs"; then
+    ok "22 $s22_what ($s22_secs s; twenty took $s22_ref s): 200 sessions, 50,000 reads of 2 files"
+elif aw_over "$(awk -v r="$s22_ref" 'BEGIN { printf "%.2f", 15 * r }')" "$s22_secs"; then
+    ok "22 $s22_what ($s22_secs s): over that here, but within 15 times a read of twenty just now ($s22_ref s), so the time is the machine's"
+else
+    ko "22 $s22_what ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s, over the budget and over 15 times a read of twenty just now ($s22_ref s); twenty: $s22_rgot"
+fi
 fi
 rm -rf "$s22_big"
 

@@ -239,6 +239,7 @@ The others:
 | `AW_SECTIONS` | `tests/run.sh` | A space-separated list of sections to run (`"4b 13"`); unset runs them all |
 | `AW_JOBS` | `tests/run.sh` | How many sections run at once (default: half the processors, at most 4); `1` is the serial run |
 | `AW_TIMES` | `tests/run.sh` | The timing file (above); by default `$TMPDIR/aw-test-times.tsv`, rewritten by each run |
+| `AW_LOAD` | `tests/run.sh`, sections 4b, 22, 23 | Stands in for the measured load per core, to see how the timing checks read on a busy machine (`AW_LOAD=5` skips 4b's). Unset, they read the 1-minute load average; under `CI=true` a time budget is at least doubled |
 | `SCHEDULER_SECOND` | `plugins/scheduler/scripts/schedule.sh` | How long one second of the runner's own waits lasts (a timeout's count, the grace before a kill, retry delays, a reply window's stop); 1 when unset. Section 26 sets 0.1, and runs its first timeout check on the real clock |
 | `AW_SLOW=0\|1` | `tests/run.sh` | Leaves out, or runs, the slow tier (10, 15, 16, 20, 25); a full run runs it by default, a `--changed` run does not, a release and CI always do |
 | `PAIR_REGISTRY` | `plugins/projects/hooks/pair.sh` | The registry of joined pairing sessions (default `~/.config/agentic-workspace-kit/pairings`); the runner points it at its scratch directory |
