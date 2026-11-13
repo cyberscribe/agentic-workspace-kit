@@ -433,6 +433,11 @@ for s17_pair in 'Spring Workshop|spring-workshop' 'Rose garden (2027)|rose-garde
     s17_got="$(bash "$s17_sl" "${s17_pair%%|*}" 2>&1)"
     [[ "$s17_got" == "${s17_pair#*|}" ]] || s17_bad+="slug.sh '${s17_pair%%|*}' gave '$s17_got', not '${s17_pair#*|}'"$'\n'
 done
+# The accented letters come out the same in the C locale, where iconv on a CI runner wrote "?" for each.
+for s17_pair in 'Café Crème|cafe-creme' 'Ærøskøbing Straße|aeroskobing-strasse' 'Über Niño|uber-nino'; do
+    s17_got="$(LC_ALL=C LANG=C bash "$s17_sl" "${s17_pair%%|*}" 2>&1)"
+    [[ "$s17_got" == "${s17_pair#*|}" ]] || s17_bad+="in the C locale, slug.sh '${s17_pair%%|*}' gave '$s17_got', not '${s17_pair#*|}'"$'\n'
+done
 s17_got="$(bash "$s17_sl" '!!!' 2>&1)"; s17_rc=$?
 [[ $s17_rc -eq 1 && -z "$s17_got" ]] || s17_bad+="slug.sh '!!!' gave '$s17_got' (exit $s17_rc), not nothing and exit 1"$'\n'
 bash "$s17_sl" >/dev/null 2>&1; [[ $? -eq 2 ]] || s17_bad+="slug.sh with no name does not exit 2"$'\n'

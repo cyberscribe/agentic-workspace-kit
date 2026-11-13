@@ -471,7 +471,7 @@ derive_state() {
         tf=""
         for f in "$HOME"/.claude/projects/*/"$sid".jsonl; do [ -f "$f" ] && tf="$f"; done
         tm=""
-        [ -n "$tf" ] && tm="$(stat -f %m "$tf" 2>/dev/null || stat -c %Y "$tf" 2>/dev/null)"
+        [ -n "$tf" ] && tm="$(mtime_of "$tf")"
         if [ -n "$tm" ] && [ $(( now - tm )) -lt 120 ]; then
             ds_state=working; ds_ev="working: transcript written $(hms "$tm")${pid:+, pid $pid alive}, the activity beat is older"; return 0
         fi
