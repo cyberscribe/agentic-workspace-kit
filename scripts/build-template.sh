@@ -84,7 +84,7 @@ fi
 [[ -n "$FROM" ]] || FROM="$URL"
 if is_local_url "$FROM" && [[ "$FROM" != /* && "$FROM" != file://* && -d "$FROM" ]]; then FROM="$(cd "$FROM" && pwd -P)"; fi
 if [[ $WSX_SET -eq 0 ]]; then
-    WSX="$(git --no-optional-locks -C "$KIT" rev-parse --show-superproject-working-tree 2>/dev/null)"
+    WSX="$(aw_kit_workspace "$KIT")"
 fi
 [[ -z "$WSX" ]] || WSX="$(cd "$WSX" && pwd -P)" || { echo "build-template.sh: no folder at $WSX" >&2; exit 2; }
 

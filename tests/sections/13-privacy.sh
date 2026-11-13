@@ -837,4 +837,30 @@ empty "13 guard-git.sh allows plain commands, and reading core.hooksPath" "$s13_
 s13_o="$(printf 'not json at all' | "$st_bash" "$s13_G"; echo "rc=$?")"
 [[ "$s13_o" == "rc=0" ]] && ok "13 guard-git.sh is silent on input it cannot read" || ko "13 guard-git.sh is silent on input it cannot read" "$s13_o"
 
+
+# ---- A worktree of the kit, made outside the workspace's kit/ -------------------------------------------
+# A worktree has no superproject of its own; its workspace is found through the repository it shares
+# with kit/, so the workspace's private word list still guards a commit made there.
+s13_W3="$s13_S/ws-wt"
+mkdir -p "$s13_W3" && git -C "$s13_W3" init -q && git -C "$s13_W3" symbolic-ref HEAD refs/heads/main
+git -C "$s13_W3" -c protocol.file.allow=always submodule add -q -b main "$KITSRC" kit >/dev/null 2>&1
+mkdir -p "$s13_W3/.claude"
+cp "$s13_words" "$s13_W3/.claude/words.txt"
+printf -- '- **Private word list:** `.claude/words.txt`\n' > "$s13_W3/.claude/workspace.md"
+s13_WT="$s13_S/kit-elsewhere"
+git -C "$s13_W3/kit" worktree add -q -b elsewhere "$s13_WT" >/dev/null 2>&1
+s13_got="$( . "$KIT/lib/common.sh" && aw_kit_workspace "$s13_WT")"
+[[ "$s13_got" == "$(cd "$s13_W3" && pwd -P)" ]] \
+    && ok "13 a kit worktree outside kit/ finds its workspace through the repository it shares" \
+    || ko "13 a kit worktree outside kit/ finds its workspace through the repository it shares" "got: ${s13_got:-nothing}"
+s13_got="$( . "$KIT/lib/common.sh" && aw_kit_workspace "$KITSRC")"
+[[ -z "$s13_got" ]] && ok "13 ... and a kit clone in no workspace finds none" || ko "13 ... and a kit clone in no workspace finds none" "got: $s13_got"
+printf 'A note naming zorblax.\n' > "$s13_WT/docs/worktree-note.md"
+git -C "$s13_WT" add docs/worktree-note.md
+s13_run env -u AW_BANNED_WORDS_FILE HOME="$s13_S/no-home" bash -c 'cd "$1" && exec "$2" githooks/pre-commit' _ "$s13_WT" "$st_bash"
+s13_expect "13 kit pre-commit in a worktree outside kit/: the workspace's private word list refuses a listed word" 1 "refused"
+s13_has "no workspace around this kit checkout" && ko "13 ... with the workspace checks run, not skipped" "$(head -n 12 "$s13_out")" \
+    || ok "13 ... with the workspace checks run, not skipped"
+git -C "$s13_WT" rm -q --cached docs/worktree-note.md
+
 fi

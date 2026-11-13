@@ -203,6 +203,12 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   through the agent; `/projects:pickup` flags both, read-only. `/projects:new` and `/ongoing:new` take a
   folder's slug from one script, `plugins/projects/scripts/slug.sh` (lowercase, hyphens, accents
   written plainly, quotes dropped). Sections 17 and 21 check each.
+- **The kit's checks find the workspace from a worktree.** A worktree of the kit made outside the
+  workspace's `kit/` has no superproject, so its hooks found no workspace and skipped the workspace
+  checks, the private word list among them. `aw_kit_workspace` (`lib/common.sh`) now follows the
+  repository the worktree shares with `kit/` back to the workspace, and the hooks and
+  `scripts/build-template.sh` use it. Section 13 commits a listed word from such a worktree and sees it
+  refused.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,
