@@ -5,12 +5,24 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased
+## v3.6.0 — 2026-11-13
 
-**To update:** run `kit/setup.sh update` in the workspace and accept the template change, which enables
-the scheduler in `.claude/settings.json`; then make the commit it prints. Each person runs
-`kit/setup.sh` once more, or `claude plugin install scheduler@agentic-workspace --scope user`, to have
-it in every folder.
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints.
+- **What it offers.** The template changes, which enable the new `scheduler` and `ongoing` plugins in
+  `.claude/settings.json` and bring the conventions, the workspace map and the role words up to date.
+  It now checks whether each change fits your copy before it asks. A change you have already made in
+  your own words, or one to a passage you rewrote, is only offered to be recorded. One that needs
+  merging by hand comes with a line to give your assistant.
+- **The vocabulary move.** Where `memory/glossary.md` still holds your team's own terms, it offers to
+  move them to `memory/terms.md`, at a terminal and on a yes, and then adds the plain-words glossary.
+- **The role words.** Templates and commands now write accountable, responsible, supporting, consulted
+  and informed. READMEs and rosters with owns, does, helps, ask first and keep told keep working: every
+  reader takes both.
+- **The new plugins.** Each person runs `kit/setup.sh` once more, or `claude plugin install
+  scheduler@agentic-workspace --scope user` and `claude plugin install ongoing@agentic-workspace`, to
+  have them in every folder. Nothing moves on its own: a long-running project you would rather keep as
+  an area is converted by `/ongoing:adopt`.
+- **CI.** The kit's test suite now runs on GitHub for every push and pull request, on Linux and macOS.
 
 - **People's roles get new names.** A project or area README's People section, the team roster's
   default relationship and closeout's "who needs to know" now name the five roles **accountable**
@@ -102,11 +114,6 @@ it in every folder.
   workspace has one exception, `/scheduler:tasks`, which works in any folder.
 
 - **`list` reads at a glance.** Its NAME column is as wide as the longest task name, so every row lines up, and a schedule on a few days of the week reads as their names ("Tue, Thu 07:50", "weekends 09:00") rather than as cron fields.
-
-**To update (ongoing):** run `kit/setup.sh update` and accept the template changes, which enable the new `ongoing`
-plugin in `.claude/settings.json`; then each person runs `claude plugin install ongoing@agentic-workspace`
-once. Nothing moves on its own: a long-running project you would rather keep as an area is converted by
-`/ongoing:adopt`, and the folder move is yours to make.
 
 - **Ongoing areas are first-class, with a plugin of their own.** Work with no finish line — a practice, a
   responsibility, something kept up rather than finished — used to be turned away by `/projects:new`
@@ -260,6 +267,13 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   in the person's words. A second fixture transcript covers a correction, missing context that arrives
   later, a general lesson, a run's prompt, JSON output and something unexplained; which source an item
   truly has, and whether it was discoverable, remain the model's judgement and the person's.
+  A second question goes with the first, on every surface: where would the obvious next move go
+  wrong? A trap on the path anyone would take first (the command tried first, the file edited first,
+  the assumption made first) is found otherwise only by falling into it again, so it is recorded as
+  the likely move, what goes wrong and what to do instead, cited by the moment it went wrong, with a
+  `plain:` line that reads as a colleague's warning. It is asked as a question about the next
+  person's path, not as a kind of item to collect, for the reason `docs/DESIGN.md` gives. The second
+  fixture gains such a trap, cited by the failed step and the person's words.
 - **The 10 November research's fixes.** The capture hook starts its child without `PAIR_*` and the
   ending session's own variables, and marked headless, so in a pairing it no longer acts as the
   engineer. `check-evidence.sh` reads an anchor's quote to the first unescaped quotation mark, with
@@ -303,6 +317,44 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
     every push and pull request, and the private-word check when the repository has an
     `AW_BANNED_WORDS` secret. It does nothing until the branch is pushed.
   - The checks are the same, plus the one for copies: 1050.
+- **`kit/setup.sh update` checks whether a change fits before it asks.** It used to ask "Apply this
+  change?" and only then say the change did not fit. Each part of a template's change is now checked
+  first, and a part that does not apply is read against the file's own lines: already there in other
+  words (every line it adds is in the file, and none it removes), on a passage the team rewrote (none
+  of the lines it changes is in the file), or a real merge by hand. When some parts fit, the question
+  gives the count and applies those. When none fits and none needs merging, there is no question to
+  apply, only whether to stop offering it (yes by default), and the summary lists the file as "in your
+  own words". When some need merging by hand, they are printed with a line to give the assistant, and
+  the question is whether to stop offering it once merged; answering n no longer stops the offer.
+  Section 15 covers each case, and the three shapes a customised workspace showed on a real update.
+- **The timing checks allow for a busy machine.** Three checks time something, and on a loaded
+  machine they failed for reasons that were not faults. Each now reads the load per core
+  (`aw_load`, `aw_factor` in `tests/run.sh`; `AW_LOAD` stands in for it), names it in its line, and
+  counts a skip as a skip with its reason. The session-start hook's 100 ms (4b) and the transcript
+  reader's 10 s (22) scale by the load, at least twice on CI (`CI=true`), and skip past four and three
+  times. The load average misses the disk and memory traffic of the other sections in a parallel run,
+  so 22 also times a read of twenty transcripts straight after, and passes within fifteen times that:
+  a reader that scales with its input takes about ten, one gone quadratic about a hundred. The registry's twelve concurrent writers (23) become two checks: that every writer that says
+  it landed did, and no other, at any load; and that all twelve land within the lock's own wait of
+  about ten seconds, a product setting, which skips above a load of 1.5 per core.
+- **Three faults the first CI run found, each a fault for people using the kit, not only for the tests.**
+  - **The lock could lose a write.** A writer queued for a lock read its holder, and if that holder let
+    go and exited in the moment before the writer checked it, the writer took the next holder's live
+    lock for an abandoned one and removed it, so two writers were in at once and one change was lost.
+    It touched every registry, claims board and mailbox the pairing writes. A takeover now holds a
+    second lock and reads the holder again under it, and a writer lets go of a lock only while it is
+    still its own. Section 23 widens the race to 50 ms in a copy of the lock, where before the fix every
+    round lost a write.
+  - **`/projects:pair`'s check said nothing on Linux** for an engineer whose activity beat was stale.
+    It read a transcript's time with BSD `stat -f` first, which GNU `stat` accepts with another
+    meaning, and the sum after it failed. It now uses the helper beside it that checks the answer is a
+    number.
+  - **A slug depended on the locale.** In the C locale a CI runner has, `iconv` wrote `?` for an
+    accented letter, so "Café Crème" became `caf-cr-me`. The accented Latin letters are now written
+    plainly from a fixed table first. Section 17 checks them in the C locale.
+- **CI runs four sections at once on each runner** (`AW_JOBS=4`), where the suite's default of half
+  the cores gave the 3-core macOS runner one, and its serial run passed the 30-minute limit. The limit
+  is 45 minutes, and the checkout action is v5.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

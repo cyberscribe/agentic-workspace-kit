@@ -16,6 +16,6 @@ reads. One row each, plain words first; the note says where it was seen.*
 | the one true copy; the file that wins | canonical | 18 files, among them the README's layout ("the canonical-fact table") |
 | slipping out of step, a little at a time | drift | 16 files, among them the README ("the mechanism by which drift happens") |
 | shapes how the assistant works, before it reads your request | prime, priming | The README's writing section ("They prime every session") and the documentation register |
-| in the kit itself, by a pull request to it | upstream | 11 files, among them the README's table of closeout levels ("Upstream to the kit"). An ordinary word to a technical reader, opaque to someone new to the field; kept for the owner to decide |
-| always gives the same answer; done by a script, not by judgement | deterministic | The README's hygiene section ("The scan is deterministic") and the weekly hygiene ritual. An ordinary word to a technical reader, opaque to someone new to the field; kept for the owner to decide |
-| where it came from | provenance | The README's section on claims ("Provenance travels with the claim"). An ordinary word to a technical reader, opaque to someone new to the field; kept for the owner to decide |
+| in the kit itself, by a pull request to it | upstream | 11 files, among them the README's table of closeout levels ("Upstream to the kit"). An ordinary word to a technical reader, opaque to someone new to the field |
+| always gives the same answer; done by a script, not by judgement | deterministic | The README's hygiene section ("The scan is deterministic") and the weekly hygiene ritual. An ordinary word to a technical reader, opaque to someone new to the field |
+| where it came from | provenance | The README's section on claims ("Provenance travels with the claim"). An ordinary word to a technical reader, opaque to someone new to the field |
