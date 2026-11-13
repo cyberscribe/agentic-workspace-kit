@@ -1,6 +1,8 @@
 transcript: transcript.jsonl
 
 ### The flake came from a stale lock file left by a killed worker
+- plain: A killed worker leaves a lock file behind, and that is what made the test flaky.
+- source: missing-context
 - tier: Project reference
 - scope: shared
 - destination: docs/DECISIONS.md
@@ -12,6 +14,8 @@ transcript: transcript.jsonl
 A killed worker leaves its lock file behind, and the next run waits on it.
 
 ### Raising the worker timeout to 30s fixes the flake
+- plain: Giving the worker more time did not fix the flaky test.
+- source: correction
 - tier: Project reference
 - scope: shared
 - destination: docs/DECISIONS.md
@@ -24,6 +28,8 @@ A killed worker leaves its lock file behind, and the next run waits on it.
 Twenty passing runs after the timeout change were luck; the flake returned on CI.
 
 ### The CI runner has 4 cores
+- plain: The build machine has four processor cores.
+- source: missing-context
 - tier: Project reference
 - scope: shared
 - destination: docs/ci.md
@@ -34,6 +40,8 @@ Twenty passing runs after the timeout change were luck; the flake returned on CI
 The CI runner has 4 cores.
 
 ### Every worker script removes a stale lock on start
+- plain: Every worker script clears any old lock file when it starts.
+- source: correction
 - tier: Working standards
 - scope: shared
 - destination: CLAUDE.md

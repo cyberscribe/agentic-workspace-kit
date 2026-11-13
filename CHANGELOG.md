@@ -232,6 +232,29 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   fix, and the kit's own `docs/glossary.md` starts with eight terms seen in its prose. "Ablation" in the
   kit's prose is now "leave-out test"; paths, CSV columns, variables and the `ablate:` key keep their
   names. Sections 12, 14, 15 and 21 cover it, the move at a pseudo-terminal with a no and a yes.
+- **Closeout keeps what is not otherwise discoverable.** One test comes first in the command, the
+  ritual, the capture prompt and the review reminder alike: could a later session find this by itself,
+  in the code, the files, the docs, `git log` or a tool's own help? If so it is not promoted, and the
+  draft says where (`check: already-written`, `found:`). Learnings are looked for in an order: the
+  person's interventions and corrections first, then the agent's own mistakes read as missing context
+  (recording that context where it arrived, or proposing to ask for it), and only then, sparingly, a
+  general lesson. Every item carries a `plain:` line, one everyday sentence the person reads first, and
+  terms that are not plain go through the glossary; decisions go to `decisions.md`, terms of the work
+  to `terms.md`, translations of AI-speak to the glossary. An item for the always-loaded tier comes from
+  a correction or a gap in context, never from a general lesson. `check-evidence.sh` refuses an item
+  with no `plain:` line, a working-standards item whose `source:` is `general`, and a `correction`
+  with no evidence line in the person's own words. `docs/DESIGN.md` says why, with a before and after
+  in the person's words. A second fixture transcript covers a correction, missing context that arrives
+  later, a general lesson, a run's prompt, JSON output and something unexplained; which source an item
+  truly has, and whether it was discoverable, remain the model's judgement and the person's.
+- **The 10 November research's fixes.** The capture hook starts its child without `PAIR_*` and the
+  ending session's own variables, and marked headless, so in a pairing it no longer acts as the
+  engineer. `check-evidence.sh` reads an anchor's quote to the first unescaped quotation mark, with
+  `\"`, `\\`, `\n` and `\t` as escapes and anything after the quote a note, so JSON output and spans
+  across a line break can be cited. A run's prompt, held in a queue record or a `queued_command`
+  attachment, counts as a turn (`(prompt)`); a task notification does not. A capture that saw something
+  it could not explain writes it as `check: observed`, cited and never promoted as fact. Section 4
+  covers each, the clean environment against a stub `claude`.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

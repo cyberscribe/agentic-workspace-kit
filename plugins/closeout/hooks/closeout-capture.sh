@@ -187,9 +187,29 @@ durable learnings before they are lost. Read the session transcript (JSONL) at:
   $transcript_path
 
 Memory is for the next session in this project. It starts without this
-conversation and acts on what the files tell it. Write down what would leave it
-better placed: what it would otherwise re-derive, get wrong or redo. Judge that
-from this session, not from a list of kinds.
+conversation and acts on what the files tell it. One test comes before anything
+else: could that session find this by itself, in the code, the files, the docs,
+git log or a tool's own help? If it could, it is not promoted. Write it as
+already-written, with where it is found, and move on.
+
+Look for what passes that test in this order, and give the first the most care:
+
+1. The person's interventions: what they redirected, corrected, refused or
+   explained. Each one shows context the session did not have.
+2. Your own mistakes in the session, read as missing context: where would more
+   context have helped? If that context arrived later in the session, record the
+   context itself. If it never arrived, propose asking the person for it.
+3. Only then a general lesson, sparingly, favouring the specific and practical.
+
+The order says where to look first; it is not a list of kinds to record. Judge
+what would serve the next session from this session.
+
+The person reads every item first as one plain sentence in their own words, not
+in your idiom. A term that is not plain goes through the glossary
+(memory/glossary.md, or the project's own glossary.md): use its plain words, or
+propose a row for the term. A decision goes to the decisions file, a term of the
+work to terms.md, a translation of AI-speak to the glossary, and the rest by the
+tiers below.
 
 Classify every item you keep on two axes before writing it down.
 
@@ -217,11 +237,19 @@ item one result:
                 never written as fact: the person decides whether it is kept,
                 marked unverified
 
+  already-written  a later session would find it by itself; say where, and it
+                   is not promoted
+  observed      something you saw and could not explain; cite what you saw. It
+                is never written as fact; the person sees it
+
 The person's words and a tool's output show what happened; the agent's own
 words show what it believed at the time. An item bound for the always-loaded
 tier needs the strictest check: supported, with at least one cited line that is
-the person's words or a tool's output. A correction bound there is written as
-an item of its own, supported by the line that corrects it.
+the person's words or a tool's output. It comes from a correction or a gap in
+context, with the incident behind it; a general lesson with no incident is not
+promoted there. A correction bound there is written as an item of its own,
+supported by the line that corrects it, and an item whose source is a
+correction cites at least one line in the person's own words.
 
 Write a concise markdown summary of candidate documentation updates to:
   $draft_file
@@ -233,27 +261,35 @@ Begin the file with this line, exactly, so the review can find the record:
 Then one section per item, in this shape:
 
   ### <one-line claim>
+  - plain: <the claim as one everyday sentence; the person reads this first>
+  - source: correction | missing-context | general
   - tier: <tier name>
   - scope: shared | individual
   - destination: <the specific file or directory>
   - why this tier: <one sentence; say what would go wrong at a cheaper tier>
-  - check: supported | contradicted | unsupported
+  - check: supported | contradicted | unsupported | already-written | observed
   - evidence: L<n> "<a span copied exactly from line n of the transcript>"
   - was: L<n> "<what the record said first>"            (contradicted only)
   - correction: <what the record shows>                 (contradicted, kept)
   - dropped: <why>                                      (contradicted, dropped)
   - missing: <what would support it>                    (unsupported only)
+  - found: <where a later session would find it>        (already-written only)
 
   <the note itself, one to three sentences>
 
 L<n> is the line number the Read tool shows for the transcript. The span is
 copied exactly from that line and short enough to read at a glance, twenty words
-at most. Give as many evidence lines as the item needs.
+at most. Give as many evidence lines as the item needs. Inside the quotes, write
+a quotation mark as \\" and a line break as \\n; anything after the closing quote
+is a note and is ignored. A scheduled run's prompt counts as a turn and can be
+cited.
 
 Leave in-repo documentation to the person; this run writes only the scratch summary
 file. You are proposing; a human approves the tier before anything is promoted.
 
-If nothing durable was learned, do not create the file at all.${team_section}${conventions}
+If nothing durable was learned and you saw nothing you could not explain, do
+not create the file at all. If you saw something you could not explain, write
+the file with that one item, as observed.${team_section}${conventions}
 EOF
 
 # (8) Spawn fully detached so the human's session exit is never blocked.
@@ -264,7 +300,17 @@ EOF
 # project, the whole repo would be auto-approved. The transcript's directory is
 # the one grant beyond the draft directory (readable and, under acceptEdits,
 # writable; the child is prompted to write only its draft — see DESIGN.md).
+# The child is a session of its own, so it starts without the ending session's identity. A session
+# inside a pairing carries PAIR_* (its role and mailbox), and every Claude Code session carries its own
+# id and messaging variables; inherited, they made a child act as the pairing's engineer, which
+# consumed the mailbox's nudge. They are dropped, as the leave-out test runner drops them, and
+# AW_HEADLESS_RUN quiets the session-start lines nobody is there to read.
+clean_env=(-u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION
+           -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN -u CLAUDE_CODE_BRIDGE_SESSION_ID
+           -u CLAUDE_CODE_SESSION_ATTENDED)
+while IFS= read -r v; do [[ -n "$v" ]] && clean_env+=(-u "$v"); done < <(compgen -e | grep '^PAIR_' || true)
 child_args=(
+    env "${clean_env[@]}" AW_HEADLESS_RUN=1 CLOSEOUT_HOOK_CHILD=1
     "$CLAUDE_BIN" -p "$PROMPT"
     --model "${CLOSEOUT_MODEL:-sonnet}"
     --permission-mode acceptEdits

@@ -12,10 +12,35 @@ and honest — a short closeout that records the one decision that mattered is a
 good one.
 
 Memory is for the session that comes next: it starts without this conversation,
-and what it finds in the files is what it acts on. Record what would leave it
-better placed — what it would otherwise re-derive, get wrong or redo — judged
-from this session rather than from a list. The work itself is already saved; a
-note is for what the files alone do not show.
+and what it finds in the files is what it acts on. One test comes first: **is it
+otherwise discoverable?** Could that session find it by itself, in the code, the
+files, the docs, `git log` or a tool's own help? If so, it is not promoted: say
+where it is already found (`check: already-written`, with `found:`), and move on.
+The work itself is already saved; a note is for what none of those show.
+
+Look for what passes, in this order, and give the first the most care:
+
+1. **The person's interventions** in this session: what they redirected,
+   corrected, refused or explained. Each shows context the session lacked.
+2. **Your own mistakes, read as missing context.** Where would more context have
+   helped? If it arrived later in the session, record that context, usually as
+   project or general reference. If it never arrived, propose asking the person
+   for it.
+3. **Only then a general lesson**, sparingly, the specific and practical over the
+   general.
+
+The order says where to look first, not what kinds to record; what serves the
+next session is judged from this session.
+
+**Plain words first.** The person reads each candidate as one everyday sentence,
+its `plain:` line, before anything else. Where the agent's own phrasing is kept
+in the record beside it, a term that is not plain goes through the glossary
+(`memory/glossary.md`, or the project's or area's own `glossary.md`): its plain
+words are used, or a new row is proposed. **Routes:** a decision goes to the
+`decisions.md` of the project, area or workspace (`logs/decisions.md`) it
+belongs to; a term of the work to `terms.md`; a translation of AI-speak to the
+glossary, and only when a person had to ask what the term meant or it reached
+something a person reads. Everything else follows the tiers below.
 
 If the user typed anything after the command (it follows this prompt), start from
 it: it is what they most want kept. With no end-of-session capture behind it — a
@@ -49,10 +74,8 @@ below:
 
 Two axes, and the first is the expensive decision.
 
-Each candidate first passes one test: keep only what the next session could not
-find for itself. What the code, the files and their history already show is left
-out; what they do not show (a decision and its reason, a trap, a fact held in
-someone's head) goes on to be classified.
+Only a candidate that is not otherwise discoverable is classified; one a later
+session would find by itself is recorded as already written, with where.
 
 **Tier** — where it belongs, which decides how often it is loaded back:
 
@@ -109,9 +132,10 @@ the files as they are now.
 
 **Against the session's record.** A line promoted from a misremembered session
 carries the mistake into every later session that reads it. So write each
-candidate in the shape the capture draft uses — tier, scope, destination, then
-`check:`, `evidence: L<n> "<quote>"`, and `was:`, `correction:` or `dropped:`, or
-`missing:` as its result needs (the full shape is in the plugin's
+candidate in the shape the capture draft uses — `plain:`, `source:`
+(`correction`, `missing-context` or `general`), tier, scope, destination, then
+`check:`, `evidence: L<n> "<quote>"`, and `was:`, `correction:` or `dropped:`,
+`missing:` or `found:` as its result needs (the full shape is in the plugin's
 `docs/DESIGN.md`) — and check it against the record. Find the turn that
 supports it, then read on to the end for the same subject: a later turn can
 reverse an earlier one — a fix reverted, a belief corrected after a test — and
@@ -123,6 +147,10 @@ the latest word holds.
   report says which.
 - **unsupported** — never promoted as fact. It is recorded as unverified, with
   what is missing, or left out.
+- **already-written** — a later session would find it by itself; `found:` says
+  where. Not promoted; the report lists it, as evidence the habits work.
+- **observed** — something the session saw and could not explain, cited. Never
+  promoted as fact; it reaches the person so the cause can be found.
 
 The record depends on the surface. In Claude Code it is this session's
 transcript: write the candidates to a scratch file and run
@@ -145,7 +173,11 @@ still a reading, the agent's and then the person's.
 The always-loaded tier gets the strictest check, because a wrong line there is
 read by every session: a line goes there only when it is supported, with at
 least one cited line that is the person's own words or a tool's output rather
-than the agent's, and the proposal shows those quotes.
+than the agent's, and the proposal shows those quotes. It comes from a
+correction or a gap in context, with the incident behind it: a generic lesson,
+however true, is not promoted there. An item whose source is a correction cites
+at least one line in the person's own words. The script refuses each of these,
+and an item with no `plain:` line.
 
 **Against the files.** Check each technical claim against the current state of the code or file. A
 behaviour that changed during this session is not a finding, and a claim written
@@ -260,7 +292,8 @@ there, on an explicit yes.
 
 ## Report
 
-- What was promoted, and at which tier.
+- What was promoted, and at which tier, each by its plain sentence first.
+- What was already written, and where, and anything observed and not explained.
 - What is proposed and still needs a decision.
 - What each candidate was checked against (the transcript, the draft's quotes,
   or the conversation), and which were corrected, dropped or left unverified.

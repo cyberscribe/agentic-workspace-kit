@@ -989,6 +989,7 @@ pwd -P > "$out.pwd"
 printf '%s' "${CLOSEOUT_HOOK_CHILD:-}" > "$out.child"
 printf '%s\n' "$@" > "$out.args"
 printf '%s' "$2" > "$out.prompt"
+env | grep -E '^(PAIR_|CLAUDECODE|CLAUDE_CODE_|AW_HEADLESS_RUN)' | LC_ALL=C sort > "$out.env"
 : > "$out.done"
 STUBSCRIPT
 chmod +x "$STUB/claude"
@@ -1026,6 +1027,14 @@ suppressed() {
     else ok "$d"; fi
 }
 
+# The child starts clean: a session in a pairing passes neither its PAIR_* variables nor its own
+# session identity down, and the child is marked headless.
+if capture "$P3" s-clean prompt_input_exit "$TRANSCRIPT" PAIR_ROLE=cc PAIR_MAILBOX="$SCRATCH/mailbox" \
+        CLAUDECODE=1 CLAUDE_CODE_SESSION_ID=parent-session CLAUDE_CODE_ENTRYPOINT=cli; then
+    [[ "$(grep -E '^(PAIR_|CLAUDECODE=|CLAUDE_CODE_(SESSION_ID|ENTRYPOINT|SESSION_ATTENDED)=|AW_HEADLESS_RUN=)' "$REC.env")" == "AW_HEADLESS_RUN=1" ]] \
+        && ok "4 capture child starts without the pairing's PAIR_* or the ending session's identity, marked headless" \
+        || ko "4 capture child starts without the pairing's PAIR_* or the ending session's identity, marked headless" "$(cat "$REC.env")"
+else ko "4 capture child starts without the pairing's PAIR_* or the ending session's identity, marked headless" "the stub never ran"; fi
 if capture "$P3" s-three; then
     ok "4 capture: spawns the claude found on PATH"
     prompt="$(cat "$REC.prompt")"
@@ -1044,6 +1053,37 @@ if capture "$P3" s-three; then
         grep -qE "\\\$2 == \"$w\"|get $w|\"$w\"" "$KIT/plugins/closeout/scripts/check-evidence.sh" || bad+="the checker does not read $w"$'\n'
     done
     empty "4 capture prompt checks each item against the record, with the fields the checker reads" "$bad"
+    # Not otherwise discoverable, where learnings come from, and the plain words (W3): the prompt, the
+    # command and the ritual say the same, the review reminder shows plain: first, and DESIGN.md says why.
+    # What the model makes of them is judgement; this checks the guidance carries them.
+    bad=""
+    for w in "could that session find this by itself, in the code, the files, the docs," "git log or a tool's own help" \
+        "1. The person's interventions" "2. Your own mistakes in the session, read as missing context" "3. Only then a general lesson" \
+        '- plain: <the claim as one everyday sentence' '- source: correction | missing-context | general' \
+        '| already-written | observed' '- found: <where a later session would find it>' 'goes through the glossary' \
+        'a general lesson with no incident is not' 'write' 'the file with that one item, as observed' 'a quotation mark as \"'; do
+        grep -qF -- "$w" <<<"$prompt" || bad+="capture prompt: no: $w"$'\n'
+    done
+    for w in plain source found; do
+        grep -qE "get $w" "$KIT/plugins/closeout/scripts/check-evidence.sh" || bad+="the checker does not read $w"$'\n'
+    done
+    for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
+        flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
+        for w in '**is it otherwise discoverable?**' '`git log` or a tool'"'"'s own help' "**The person's interventions" \
+            'read as missing context.**' '**Only then a general lesson' '**Plain words first.**' 'not what kinds to' \
+            'a generic lesson' 'goes through the glossary'; do
+            grep -qF -- "$w" <<<"$flat" || bad+="$f: no: $w"$'\n'
+        done
+    done
+    grep -qF 'Show each item to the user by its plain: line first' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: plain: first"$'\n'
+    flat="$(tr '\n' ' ' < "$KIT/plugins/closeout/docs/DESIGN.md" | tr -s ' ')"
+    for w in '## Not otherwise discoverable, and where learnings come from' '**The bias guard.**' '## Plain words first' \
+        '"If ablation is the crux of the spine of synthesis, conjugate the nominal as an irreversible prime."' \
+        '"Avoid writing to files another agent is already working on."' '**The quoting rule.**' "**A run's prompt is a turn.**" \
+        '**Observed, cause unknown.**' 'It starts without the ending session'"'"'s identity.'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="DESIGN.md: no: $w"$'\n'
+    done
+    empty "4 closeout by what is not otherwise discoverable: the capture prompt, the command and the ritual alike — corrections first, plain words, the bias guard, already written and observed" "$bad"
     if grep -qF 'People known for this repository' <<<"$prompt" && grep -qF 'Who needs to' <<<"$prompt" \
         && grep -qE '^  - casey$' <<<"$prompt"; then
         ok "4 capture prompt adds who-needs-to-know for three people, naming them"
@@ -1362,6 +1402,34 @@ cout="$(env CLOSEOUT_TIER_ALWAYS=GUIDELINES.md bash "$CHK" "$CDR/moved.md" --tra
 grep -qF "cited only by the agent's own words" <<<"$cout" \
     && ok "4 evidence: CLOSEOUT_TIER_ALWAYS moves the strict check with the always-loaded file, whatever the tier is called" \
     || ko "4 evidence: CLOSEOUT_TIER_ALWAYS moves the strict check with the always-loaded file, whatever the tier is called" "$cout"
+
+# Where a learning came from, and the plain words (W3), on a second fixture: a person's correction, an
+# agent's mistake whose missing context arrives later, a general lesson, a run's prompt in a queue record
+# and a queued_command attachment, JSON output quoted with escaped quotes and a line break, something
+# seen and not explained, and something already written. Deterministic: the shape, the anchors, who
+# spoke, and the three source rules. Which source an item has, and whether it is otherwise
+# discoverable, are the model's judgement; nothing here tests them.
+ce "$CFX/sources.md"
+bad=""
+[[ $crc -eq 0 ]] || bad+="exit $crc, not 0"$'\n'
+for want in '6 items: 4 supported, 0 contradicted, 0 unsupported (unverified), 1 already written, 1 observed; 0 refused' \
+    'evidence L1 (prompt): ok' 'evidence L2 (prompt): ok' 'evidence L8 (tool): ok' 'evidence L9 (agent): ok' 'evidence L6 (person): ok' \
+    '→ already written: .github/CODEOWNERS' '→ observed, cause unknown'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 sources: a correction cited by the person, missing context, a general lesson elsewhere, a run's prompt as its turn, escaped quotes and a line break, already written and observed all pass" "$bad$([[ -n "$bad" ]] && printf '%s' "$cout")"
+ce "$CFX/sources-refused.md"
+bad=""
+[[ $crc -eq 1 ]] || bad+="exit $crc, not 1"$'\n'
+for want in 'Owners are in notes/owners.jsonl: no plain: line' \
+    'Always keep summaries short: for the always-loaded tier, from a general lesson' \
+    "Summaries name the feature and the person to ask: a correction, with no evidence line in the person's own words" \
+    'L3: not a turn of the conversation' "source: is 'hunch', not correction, missing-context or general" \
+    'already-written, with no found: line saying where' 'Search fails for reasons unknown: observed, and bound for the always-loaded tier' \
+    '7 refused'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 sources: refused by name — no plain line, a general lesson for the always-loaded tier, a correction not in the person's words, a task notification as a turn, an unknown source, already written with no place, observed for the always-loaded tier" "$bad"
 
 fi
 # ---------------------------------------------------------------------------------------------------

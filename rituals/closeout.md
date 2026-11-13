@@ -21,15 +21,31 @@ ritual with a defined shape rather than a good intention.
 ## What counts as a learning
 
 **Memory is for the session that comes next.** It starts without this conversation, and what it finds
-in the files is what it acts on. Record what would leave it better placed — what it would otherwise
-re-derive, get wrong or redo — judged from this session rather than from a list. The work itself is
-already saved; a note is for what the files alone do not show.
+in the files is what it acts on. One test comes first: **is it otherwise discoverable?** Could that
+session find it by itself, in the code, the files, the docs, `git log` or a tool's own help? If so, it is
+not promoted: say where it is already found, and move on. The work itself is already saved; a note is
+for what none of those show.
+
+**Where learnings come from, in this order.** The order says where to look first, not what kinds to
+record.
+
+1. **The person's interventions:** what they redirected, corrected, refused or explained in the session.
+   Each shows context the session lacked, and comes first.
+2. **The agent's own mistakes, read as missing context.** Where would more context have helped? If it
+   arrived later in the session, record that context; if it never arrived, propose asking the person.
+3. **Only then a general lesson,** sparingly, the specific and practical over the general.
+
+**Plain words first.** The person reads each candidate as one everyday sentence before anything else.
+A term that is not plain goes through the glossary: its plain words are used, or a row is proposed. A
+decision goes to the `decisions.md` it belongs to, a term of the work to `terms.md`, a translation of
+AI-speak to the glossary; everything else follows the tiers.
 
 ## The pass
 
 ### 1. Review
 
-What was learned, decided, corrected or discovered this session?
+What did the person correct or explain, where did the agent go wrong for want of context, and only then
+what else was learned? Set aside anything a later session would find by itself, noting where.
 
 ### 2. Classify before writing
 
@@ -79,7 +95,10 @@ corrected after a test — and the latest word holds. Each gets one result:
 
 - **supported** — the record shows it and nothing later reverses it; it may be promoted as fact;
 - **contradicted** — promoted as what the record now shows, or dropped, and the report says which;
-- **unsupported** — never promoted as fact; recorded as unverified, with what is missing, or left out.
+- **unsupported** — never promoted as fact; recorded as unverified, with what is missing, or left out;
+- **already written** — a later session would find it by itself; not promoted, and the report says where;
+- **observed** — seen and not explained; never promoted as fact, and brought to the person so the cause
+  can be found.
 
 Each candidate carries its evidence: where in the record it rests, and a short span quoted exactly, so
 the person approving it sees the support at a glance. The record is the session's transcript where the
@@ -87,7 +106,9 @@ surface keeps one readable (the Claude Code plugin checks the cited lines with a
 the lines exist and say what is quoted, not that they support the claim). Where it does not, the check
 runs against the conversation in context, and the report says so. The always-loaded tier gets the
 strictest check: a line goes there only when it is supported by at least one turn that is the person's
-own words or a tool's output rather than the agent's, with those quotes shown in the proposal.
+own words or a tool's output rather than the agent's, with those quotes shown in the proposal. It comes
+from a correction or a gap in context, with the incident behind it; a generic lesson is not promoted
+there. A correction cites the person's own words.
 
 **Against the files.** Check each technical claim against the current state of the code or file. A behaviour that changed
 during this session is not a finding, and a claim recorded from memory of what happened two hours ago

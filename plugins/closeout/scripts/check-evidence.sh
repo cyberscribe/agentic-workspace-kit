@@ -9,18 +9,34 @@
 #   transcript: /path/to/<session-id>.jsonl          (optional, once, before the first item)
 #
 #   ### <one-line claim>
+#   - plain: <the claim in one everyday sentence, as the person reads it first>
+#   - source: correction | missing-context | general                 (general when left out)
 #   - tier: <tier name>
 #   - destination: <file or directory>
-#   - check: supported | contradicted | unsupported
+#   - check: supported | contradicted | unsupported | already-written | observed
 #   - evidence: L212 "a short span quoted verbatim from line 212"   (one or more)
 #   - was: L48 "what the record said first"                         (contradicted)
 #   - correction: <what the record shows>  or  - dropped: <why>      (contradicted)
 #   - missing: <what would support it>                               (unsupported)
+#   - found: <where a session would already find it>                 (already-written)
+#
+# already-written is a learning a later session would find by itself (in the code, the files, the docs,
+# git log or a tool's help); it is not promoted, and found: says where. observed is something the session
+# saw and could not explain: cited, never promoted as fact, and reported to the person.
 #
 # L<n> is a line of the transcript JSONL. The file is append-only, so a line number stays put. An anchor
-# resolves when the line exists, is a turn of the conversation (the person, a tool's output, or the
-# agent's text and tool calls; not hook injections, attachments or request records), and its text holds
-# the quoted span once whitespace is collapsed.
+# resolves when the line exists, is a turn of the conversation, and its text holds the quoted span once
+# whitespace is collapsed. A turn is the person, a tool's output, the agent's text and tool calls, or the
+# prompt a run was given: a queue record that enqueues it, or a queued_command attachment that is not a
+# task notification. Hook injections, other attachments and request records are not turns.
+#
+# The quote runs from the first " after L<n> to the next " that is not escaped with a backslash; text
+# after it is a note and is ignored. Inside it, \" is a quote, \\ a backslash, and \n or \t a line break
+# or a tab, so a span copied from JSON output or across lines reads as the line does.
+#
+# Three rules about where a learning came from, as the item says: every item has a plain: line; a
+# working-standards item is never a general lesson (it needs a correction or a gap in context, with the
+# incident behind it); and a correction cites at least one line that is the person's own words.
 #
 # The record is found in this order: --transcript, the draft's transcript: line, --session, and the
 # draft's own name (<session-id>.md), each id looked up as <config>/projects/*/<id>.jsonl under
@@ -90,7 +106,12 @@ speaker_and_text() {
                                  elif .type == "tool_result" then txt(.content)
                                  elif .type == "tool_use" then ([.input | .. | strings] | join(" "))
                                  else empty end] | join(" ") end;
-        if .type == "user" and (.isMeta | not) then
+        if .type == "queue-operation" and .operation == "enqueue" and ((.content | type) == "string") then
+            "prompt\t" + .content
+        elif .type == "attachment" and .attachment.type == "queued_command" and ((.attachment.prompt | type) == "string")
+             and (.attachment.prompt | startswith("<task-notification>") | not) then
+            "prompt\t" + .attachment.prompt
+        elif .type == "user" and (.isMeta | not) then
             (if ((.message.content | type) == "array") and any(.message.content[]; .type == "tool_result")
              then "tool" else "person" end) + "\t" + txt(.message.content)
         elif .type == "assistant" then "agent\t" + txt(.message.content)
@@ -99,13 +120,31 @@ speaker_and_text() {
 
 squash() { tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//'; }
 
+# parse_anchor <value>: sets a_n and a_quote from 'L<n> "<quote>"[ note]', by the rule in the header.
+# Returns 1 when the value is not an anchor.
+parse_anchor() {
+    local v="$1" rest c i out="" esc=0
+    [[ "$v" =~ ^L([0-9]+)[[:space:]]+\"(.*)$ ]] || return 1
+    a_n="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[2]}"
+    for (( i = 0; i < ${#rest}; i++ )); do
+        c="${rest:i:1}"
+        if [[ $esc -eq 1 ]]; then
+            case "$c" in n) out+=$'\n' ;; t) out+=$'\t' ;; *) out+="$c" ;; esac
+            esc=0
+        elif [[ "$c" == "\\" ]]; then esc=1
+        elif [[ "$c" == '"' ]]; then a_quote="$(printf '%s' "$out" | squash)"; return 0
+        else out+="$c"; fi
+    done
+    return 1
+}
+
 # Items as tab-separated records: index, key, value. The claim is key "claim".
 items="$(awk '
     /^### / { n++; sub(/^### +/, ""); print n "\tclaim\t" $0; next }
     n && /^- [a-z ]+:/ { line = $0; sub(/^- /, "", line); k = line; sub(/:.*/, "", k); v = line; sub(/^[^:]*:[[:space:]]*/, "", v); print n "\t" k "\t" v }
 ' "$draft")"
 
-count=0 supported=0 contradicted=0 unsupported=0 refused=0
+count=0 supported=0 contradicted=0 unsupported=0 already=0 observed=0 refused=0
 refusals=""
 refuse() { refusals+="refused: $1"$'\n'; refused=$((refused + 1)); }
 
@@ -127,13 +166,13 @@ while [[ $i -lt $total ]]; do
     printf '%-13s %s%s\n' "${check:-no check}" "$claim" "${strict:+  [always-loaded]}"
 
     # Each anchor: resolve it, note who spoke, and keep the line numbers for the order check.
-    others=0 bad_anchor=0 ev_max=0 was_max=0 n_ev=0
+    others=0 persons=0 bad_anchor=0 ev_max=0 was_max=0 n_ev=0
     while IFS=$'\t' read -r kind value; do
         [[ -n "$kind" ]] || continue
-        if [[ ! "$value" =~ ^L([0-9]+)[[:space:]]+\"(.*)\"[[:space:]]*$ ]]; then
+        if ! parse_anchor "$value"; then
             echo "    $kind: not an anchor (L<n> \"quote\"): $value"; bad_anchor=1; continue
         fi
-        n="${BASH_REMATCH[1]}" quote="$(printf '%s' "${BASH_REMATCH[2]}" | squash)"
+        n="$a_n" quote="$a_quote"
         [[ "$kind" == evidence ]] && { n_ev=$((n_ev + 1)); [[ $n -gt $ev_max ]] && ev_max=$n; }
         [[ "$kind" == was && $n -gt $was_max ]] && was_max=$n
         if [[ -z "$record" ]]; then
@@ -150,10 +189,21 @@ while [[ $i -lt $total ]]; do
         else
             echo "    $kind L$n ($speaker): ok"
             [[ "$kind" == evidence && "$speaker" != agent ]] && others=$((others + 1))
+            [[ "$kind" == evidence && "$speaker" == person ]] && persons=$((persons + 1))
         fi
     done < <(printf '%s\n' "$rows" | awk -F'\t' '$2 == "evidence" || $2 == "was" { print $2 "\t" $3 }')
 
     [[ $bad_anchor -eq 1 ]] && refuse "$claim: an anchor does not resolve"
+    plain="$(get plain | head -n 1)" source="$(get source | head -n 1 | tr -d '`' | tr '[:upper:]' '[:lower:]' | squash)"
+    [[ -n "$plain" ]] || refuse "$claim: no plain: line (the claim in one everyday sentence, as the person reads it)"
+    case "${source:-general}" in
+        correction)
+            [[ $persons -gt 0 || -z "$record" ]] || refuse "$claim: a correction, with no evidence line in the person's own words" ;;
+        missing-context|general) ;;
+        *) refuse "$claim: source: is '$source', not correction, missing-context or general" ;;
+    esac
+    [[ -n "$strict" && "${source:-general}" == general ]] \
+        && refuse "$claim: for the always-loaded tier, from a general lesson; it needs the person's correction or a gap in context, with the incident"
     case "$check" in
         supported)
             supported=$((supported + 1))
@@ -180,11 +230,24 @@ while [[ $i -lt $total ]]; do
             else refuse "$claim: unsupported, with no missing: line"; fi
             [[ -n "$strict" ]] && refuse "$claim: unsupported, and bound for the always-loaded tier"
             ;;
-        *) refuse "$claim: no check: line (supported, contradicted or unsupported)" ;;
+        already-written)
+            already=$((already + 1))
+            if [[ -n "$(get found)" ]]; then echo "    → already written: $(get found | head -n 1)"
+            else refuse "$claim: already-written, with no found: line saying where"; fi ;;
+        observed)
+            observed=$((observed + 1))
+            echo "    → observed, cause unknown"
+            [[ $n_ev -gt 0 ]] || refuse "$claim: observed, with no evidence line"
+            [[ -n "$strict" ]] && refuse "$claim: observed, and bound for the always-loaded tier"
+            ;;
+        *) refuse "$claim: no check: line (supported, contradicted, unsupported, already-written or observed)" ;;
     esac
 done
 
 echo
-echo "$count items: $supported supported, $contradicted contradicted, $unsupported unsupported (unverified); $refused refused"
+extra=""
+[[ $already -gt 0 ]] && extra+=", $already already written"
+[[ $observed -gt 0 ]] && extra+=", $observed observed"
+echo "$count items: $supported supported, $contradicted contradicted, $unsupported unsupported (unverified)$extra; $refused refused"
 if [[ $refused -gt 0 ]]; then printf '%s' "$refusals"; exit 1; fi
 exit 0
