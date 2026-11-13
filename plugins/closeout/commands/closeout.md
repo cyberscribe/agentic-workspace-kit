@@ -18,6 +18,16 @@ files, the docs, `git log` or a tool's own help? If so, it is not promoted: say
 where it is already found (`check: already-written`, with `found:`), and move on.
 The work itself is already saved; a note is for what none of those show.
 
+A second question goes with it: **where would the obvious next move go wrong?**
+The command anyone would try first, the file anyone would edit, the assumption
+anyone would make: where this session walked into a trap on that path, or the
+person steered it round one, record the trap as the likely move, what goes wrong
+and what to do instead. Its `plain:` line reads as a warning a colleague would
+give ("`git status` from the VM leaves a lock on the repository; use
+`--no-optional-locks`"), and its evidence is the moment it went wrong. Such a trap
+is not otherwise discoverable except by falling into it again. It usually goes to
+project or general reference, beside what it is about.
+
 Look for what passes, in this order, and give the first the most care:
 
 1. **The person's interventions** in this session: what they redirected,

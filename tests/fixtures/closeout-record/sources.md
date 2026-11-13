@@ -67,3 +67,16 @@ A general preference for short summaries.
 - destination: projects/builds/README.md
 - check: observed
 - evidence: L12 "failed twice with no change to the search code, and the log does not say why"
+
+### git status from the VM leaves a lock behind
+- plain: Running `git status` from the VM leaves a lock on the repository, and the next git command fails; use `git --no-optional-locks status` there.
+- source: correction
+- tier: Project reference
+- scope: shared
+- destination: projects/builds/README.md
+- why this tier: the first git command anyone runs from the VM walks into it, and nothing in the repository says so
+- check: supported
+- evidence: L15 "Unable to create '/repo/.git/index.lock': File exists."
+- evidence: L16 "That lock is left by git status from the VM. Use git --no-optional-locks status there"
+
+The trap on the obvious next move: the likely command, what goes wrong, what to do instead.

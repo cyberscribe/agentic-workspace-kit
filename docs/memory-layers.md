@@ -26,7 +26,10 @@ Most placement mistakes are one of these two answered wrongly, and the expensive
 by itself, in the code, the files, the docs, `git log` or a tool's own help? If so, it is not promoted;
 say where it is already found, and move on. A note earns a place when it records what none of those
 show: a decision and the reason for it, a correction the person made, a trap that cost an afternoon, a
-fact that lives in someone's head. Tier and scope are asked only of what passes.
+fact that lives in someone's head. Beside it goes a second question: where would the obvious next move
+go wrong? A trap on the path anyone would take first is found otherwise only by falling into it again,
+so it is recorded as the likely move, what goes wrong and what to do instead. Tier and scope are asked
+only of what passes.
 
 **Tracking is not context.** Task lists, project status and who is doing what this week get
 reconciled, not promoted. Conflating the two is how an end-of-session knowledge pass turns into a

@@ -193,6 +193,15 @@ else: could that session find this by itself, in the code, the files, the docs,
 git log or a tool's own help? If it could, it is not promoted. Write it as
 already-written, with where it is found, and move on.
 
+A second question goes with it: where would the obvious next move go wrong?
+The command anyone would try first, the file anyone would edit, the assumption
+anyone would make: where this session walked into a trap on that path, or the
+person steered it round one, record the trap as the likely move, what goes
+wrong and what to do instead. Its plain: line reads as a warning a colleague
+would give, and its evidence is the moment it went wrong: the person's
+correction, or the failed step and what fixed it. It usually goes to project or
+general reference, beside what it is about.
+
 Look for what passes that test in this order, and give the first the most care:
 
 1. The person's interventions: what they redirected, corrected, refused or

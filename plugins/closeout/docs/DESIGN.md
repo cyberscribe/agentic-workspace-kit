@@ -276,6 +276,16 @@ gap that would have made the next session better. The order is where to look
 first, not a list of kinds to record, which keeps faith with the finding below
 that a list of kinds narrows what gets noticed.
 
+**The obvious next move.** A second question goes with the first: where would
+the obvious next move go wrong? The command anyone would try first, the file
+anyone would edit, the assumption anyone would make: a trap on that path is not
+otherwise discoverable except by falling into it again, so the draft records the
+likely move, what goes wrong and what to do instead, with the moment it went
+wrong as its evidence. It is asked as a question about the next person's likely
+path, not as a kind of item to collect, because telling the capture to record
+only failures cut memory's gain (below), and gotchas were taken off its list of
+kinds for that reason.
+
 **The bias guard.** An item bound for the always-loaded tier comes from a
 correction or a gap in context, with the incident and the person's words behind
 it. A generic lesson with no incident is not promoted there: it costs every

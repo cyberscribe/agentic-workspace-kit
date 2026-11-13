@@ -1181,7 +1181,8 @@ if capture "$P3" s-three; then
         "1. The person's interventions" "2. Your own mistakes in the session, read as missing context" "3. Only then a general lesson" \
         '- plain: <the claim as one everyday sentence' '- source: correction | missing-context | general' \
         '| already-written | observed' '- found: <where a later session would find it>' 'goes through the glossary' \
-        'a general lesson with no incident is not' 'write' 'the file with that one item, as observed' 'a quotation mark as \"'; do
+        'a general lesson with no incident is not' 'write' 'the file with that one item, as observed' 'a quotation mark as \"' \
+        'where would the obvious next move go wrong?' 'the likely move, what goes' 'reads as a warning a colleague'; do
         grep -qF -- "$w" <<<"$prompt" || bad+="capture prompt: no: $w"$'\n'
     done
     for w in plain source found; do
@@ -1191,19 +1192,22 @@ if capture "$P3" s-three; then
         flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
         for w in '**is it otherwise discoverable?**' '`git log` or a tool'"'"'s own help' "**The person's interventions" \
             'read as missing context.**' '**Only then a general lesson' '**Plain words first.**' 'not what kinds to' \
-            'a generic lesson' 'goes through the glossary'; do
+            'a generic lesson' 'goes through the glossary' 'where would the obvious next move go wrong?**' \
+            'the likely move, what goes wrong and what to do instead' 'a warning a colleague would give'; do
             grep -qF -- "$w" <<<"$flat" || bad+="$f: no: $w"$'\n'
         done
     done
     grep -qF 'Show each item to the user by its plain: line first' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: plain: first"$'\n'
+    grep -qF 'An item that warns of a trap on the obvious next move is shown as that warning' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: the trap as a warning"$'\n'
     flat="$(tr '\n' ' ' < "$KIT/plugins/closeout/docs/DESIGN.md" | tr -s ' ')"
     for w in '## Not otherwise discoverable, and where learnings come from' '**The bias guard.**' '## Plain words first' \
         '"If ablation is the crux of the spine of synthesis, conjugate the nominal as an irreversible prime."' \
         '"Avoid writing to files another agent is already working on."' '**The quoting rule.**' "**A run's prompt is a turn.**" \
-        '**Observed, cause unknown.**' 'It starts without the ending session'"'"'s identity.'; do
+        '**Observed, cause unknown.**' 'It starts without the ending session'"'"'s identity.' '**The obvious next move.**' \
+        'not as a kind of item to collect, because telling the capture to record only failures cut memory'"'"'s gain'; do
         grep -qF -- "$w" <<<"$flat" || bad+="DESIGN.md: no: $w"$'\n'
     done
-    empty "4 closeout by what is not otherwise discoverable: the capture prompt, the command and the ritual alike — corrections first, plain words, the bias guard, already written and observed" "$bad"
+    empty "4 closeout by what is not otherwise discoverable: the capture prompt, the command and the ritual alike — corrections first, plain words, the bias guard, already written and observed, and the trap on the obvious next move" "$bad"
     if grep -qF 'People known for this repository' <<<"$prompt" && grep -qF 'Who needs to' <<<"$prompt" \
         && grep -qE '^  - casey$' <<<"$prompt"; then
         ok "4 capture prompt adds who-needs-to-know for three people, naming them"
@@ -1532,12 +1536,13 @@ grep -qF "cited only by the agent's own words" <<<"$cout" \
 ce "$CFX/sources.md"
 bad=""
 [[ $crc -eq 0 ]] || bad+="exit $crc, not 0"$'\n'
-for want in '6 items: 4 supported, 0 contradicted, 0 unsupported (unverified), 1 already written, 1 observed; 0 refused' \
+for want in '7 items: 5 supported, 0 contradicted, 0 unsupported (unverified), 1 already written, 1 observed; 0 refused' \
     'evidence L1 (prompt): ok' 'evidence L2 (prompt): ok' 'evidence L8 (tool): ok' 'evidence L9 (agent): ok' 'evidence L6 (person): ok' \
+    'evidence L15 (tool): ok' 'evidence L16 (person): ok' \
     '→ already written: .github/CODEOWNERS' '→ observed, cause unknown'; do
     grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
 done
-empty "4 sources: a correction cited by the person, missing context, a general lesson elsewhere, a run's prompt as its turn, escaped quotes and a line break, already written and observed all pass" "$bad$([[ -n "$bad" ]] && printf '%s' "$cout")"
+empty "4 sources: a correction cited by the person, missing context, a general lesson elsewhere, a run's prompt as its turn, escaped quotes and a line break, already written, observed, and a trap on the obvious next move cited by the failed step and the person all pass" "$bad$([[ -n "$bad" ]] && printf '%s' "$cout")"
 ce "$CFX/sources-refused.md"
 bad=""
 [[ $crc -eq 1 ]] || bad+="exit $crc, not 1"$'\n'

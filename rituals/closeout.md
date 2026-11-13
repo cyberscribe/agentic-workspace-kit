@@ -26,6 +26,13 @@ session find it by itself, in the code, the files, the docs, `git log` or a tool
 not promoted: say where it is already found, and move on. The work itself is already saved; a note is
 for what none of those show.
 
+A second question goes with it: **where would the obvious next move go wrong?** The command anyone would
+try first, the file anyone would edit, the assumption anyone would make: where the session walked into a
+trap on that path, or the person steered it round one, record the trap as the likely move, what goes
+wrong and what to do instead, with the moment it went wrong as its evidence. Its plain sentence reads as
+a warning a colleague would give. It usually goes to project or general reference, beside what it is
+about.
+
 **Where learnings come from, in this order.** The order says where to look first, not what kinds to
 record.
 
