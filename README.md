@@ -7,15 +7,17 @@ finish line, an area that is only ever kept up, an AI engineer working overnight
 its work, and the closeout that keeps what each session learned. Then it shows where to look in the files
 and how to start.
 
-**Welcome.** This kit gives you and your AI assistant a shared workspace that remembers. Each working
-session ends with a short pass that writes down what was decided and learned, in a place the next
-session will find it, so the assistant starts each day from what you have already worked out rather
-than from guesses. It keeps your projects, their finish lines and where each one stands, and it grows
-more useful the longer you use it.
+**Welcome.** This kit gives you and your AI assistant a shared language and a shared set of places: what
+a project is and where it stands, which standards an ongoing area keeps, where a decision or a lesson
+goes. Everything it holds is a plain file that both of you can read, check and correct, so what the
+assistant works from is never a record only it can see. Each working session ends with a short pass that
+writes down what was decided and learned, in the place the next session will look, so the assistant
+starts each day from what you have already worked out rather than from guesses, and grows more useful
+the longer you use it.
 
-It runs with [Claude Code](https://code.claude.com/docs/en/overview), on a Mac or a Linux computer. You
-do not need to be a programmer: setting it up is copying a few lines into a terminal and answering
-questions.
+It runs with [Claude Code](https://code.claude.com/docs/en/overview), on a Mac or a Linux computer, and
+Cowork in the Claude desktop app can work in the same folder. You do not need to be a programmer:
+setting it up is copying a few lines into a terminal and answering questions.
 
 ## Quick start
 
@@ -72,8 +74,24 @@ about how you work and fills the workspace in. Answer in your own words; anythin
 **6. Start your first project.** Type `/projects:new` and describe something you are working on that
 has a finish line.
 
-**7. At the end of a working session**, type `/closeout`. It records what the session decided and
+**7. Start your first area.** Type `/ongoing:new` and describe something you keep up with no finish
+line, such as a garden, a practice or the books. It asks what good looks like, the standards that
+show it, and how often to check.
+
+**8. At the end of a working session**, type `/closeout`. It records what the session decided and
 learned, and brings the project's status up to date. This is the habit that makes the rest work.
+
+**9. Once a week**, type `/workspace:hygiene`. It writes a dated report to `audits/` on what loads every
+session, files in the wrong place and decisions worth moving up, and deletes nothing.
+
+**10. If you use Cowork**, run this in a terminal inside the workspace, then upload each `.plugin`
+file it names in Claude's plugin settings:
+
+```bash
+kit/setup.sh cowork
+```
+
+Open the workspace folder in Cowork, and the same commands appear as skills in the next session.
 
 That is the whole start. **[The getting-started guide](docs/getting-started.md)** walks through
 everything else in order — the daily routine, pairing two sessions on a build, finishing projects,
@@ -193,20 +211,28 @@ thing lives in version control.
 
 ```
 workspace/
-  CLAUDE.md              ← the always-loaded file; its first line imports the kit's standards
-  docs/                  ← general reference, loaded on demand
-    memory-layers.md     ← the taxonomy above, as it applies to your setup
-    workspace-map.md     ← the canonical-fact table and where new files go
-    <topic>.md           ← one file per subsystem or convention
+  CLAUDE.md                ← the always-loaded file; line 1 imports kit/CLAUDE.kit.md
+  AGENTS.md                ← points other tools at the same two files
+  README.md                ← the entry point for people
+  kit/                     ← the kit, a submodule: read in place, updated with kit/setup.sh update
+    docs/memory-layers.md  ← the taxonomy above, as it applies to this layout
+    templates/             ← the kit's skeletons: project and area READMEs, a decisions log
+    rituals/               ← closeout, weekly hygiene
+  .claude/                 ← settings, and the projects and closeout conventions
+  docs/                    ← general reference, loaded on demand
+    workspace-map.md       ← the canonical-fact table and where new files go
+    <topic>.md             ← one file per subsystem or convention
   projects/
-    INDEX.md             ← the register: active, paused, done
-    <slug>/              ← one folder per project; README, and decisions.md when it earns one
-  templates/             ← reusable skeletons, copied into the project that needs one
+    INDEX.md               ← the register: active, paused, done
+    <slug>/                ← one folder per project: README, and decisions.md when it earns one
+  ongoing/
+    INDEX.md               ← the register of ongoing areas: active, dormant, archived
+    <slug>/                ← one folder per area: its standards and when they were last checked
+  skills/                  ← the team's own skills and templates
   logs/
-    decisions.md         ← cross-project decisions that generalise
-  memory/                ← canonical cross-surface facts: glossary, per-topic context
-  skills/                ← packaged procedures your surface can invoke
-  audits/                ← dated reports from the periodic checks
+    decisions.md           ← cross-project decisions that generalise
+  memory/                  ← canonical cross-surface facts: glossary, people, per-topic context
+  audits/                  ← dated reports from the periodic checks
 ```
 
 ### 2.1 The always-loaded manifest
@@ -261,8 +287,9 @@ decisions worth preserving, it gets a `decisions.md` from the template.
 
 ### 2.4 Templates as a first-class location
 
-`templates/` holds the skeletons: a project decisions log, a project README, an agent role
-definition, whatever recurring document shape your work produces. The test for whether something
+`kit/templates/` holds the kit's skeletons: a project README, an area README, a project decisions
+log. The team's own (an agent role definition, whatever recurring document shape your work produces)
+go in `skills/`, or `.claude/agents/` and `.claude/commands/` where a surface reads them from there. The test for whether something
 belongs here is in §1.2 — does it serve a *category* of work rather than one work unit?
 
 The subtle benefit: a template carries its own governing rules at the point of use. A decisions-log

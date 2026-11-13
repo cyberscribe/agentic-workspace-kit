@@ -173,6 +173,13 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   that, after its summary lines; Cowork runs no hooks, so the kit's standards (`CLAUDE.kit.md`, Active
   work) say it for every surface, and the Cowork row of the surface table repeats it. Section 17 and
   the hook checks cover all three.
+- **Start here.** The README's Quick start goes on past the first project to a first ongoing area
+  (`/ongoing:new`), the weekly `/workspace:hygiene`, and a short Cowork step (`kit/setup.sh cowork`, then
+  upload the `.plugin` files). Its welcome describes the kit as a shared language and set of places, in
+  plain files both the person and the assistant can read, check and correct, and says Cowork can work in
+  the same folder. Part 2's tree is redrawn from the workspace map, with `kit/`, `ongoing/` and the
+  kit's templates inside `kit/`, and §2.4 says where the team's own templates go. Section 12 checks all
+  three.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

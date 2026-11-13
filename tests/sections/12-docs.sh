@@ -109,3 +109,20 @@ s12_v="$(awk '/^## v[0-9]/ { v = $2; sub(/^v/, "", v); print v; exit }' "$KIT/CH
 s12_f="$(awk '/^\*Kit [0-9]/ { f = $2; sub(/\*$/, "", f) } END { print f }' "$KIT/CLAUDE.kit.md")"
 empty "12 CLAUDE.kit.md ends naming the CHANGELOG's latest version" \
     "$([[ "$s12_f" == "$s12_v" ]] || printf 'footer %s, CHANGELOG %s\n' "${s12_f:-none}" "$s12_v")"
+
+# --- Start here: the README's Quick start, its Part 2 tree and its welcome -------------------------
+# The Quick start reaches an area, the weekly hygiene and Cowork as well as a project and closeout, and
+# the Part 2 tree is drawn from the workspace map: the kit as kit/, areas in ongoing/, no templates/ at
+# the workspace root.
+s12_qs="$(awk '/^## Quick start$/ { f = 1; next } f && /^## / { exit } f' "$KIT/README.md")"
+s12_tree="$(awk '/^## Part 2 /{ p = 1 } p && /^```$/ { if (f) exit; f = 1; next } f' "$KIT/README.md")"
+s12_bad=""
+for s12_w in '/workspace:quick-start' '/projects:new' '/ongoing:new' '/closeout' '/workspace:hygiene' 'kit/setup.sh cowork'; do
+    grep -qF -- "$s12_w" <<<"$s12_qs" || s12_bad+="the Quick start does not reach $s12_w"$'\n'
+done
+for s12_w in '  kit/ ' '  ongoing/' '  projects/' '  skills/ ' '  audits/ ' '    templates/ '; do
+    grep -qF -- "$s12_w" <<<"$s12_tree" || s12_bad+="the Part 2 tree has no '$s12_w'"$'\n'
+done
+grep -qE '^  templates/' <<<"$s12_tree" && s12_bad+="the Part 2 tree puts templates/ at the workspace root"$'\n'
+grep -qF 'read, check and correct' "$KIT/README.md" || s12_bad+="the welcome does not say the files are there to read, check and correct"$'\n'
+empty "12 README: the Quick start reaches an area, hygiene and Cowork; Part 2 is drawn from the workspace map" "$s12_bad"
