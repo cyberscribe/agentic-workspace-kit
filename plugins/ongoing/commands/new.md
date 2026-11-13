@@ -50,7 +50,9 @@ Area · Folder · One-liner), and the template `kit/templates/area-readme.md`, e
 
 ## What to find out
 
-1. **Name** — and a short slug for the folder. If a folder for it already exists, in
+1. **Name** — and a short slug for the folder, from
+   `bash kit/plugins/projects/scripts/slug.sh "<name>"` (lowercase, hyphens, the
+   same rule `/projects:new` uses). Show it; the person may give another. If a folder for it already exists, in
    the areas location or among the projects, suggest `/ongoing:adopt <folder>` instead;
    a second README is not part of this command. If what they describe has a finish
    line after all, say so and offer `/projects:new` — the kit's command for work that

@@ -30,7 +30,7 @@ deletes and commits nothing; the last stage prints the commit to make.
 | `kit/setup.sh link [SLUG] [--dry-run]` | Links each resource a project names to its path on this machine, from `.claude/resources.local.md` |
 | `kit/setup.sh hooks [--repo PATH] [--check]` | Sets the git hooks in the workspace, the kit and each project repository |
 | `kit/setup.sh skills [--dry-run] [--check] [--no-user]` | Writes one `kit-` skill per command, and copies the team's `skills/`, into `.claude/skills/` |
-| `kit/setup.sh cowork [PLUGIN…] [--out DIR] [--check]` | Packages each plugin as `<plugin>-<version>.plugin` in `.claude/cowork-plugins/`, after checking what Cowork refuses (a description over 500 characters, a `bin/` folder), for upload in Claude's plugin settings |
+| `kit/setup.sh cowork [PLUGIN…] [--out DIR] [--check]` | Packages each plugin as `<plugin>-<version>.plugin` in `.claude/cowork-plugins/`, after checking what Cowork refuses (a description over 500 characters, a `bin/` folder), for upload in Claude's plugin settings. Where the account already has a closeout skill, Cowork keeps that skill in place of the kit's; it fits when it keeps the four shelves, a bounded always-loaded tier, each candidate checked against the session's record, and no commits (`docs/getting-started.md` §3) |
 | `kit/setup.sh migrate [--dry-run] [--map FILE] …` | Moves a 2.x workspace to the 3.0 layout; see `docs/migration.md` |
 
 Every mode takes `--target DIR`. Without it, the target is the repository the kit is a submodule of,

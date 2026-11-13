@@ -130,7 +130,9 @@ thing a newcomer can learn.
   block has fallen behind; a profile path in People that does not exist; a
   `Versioned:` line that disagrees with the folder; a resource not mapped or
   not reachable on this machine (`kit/setup.sh link <slug>`); a look-again
-  date that has passed.
+  date that has passed; a path or link in the README that does not resolve; a
+  claim in it that the files plainly contradict (a file it says exists that
+  does not, a Done when box ticked for work that is not there).
   If there is nothing to say, the line reads `nothing — the README is current`.
 
 Dates are absolute; day counts are from today. Quote the README's own words for
@@ -142,8 +144,10 @@ agreed, not your paraphrase of it.
 One line, only if the brief found something to fix, and what would fix it —
 `/projects:adopt` for missing sections or an older Now block to convert; the
 person's own edit to the README for a stale Current state block or a proposal
-to confirm (confirming one deletes its marker) — for the person to do when they
-choose.
+to confirm (confirming one deletes its marker); for a broken reference or a
+claim the files contradict, asking the agent to correct the README, which
+`/closeout` does as part of bringing the page up to date — for the person to do
+when they choose.
 
 **Resuming a paused project.** When the Current state block reads
 `State: paused`, offer to resume it — one question, after the brief. On a yes,

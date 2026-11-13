@@ -49,14 +49,19 @@ below:
 
 Two axes, and the first is the expensive decision.
 
+Each candidate first passes one test: keep only what the next session could not
+find for itself. What the code, the files and their history already show is left
+out; what they do not show (a decision and its reason, a trap, a fact held in
+someone's head) goes on to be classified.
+
 **Tier** — where it belongs, which decides how often it is loaded back:
 
-| Tier | Loaded back | Typical shared destination |
-|---|---|---|
-| Working standards | always — every session, every turn | `CLAUDE.md` or `AGENTS.md` |
-| General reference | as needed, in any project | `.claude/skills/`, `docs/` |
-| Project reference | as needed, only in this project | the project folder, `docs/DECISIONS.md` |
-| Templates & agent roles | when that role or scaffold is invoked | `.claude/agents/`, `.claude/commands/` |
+| Tier | Loaded back | Typical shared destination | Passes the test when it is… |
+|---|---|---|---|
+| Working standards | always — every session, every turn | `CLAUDE.md` or `AGENTS.md` | a way of working that sessions get wrong without being told |
+| General reference | as needed, in any project | `.claude/skills/`, `docs/` | a fact about a tool or a domain that no file here states |
+| Project reference | as needed, only in this project | the project folder, `docs/DECISIONS.md` | a decision and why, where the code shows only the result |
+| Templates & agent roles | when that role or scaffold is invoked | `skills/`, `.claude/agents/`, `.claude/commands/` | the shape of a piece of work that will come round again |
 
 In a workspace built on the kit, the always-loaded file is `CLAUDE.md`, and its
 first line imports `kit/CLAUDE.kit.md`. That file, like everything under `kit/`,
@@ -66,7 +71,11 @@ import line. A learning about the kit itself is drafted in the report, and an
 edit inside `kit/` is made only with a person approving it. Where
 `.claude/skills/.kit-generated` exists, `.claude/skills/` is the skills bridge's
 generated copy, rewritten on its next run, so general reference goes to
-`skills/` instead.
+`skills/` instead. The destinations there are the ones `kit/docs/memory-layers.md`
+§3 names: project reference in `projects/<slug>/` and its own `decisions.md`, and
+templates in `skills/`, `.claude/agents/` or `.claude/commands/`. The skeletons in
+`kit/templates/` and the rituals in `kit/rituals/` are the kit's, and a change to
+one is a learning about the kit.
 
 **Sensitive projects.** A project whose README reads `Sensitivity: sensitive` is
 kept untracked or as its own private repository, and learnings from it land in its
@@ -192,6 +201,13 @@ the repository is the project — and open its entry point.
   `proposed by /projects:adopt` marker — stays as it is. A state change shows the
   register's one-cell edit, made on a yes; a folder move tied to it is named, not
   made.
+- **The page against the evidence.** Read what the README claims in the parts
+  this session touched (what is built, decided or true) against the files and
+  the session, and check that each path and link it names resolves. Correct what
+  is wrong in the README itself, shown and written on a yes, and name each
+  correction in the report. When the person spots something wrong in the page,
+  the correction goes through the agent the same way, so the fix and its reason
+  land together rather than as a quiet hand edit.
 - **No Current state block or Done when, or an older Now block?** Leave the
   README's shape alone and mention `/projects:adopt`.
 - **Every box ticked?** Say so and suggest `/projects:close <slug>`, which

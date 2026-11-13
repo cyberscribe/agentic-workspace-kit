@@ -90,6 +90,22 @@ the commands appear as skills. `kit/setup.sh skills` also copies a `kit-` skill 
 team's own skills, into `.claude/skills/` for any surface that loads skills from a folder. Cowork reads
 skills when a session starts, so new ones appear in the next session.
 
+**Closeout in Cowork.** Where your Claude account already has a closeout skill, Cowork keeps it: it
+refuses a plugin with the same name, so that skill stays the way to close out there, in place of the
+kit's. It fits the kit when it keeps these four things:
+
+1. **The four shelves**: working standards, general reference, project reference and templates, with
+   tracking reconciled on its own rail and never promoted.
+2. **A bounded always-loaded tier**: a line there is updated or condensed where that does the job, and
+   added only with the person's yes.
+3. **Each candidate checked against the session's record** before it is promoted, so what the next
+   session reads as fact was true of this one.
+4. **No commits**: it lists what it touched, and the commit stays the person's.
+
+Run it once and check each of these before relying on it. Where it misses one, say "follow
+`kit/plugins/closeout/commands/closeout.md`" when you close out in Cowork, so the session uses the kit's
+procedure.
+
 **It worked if** a new session in the workspace shows the commands and no `Workspace:` lines.
 
 ---

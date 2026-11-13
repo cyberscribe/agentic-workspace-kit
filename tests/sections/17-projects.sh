@@ -412,3 +412,23 @@ s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" '##
     'kit/templates/area-readme.md' '**Area register:**' '`archived`')"
 s17_bad+="$(s17_has "$KIT/templates/workspace/workspace-map.md" 'ongoing/INDEX.md' 'Active / Dormant / Archived')"
 empty "17 areas: the ongoing README, the projects README, the example conventions and the workspace map describe areas" "$s17_bad"
+
+# ---- One slug rule for projects and areas, and pickup's two read-only flags ---------------------------
+s17_sl="$KIT/plugins/projects/scripts/slug.sh"
+s17_bad=""
+for s17_pair in 'Spring Workshop|spring-workshop' 'Rose garden (2027)|rose-garden-2027' "Sam's  booking-form v2.1|sams-booking-form-v2-1" \
+    '  --Bonsai__Trees--  |bonsai-trees' 'Café Crème|cafe-creme'; do
+    s17_got="$(bash "$s17_sl" "${s17_pair%%|*}" 2>&1)"
+    [[ "$s17_got" == "${s17_pair#*|}" ]] || s17_bad+="slug.sh '${s17_pair%%|*}' gave '$s17_got', not '${s17_pair#*|}'"$'\n'
+done
+s17_got="$(bash "$s17_sl" '!!!' 2>&1)"; s17_rc=$?
+[[ $s17_rc -eq 1 && -z "$s17_got" ]] || s17_bad+="slug.sh '!!!' gave '$s17_got' (exit $s17_rc), not nothing and exit 1"$'\n'
+bash "$s17_sl" >/dev/null 2>&1; [[ $? -eq 2 ]] || s17_bad+="slug.sh with no name does not exit 2"$'\n'
+[[ -x "$s17_sl" ]] || s17_bad+="slug.sh is not executable"$'\n'
+s17_bad+="$(s17_has "$s17_n" 'bash kit/plugins/projects/scripts/slug.sh "<name>"' 'the same rule `/ongoing:new` uses')"
+s17_bad+="$(s17_has "$s17_o/new.md" 'bash kit/plugins/projects/scripts/slug.sh "<name>"' 'the same rule `/projects:new` uses')"
+empty "17 one slug rule: slug.sh lowercases, hyphenates and strips, and /projects:new and /ongoing:new both use it" "$s17_bad"
+
+s17_bad="$(s17_has "$s17_p" 'a path or link in the README that does not resolve' 'a claim in it that the files plainly contradict' \
+    'asking the agent to correct the README')"
+empty "17 pickup: a broken reference and a contradicted claim are flagged, and their fix goes through the agent" "$s17_bad"

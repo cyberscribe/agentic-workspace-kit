@@ -191,6 +191,18 @@ once. Nothing moves on its own: a long-running project you would rather keep as 
   promotion candidates now include decisions with no *Generalises as* field that still say something
   once the decisions log's strip filter has run, each with its stripped form beside it. Section 21
   checks the task files against the scheduler and the wording.
+- **Consistency.** `docs/memory-layers.md` §1 opens with the test every promotion passes first: keep
+  only what the next session could not find for itself. Closeout applies it before classifying, and its
+  tier table gains a column of what passes at each tier. The table's template destinations now include
+  `skills/`, and in a kit workspace closeout names `memory-layers.md` §3's destinations, with
+  `kit/templates/` and `kit/rituals/` as the kit's. Where a Claude account already has a closeout skill,
+  Cowork keeps it in place of the kit's: the getting-started guide and `docs/setup.md` say the four
+  things it has to keep (the four shelves, a bounded always-loaded tier, candidates checked against the
+  record, no commits), and how to point a session at the kit's procedure where it misses one. Closeout
+  checks the README's claims against the evidence and that its paths and links resolve, correcting
+  through the agent; `/projects:pickup` flags both, read-only. `/projects:new` and `/ongoing:new` take a
+  folder's slug from one script, `plugins/projects/scripts/slug.sh` (lowercase, hyphens, accents
+  written plainly, quotes dropped). Sections 17 and 21 check each.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,

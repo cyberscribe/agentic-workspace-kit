@@ -53,8 +53,10 @@ Anything it does not mention falls back to the defaults.
 
 ## What to find out
 
-1. **Name** — and a short slug for the folder (lowercase, hyphens, unless the
-   conventions file names another rule or a folder prefix). If a folder for this
+1. **Name** — and a short slug for the folder, from
+   `bash kit/plugins/projects/scripts/slug.sh "<name>"` (lowercase, hyphens, the
+   same rule `/ongoing:new` uses), unless the conventions file names another
+   rule or a folder prefix. Show it; the person may give another. If a folder for this
    project already exists, the work has already started: stop here and suggest
    they run `/projects:adopt <folder>`, which adds the missing sections without
    rewriting what is there. A second README is not part of this command.

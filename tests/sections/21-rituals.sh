@@ -304,3 +304,14 @@ s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'Then the entries wit
     'strip every reference to the project, technology, file path and stakeholder' 'Give the stripped sentence beside the entry')"
 s21_bad+="$(s21_needs rituals/weekly-hygiene.md 'and those without one that still say something once the strip filter has run')"
 empty "21 hygiene: promotion candidates include decisions with no Generalises as field that pass the strip filter" "$s21_bad"
+
+# The golden rule, the template destinations, the page against the evidence, and closeout in Cowork.
+s21_bad="$(s21_needs docs/memory-layers.md '**The test every promotion passes first.** Keep only what the next session could not find for itself.')"
+s21_bad+="$(s21_needs plugins/closeout/commands/closeout.md 'keep only what the next session could not find for itself' \
+    'Passes the test when it is…' '| `skills/`, `.claude/agents/`, `.claude/commands/` |' '`kit/docs/memory-layers.md` §3 names' \
+    'project reference in `projects/<slug>/` and its own `decisions.md`' '**The page against the evidence.**' \
+    'the correction goes through the agent the same way')"
+s21_bad+="$(s21_needs docs/getting-started.md '**The four shelves**' '**A bounded always-loaded tier**' \
+    "**Each candidate checked against the session's record**" '**No commits**' 'kit/plugins/closeout/commands/closeout.md')"
+s21_bad+="$(s21_needs docs/setup.md 'Cowork keeps that skill' 'the four shelves, a bounded always-loaded tier' "each candidate checked against the session's record, and no commits")"
+empty "21 consistency: the next-session test in memory-layers and closeout, closeout's destinations as memory-layers §3, the page checked against the evidence, and what an account's closeout skill keeps in Cowork" "$s21_bad"
