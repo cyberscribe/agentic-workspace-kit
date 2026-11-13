@@ -117,11 +117,41 @@ else
     trap 'rm -rf "$SCRATCH"' EXIT
 fi
 
+# Timing. Every section and every check records its wall time in $AW_TIMES, a tab-separated file:
+# "S <section> <microseconds>" per section ("prelude" is the time before the first section, the
+# fixture repository's build included), "C <section> <microseconds> <check>" per check, timed from
+# the check before it, and "F <section> 0 <check>" per failure, so the summary names the part a
+# failing check ran in (15b, not 15). A parallel run gives each job its own file and gathers them; the summary at the
+# end names the slowest sections. aw_now sets aw_t rather than printing, so under bash 5 a reading costs
+# no fork. Without EPOCHREALTIME (bash 3.2, which a parallel run's jobs run under) a section mark asks
+# perl, and checks are not timed one by one: a serial run under bash 5 gives the per-check times.
+AW_TIMES="${AW_TIMES:-${TMPDIR:-/tmp}/aw-test-times.tsv}"
+aw_now() {
+    aw_t="${EPOCHREALTIME:-}"
+    if [[ -n "$aw_t" ]]; then aw_t="${aw_t//[.,]/}"
+    else aw_t="$(perl -MTime::HiRes=time -e 'printf "%d\n", time() * 1e6' 2>/dev/null || echo "$(date +%s)000000")"; fi
+}
+aw_now; aw_t_start="$aw_t" aw_t_sec="$aw_t" aw_t_chk="$aw_t" aw_t_id=prelude
+: > "$AW_TIMES" 2>/dev/null || AW_TIMES=/dev/null
+aw_tick() { [[ -n "${EPOCHREALTIME:-}" ]] || return 0; aw_now; printf 'C\t%s\t%s\t%s\n' "$aw_t_id" "$((aw_t - aw_t_chk))" "$1" >> "$AW_TIMES"; aw_t_chk="$aw_t"; }
+# aw_sec_mark <next section>: closes the section being timed and starts the next ("" at the end).
+aw_sec_mark() { aw_now; printf 'S\t%s\t%s\n' "$aw_t_id" "$((aw_t - aw_t_sec))" >> "$AW_TIMES"; aw_t_sec="$aw_t" aw_t_chk="$aw_t" aw_t_id="$1"; }
+
 pass=0 fail=0 skip=0
-ok()   { pass=$((pass + 1)); printf 'PASS  %s\n' "$1"; }
+ok()   { pass=$((pass + 1)); printf 'PASS  %s\n' "$1"; aw_tick "$1"; }
 # ko <description> [detail]: the detail, if any, is indented under the FAIL line.
-ko()   { fail=$((fail + 1)); printf 'FAIL  %s\n' "$1"; [[ -n "${2:-}" ]] && printf '%s\n' "$2" | sed '/^$/d' | head -n 20 | sed 's/^/        /'; return 0; }
-skp()  { skip=$((skip + 1)); printf 'SKIP  %s\n' "$1"; }
+ko()   { fail=$((fail + 1)); printf 'FAIL  %s\n' "$1"; [[ -n "${2:-}" ]] && printf '%s\n' "$2" | sed '/^$/d' | head -n 20 | sed 's/^/        /'
+         aw_fail_rec "$1"; aw_tick "$1"; return 0; }
+# aw_fail_rec <check>: an F line, from the runner's own shell only. Some checks call ko inside a subshell
+# to test the helpers themselves; those failures are not the run's. ($$ is the runner's pid in a
+# subshell too; BASHPID, or the parent of a forked sh where there is none, is the subshell's own.)
+aw_fail_rec() {
+    local p="${BASHPID:-}"
+    [[ -n "$p" ]] || p="$(exec sh -c 'echo "$PPID"')"
+    [[ "$p" == "$$" ]] && printf 'F\t%s\t0\t%s\n' "$aw_t_id" "$1" >> "$AW_TIMES"
+    return 0
+}
+skp()  { skip=$((skip + 1)); printf 'SKIP  %s\n' "$1"; aw_tick "$1"; }
 # check <description> <command...>: passes when the command succeeds.
 check() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$d"; else ko "$d"; fi; }
 # empty <description> <text>: passes when the text is empty; otherwise the text is the detail.
@@ -140,11 +170,26 @@ install_args=(--team "Test Team" --owner "Sam Example" --owner-handle "@sam")
 # tests/sections/ by their leading number. A section is named by its number as printed ("4b", "11").
 aw_all="1 2 2b 3 4 4b 5 6 7 8 9 10 11"
 for aw_f in "$KIT"/tests/sections/[0-9]*.sh; do aw_f="${aw_f##*/}"; aw_f="${aw_f%%-*}"; aw_all+=" ${aw_f%.sh}"; done
-# The slow tier: the sections that build whole workspaces through the installer, the migration or the
-# ablation runner, and change least often (AW_SLOW, in the header).
-aw_slow="10 15 16 20 25"
 # aw_has <list> <id>: 0 when the space-separated list holds the id.
 aw_has() { case " $1 " in *" $2 "*) return 0 ;; esac; return 1; }
+# A long section is split into parts, each its own file and its own parallel job: 15a-setup.sh,
+# 15b-setup.sh and so on are sections 15a and 15b, with what they share in tests/sections/lib/.
+# aw_expand <ids>: each id as it is when a section has it, or else the parts it was split into, so
+# "15" names 15a, 15b and 15c wherever a section number is written (AW_SECTIONS, the path map, the
+# slow tier). An id that names neither is printed with a leading "?".
+aw_expand() {
+    local id p out="" hit
+    for id in $1; do
+        if aw_has "$aw_all" "$id"; then out+=" $id"; continue; fi
+        hit=""
+        for p in $aw_all; do case "$p" in "$id"[a-z]) hit+=" $p" ;; esac; done
+        out+="${hit:- ?$id}"
+    done
+    echo "${out# }"
+}
+# The slow tier: the sections that build whole workspaces through the installer, the migration or the
+# ablation runner, and change least often (AW_SLOW, in the header).
+aw_slow="$(aw_expand "10 15 16 20 25")"
 # aw_needs <id>: the section whose fixtures or functions this one reads, which comes along with it:
 # 3 and 9 read 1's fixtures, 19 calls 9's skill_ok.
 aw_needs() { case "$1" in 3|9) echo 1 ;; 19) echo 9 ;; esac; }
@@ -156,7 +201,7 @@ if [[ -n "${AW_SECTIONS:-}" && -n "$aw_changed" ]]; then
 fi
 aw_pick="" aw_scoped=0 aw_unknown="" aw_banner=""
 if [[ -n "${AW_SECTIONS:-}" ]]; then
-    for aw_s in $AW_SECTIONS; do aw_has "$aw_all" "$aw_s" && aw_pick+=" $aw_s" || aw_unknown+=" $aw_s"; done
+    for aw_s in $(aw_expand "$AW_SECTIONS"); do [[ "$aw_s" == "?"* ]] && aw_unknown+=" ${aw_s#?}" || aw_pick+=" $aw_s"; done
     aw_banner="Sections: $AW_SECTIONS (AW_SECTIONS)"
 elif [[ -n "$aw_changed" ]]; then
     # The paths changed against the base: the working tree and untracked files against HEAD or a ref's
@@ -179,11 +224,15 @@ elif [[ -n "$aw_changed" ]]; then
     while IFS= read -r aw_p; do
         [[ -n "$aw_p" ]] || continue
         aw_n=$((aw_n + 1)) aw_hit=0
-        case "$aw_p" in tests/sections/[0-9]*.sh) aw_s="${aw_p#tests/sections/}"; aw_pick+=" ${aw_s%%-*}"; aw_hit=1 ;; esac
+        case "$aw_p" in
+            tests/sections/[0-9]*.sh) aw_s="${aw_p#tests/sections/}"; aw_pick+=" ${aw_s%%-*}"; aw_hit=1 ;;
+            # A split section's shared helpers run every part of it.
+            tests/sections/lib/[0-9]*.sh) aw_s="${aw_p#tests/sections/lib/}"; aw_pick+=" $(aw_expand "${aw_s%%-*}")"; aw_hit=1 ;;
+        esac
         while IFS=$'\t' read -r aw_pat aw_secs; do
             [[ "$aw_pat" == always ]] && continue
             # shellcheck disable=SC2254
-            case "$aw_p" in $aw_pat) aw_pick+=" $aw_secs"; aw_hit=1 ;; esac
+            case "$aw_p" in $aw_pat) aw_pick+=" $(aw_expand "$aw_secs")"; aw_hit=1 ;; esac
         done <<< "$aw_rules"
         [[ $aw_hit -eq 1 ]] || aw_unmapped+=" $aw_p"
     done <<< "$aw_paths"
@@ -194,10 +243,10 @@ elif [[ -n "$aw_changed" ]]; then
     if [[ -n "$aw_unmapped" ]]; then
         aw_pick="" aw_banner="Changed against ${aw_changed}: $aw_n path$([[ $aw_n -eq 1 ]] || echo s); no rule in the path map for${aw_unmapped}, so every section runs"
     else
-        aw_pick+=" $(awk -F'\t' '$1 == "always" { print $2 }' <<< "$aw_rules")"
+        aw_pick+=" $(aw_expand "$(awk -F'\t' '$1 == "always" { print $2 }' <<< "$aw_rules")")"
         aw_scoped=1 aw_banner="Changed against ${aw_changed}: $aw_n path$([[ $aw_n -eq 1 ]] || echo s)"
     fi
-    for aw_s in $aw_pick; do aw_has "$aw_all" "$aw_s" || { echo "tests/run.sh: the path map names section $aw_s, and there is none" >&2; exit 2; }; done
+    for aw_s in $aw_pick; do aw_has "$aw_all" "$aw_s" || { echo "tests/run.sh: the path map names section ${aw_s#?}, and there is none" >&2; exit 2; }; done
 fi
 # The slow tier runs unless AW_SLOW=0, or a --changed run chose the sections and AW_SLOW is not 1. A
 # release (AW_REQUIRE_CLAUDE=1) and CI (CI set) always run it.
@@ -219,7 +268,7 @@ for aw_s in $aw_all; do
     elif aw_has "$aw_pick" "$aw_s"; then aw_in=1
     fi
     [[ $aw_in -eq 1 ]] || continue
-    if [[ "$aw_slow_on" != 1 ]] && aw_has "$aw_slow" "$aw_s" && ! aw_has "${AW_SECTIONS:-}" "$aw_s"; then
+    if [[ "$aw_slow_on" != 1 ]] && aw_has "$aw_slow" "$aw_s" && ! aw_has "$(aw_expand "${AW_SECTIONS:-}")" "$aw_s"; then
         aw_held+=" $aw_s"; continue
     fi
     aw_run+=" $aw_s"
@@ -234,7 +283,22 @@ fi
 aw_want() {
     aw_has "$aw_run" "$1" || return 1
     [[ -z "${AW_RUN_CHILD:-}" ]] || printf '@@aw-section %s\n' "$1"
+    aw_sec_mark "$1"
     return 0
+}
+# aw_time_summary <times file> <wall microseconds> <jobs>: the slowest ten sections and the totals.
+aw_time_summary() {
+    awk -F'\t' -v wall="$2" -v jobs="$3" -v file="$4" '
+        $1 == "S" { t[$2] += $3; sum += $3; if ($2 == "prelude") pre += $3 }
+        $1 == "F" { fl[++nf] = $2 ": " $4 }
+        END {
+            n = 0; for (k in t) { n++; key[n] = k }
+            for (i = 1; i <= n; i++) for (j = i + 1; j <= n; j++) if (t[key[j]] > t[key[i]]) { x = key[i]; key[i] = key[j]; key[j] = x }
+            print "Time: " sprintf("%.0f", wall / 1e6) " s wall, " jobs " job(s); " sprintf("%.0f", sum / 1e6) " s of section time, " sprintf("%.0f", pre / 1e6) " s of it building the fixture repository (prelude). Slowest:"
+            for (i = 1; i <= n && i <= 10; i++) printf "  %-8s %6.1f s\n", key[i], t[key[i]] / 1e6
+            print "  Per check: " file " (C lines; sort -t\"\t\" -k3 -n -r)"
+            if (nf) { print "Failed, by the part each ran in:"; for (i = 1; i <= nf; i++) print "  " fl[i] }
+        }' "$1"
 }
 
 
@@ -315,6 +379,30 @@ export AW_CLAUDE="$SCRATCH/no-claude"
 # session inherits that session's, so it is cleared here and set by the checks that want one.
 unset CLAUDE_PROJECT_DIR
 
+# KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
+# and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
+# so the scripts under test are the working tree's, committed or not.
+# Automatic gc and maintenance are off in it, for good: started in the background after a commit, they
+# can pack the loose objects while a fixture's clone is copying them, and that clone then fails.
+# A parallel run builds it once, before the jobs start, and each job gets its own full copy (cp -a, not
+# a clone, which would hardlink objects that another job's git could then change).
+KITSRC="$SCRATCH/kit-src"
+kitsrc_ok=0
+if [[ -n "${AW_KITSRC_FROM:-}" && -d "$AW_KITSRC_FROM/.git" ]]; then
+    cp -a "$AW_KITSRC_FROM" "$KITSRC" && kitsrc_ok=1
+elif git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
+    mkdir -p "$KITSRC" && git -C "$KITSRC" init -q && git -C "$KITSRC" symbolic-ref HEAD refs/heads/main \
+        && git -C "$KITSRC" config gc.auto 0 && git -C "$KITSRC" config maintenance.auto false
+    while IFS= read -r -d '' aw_f; do
+        [[ -f "$KIT/$aw_f" ]] || continue
+        mkdir -p "$KITSRC/$(dirname "$aw_f")" && cp -p "$KIT/$aw_f" "$KITSRC/$aw_f"
+    done < <(git --no-optional-locks -C "$KIT" ls-files -z -co --exclude-standard)
+    git -C "$KITSRC" add -A \
+        && git -C "$KITSRC" -c commit.gpgsign=false commit -q -m "The kit's working tree, for the tests" \
+        && kitsrc_ok=1
+fi
+[[ $kitsrc_ok -eq 1 ]] || echo "note: the kit is not a git checkout; the fixtures built from KITSRC are not available"
+
 # The parallel run. Each job is this script run again for some sections (AW_RUN_CHILD=1), in its own
 # scratch directory, KITSRC included, so no two jobs share a file. (A shared KITSRC is not safe: a
 # local clone hardlinks its objects, so one job's git touching an object changes another's fixture.) Sections that need one another run in one job (1, 3, 9 and 19: aw_needs). The
@@ -331,7 +419,7 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
     # Jobs, in the order they start: the heavy sections first (measured on a Mac, 2026-10-23), then
     # the rest in serial order. The order changes only how soon the run ends.
     aw_groups=() aw_roots=""
-    for aw_s in 15 20 16 25 13 10 11 14 22 19 $aw_run; do
+    for aw_s in $(aw_expand "15 20 16 25 13 10 11 14 22 19") $aw_run; do
         aw_has "$aw_run" "$aw_s" || continue
         aw_r="$(aw_root "$aw_s")"
         aw_has "$aw_roots" "$aw_r" && continue
@@ -363,7 +451,7 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
     aw_started=0
     while :; do
         while [[ $aw_live -lt $aw_jobs && $aw_started -lt ${#aw_groups[@]} ]]; do
-            ( AW_RUN_CHILD=1 AW_JOBS=1 AW_SLOW=1 AW_SECTIONS="${aw_groups[$aw_started]}" \
+            ( AW_RUN_CHILD=1 AW_JOBS=1 AW_SLOW=1 AW_SECTIONS="${aw_groups[$aw_started]}" AW_TIMES="$aw_par/$aw_started.times" AW_KITSRC_FROM="$KITSRC" \
                 bash "$KIT/tests/run.sh" > "$aw_par/$aw_started.out" 2>&1
               echo "$?" > "$aw_par/$aw_started.rc"; : > "$aw_par/$aw_started.done" ) &
             aw_pids+=("$!"); aw_started=$((aw_started + 1)); aw_live=$((aw_live + 1))
@@ -386,31 +474,16 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
         pass=$((pass + aw_p)) fail=$((fail + aw_f)) skip=$((skip + aw_k))
     done
     for aw_s in $aw_unknown; do echo "note: AW_SECTIONS names $aw_s, and no section has that number"; done
+    # The jobs' times, gathered into this run's file; each job's prelude is its own fixture build.
+    for aw_i in "${!aw_groups[@]}"; do cat "$aw_par/$aw_i.times" 2>/dev/null; done >> "$AW_TIMES"
+    aw_now
     echo
+    aw_time_summary "$AW_TIMES" "$((aw_t - aw_t_start))" "$aw_jobs" "$AW_TIMES"
     echo "$pass passed, $fail failed, $skip skipped"
     [[ $fail -eq 0 ]]
     exit
 fi
 
-# KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
-# and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
-# so the scripts under test are the working tree's, committed or not.
-# Its commit runs with automatic gc and maintenance off: started in the background after a commit, they
-# can pack the loose objects while the first fixture's clone is copying them, and that clone then fails.
-KITSRC="$SCRATCH/kit-src"
-kitsrc_ok=0
-if git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
-    mkdir -p "$KITSRC" && git -C "$KITSRC" init -q && git -C "$KITSRC" symbolic-ref HEAD refs/heads/main
-    while IFS= read -r -d '' aw_f; do
-        [[ -f "$KIT/$aw_f" ]] || continue
-        mkdir -p "$KITSRC/$(dirname "$aw_f")" && cp -p "$KIT/$aw_f" "$KITSRC/$aw_f"
-    done < <(git --no-optional-locks -C "$KIT" ls-files -z -co --exclude-standard)
-    git -C "$KITSRC" add -A \
-        && git -C "$KITSRC" -c commit.gpgsign=false -c gc.auto=0 -c maintenance.auto=false \
-            commit -q -m "The kit's working tree, for the tests" \
-        && kitsrc_ok=1
-fi
-[[ $kitsrc_ok -eq 1 ]] || echo "note: the kit is not a git checkout; the fixtures built from KITSRC are not available"
 
 
 # mkws_min <dir>: the smallest 3.0 workspace, with no setup code. A new repository on main, the kit
@@ -496,6 +569,28 @@ mkws() {
     rc=$?
     git -C "$d" rev-parse --git-dir >/dev/null 2>&1 && git -C "$d" config user.name "Priya Shah"
     return $rc
+}
+
+# mkws_copy <dir> [setup args...]: the same workspace as mkws, built once per job for each set of
+# arguments and then copied (cp -a), for checks that start from a fresh workspace and change it. The one
+# absolute path setup writes into a workspace is where its git hooks live; the kit's own hooks setup
+# (lib/setup/gitconfig.sh --hooks, as setup runs it) points the copy's at the copy. The setup log is
+# copied to <dir>.log with the path rewritten. Only for calls whose environment is the runner's own: a
+# check that puts a stub on PATH, or sets a variable setup reads, calls mkws.
+mkws_copy() {
+    local d="$1" c rc; shift
+    c="$SCRATCH/mkws-cache/$(printf '%s\n' "$@" | cksum | tr ' ' '-')"
+    if [[ ! -e "$c.rc" ]]; then
+        mkdir -p "$SCRATCH/mkws-cache"; mkws "$c" "$@"; echo "$?" > "$c.rc"
+    fi
+    rc="$(cat "$c.rc")"
+    [[ -d "$c" ]] || return "$rc"
+    cp -a "$c" "$d" || return 1
+    if [[ -f "$d/kit/lib/setup/gitconfig.sh" ]]; then
+        "$st_bash" "$d/kit/lib/setup/gitconfig.sh" --target "$d" --hooks >/dev/null 2>&1 || return 1
+    fi
+    [[ -f "$c.log" ]] && awk -v a="$c" -v b="$d" '{ while ((i = index($0, a)) > 0) $0 = substr($0, 1, i - 1) b substr($0, i + length(a)); print }' "$c.log" > "$d.log"
+    return "$rc"
 }
 
 # mkws2x <dir>: a workspace in the 2.2.0 layout, for the migration: the kit at 915c528 (its own
@@ -3176,7 +3271,12 @@ for aw_section_file in ${aw_section_files[@]+"${aw_section_files[@]}"}; do
 done
 for aw_s in $aw_unknown; do echo "note: AW_SECTIONS names $aw_s, and no section has that number"; done
 
-# A parallel run's job leaves out the blank line, so its sections join up as a serial run's do.
-[[ -n "${AW_RUN_CHILD:-}" ]] || echo
+aw_sec_mark ""
+# A parallel run's job leaves out the blank line and the time summary, so its sections join up as a
+# serial run's do.
+if [[ -z "${AW_RUN_CHILD:-}" ]]; then
+    echo
+    aw_now; aw_time_summary "$AW_TIMES" "$((aw_t - aw_t_start))" 1 "$AW_TIMES"
+fi
 echo "$pass passed, $fail failed, $skip skipped"
 [[ $fail -eq 0 ]]
