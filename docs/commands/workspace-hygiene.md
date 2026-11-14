@@ -20,7 +20,7 @@ Stage 1, and the command fills any check it lacks.
 | Strays, registers, promised files | The root and `projects/` against the workspace map; folders against register rows; paths the canonical-fact table names that are not there yet |
 | Promotion candidates, staleness, pending work | Project decisions marked *Generalises as*; guidance whose "Last updated" line is over 120 days old; unconfirmed adopt proposals |
 | Drafts sweep | Every closeout draft under `~/.claude/closeout-drafts/` for this workspace and its projects, oldest first, each with a proposed move |
-| Version control, metrics, ablations | Modified and untracked counts; `skills-bridge.sh --check`; `bash kit/pilot/measure.sh`; the ablation runner's flags, and a run offered with its cost |
+| Version control, metrics, leave-out tests | Modified and untracked counts; `skills-bridge.sh --check`; `bash kit/pilot/measure.sh`; the leave-out test runner's flags, and a run offered with its cost |
 
 **The report** goes to `audits/hygiene-YYYY-MM-DD.md` (or the name earlier reports use): the budget
 lines first, the submodules table, one line per check, the findings with the move for each, and a

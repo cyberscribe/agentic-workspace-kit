@@ -13,11 +13,11 @@ deletes and commits nothing; the last stage prints the commit to make.
 |---|---|---|
 | 1 | Prerequisites | bash 3.2 or later, git and jq; claude and gh are optional |
 | 2 | Identity | The team, its standards owner and their handle, from flags, earlier answers or questions |
-| 3 | The workspace | Starts a repository (`new`), adds the kit as a submodule at `kit/` where it is missing, then runs the engine, `kit/install.sh`, which creates the team's own files once and records them in `.claude/kit-templates.lock`. Where `.claude/settings.json` was there first, it offers to enable the kit's three plugins in it, and prints the `claude plugin enable` commands for any left off |
+| 3 | The workspace | Starts a repository (`new`), adds the kit as a submodule at `kit/` where it is missing, then runs the engine, `kit/install.sh`, which creates the team's own files once and records them in `.claude/kit-templates.lock`. Where `.claude/settings.json` was there first, it offers to enable the kit's plugins in it, and prints the `claude plugin enable` commands for any left off |
 | 4 | Remotes and privacy | Sets the git hooks, and records `origin` as private once GitHub (with `gh`) or the person confirms it |
 | 5 | Submodule configuration | The git settings that keep submodules visible and pushed |
 | 6 | Outside folders | Runs `link` for material projects name under `## Resources` |
-| 7 | Restart Claude Code | Installs the three plugins for the person from the marketplace at `kit/` (asked first; unattended, the default), so a session opened in any folder inside the workspace has them, in a terminal or the desktop app's Code tab; their hooks act only inside a kit workspace. A re-run with them in place runs nothing. Then one new session: trust the folder and look for the commands; where they were not installed for the person, accept Claude Code's install offer: `docs/plugin-scope.md` |
+| 7 | Restart Claude Code | Installs the kit's plugins for the person from the marketplace at `kit/` (asked first; unattended, the default), so a session opened in any folder inside the workspace has them, in a terminal or the desktop app's Code tab; their hooks act only inside a kit workspace. A re-run with them in place runs nothing. Then one new session: trust the folder and look for the commands; where they were not installed for the person, accept Claude Code's install offer: `docs/plugin-scope.md` |
 | 8 | Cowork (with `--cowork`) | Runs the skills bridge, packages the plugins for upload (`cowork`), and names the scheduled tasks that fit |
 | 9 | Verify | Each check, with the command that fixes any that fails, and where the plugins load (`plugins_scope`, `plugins_user_kit`) with the commands that widen it |
 | 10 | Finish | What to run next, `/workspace:quick-start`, and the commit to make |
@@ -25,12 +25,12 @@ deletes and commits nothing; the last stage prints the commit to make.
 | Mode | What it does |
 |---|---|
 | `kit/setup.sh new DIR` | Makes a workspace from nothing: `git init`, the kit added from `--kit-url` (else `AW_KIT_URL`, else the kit's own origin), then the ten stages |
-| `kit/setup.sh update [--no-fetch] [--yes]` | Advances the kit submodule, prints the CHANGELOG since the old version, offers each changed template as a diff to apply or skip, applied hunk by hunk: a hunk the file already has counts as there, and one that does not fit is printed for hand merging and offered again next time. Re-runs the engine, lists what was applied, already there and left over, and prints the commit. `--yes` (`-y`) takes the template and `.gitignore` offers without asking; the migration still asks. A 2.x workspace is handed to `migrate --dry-run` |
+| `kit/setup.sh update [--no-fetch] [--yes]` | Advances the kit submodule, prints the CHANGELOG since the old version, offers each changed template as a diff, checked hunk by hunk before it asks: a hunk the file already has counts as there; one already made in the file's own words, or on a passage the team rewrote, needs nothing, and the file is offered only for recording; when some hunks fit, the question gives the count and applies those; one that needs merging by hand is printed with a line to give the assistant, and offered again until the person says it is merged. Re-runs the engine, lists what was applied, already there, in the team's own words and left over, and prints the commit. `--yes` (`-y`) takes the template and `.gitignore` offers without asking; the migration still asks. A 2.x workspace is handed to `migrate --dry-run` |
 | `kit/setup.sh --developer` | Puts `kit/` on `main` tracking `origin/main`, with `submodule.<name>.update=rebase` and `pull.rebase=true`, for developing the kit in place |
 | `kit/setup.sh link [SLUG] [--dry-run]` | Links each resource a project names to its path on this machine, from `.claude/resources.local.md` |
 | `kit/setup.sh hooks [--repo PATH] [--check]` | Sets the git hooks in the workspace, the kit and each project repository |
 | `kit/setup.sh skills [--dry-run] [--check] [--no-user]` | Writes one `kit-` skill per command, and copies the team's `skills/`, into `.claude/skills/` |
-| `kit/setup.sh cowork [PLUGIN…] [--out DIR] [--check]` | Packages each plugin as `<plugin>-<version>.plugin` in `.claude/cowork-plugins/`, after checking what Cowork refuses (a description over 500 characters, a `bin/` folder), for upload in Claude's plugin settings |
+| `kit/setup.sh cowork [PLUGIN…] [--out DIR] [--check]` | Packages each plugin as `<plugin>-<version>.plugin` in `.claude/cowork-plugins/`, after checking what Cowork refuses (a description over 500 characters, a `bin/` folder), for upload in Claude's plugin settings. Where the account already has a closeout skill, Cowork keeps that skill in place of the kit's; it fits when it keeps the four shelves, a bounded always-loaded tier, each candidate checked against the session's record, and no commits (`docs/getting-started.md` §3) |
 | `kit/setup.sh migrate [--dry-run] [--map FILE] …` | Moves a 2.x workspace to the 3.0 layout; see `docs/migration.md` |
 
 Every mode takes `--target DIR`. Without it, the target is the repository the kit is a submodule of,
@@ -52,9 +52,9 @@ missing and changes nothing else. A newer kit arrives with `update`. Run `skills
 terminal: an agent's sandbox may refuse to write `.claude/skills/` or git settings.
 
 **After a migration, the plugins are missing in Claude Code.** Commit the migration first. Then each
-person re-points Claude Code at the marketplace in `kit/` and installs the three plugins:
-`claude plugin install closeout@agentic-workspace`, `projects@agentic-workspace` and
-`workspace@agentic-workspace`. That step leaves the repository alone: `git diff .claude/settings.json`
+person re-points Claude Code at the marketplace in `kit/` and installs the kit's plugins:
+`claude plugin install closeout@agentic-workspace`, `ongoing@agentic-workspace`, `projects@agentic-workspace`,
+`scheduler@agentic-workspace` and `workspace@agentic-workspace`. That step leaves the repository alone: `git diff .claude/settings.json`
 is empty afterwards. Until then, the workspace session-start line names the install command when the
 bridge's `kit-` skills are present, and those skills hand over to the plugin commands in Claude Code.
 

@@ -1,0 +1,18 @@
+{
+  "name": "scheduler",
+  "version": "0.1.0",
+  "description": "Scheduled Claude Code tasks that run on this machine and outlast the session: /scheduler:tasks turns \"every weekday at 7:30, do X\" into a task file and a unit in the machine's own scheduler (launchd, systemd user timers or cron), and lists, shows, edits, pauses, resumes, runs now, deletes and explains past runs. Each run is a headless session with its tools named in advance; a run that keeps failing pauses itself and says why.",
+  "author": {
+    "name": "Robert Peake",
+    "url": "https://github.com/cyberscribe"
+  },
+  "keywords": [
+    "scheduler",
+    "launchd",
+    "systemd",
+    "cron",
+    "automation"
+  ],
+  "homepage": "https://github.com/cyberscribe/agentic-workspace-kit",
+  "repository": "https://github.com/cyberscribe/agentic-workspace-kit"
+}

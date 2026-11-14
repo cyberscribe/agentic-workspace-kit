@@ -65,7 +65,9 @@ a long-running session can never mute captures indefinitely.
 The child is an unattended agent run triggered by exiting a session. That deserves
 tight bounds:
 
-- `--allowedTools "Read,Write"` — no Bash, no network.
+- `--allowedTools "Read,Grep,Write"` — no Bash, no network. Grep reads nothing Read
+  cannot already reach; it lets the child search the transcript for a later mention
+  of the same subject without paging through it.
 - It runs from the draft directory, so writes to the repository fall outside the
   directories `acceptEdits` approves unprompted, and a headless run has nobody to
   approve them. `--add-dir` adds to the working directory rather than
@@ -78,6 +80,13 @@ tight bounds:
   child is never told to surface drafts to a user it does not have.
 - `--permission-mode acceptEdits` — scoped by the working directory above; the
   transcript-directory write is prompt-enforced.
+- It starts without the ending session's identity. A session inside a pairing
+  carries `PAIR_*` (its role and mailbox), and every Claude Code session carries
+  its own id and messaging variables (`CLAUDECODE`, `CLAUDE_CODE_SESSION_ID` and
+  the rest). Inherited, they made a child act as the pairing's engineer: it took
+  the mailbox's nudge meant for the live session. The hook drops them, as the
+  leave-out test runner does, and sets `AW_HEADLESS_RUN=1`, which quiets the
+  session-start lines nobody is there to read.
 
 Promotion into real documentation happens later, interactively, with a human
 approving. The unattended half of the system can only ever produce a file in a
@@ -134,13 +143,13 @@ The agent is also told to default to the cheapest tier that works. The bias has 
 be explicit, because "put it where it will definitely be seen" is the locally
 rational choice every time.
 
-## Ablations, offered at promotion
+## Leave-out tests, offered at promotion
 
 The budget rule stops the always-loaded tier growing unexamined; it does nothing
 about a line already in it. A line promoted there is never retired unless
 something tests it. So when a line lands in either of the two most-loaded tiers,
 `/closeout` asks what task would go worse without it, and where the repository
-runs ablations it drafts one: that task as a prompt, a Check, and the exact lines
+runs leave-out tests it drafts one: that task as a prompt, a Check, and the exact lines
 just promoted, which a runner later removes to compare a session with the line
 against one without it. The question is asked at promotion because that is the
 only moment someone knows what the line was for.
@@ -149,9 +158,181 @@ It is offered, not required. Required is the stronger discipline, but it adds a
 step to every closeout at the point a new team decides whether the ritual is
 worth its weight. The offer still does work when it is declined: a person who
 cannot name a task that would go worse has said something about the tier, and
-the command says so. An ablation tests only what its author thought the line was
+the command says so. A leave-out test checks only what its author thought the line was
 for, the same limit a unit test has, and a no-difference result proposes a
 demotion; it never makes one.
+
+## Checked against the record before promotion
+
+Checking a claim against the files as they are now catches a fact that has gone
+stale. It does not catch a session that misremembered itself: a fix believed to
+work and later reverted, a cause named before a test showed another. The capture
+child and the closing agent both summarise from memory of a long conversation,
+and the first plausible line is the one that sticks. Anthropic's write-up of its
+agent-memory experiments ("The components of agent memory", November 2026)
+reports the cost: in a long game run, an offline pass that checked a wrong
+memory note against the session transcript and rewrote it let the run reach a
+goal that the run carrying the uncorrected note never reached.
+
+So every candidate is checked against the session's own record before it is
+promoted, and gets one of three results. **Supported** may be promoted as fact.
+**Contradicted** is promoted as its correction or dropped, and the report says
+which. **Unsupported** is never promoted as fact. A contradiction usually sits
+later than the claim, in a turn that reverses it, so the check reads the record
+to its end and the latest word holds.
+
+The record depends on where the closeout runs:
+
+| Surface | Record | Found by |
+|---|---|---|
+| `/closeout` in Claude Code | the session's transcript (JSONL) | `CLAUDE_CODE_SESSION_ID`, under `CLAUDE_CONFIG_DIR` or `~/.claude`, in `projects/*/<id>.jsonl` |
+| The capture child | the transcript it is given | `transcript_path`; it writes it as the draft's first line, `transcript: <path>` |
+| A draft promoted later | that transcript, while it exists | the `transcript:` line, else the draft's name (`<session-id>.md`) |
+| A draft whose transcript is gone | the draft's own quotes | the report says so |
+| Cowork and other surfaces | the conversation in context | the report says so |
+
+**Evidence travels with the candidate.** Each item carries its `plain:` line,
+its `source:`, its result and `evidence: L<n> "<quote>"` lines: a line of the
+transcript and a short span copied from it. A contradicted item adds `was:`
+(what the record said first) and `correction:` or `dropped:`; an unsupported
+one, `missing:`; an already-written one, `found:`. The line number is stable
+because a transcript is only appended to, and the quote is what a person
+approving the item reads.
+
+**The quoting rule.** The quote runs from the first `"` after `L<n>` to the next
+`"` that is not escaped with a backslash, and anything after it is a note. Inside
+it, `\"` is a quotation mark, `\\` a backslash, and `\n` or `\t` a line break or a
+tab. The study found the rule missing: four of thirteen refused anchors quoted
+JSON tool output, whose quotation marks a draft can only write escaped, and a
+span across a line break had no way to be written. Whitespace is collapsed on
+both sides before the comparison, so a line break and a space compare equal.
+
+**A run's prompt is a turn.** A scheduled or queued run is given its prompt in a
+record that is not a user turn: a queue record that enqueues it, or a
+`queued_command` attachment. A draft that quotes the task it was given cited a
+line the checker called "not a turn", five anchors in the study. Both now count
+as the prompt's turn, shown as `(prompt)`; a queued command that is a task
+notification is the system speaking, and still does not. For the always-loaded
+tier, a prompt counts as words other than the agent's, since a person wrote the
+task.
+
+**The always-loaded tier gets the strictest check.** A wrong line there is read
+by every session. A line goes there only when it is supported, every cited line
+resolves, and at least one is the person's own words or a tool's output. The
+agent's own statement that something works is evidence that it believed so; a
+test result, or the person deciding, is evidence that it holds. A correction
+bound for that tier is restated as its own supported candidate, so it passes the
+same check.
+
+**What is checked by script, and what is judged.** `scripts/check-evidence.sh`
+is deterministic: the format, each anchor resolving (the line exists, is a turn
+of the conversation rather than a hook injection or an attachment, and holds the
+quote), who spoke on it, a contradiction's evidence sitting later than what it
+reverses, the gate for the always-loaded tier, and the three source rules (a
+`plain:` line on every item, no general lesson for the always-loaded tier, a
+correction cited in the person's words). Whether an item is otherwise
+discoverable, which source it truly has, and whether its plain sentence says
+what the record does are the model's judgement, and then the person's. Whether a quote supports its
+claim, whether a later turn reverses it, and which result a candidate gets are
+the model's judgement, and then the person's. The script proves the evidence is
+where it is said to be; it cannot prove the reading. Section 4 of the kit's suite
+runs it against a fixture transcript; the judged half has no test.
+
+The review hook names the script rather than running it, which keeps session
+start fast. The capture child cannot run it (it has no shell); the next session
+does.
+
+## Not otherwise discoverable, and where learnings come from
+
+The kit is there for two things: common ground between the person and the AI, and
+context the AI cannot find anywhere else. A model that can read a whole codebase
+does not need the codebase written down for it; what it cannot learn by reading
+is what only this person or team knows. So one test comes before tier or scope:
+**is it otherwise discoverable?** Could a later session find it by itself, in the
+code, the files, the docs, `git log` or a tool's own help? If so, it is not
+promoted. The draft says `already-written`, with `found:` naming where. The
+10 November capture study showed why the answer is worth giving rather than
+staying silent: 24 of 40 proposed items were already written, each with the line
+that says it, which is evidence that the habits work and costs the person
+nothing to approve.
+
+What passes is looked for in an order:
+
+1. **The person's interventions**: what they redirected, corrected, refused or
+   explained. A correction is the plainest evidence of context the session did
+   not have, and the record check already counts the person's words as the
+   strongest evidence.
+2. **The agent's own mistakes, read as missing context.** The question is where
+   more context would have helped. If it arrived later in the session, that
+   context is the learning, usually project or general reference. If it never
+   arrived, the draft proposes asking the person for it.
+3. **Only then a general lesson**, sparingly, favouring the specific and
+   practical.
+
+This replaces a broader brief that promoted standards and lessons. In practice
+that produced lines in the model's own idiom, opaque to the person who had to
+approve them, and leaning toward generic, AI-wide advice rather than the concrete
+gap that would have made the next session better. The order is where to look
+first, not a list of kinds to record, which keeps faith with the finding below
+that a list of kinds narrows what gets noticed.
+
+**The obvious next move.** A second question goes with the first: where would
+the obvious next move go wrong? The command anyone would try first, the file
+anyone would edit, the assumption anyone would make: a trap on that path is not
+otherwise discoverable except by falling into it again, so the draft records the
+likely move, what goes wrong and what to do instead, with the moment it went
+wrong as its evidence. It is asked as a question about the next person's likely
+path, not as a kind of item to collect, because telling the capture to record
+only failures cut memory's gain (below), and gotchas were taken off its list of
+kinds for that reason.
+
+**The bias guard.** An item bound for the always-loaded tier comes from a
+correction or a gap in context, with the incident and the person's words behind
+it. A generic lesson with no incident is not promoted there: it costs every
+session and changes nothing a session would otherwise get wrong. The draft says
+which source an item has (`source: correction | missing-context | general`), and
+`check-evidence.sh` refuses a working-standards item whose source is `general`,
+and a `correction` with no evidence line in the person's own words.
+
+**Observed, cause unknown.** A capture that saw something it could not explain
+(in the study, a run that replied "Green" when the person answered "1", and 1
+was Red) used to leave it out for want of a cause, and the observation was lost
+with the session. It now writes the item as `observed`, cited, never promoted as
+fact, so the person can find the cause.
+
+## Plain words first
+
+The person approves every promotion, so every candidate is written first in the
+person's words: a `plain:` line, one everyday sentence, which is what the review
+shows before anything else. The agent's own phrasing may stay in the record next
+to it. A term that is not plain goes through the glossary: `memory/glossary.md`,
+or the project's or area's own `glossary.md`, which maps the terms models
+converge on to the words a person uses. The closeout uses a row's plain words,
+or proposes a new row when a person had to ask what a term meant. The checker
+refuses an item with no `plain:` line.
+
+The difference, on one learning:
+
+- Before: "If ablation is the crux of the spine of synthesis, conjugate the nominal as an irreversible prime."
+- After: "Avoid writing to files another agent is already working on."
+
+Routes follow the vocabulary: a decision goes to the `decisions.md` it belongs
+to, a term of the work to `terms.md`, a translation of AI-speak to the glossary.
+
+## Guidance says what memory is for
+
+The same write-up reports that telling an agent what memory is for helps, and
+telling it what to record does not: one added rule, "record only failures", cut
+the gain from memory on a database task by 0.150 to 0.234, depending on the
+model. A list of kinds narrows what gets noticed to the kinds listed.
+
+So the capture prompt, the command and the ritual say what the next session
+needs (to start without this conversation, and act on what the files tell it)
+and leave the judgement of what serves that to the session. Three things stay as
+rules, because they are boundaries rather than advice about what is worth
+keeping: privacy (a sensitive project's learnings stay in its folder, the
+roster's contact-detail filter, nothing sent), the bounded always-loaded tier,
+and commit ownership with no attribution lines.
 
 ## Two levels of override, and why not a schema
 

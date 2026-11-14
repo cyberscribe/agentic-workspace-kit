@@ -12,8 +12,10 @@ project's tracking is brought up to date, reported apart. Source: `plugins/close
   and agent roles) and by scope (shared or individual), defaulting to the cheapest tier that works.
   Promotion into the always-loaded tier is bounded: it updates or condenses where it can, makes the case
   where it adds, and asks first.
-- Checks each claim against the files as they are now, and against the team's verification standard
-  where there is one. A claim that cannot be checked is recorded as unverified, or left out.
+- Checks each candidate against the session's own record first (the transcript on Claude Code, through
+  `scripts/check-evidence.sh`; the conversation elsewhere): supported, contradicted, or unsupported and
+  never promoted as fact. Then against the files as they are now, and the team's verification standard
+  where there is one.
 - Promotes with surgical edits. The mechanical ones are made; anything that changes what loads every
   session comes back as a proposal. Nothing is deleted.
 - Then, separately, reconciles tracking in the project the session worked in: ticks Done when items the

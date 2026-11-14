@@ -82,6 +82,13 @@ either command for the scan alone, as a scheduled run would. If your repository
 already runs its own hygiene or register scanner, the command runs that instead
 of adding a second pass.
 
+`scheduled/` holds both as report-only task files for the scheduler plugin:
+`hygiene-weekly.md` (Mondays at 09:00) and `register-audit-monthly.md` (the first
+of the month). Each runs the command with `report`, may write only under
+`audits/`, and leaves the judgement pass for a session. `/workspace:quick-start`
+offers them, each on its own yes, after setting the task's folder to the
+workspace; installed, the plugin schedules neither.
+
 ## The session-start summary
 
 When a session starts in a workspace, a hook says what is out of step there, one

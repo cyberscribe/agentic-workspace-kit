@@ -161,7 +161,7 @@ if [[ "${TEAM_COUNT:-0}" -ge 2 && "$WHO_NEEDS_TO_KNOW" != "off" ]]; then
         roster_note="
 
 The team roster gives these default relationships and channels. A scoped one,
-such as 'keep told: anything touching measurement', applies only to a change of
+such as 'informed: anything touching measurement', applies only to a change of
 that kind. A project's People section overrides the roster for that project; the
 next session applies that.
 $(printf '%s\n' "$ROSTER_ROWS" | awk -F'|' '{ r = ($2 == "" ? "no default" : $2); h = $3; if ($4 != "") h = h (h == "" ? "" : " ") $4
@@ -174,9 +174,10 @@ $(printf '%s\n' "$TEAM_MEMBERS" | sed 's/^/  - /')${roster_note}
 
 If you write the file, end it with one more section, headed '## Who needs to
 know'. Name a person from that list only where their work is affected by an item
-above — they own the area it touches, a decision changes what they are doing, or
-it blocks or unblocks them — one line each: who, what, which item, and how they
-hear (their channel, where one is given). If nobody in particular needs to hear
+above — they are accountable for the area it touches, a decision changes what
+they are responsible for, it blocks or unblocks them, or they are to be consulted
+before it is decided — one line each: who, what (in the item's plain words),
+which item, and how they hear (their channel, where one is given). If nobody in particular needs to hear
 about anything, write that in one line; if the session's work concerns only one
 of them, leave the section out. You are suggesting; nothing is sent to anyone."
 fi
@@ -186,52 +187,144 @@ You are reviewing a just-ended Claude Code session for this project to capture
 durable learnings before they are lost. Read the session transcript (JSONL) at:
   $transcript_path
 
-Identify only durable facts a future agent would otherwise have to re-derive:
-architectural/structural decisions made, non-obvious constraints discovered,
-state of in-progress work, and gotchas. Ignore routine edits and chit-chat.
+Memory is for the next session in this project. It starts without this
+conversation and acts on what the files tell it. One test comes before anything
+else: could that session find this by itself, in the code, the files, the docs,
+git log or a tool's own help? If it could, it is not promoted. Write it as
+already-written, with where it is found, and move on.
+
+A second question goes with it: where would the obvious next move go wrong?
+The command anyone would try first, the file anyone would edit, the assumption
+anyone would make: where this session walked into a trap on that path, or the
+person steered it round one, record the trap as the likely move, what goes
+wrong and what to do instead. Its plain: line reads as a warning a colleague
+would give, and its evidence is the moment it went wrong: the person's
+correction, or the failed step and what fixed it. It usually goes to project or
+general reference, beside what it is about.
+
+Look for what passes that test in this order, and give the first the most care:
+
+1. The person's interventions: what they redirected, corrected, refused or
+   explained. Each one shows context the session did not have.
+2. Your own mistakes in the session, read as missing context: where would more
+   context have helped? If that context arrived later in the session, record the
+   context itself. If it never arrived, propose asking the person for it.
+3. Only then a general lesson, sparingly, favouring the specific and practical.
+
+The order says where to look first; it is not a list of kinds to record. Judge
+what would serve the next session from this session.
+
+The person reads every item first as one plain sentence in their own words, not
+in your idiom. A term that is not plain goes through the glossary
+(memory/glossary.md, or the project's own glossary.md): use its plain words, or
+propose a row for the term. A decision goes to the decisions file, a term of the
+work to terms.md, a translation of AI-speak to the glossary, and the rest by the
+tiers below.
 
 Classify every item you keep on two axes before writing it down.
 
 $taxonomy
 
-Default to the cheapest tier that still works, and prefer a narrower scope when
-in doubt. The always-loaded tier is a budget paid by every future session, not a
+Default to the cheapest tier that still works. Scope decides who it reaches:
+shared reaches the team's sessions, individual only this person's. The always-loaded tier is a budget paid by every future session, not a
 folder: put something there only if a session that never thought to ask for it
 would still go wrong without it. Everything else is cheaper as reference that
 loads on demand.
 
+A note that is wrong costs more than a missing one, because the next session
+acts on it. So check every item against the transcript before you write it
+down. Find the line that supports it, then read on to the end of the transcript
+for the same subject: a later turn can reverse an earlier one (a fix that was
+reverted, a belief corrected after a test), and the latest word holds. Give each
+item one result:
+
+  supported     the record shows it and nothing later reverses it; cite the
+                line or lines that show it
+  contradicted  a later turn reverses it; cite the earlier line as "was" and
+                the later one as "evidence", then either state what the record
+                now shows as the correction, or drop it and say why
+  unsupported   nothing in the record shows it; say what is missing. It is
+                never written as fact: the person decides whether it is kept,
+                marked unverified
+
+  already-written  a later session would find it by itself; say where, and it
+                   is not promoted
+  observed      something you saw and could not explain; cite what you saw. It
+                is never written as fact; the person sees it
+
+The person's words and a tool's output show what happened; the agent's own
+words show what it believed at the time. An item bound for the always-loaded
+tier needs the strictest check: supported, with at least one cited line that is
+the person's words or a tool's output. It comes from a correction or a gap in
+context, with the incident behind it; a general lesson with no incident is not
+promoted there. A correction bound there is written as an item of its own,
+supported by the line that corrects it, and an item whose source is a
+correction cites at least one line in the person's own words.
+
 Write a concise markdown summary of candidate documentation updates to:
   $draft_file
 
-One section per item, in this shape:
+Begin the file with this line, exactly, so the review can find the record:
+
+  transcript: $transcript_path
+
+Then one section per item, in this shape:
 
   ### <one-line claim>
+  - plain: <the claim as one everyday sentence; the person reads this first>
+  - source: correction | missing-context | general
   - tier: <tier name>
   - scope: shared | individual
   - destination: <the specific file or directory>
   - why this tier: <one sentence; say what would go wrong at a cheaper tier>
+  - check: supported | contradicted | unsupported | already-written | observed
+  - evidence: L<n> "<a span copied exactly from line n of the transcript>"
+  - was: L<n> "<what the record said first>"            (contradicted only)
+  - correction: <what the record shows>                 (contradicted, kept)
+  - dropped: <why>                                      (contradicted, dropped)
+  - missing: <what would support it>                    (unsupported only)
+  - found: <where a later session would find it>        (already-written only)
 
   <the note itself, one to three sentences>
+
+L<n> is the line number the Read tool shows for the transcript. The span is
+copied exactly from that line and short enough to read at a glance, twenty words
+at most. Give as many evidence lines as the item needs. Inside the quotes, write
+a quotation mark as \\" and a line break as \\n; anything after the closing quote
+is a note and is ignored. A scheduled run's prompt counts as a turn and can be
+cited.
 
 Leave in-repo documentation to the person; this run writes only the scratch summary
 file. You are proposing; a human approves the tier before anything is promoted.
 
-If nothing durable was learned, do not create the file at all.${team_section}${conventions}
+If nothing durable was learned and you saw nothing you could not explain, do
+not create the file at all. If you saw something you could not explain, write
+the file with that one item, as observed.${team_section}${conventions}
 EOF
 
 # (8) Spawn fully detached so the human's session exit is never blocked.
-# Blast radius is bounded deliberately: Read/Write tools only, and the child runs
+# Blast radius is bounded deliberately: Read, Grep and Write only (Grep reads nothing Read cannot), and the child runs
 # from the draft directory, so writes to the repository fall outside the
 # directories acceptEdits auto-approves. --add-dir adds to the working directory
 # rather than restricting it, which is why the cd matters: spawned from the
 # project, the whole repo would be auto-approved. The transcript's directory is
 # the one grant beyond the draft directory (readable and, under acceptEdits,
 # writable; the child is prompted to write only its draft — see DESIGN.md).
+# The child is a session of its own, so it starts without the ending session's identity. A session
+# inside a pairing carries PAIR_* (its role and mailbox), and every Claude Code session carries its own
+# id and messaging variables; inherited, they made a child act as the pairing's engineer, which
+# consumed the mailbox's nudge. They are dropped, as the leave-out test runner drops them, and
+# AW_HEADLESS_RUN quiets the session-start lines nobody is there to read.
+clean_env=(-u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION
+           -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN -u CLAUDE_CODE_BRIDGE_SESSION_ID
+           -u CLAUDE_CODE_SESSION_ATTENDED)
+while IFS= read -r v; do [[ -n "$v" ]] && clean_env+=(-u "$v"); done < <(compgen -e | grep '^PAIR_' || true)
 child_args=(
+    env "${clean_env[@]}" AW_HEADLESS_RUN=1 CLOSEOUT_HOOK_CHILD=1
     "$CLAUDE_BIN" -p "$PROMPT"
     --model "${CLOSEOUT_MODEL:-sonnet}"
     --permission-mode acceptEdits
-    --allowedTools "Read,Write"
+    --allowedTools "Read,Grep,Write"
     --add-dir "$DRAFT_DIR"
     --add-dir "$(dirname "$transcript_path")"
 )

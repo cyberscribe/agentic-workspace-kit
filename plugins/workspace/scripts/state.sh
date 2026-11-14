@@ -37,7 +37,7 @@
 #   projects_conventions projects_dir paused_dir done_dir conventions_not_set in_flight_limit
 #   staleness default_owner
 #   register register_path register_rows project_folders projects_without_current_state
-#   adopt_proposals glossary glossary_terms build_list verification catalogue readme codeowners
+#   adopt_proposals glossary glossary_terms terms terms_rows build_list verification catalogue readme codeowners
 #   decisions_log decisions_log_other own_skills foreign_skills kit_incoming
 #   settings plugins_registered plugins_mode plugins_path plugins_loaded plugins_not_loaded plugins_scope
 #   plugins_user_kit
@@ -1246,6 +1246,11 @@ if [[ -f "$T/memory/glossary.md" ]]; then emit glossary present
     # glossary_terms: rows in the glossary's tables.
     emit glossary_terms "$(table_rows "$T/memory/glossary.md")"
 else emit glossary missing; emit glossary_terms 0; fi
+# terms: present | missing — memory/terms.md.
+if [[ -f "$T/memory/terms.md" ]]; then emit terms present
+    # terms_rows: rows in the terms file's tables.
+    emit terms_rows "$(table_rows "$T/memory/terms.md")"
+else emit terms missing; emit terms_rows 0; fi
 # build_list: present | missing — pilot/build-list.md.
 if [[ -f "$T/pilot/build-list.md" ]]; then emit build_list present; else emit build_list missing; fi
 # verification: present | missing — docs/verification.md, what counts as checked.

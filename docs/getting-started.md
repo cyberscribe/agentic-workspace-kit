@@ -10,7 +10,8 @@ You will have, at the end:
 - a team and personal setup filled in by an interview;
 - one real project with a checkable finish line;
 - the habit that makes the rest worth it: a closeout at the end of each working session;
-- and, when you want them, a build paired between two sessions, and the weekly and monthly upkeep.
+- and, when you want them, a build paired between two sessions, tasks that run on a schedule on your
+  own machine, and the weekly and monthly upkeep.
 
 Allow half an hour for sections 1 to 4. The rest is learned by using it.
 
@@ -52,7 +53,7 @@ bash agentic-workspace-kit/setup.sh new my-workspace --team "Data Platform" --ow
 ```
 
 Leave out `--team` and `--owner` and setup asks for them. For one person, the team is you. Add
-`--pilot` if you want to measure a pilot (section 10), and `--cowork` if you use Cowork.
+`--pilot` if you want to measure a pilot (section 11), and `--cowork` if you use Cowork.
 
 Setup runs ten stages: prerequisites, identity, the workspace and its files, the git hooks and the
 remote's privacy, submodule settings, outside folders, the plugins, Cowork, a verification pass, and
@@ -67,16 +68,18 @@ passes every check.
 ## 3. Open a session
 
 Start Claude Code in the workspace folder (or in any folder inside it) and trust the folder when asked.
-Type `/` and look for the kit's commands: `/closeout`, the `/projects:` commands and the `/workspace:`
-commands.
+Type `/` and look for the kit's commands: `/closeout`, the `/projects:`, `/ongoing:` and `/workspace:`
+commands, and `/scheduler:tasks`.
 
-Setup installed the three plugins for you, so they load in any folder inside the workspace, and their
+Setup installed the kit's plugins for you, so they load in any folder inside the workspace, and their
 hooks act only inside a kit workspace. If the commands are missing, install them yourself:
 
 ```bash
 claude plugin install closeout@agentic-workspace
+claude plugin install ongoing@agentic-workspace
 claude plugin install projects@agentic-workspace
 claude plugin install workspace@agentic-workspace
+claude plugin install scheduler@agentic-workspace
 ```
 
 `docs/plugin-scope.md` explains which folders load what, and why.
@@ -86,6 +89,22 @@ claude plugin install workspace@agentic-workspace
 the commands appear as skills. `kit/setup.sh skills` also copies a `kit-` skill per command, and your
 team's own skills, into `.claude/skills/` for any surface that loads skills from a folder. Cowork reads
 skills when a session starts, so new ones appear in the next session.
+
+**Closeout in Cowork.** Where your Claude account already has a closeout skill, Cowork keeps it: it
+refuses a plugin with the same name, so that skill stays the way to close out there, in place of the
+kit's. It fits the kit when it keeps these four things:
+
+1. **The four shelves**: working standards, general reference, project reference and templates, with
+   tracking reconciled on its own rail and never promoted.
+2. **A bounded always-loaded tier**: a line there is updated or condensed where that does the job, and
+   added only with the person's yes.
+3. **Each candidate checked against the session's record** before it is promoted, so what the next
+   session reads as fact was true of this one.
+4. **No commits**: it lists what it touched, and the commit stays the person's.
+
+Run it once and check each of these before relying on it. Where it misses one, say "follow
+`kit/plugins/closeout/commands/closeout.md`" when you close out in Cowork, so the session uses the kit's
+procedure.
 
 **It worked if** a new session in the workspace shows the commands and no `Workspace:` lines.
 
@@ -126,8 +145,9 @@ is loaded into every session, so keep it short: README Part 3 explains the budge
 ## 5. Your first project
 
 A project is anything with a finish line. If you cannot say what done looks like, it is an ongoing area
-instead: something kept up rather than finished, with standards to keep in place of a finish line. The
-same command starts one, in `ongoing/<slug>/`, when the interview finds no finish line.
+instead: something kept up rather than finished, with a desired state and standards to keep in place
+of a finish line. `/ongoing:new` starts one in `ongoing/<slug>/`, and `/projects:new` hands over to it when
+the interview finds no finish line.
 
 ```
 /projects:new
@@ -202,10 +222,11 @@ told.
 For work that is mostly building, split it between two sessions: one holds the outcome and tests, the
 other builds. You direct and decide, rather than relaying messages between windows.
 
-1. **In the session you will direct from** (Claude Code or Cowork), in the project, type
-   `/projects:pair`. That session becomes the product manager. It reads the project's README and your
-   standing rules, sets up a mailbox, and writes the first brief: the outcome and Done when items, the
-   order of work, and the gates where the engineer stops for you.
+1. **In the session you will direct from**, in the project, type `/projects:pair`: Cowork by default,
+   with Claude Code as the fallback where Cowork is not available or when you would rather use it. That
+   session becomes the product manager. It reads the project's README and your standing rules, sets up a
+   mailbox, and writes the first brief: the outcome and Done when items, the order of work, and the gates
+   where the engineer stops for you.
 2. **Start the engineer.** The PM gives you one command, with the prompt it sends shown beneath it:
 
    ```bash
@@ -229,6 +250,13 @@ as a live process and a recent activity beat.
 
 **It worked if** you never copy a message from one window to the other, and every accepted report
 names evidence the PM re-ran. `docs/commands/projects-pair.md` has the detail.
+
+**Overnight runs.** Before you leave work running while you sleep, type `/projects:overnight`. It asks
+what you want to wake up to and what would make it excellent, then each call you would otherwise be
+woken for, with a default: spend, what may leave the machine, what may be committed or sent,
+deletion, the machine and a stop time, and wake time. It tries the writes the night needs while you are
+still there, suggests one agent or a pairing, and writes the bounds into the brief. In the morning
+there is one summary: what was done, what is open, decisions as short questions, and one script to run.
 
 ---
 
@@ -262,24 +290,105 @@ Each runs as a scan, then a pass through the findings with you: the uncontested 
 anything touching what loads every session one at a time. Type `report` after either for the scan
 alone.
 
+Both can run on their own, report only: `/workspace:quick-start` offers them as scheduled tasks, from
+the task files in `kit/plugins/workspace/scheduled/` in Claude Code, or as Cowork scheduled tasks. A
+scheduled run writes its report and changes nothing else; you work through it in a session.
+
 **It worked if** the reports accumulate in `audits/`, and the always-loaded size is a number you can
 see change from week to week.
 
 ---
 
-## 10. Measure it (optional)
+## 10. Schedule work: `/scheduler:tasks`
+
+Some work should happen without you starting it: a weekly digest, a morning check, a report on the
+first of the month. The scheduler runs a Claude Code task on your own machine at the times you set,
+through the machine's own scheduler: launchd on macOS, a systemd user timer on Linux and WSL2, or cron.
+Nothing runs in the cloud but Claude itself, and every run is billed to your Claude login, never to an
+API key.
+
+1. **Describe it.** In a session, type `/scheduler:tasks` and say what you want and when: "every
+   weekday at 7:30, summarise the new feedback in `reports/` and write it to `summaries/`". It drafts
+   the task, which is one Markdown file: the schedule, the folder it runs in, the model, the tools it
+   may use, and the prompt as the body. It shows you the file and writes it on a yes, paused.
+2. **Name its tools.** Nobody is there to answer a permission prompt during a scheduled run, so a task
+   runs in `dontAsk` mode: it may use the tools in `allowed_tools` and is refused anything else. Name
+   shell commands exactly (`Bash(python3 fetch.py)`) rather than allowing any command. Fixed steps go
+   best in a script the task runs; the run then spends its effort on judgement.
+3. **Try it once.** `/scheduler:tasks` offers a trial: one real run now, with the task's own settings.
+   It reports what the run did, any tool it was refused, and whether the task's own check passed (the
+   `verify` field: a command such as "today's summary file exists"). Change the file and try again until
+   the trial is clean.
+4. **Turn it on.** Resume the task and it is handed to your machine's scheduler. `list` shows when it
+   runs next.
+
+Day to day, ask `/scheduler:tasks` in words, or run the script,
+`kit/plugins/scheduler/scripts/schedule.sh`, directly:
+
+| To | Run |
+|---|---|
+| See every task and when it runs next | `schedule.sh list` |
+| See one task's settings and prompt | `schedule.sh show <name>` |
+| Pause it, or resume it | `schedule.sh pause <name>`, `schedule.sh resume <name>` |
+| Run it now, whatever the schedule | `schedule.sh run <name>` |
+| See what its runs did | `schedule.sh runs <name>`, `schedule.sh log <name>` |
+| See a week at a glance: due, ran, failed, missed | `schedule.sh report` |
+| Check that a task can run | `schedule.sh doctor <name>` |
+
+An alias saves typing: `alias scheduled-tasks="bash ~/<workspace>/kit/plugins/scheduler/scripts/schedule.sh"`.
+
+**When a run fails**, it tries again once (the `retries` field), then shows a desktop notification.
+After three failed runs in a row a task pauses itself and says why. To be told somewhere else, such as
+your email or phone, set `notify` to a script of your own: it runs after each run with the outcome and
+the run's details in its environment.
+
+**A task can wait for you.** With `awaits_reply: true`, a run does its part, such as drafting a
+shortlist for you to choose from, then stops and waits. Answer it with
+`schedule.sh reply <name> '<your answer>'`, or in the run's own session; with `reach: remote`, that
+session is open in the Claude app on your phone. The run carries on from where it stopped. An answer
+not given within `reply_window` (a day, by default) lets the run expire.
+
+**Coming from a cloud scheduler?** `schedule.sh port` moves tasks one checked step at a time:
+
+1. `start` imports them, paused.
+2. `check` flags anything that only worked in the cloud.
+3. `trial` runs each one once.
+4. `activate` turns it on here.
+5. `cloud-paused` records that you paused the cloud copy. It is paused, not deleted, so `rollback` can
+   always go back.
+
+**Where the files live.** Task files are in `~/.config/agentic-workspace-kit/scheduler/tasks/` unless
+you choose a folder: `schedule.sh home ~/<workspace>/scheduled` keeps them in your workspace, so they
+are versioned with everything else.
+
+**Your machine has to be on.** If it is asleep at a run's time, macOS and systemd run it when it wakes,
+and `report` counts it as late. If it is switched off, cron and launchd drop that run: `report` lists it
+as missed, and `schedule.sh run <name>` runs it by hand. The scheduler never wakes your machine or
+changes its power settings. On a Mac, `doctor` prints the optional command to wake it before the
+earliest task, if you want that.
+
+If the workspace turns on Claude Code's sandbox, a run's network calls reach only the domains it
+allows. A run that fetches from the web needs its hosts on that list, and `doctor <name>` shows the
+list.
+
+**It worked if** a week's `schedule.sh report` shows every due run ran, and a failed or waiting run
+reached you without you going to look.
+
+---
+
+## 11. Measure it (optional)
 
 For a pilot, setup's `--pilot` adds `pilot/build-list.md`. Two scripts in the kit read the rest:
 
 - `bash kit/pilot/measure.sh` counts, weekly, from the repository and its history: projects by state
   and how long they take, decisions logged, audit reports, the always-loaded size, and whether agent
   sessions read the reference material. Counts only, so safe to share outside the team.
-- The ablation runner tests whether one line of context changes what an agent does on the task it was
+- The leave-out test runner checks whether one line of context changes what an agent does on the task it was
   written for, by running that task with the line and without it. `kit/pilot/README.md` describes it.
 
 ---
 
-## 11. Stay current
+## 12. Stay current
 
 When a new kit is released:
 
@@ -295,9 +404,14 @@ plugins, update your own installed copies:
 
 ```bash
 claude plugin update --scope user closeout@agentic-workspace
+claude plugin update --scope user ongoing@agentic-workspace
 claude plugin update --scope user projects@agentic-workspace
 claude plugin update --scope user workspace@agentic-workspace
+claude plugin update --scope user scheduler@agentic-workspace
 ```
+
+An update that adds a plugin (the `ongoing` plugin arrived this way) needs it installed once:
+`claude plugin install ongoing@agentic-workspace`.
 
 `--scope user` matters: without it the update reaches only the copy for the folder you ran it in, and
 sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` again and upload the new
@@ -314,6 +428,8 @@ sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` ag
 | Cowork skills missing | They appear in the next session; `kit/setup.sh skills --check` says whether a refresh is due |
 | The engineer in a pairing does not hear the PM | It was started without the launcher: type `/projects:pair join` in its session |
 | A session opens with `Workspace:` lines | Each names something out of step and the command that fixes it |
+| A scheduled run did not happen | `schedule.sh report` says whether it was missed (the machine was off) or failed; `schedule.sh run <name>` runs it now |
+| A scheduled run is waiting | It wants your answer: `schedule.sh list` shows which, and `schedule.sh reply <name> '<answer>'` gives it |
 | An update says a change does not fit a file | Your file has its own wording there; merge that change by hand, then answer n next time to stop the offer |
 
 ---
@@ -325,4 +441,5 @@ sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` ag
 - **`docs/commands/`**, one page per command: what it does, when to reach for it, common questions, and
   how to tell it is working.
 - **`docs/memory-layers.md`**, the taxonomy the closeout classifies against.
+- **`plugins/scheduler/README.md`**, every task field and scheduler command.
 - **`CHANGELOG.md`**, for what each release changed and how to update to it.

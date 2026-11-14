@@ -65,8 +65,7 @@ awh_context() {
     AWH_TOP="$(cd "$top" && pwd -P)"
     if [[ "$AWH_TOP" == "$AWH_KIT_ROOT" ]]; then
         AWH_CONTEXT=kit
-        AWH_WS="$(git rev-parse --show-superproject-working-tree 2>/dev/null)"
-        [[ -n "$AWH_WS" && -d "$AWH_WS" ]] && AWH_WS="$(cd "$AWH_WS" && pwd -P)"
+        AWH_WS="$(aw_kit_workspace "$AWH_TOP")"
     elif [[ -d "$AWH_TOP/kit" && "$(cd "$AWH_TOP/kit" && pwd -P)" == "$AWH_KIT_ROOT" ]]; then
         AWH_CONTEXT=workspace
         AWH_WS="$AWH_TOP"

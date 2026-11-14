@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Context ablations: does one line of the always-loaded or reference context change what the agent
-# does on the task it was promoted for? Each ablation in pilot/ablations/<id>.md names the line, a
+# Leave-out tests: does one line of the always-loaded or reference context change what the agent
+# does on the task it was promoted for? Each leave-out test in pilot/ablations/<id>.md names the line, a
 # realistic prompt and a Check or a Judge. The runner cuts a fresh git worktree of the target's HEAD per
 # run, runs the prompt headless in the `with` arm (HEAD as is) and the `without` arm (the line removed),
 # grades each run with the Check, asks a blind comparator to pick between run i of each arm when there
 # is a Judge, and appends counts to pilot/ablation-results.csv.
 #
-#   pilot/ablate.sh                    run every ablation in <target>/pilot/ablations/
-#   pilot/ablate.sh <id> [<id>...]     run the named ablations
+#   pilot/ablate.sh                    run every leave-out test in <target>/pilot/ablations/
+#   pilot/ablate.sh <id> [<id>...]     run the named leave-out tests
 #   --target DIR                       the repository to test (default: the workspace around the kit
 #                                      checkout this script sits in; a kit checkout is not a target)
 #   --runs K                           runs per arm for this invocation (default: the file's runs, else 3)
@@ -22,26 +22,26 @@
 #   --judge-kept DIR                   judge the with/without pairs kept by an earlier --keep run in DIR,
 #                                      and write the verdicts into that run's rows; no arm runs
 #   --no-judge                         run the arms and grade them by Check only: no comparator runs
-#   --outcomes FILE                    print each ablation's latest result in a results CSV, one
-#                                      "<ablation> TAB <date> TAB <result>" line each, and nothing else
+#   --outcomes FILE                    print each leave-out test's latest result in a results CSV, one
+#                                      "<id> TAB <date> TAB <result>" line each, and nothing else
 #
 # It writes only <target>/pilot/ablation-results.csv and <target>/pilot/ablation-report.md in the
 # target. It never commits, pushes, or moves a branch: worktrees are detached at HEAD and removed on
-# exit, and an ablation that pre-approves a commit or a push is refused. The runner is the kit's, run in
+# exit, and a leave-out test that pre-approves a commit or a push is refused. The runner is the kit's, run in
 # place as bash kit/pilot/ablate.sh: its default target is the workspace that holds that kit checkout
 # as a submodule, and --target names another repository. A kit checkout is refused as a target: its
-# files reach a session only through a workspace, so the workspace is what an ablation runs against.
+# files reach a session only through a workspace, so the workspace is what a leave-out test runs against.
 #
 # Two modes, chosen by the environment. With CLAUDE_CODE_OAUTH_TOKEN set (a token from
 # `claude setup-token`), each run gets its own CLAUDE_CONFIG_DIR, a temporary copy of the minimum
 # config (settings.json, CLAUDE.md, the plugin list and marketplace registry, nothing else), and its own
-# temporary HOME; both go on exit. That allows ablations of `file: ~user/CLAUDE.md` (applied to the
+# temporary HOME; both go on exit. That allows leave-out tests of `file: ~user/CLAUDE.md` (applied to the
 # copy), and makes the bare arm true: the user-level file is emptied too. The plugin list and registry
 # hold absolute paths into the person's own plugin cache, so plugin files are still read from there;
 # the copy turns marketplace auto-update off, and each run gets DISABLE_AUTOUPDATER=1, so nothing is
 # fetched into that cache. Without the token, arms use the person's own login, which cannot follow a
 # copied config directory, so the user-level file loads in every arm as in a real session, `~user/`
-# ablations are not run, and the bare arm is recorded as `bare-repo`: repository tier emptied,
+# leave-out tests are not run, and the bare arm is recorded as `bare-repo`: repository tier emptied,
 # user-level tier present. The token is passed through the environment to each headless run (never to
 # a Check) and is never written, printed or copied.
 #
@@ -63,11 +63,11 @@
 # exit 3, at the first init event that names any source other than `none`. AW_ALLOW_API_BILLING=1
 # allows both. Results written before the column existed have 13 fields and stay readable.
 #
-# What an arm loads. Repository files (CLAUDE.md, .claude/, docs) come from the worktree, so ablating
+# What an arm loads. Repository files (CLAUDE.md, .claude/, docs) come from the worktree, so leaving out
 # them is faithful. Plugins do not: Claude Code resolves a directory marketplace through the person's
 # own marketplace registry, which holds an absolute path to the target's checkout, so every arm loads
 # the plugins from that checkout's working tree (uncommitted changes included), as a real session does,
-# and not from the submodule initialised in the worktree. An ablation of a file inside a marketplace
+# and not from the submodule initialised in the worktree. A leave-out test of a file inside a marketplace
 # therefore stops with status error when the init event shows a plugin loading from outside the
 # worktree, rather than run a `without` arm that changes nothing the session reads.
 #
@@ -138,11 +138,11 @@ report="$target/pilot/ablation-report.md"
 header="date,ablation,arm,run,check,judge,input_tokens,output_tokens,cache_read_tokens,duration_ms,cost_usd,turns,status,api_key_source"
 
 # --- The report ------------------------------------------------------------------------------------
-# One row per ablation, from that ablation's own latest date, so an ablation not run on the newest date
+# One row per leave-out test, from that leave-out test's own latest date, so a leave-out test not run on the newest date
 # keeps its row and its flags. Every figure carries its n, and every row its date, so no number can be
 # quoted without both. "Most" means more than half; the gap is `with` passes minus `without` passes,
 # in runs. The flag column reads the whole history, and the first rule that applies wins:
-#   stale                        the ablated line no longer matches a whole line of its file
+#   stale                        the line left out no longer matches a whole line of its file
 #   error                        a run failed; for a line inside a plugin file, the report says why
 #   without preferred            the line may hurt: the Check failed on most `with` runs and passed on
 #                                most `without` runs
@@ -167,7 +167,7 @@ header="date,ablation,arm,run,check,judge,input_tokens,output_tokens,cache_read_
 #   regressed                    `with` passed on most runs at the previous date and does not now
 #   demotion candidate           `no difference (both pass)`, `no difference (judge ties)` or `without
 #                                preferred` in each of three consecutive ISO weeks, the latest of them
-#                                the ablation's latest week (the latest date in each week counts once, so a
+#                                the leave-out test's latest week (the latest date in each week counts once, so a
 #                                second look in the same week adds nothing); a failing check, a blind
 #                                check, a lean and an inconclusive result never count toward it
 render_report() {
@@ -179,7 +179,7 @@ allrows = list(csv.DictReader(open(path, encoding="utf-8")))
 if not allrows and mode == "outcomes":
     sys.exit(0)
 if not allrows:
-    print("# Ablation report\n\nNo results yet."); sys.exit(0)
+    print("# Leave-out test report\n\nNo results yet."); sys.exit(0)
 newest = max(r["date"] for r in allrows)
 order, latest = [], {}
 for r in allrows:
@@ -192,7 +192,7 @@ BARE = ("bare", "bare-repo")
 DEMOTES = ("no difference (both pass)", "no difference (judge ties)", "without preferred")
 
 def ablated_file(a):
-    """The `file:` line of the ablation's definition, or empty."""
+    """The `file:` line of the test's definition, or empty."""
     try:
         for line in open(os.path.join(abl_dir, a + ".md"), encoding="utf-8"):
             if line.startswith("file:"):
@@ -220,7 +220,7 @@ def verdicts(rs):
     return [r["judge"] for r in rs if r["arm"] == "with" and r["judge"] in ("with", "without", "tie")]
 
 def outcome(rs):
-    """The result of one ablation on one date: its rows for that date."""
+    """The result of one leave-out test on one date: its rows for that date."""
     if any(r["status"] == "stale" for r in rs):
         return "stale"
     arms = [r for r in rs if r["arm"] in ("with", "without")]
@@ -268,7 +268,7 @@ if mode == "outcomes":
     sys.exit(0)
 
 def history(a):
-    """(date, rows) for every date the ablation has rows, oldest first."""
+    """(date, rows) for every date the leave-out test has rows, oldest first."""
     dates = sorted({r["date"] for r in allrows if r["ablation"] == a})
     return [(d, [r for r in allrows if r["ablation"] == a and r["date"] == d]) for d in dates]
 
@@ -303,15 +303,15 @@ def flags(a, rs, day):
         out.append("demotion candidate")
     return ", ".join(out)
 
-out = [f"# Ablation report", "",
-       f"Latest results per ablation, the newest of {newest}, from `pilot/ablation-results.csv`; the Date "
+out = [f"# Leave-out test report", "",
+       f"Latest results per leave-out test, the newest of {newest}, from `pilot/ablation-results.csv`; the Date "
        "column says when each row's figures are from. Each run is a fresh worktree of HEAD; "
-       "`with` is HEAD as is, `without` has the ablation's lines removed. Pass rates are m/n runs graded "
-       "by the ablation's Check. Tokens are output tokens per run, mean ± sd. The user-level tier "
+       "`with` is HEAD as is, `without` has the test's lines left out. Pass rates are m/n runs graded "
+       "by the test's Check. Tokens are output tokens per run, mean ± sd. The user-level tier "
        "(`~/.claude/CLAUDE.md`) is present in the `with` and `without` arms, as in a real session; it is "
-       "ablated only when the runner has its own login token, and then in a temporary copy.",
+       "left out only when the runner has its own login token, and then in a temporary copy.",
        "",
-       "| Ablation | Date | with: Check | without: Check | with: output tokens | without: output tokens | with: seconds | without: seconds | bare: Check | Judge with–without–tie | API-equivalent cost | Flag |",
+       "| Test | Date | with: Check | without: Check | with: output tokens | without: output tokens | with: seconds | without: seconds | bare: Check | Judge with–without–tie | API-equivalent cost | Flag |",
        "|---|---|---|---|---|---|---|---|---|---|---|---|"]
 kinds = set()
 for a in order:
@@ -365,7 +365,7 @@ if os.path.isdir(abl_dir):
                 skipped.append(name[:-3])
                 break
 if skipped:
-    out += ["", "Not run, because they ablate the user-level file, which needs the runner's own login token: "
+    out += ["", "Not run, because they leave out a line of the user-level file, which needs the runner's own login token: "
             + ", ".join(f"`{s}`" for s in skipped) + "."]
 if "bare" in kinds:
     out += ["", "The bare arm empties every always-loaded file in the repository and the user-level file in "
@@ -396,12 +396,12 @@ out += ["", "Flags, first rule that applies: `stale`; `error`; `without preferre
 if markets:
     out += ["", "Plugins load in every arm from the target's own checkout of each marketplace ("
             + ", ".join(f"`{m}`" for m in markets) + "), as in a real session, not from the worktree; an "
-            "ablation of a line inside a plugin file is not run."]
+            "leave-out test of a line inside a plugin file is not run."]
 print("\n".join(out))
 PYREPORT
 }
 
-# The latest result per ablation for pilot/measure.sh: it runs nothing and writes nothing.
+# The latest result per leave-out test for pilot/measure.sh: it runs nothing and writes nothing.
 if [[ -n "$outcomes" ]]; then
     csv="$outcomes" abl_dir="" market_paths=""
     render_report outcomes
@@ -413,7 +413,7 @@ fi
 # directory marketplaces (extraKnownMarketplaces, source "directory") and the plugins it enables from
 # them; a marketplace that is a submodule is initialised in each worktree from the target's own
 # checkout of it, with no network. Only those submodules: others may be stale or remote-only. The
-# report reads the marketplace paths too, to say why an ablation of a plugin file did not run.
+# report reads the marketplace paths too, to say why a leave-out test of a plugin file did not run.
 settings="$(git -C "$target" show HEAD:.claude/settings.json 2>/dev/null || echo '{}')"
 markets="$(printf '%s' "$settings" | jq -r '(.extraKnownMarketplaces // {}) | to_entries[]
     | select(.value.source.source == "directory") | "\(.key)\t\(.value.source.path)"' 2>/dev/null)"
@@ -437,11 +437,11 @@ if [[ $report_only -eq 1 ]]; then
     exit 0
 fi
 
-# --- Which ablations ------------------------------------------------------------------------------
+# --- Which leave-out tests ------------------------------------------------------------------------------
 files=()
 if [[ ${#ids[@]} -gt 0 ]]; then
     for id in "${ids[@]}"; do
-        [[ -f "$abl_dir/$id.md" ]] || { echo "ablate.sh: no ablation named $id in $abl_dir (the target is $target; name another with --target)" >&2; exit 64; }
+        [[ -f "$abl_dir/$id.md" ]] || { echo "ablate.sh: no leave-out test named $id in $abl_dir (the target is $target; name another with --target)" >&2; exit 64; }
         files+=("$abl_dir/$id.md")
     done
 else
@@ -449,7 +449,7 @@ else
     for f in "$abl_dir"/*.md; do [[ "$(basename "$f")" == README.md ]] || files+=("$f"); done
     shopt -u nullglob
 fi
-[[ ${#files[@]} -gt 0 ]] || { echo "ablate.sh: no ablations in $abl_dir (the target is $target; name another with --target)" >&2; exit 64; }
+[[ ${#files[@]} -gt 0 ]] || { echo "ablate.sh: no leave-out tests in $abl_dir (the target is $target; name another with --target)" >&2; exit 64; }
 git -C "$target" rev-parse -q --verify HEAD >/dev/null || { echo "ablate.sh: no commits yet in $target" >&2; exit 2; }
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/ablate.XXXXXX")" || exit 2
@@ -486,7 +486,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-# parse <file> <out.json>: the front matter and sections of one ablation file, as JSON. The front
+# parse <file> <out.json>: the front matter and sections of one leave-out test file, as JSON. The front
 # matter is a small YAML subset: `key: value`, and `key:` followed by `  - item` lines. Values may be
 # plain, 'single-quoted' or "double-quoted" (with JSON escapes). Sections are the level-two headings
 # Prompt, Fixture, Check and Judge; a Fixture is `path: |` blocks, indented two spaces.
@@ -589,7 +589,7 @@ if fm.get("id") and fm["id"] != stem:
 if not out["file"] or not isinstance(out["file"], str):
     fail("no file named")
 if not out["ablate"]:
-    fail("no ablate lines")
+    fail("no ablate: lines (the lines to leave out)")
 if not out["prompt"]:
     fail("no Prompt section")
 if not out["check"] and not out["judge"]:
@@ -754,7 +754,7 @@ measures() {
         (.num_turns // "")] | map(tostring) | join(",")' 2>/dev/null || printf ',,,,,'
 }
 
-# judge_pair <ablation json> <i> <with run dir> <without run dir> <out dir> <timeout> <budget>: one
+# judge_pair <leave-out test json> <i> <with run dir> <without run dir> <out dir> <timeout> <budget>: one
 # blind comparison. Writes <out dir>/frag: the unblinded verdict (with, without, tie or empty), then
 # the comparator's measurements, status and login, as one CSV fragment:
 # judge,in,out,cache,ms,cost,turns,status,api_key_source. A comparator on an API key stops the invocation.
@@ -772,7 +772,7 @@ import json, os, re, sys
 tpl, spec, a, b = open(sys.argv[1], encoding="utf-8").read(), json.load(open(sys.argv[2])), sys.argv[3], sys.argv[4]
 CAP = 20000
 def material(rd):
-    # What the person would see: the final reply, and each output file the ablation names.
+    # What the person would see: the final reply, and each output file the leave-out test names.
     reply = ""
     try:
         for line in open(os.path.join(rd, "stream.jsonl"), encoding="utf-8"):
@@ -834,7 +834,7 @@ PYVERDICT
     printf '%s,%s,%s,%s' "${verdict%%$'\t'*}" "$m" "$st" "$src" > "$jd/frag"
 }
 
-# with_row <get|set> <first data line> <date> <ablation> <run> [verdict]: finds the last `with` row for
+# with_row <get|set> <first data line> <date> <leave-out test> <run> [verdict]: finds the last `with` row for
 # that run at or after the given line of the CSV, on the given date when one is given. `get` prints its
 # judge column; `set` writes the verdict there and prints the row's date. No such row: status 1.
 with_row() {
@@ -860,7 +860,7 @@ print(f[0])
 PYSET
 }
 
-# judge_ablation <ablation json> <runs root> <runs> <first data line> <kept>: every pair whose two runs
+# judge_ablation <leave-out test json> <runs root> <runs> <first data line> <kept>: every pair whose two runs
 # are ok, judged and recorded: the verdict on the `with` row, the comparator's own row as arm `judge`.
 # For a kept run (<kept> is 1), the row is the one of the date in the run's meta.json, and a pair whose
 # row already has a verdict, or has no row, is left alone, so judging the same folder twice changes nothing.
@@ -931,7 +931,7 @@ EOF
 gitlink() { git -C "$target" ls-tree HEAD -- "$1" | awk '{print $3}'; }
 
 # --- Refuse on a dirty tree -----------------------------------------------------------------------
-# The arms are cut from HEAD. When a file an ablation names has uncommitted changes, the arms would
+# The arms are cut from HEAD. When a file a leave-out test names has uncommitted changes, the arms would
 # silently disagree with what the person is looking at, so nothing runs until it is committed or
 # restored. A file inside a submodule counts as changed when the submodule's checkout is not at the
 # commit HEAD records, too.
@@ -994,7 +994,7 @@ EOF
 }
 
 # plugin_problem <init event> <worktree> <needs-worktree-paths>: why the init event does not show the
-# expected plugins, or nothing. When the ablated file lives in a marketplace, the plugins must also load
+# expected plugins, or nothing. When the file left out lives in a marketplace, the plugins must also load
 # from the worktree's copy, or the `without` arm would change nothing the session reads.
 plugin_problem() {
     local init="$1" wt="$2" strict="$3" e p
@@ -1027,7 +1027,7 @@ for j in "$tmp"/abl/*.json; do
     user_file=0
     if [[ "$file" == "~user/"* ]]; then
         if [[ $token_mode -eq 0 ]]; then
-            echo "ablate.sh: $id ablates the user-level file, which needs the runner's own login token (CLAUDE_CODE_OAUTH_TOKEN), so it is not run" >&2
+            echo "ablate.sh: $id leaves out a line of the user-level file, which needs the runner's own login token (CLAUDE_CODE_OAUTH_TOKEN), so it is not run" >&2
             continue
         fi
         user_file=1
@@ -1035,7 +1035,7 @@ for j in "$tmp"/abl/*.json; do
     ablate=()
     while IFS= read -r l; do ablate+=("$l"); done < <(jq -r '.ablate[]' "$j")
 
-    # A stale ablation is recorded once, with empty measurements, and not run. The user-level file is
+    # A stale leave-out test is recorded once, with empty measurements, and not run. The user-level file is
     # read, never written: its lines are checked here and removed only from a run's copy.
     if [[ $user_file -eq 1 ]]; then
         cat "$src_cfg/${file#"~user/"}" > "$tmp/head-$id" 2>/dev/null || : > "$tmp/head-$id"
@@ -1166,7 +1166,7 @@ for line in sys.stdin:
 
             grade=""
             if [[ "$status" == ok && -n "$check" ]]; then
-                # A Check is the ablation author's shell code, and its output is kept: it gets no login token.
+                # A Check is the leave-out test author's shell code, and its output is kept: it gets no login token.
                 if (cd "$wt" && env -u CLAUDE_CODE_OAUTH_TOKEN AW_ABLATION_STREAM="$rd/stream.jsonl" AW_ABLATION_ARM="$arm" bash -c "$check") \
                     >"$rd/check.txt" 2>&1; then grade=1; else grade=0; fi
             fi

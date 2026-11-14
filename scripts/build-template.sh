@@ -84,7 +84,7 @@ fi
 [[ -n "$FROM" ]] || FROM="$URL"
 if is_local_url "$FROM" && [[ "$FROM" != /* && "$FROM" != file://* && -d "$FROM" ]]; then FROM="$(cd "$FROM" && pwd -P)"; fi
 if [[ $WSX_SET -eq 0 ]]; then
-    WSX="$(git --no-optional-locks -C "$KIT" rev-parse --show-superproject-working-tree 2>/dev/null)"
+    WSX="$(aw_kit_workspace "$KIT")"
 fi
 [[ -z "$WSX" ]] || WSX="$(cd "$WSX" && pwd -P)" || { echo "build-template.sh: no folder at $WSX" >&2; exit 2; }
 
@@ -108,7 +108,7 @@ if [[ -n "$WSX" ]]; then
         "$WSX/.claude/workspace.md" 2>/dev/null | tr ',' '\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     id() {
         [[ -n "$2" ]] || return 0
-        printf '%s\n' "$may_name" | grep -q -i -x -F -e "$2" && return 0
+        grep -q -i -x -F -e "$2" <<<"$may_name" && return 0
         git --no-optional-locks -C "$KIT" grep -q -i -w -F -e "$2" HEAD -- 2>/dev/null && return 0
         printf '%s\t%s\n' "$1" "$2" >>"$ids"
     }
@@ -201,6 +201,7 @@ logs/decisions.md
 memory/.gitkeep
 memory/glossary.md
 memory/people/README.md
+memory/terms.md
 projects/.gitkeep
 projects/INDEX.md
 skills/.gitkeep"

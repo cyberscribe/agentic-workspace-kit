@@ -18,7 +18,8 @@ age at different rates.
 |---|---|
 | The team, its standards owner and its conventions | `CLAUDE.md` §1–§4 |
 | The kit's working standards | `kit/CLAUDE.kit.md` (the kit's; imported by `CLAUDE.md`) |
-| Glossary, acronyms, internal vocabulary | `memory/glossary.md` |
+| The team's own terms, acronyms and names | `memory/terms.md` |
+| Plain words for the terms AI models fall into | `memory/glossary.md` |
 | People | `memory/people/<name>.md` |
 | Organisations and topics | `memory/context/<topic>.md` |
 | Which store a durable fact belongs in | `kit/docs/memory-layers.md` |
@@ -58,18 +59,22 @@ workspace/
     INDEX.md               ← the register: Active / Paused / Done
     <slug>/                ← one folder per project
       README.md            ← what, why, done when, the Current state block, open questions
-      decisions.md         ← when the project earns one
+      decisions.md         ← the decisions that stop a wrong turn later
+      glossary.md          ← plain words for AI-speak met in this project
+      terms.md             ← the project's own terms
     _done/<slug>/          ← finished projects
 
   ongoing/                 ← ongoing areas: kept up, no finish line (created with the first)
-    INDEX.md               ← the register: Active / Dormant / Retired
+    INDEX.md               ← the register: Active / Dormant / Archived
     <slug>/README.md       ← what is kept up, standards to keep, the Current state block, child projects
+    <slug>/decisions.md, glossary.md, terms.md  ← as a project keeps them
 
   skills/                  ← the team's own skills
   logs/
     decisions.md           ← cross-project decisions
   memory/
-    glossary.md
+    terms.md               ← the team's own terms, acronyms and names
+    glossary.md            ← plain words for the terms AI models fall into
     people/<name>.md
     context/<topic>.md     ← canonical cross-surface facts
   audits/                  ← dated reports from the periodic checks

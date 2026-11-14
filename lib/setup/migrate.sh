@@ -1172,8 +1172,8 @@ else
     mg_declined="$MG_TMP/declined"
     mg_vread .claude/kit-templates.lock 2>/dev/null | awk -F '\t' '$1 == "!declined" && $2 == ".gitignore" { print $3 }' > "$mg_declined"
     mg_added=0
-    # Only spaces and tabs are trimmed: a carriage return can be part of a pattern (macOS names its
-    # folder-icon file Icon followed by one, and the template's line ends in two, since git drops one).
+    # Only spaces and tabs are trimmed: a carriage return can be part of a pattern (an older kit's macOS
+    # Icon line ended in two).
     mg_blank=$' \t'
     while IFS= read -r mg_l || [[ -n "$mg_l" ]]; do
         mg_l="${mg_l%"${mg_l##*[!"$mg_blank"]}"}"
@@ -1577,7 +1577,7 @@ while [[ $mg_i -lt ${#MAP_VERB[@]} ]]; do
             printf '%s' "$mg_hl" ;;
         private-term)
             # The term itself is not printed: the run's output may be kept or shared.
-            if mg_vread .claude/private-terms.local 2>/dev/null | grep -qxF -- "$mg_a"; then
+            if grep -qxF -- "$mg_a" <<<"$(mg_vread .claude/private-terms.local 2>/dev/null)"; then
                 mg_act skip "private-term (map line ${MAP_LN[$mg_i]}: in .claude/private-terms.local already)"
             else
                 mg_act edit ".claude/private-terms.local: + the term on map line ${MAP_LN[$mg_i]}"
@@ -1711,12 +1711,13 @@ echo "  2. Restart Claude Code and approve the plugins."
 echo "  3. Once the commit is made, check that /plugin shows agentic-workspace at"
 echo "       $WS/kit"
 echo "     If it shows the old path, your user settings still name it there. Re-point the user entry alone:"
-echo "     a remove without --scope user also takes the marketplace and the three plugins out of the"
+echo "     a remove without --scope user also takes the marketplace and the kit's plugins out of the"
 echo "     workspace's .claude/settings.json, and uninstalls them. Quit Claude Code, then run these one at"
 echo "     a time:"
 echo "       claude plugin marketplace remove --scope user agentic-workspace"
 echo "       claude plugin marketplace add --scope user $(mg_q "$WS/kit")"
 echo "       claude plugin install closeout@agentic-workspace"
+echo "       claude plugin install ongoing@agentic-workspace"
 echo "       claude plugin install projects@agentic-workspace"
 echo "       claude plugin install workspace@agentic-workspace"
 echo "       git -C $(mg_q "$WS") diff -- .claude/settings.json"

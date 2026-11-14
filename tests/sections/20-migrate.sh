@@ -156,10 +156,10 @@ PY
     git -C "$s20_ws" check-ignore -q _delete/x && ok "20 _delete/ is ignored before anything moves into it" \
         || ko "20 _delete/ is ignored before anything moves into it"
     if [[ -z "$s20_wait" ]]; then
-        [[ "$(grep -c "^Icon$(printf '\r\r')\$" "$s20_ws/.gitignore")" == 1 ]] && git -C "$s20_ws" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
-            && grep -q '^edit \.gitignore: + Icon\\r\\r$' "$s20_scr/real.act" \
-            && ok "20 M10 writes the template's macOS Icon line with both carriage returns, and prints them as \\r" \
-            || ko "20 M10 writes the template's macOS Icon line with both carriage returns, and prints them as \\r" "$(grep -n Icon "$s20_ws/.gitignore" | od -c | head -n 3)"
+        [[ "$(grep -cxF 'Icon[! -~]' "$s20_ws/.gitignore")" == 1 ]] && git -C "$s20_ws" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
+            && grep -qxF 'edit .gitignore: + Icon[! -~]' "$s20_scr/real.act" \
+            && ok "20 M10 writes the template's macOS Icon line" \
+            || ko "20 M10 writes the template's macOS Icon line" "$(grep -n Icon "$s20_ws/.gitignore" | od -c | head -n 3)"
     fi
     [[ -f "$s20_ws/skills/field-notes/SKILL.md" ]] && ! grep -q 'skills/field-notes' "$s20_scr/real.act" \
         && ok "20 a skill without the generator's marker stays in skills/" || ko "20 a skill without the generator's marker stays in skills/"
@@ -226,11 +226,11 @@ PY
     empty "20 on a clone with an unpopulated kit, the dry run names the real run's kit steps (init, url, update) and every other action" "$s20_d"
     s20_st="$(git -C "$s20_cl" submodule status 2>&1)"
     if [[ -n "$s20_wait" ]]; then
-        [[ $s20_rc -eq 3 && -f "$s20_cl/kit/CLAUDE.kit.md" ]] && ! printf '%s\n' "$s20_st" | grep -q '^-' \
+        [[ $s20_rc -eq 3 && -f "$s20_cl/kit/CLAUDE.kit.md" ]] && ! printf '%s\n' "$s20_st" | grep_all '^-' \
             && ok "20 a clone with an unpopulated kit, run with --kit-from, gets the kit at kit/ and an active submodule (runs to M8 while $s20_wait wait)" \
             || ko "20 a clone with an unpopulated kit, run with --kit-from, gets the kit at kit/ and an active submodule" "rc $s20_rc; $s20_st; $(cat "$s20_scr/clone.err")"
     else
-        [[ $s20_rc -eq 0 && -f "$s20_cl/kit/CLAUDE.kit.md" ]] && ! printf '%s\n' "$s20_st" | grep -q '^-' \
+        [[ $s20_rc -eq 0 && -f "$s20_cl/kit/CLAUDE.kit.md" ]] && ! printf '%s\n' "$s20_st" | grep_all '^-' \
             && ok "20 a clone with an unpopulated kit, run with --kit-from, migrates, and its submodule is active" \
             || ko "20 a clone with an unpopulated kit, run with --kit-from, migrates, and its submodule is active" "rc $s20_rc; $s20_st; $(cat "$s20_scr/clone.err")"
     fi
@@ -371,7 +371,7 @@ if [[ $kitsrc_ok -eq 1 ]]; then
     s20_run "$s20_scr/embedded-copy/templates/agentic-workspace" "$s20_scr/embedded-copy"; s20_rc=$?
     s20_st="$(git -C "$s20_scr/embedded-copy" submodule status 2>&1)"
     grep -q '^run git submodule absorbgitdirs -- templates/agentic-workspace' "$s20_out" \
-        && [[ -f "$s20_scr/embedded-copy/kit/.git" ]] && ! printf '%s\n' "$s20_st" | grep -q '^-' \
+        && [[ -f "$s20_scr/embedded-copy/kit/.git" ]] && ! printf '%s\n' "$s20_st" | grep_all '^-' \
         && ok "20 M0 absorbs an embedded kit .git, then M1 moves the kit to kit/" \
         || ko "20 M0 absorbs an embedded kit .git, then M1 moves the kit to kit/" "rc $s20_rc; $s20_st; $(cat "$s20_err")"
 

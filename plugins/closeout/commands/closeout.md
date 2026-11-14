@@ -11,11 +11,46 @@ can check a claim against the files before it gets a permanent home. Be selectiv
 and honest — a short closeout that records the one decision that mattered is a
 good one.
 
-A learning is worth recording if a future session would otherwise re-derive it.
-Working code and finished deliverables are the work, already saved; the constraint
-that shaped them is the learning. So are a decision and the option it beat, a
-behaviour a tool's documentation does not mention, a correction to something
-believed before, and a boundary that turned out to matter.
+Memory is for the session that comes next: it starts without this conversation,
+and what it finds in the files is what it acts on. One test comes first: **is it
+otherwise discoverable?** Could that session find it by itself, in the code, the
+files, the docs, `git log` or a tool's own help? If so, it is not promoted: say
+where it is already found (`check: already-written`, with `found:`), and move on.
+The work itself is already saved; a note is for what none of those show.
+
+A second question goes with it: **where would the obvious next move go wrong?**
+The command anyone would try first, the file anyone would edit, the assumption
+anyone would make: where this session walked into a trap on that path, or the
+person steered it round one, record the trap as the likely move, what goes wrong
+and what to do instead. Its `plain:` line reads as a warning a colleague would
+give ("`git status` from the VM leaves a lock on the repository; use
+`--no-optional-locks`"), and its evidence is the moment it went wrong. Such a trap
+is not otherwise discoverable except by falling into it again. It usually goes to
+project or general reference, beside what it is about.
+
+Look for what passes, in this order, and give the first the most care:
+
+1. **The person's interventions** in this session: what they redirected,
+   corrected, refused or explained. Each shows context the session lacked.
+2. **Your own mistakes, read as missing context.** Where would more context have
+   helped? If it arrived later in the session, record that context, usually as
+   project or general reference. If it never arrived, propose asking the person
+   for it.
+3. **Only then a general lesson**, sparingly, the specific and practical over the
+   general.
+
+The order says where to look first, not what kinds to record; what serves the
+next session is judged from this session.
+
+**Plain words first.** The person reads each candidate as one everyday sentence,
+its `plain:` line, before anything else. Where the agent's own phrasing is kept
+in the record beside it, a term that is not plain goes through the glossary
+(`memory/glossary.md`, or the project's or area's own `glossary.md`): its plain
+words are used, or a new row is proposed. **Routes:** a decision goes to the
+`decisions.md` of the project, area or workspace (`logs/decisions.md`) it
+belongs to; a term of the work to `terms.md`; a translation of AI-speak to the
+glossary, and only when a person had to ask what the term meant or it reached
+something a person reads. Everything else follows the tiers below.
 
 If the user typed anything after the command (it follows this prompt), start from
 it: it is what they most want kept. With no end-of-session capture behind it — a
@@ -49,14 +84,17 @@ below:
 
 Two axes, and the first is the expensive decision.
 
+Only a candidate that is not otherwise discoverable is classified; one a later
+session would find by itself is recorded as already written, with where.
+
 **Tier** — where it belongs, which decides how often it is loaded back:
 
-| Tier | Loaded back | Typical shared destination |
-|---|---|---|
-| Working standards | always — every session, every turn | `CLAUDE.md` or `AGENTS.md` |
-| General reference | as needed, in any project | `.claude/skills/`, `docs/` |
-| Project reference | as needed, only in this project | the project folder, `docs/DECISIONS.md` |
-| Templates & agent roles | when that role or scaffold is invoked | `.claude/agents/`, `.claude/commands/` |
+| Tier | Loaded back | Typical shared destination | Passes the test when it is… |
+|---|---|---|---|
+| Working standards | always — every session, every turn | `CLAUDE.md` or `AGENTS.md` | a way of working that sessions get wrong without being told |
+| General reference | as needed, in any project | `.claude/skills/`, `docs/` | a fact about a tool or a domain that no file here states |
+| Project reference | as needed, only in this project | the project folder, `docs/DECISIONS.md` | a decision and why, where the code shows only the result |
+| Templates & agent roles | when that role or scaffold is invoked | `skills/`, `.claude/agents/`, `.claude/commands/` | the shape of a piece of work that will come round again |
 
 In a workspace built on the kit, the always-loaded file is `CLAUDE.md`, and its
 first line imports `kit/CLAUDE.kit.md`. That file, like everything under `kit/`,
@@ -66,7 +104,11 @@ import line. A learning about the kit itself is drafted in the report, and an
 edit inside `kit/` is made only with a person approving it. Where
 `.claude/skills/.kit-generated` exists, `.claude/skills/` is the skills bridge's
 generated copy, rewritten on its next run, so general reference goes to
-`skills/` instead.
+`skills/` instead. The destinations there are the ones `kit/docs/memory-layers.md`
+§3 names: project reference in `projects/<slug>/` and its own `decisions.md`, and
+templates in `skills/`, `.claude/agents/` or `.claude/commands/`. The skeletons in
+`kit/templates/` and the rituals in `kit/rituals/` are the kit's, and a change to
+one is a learning about the kit.
 
 **Sensitive projects.** A project whose README reads `Sensitivity: sensitive` is
 kept untracked or as its own private repository, and learnings from it land in its
@@ -84,7 +126,8 @@ is unclear, it stays in the project — promotion is cheap, demotion is not. Use
 log's own entry format.
 
 **Scope** — shared (committed, reaches teammates) or individual (this machine and
-user only, such as `~/.claude/`). Prefer committed: a teammate cannot use the other.
+user only, such as `~/.claude/`). Shared is for what a teammate's session would
+need too; individual for what is only this person's.
 
 Default to the cheapest tier that still works; most things are project reference.
 The always-loaded tier is a budget paid by every future session, not a folder.
@@ -94,7 +137,59 @@ get the user's agreement. Every other tier is additive.
 
 ## Verify before you record
 
-Check each technical claim against the current state of the code or file. A
+Two checks, in this order: against what this session said and did, then against
+the files as they are now.
+
+**Against the session's record.** A line promoted from a misremembered session
+carries the mistake into every later session that reads it. So write each
+candidate in the shape the capture draft uses — `plain:`, `source:`
+(`correction`, `missing-context` or `general`), tier, scope, destination, then
+`check:`, `evidence: L<n> "<quote>"`, and `was:`, `correction:` or `dropped:`,
+`missing:` or `found:` as its result needs (the full shape is in the plugin's
+`docs/DESIGN.md`) — and check it against the record. Find the turn that
+supports it, then read on to the end for the same subject: a later turn can
+reverse an earlier one — a fix reverted, a belief corrected after a test — and
+the latest word holds.
+
+- **supported** — the record shows it and nothing later reverses it. It may be
+  promoted as fact.
+- **contradicted** — promoted as what the record now shows, or dropped; the
+  report says which.
+- **unsupported** — never promoted as fact. It is recorded as unverified, with
+  what is missing, or left out.
+- **already-written** — a later session would find it by itself; `found:` says
+  where. Not promoted; the report lists it, as evidence the habits work.
+- **observed** — something the session saw and could not explain, cited. Never
+  promoted as fact; it reaches the person so the cause can be found.
+
+The record depends on the surface. In Claude Code it is this session's
+transcript: write the candidates to a scratch file and run
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-evidence.sh" <file> --session "$CLAUDE_CODE_SESSION_ID"
+```
+
+Where that path has not been filled in, the script is `scripts/check-evidence.sh`
+beside the `commands/` folder this file sits in: `kit/plugins/closeout/scripts/`
+in a workspace built on the kit. It resolves each `L<n>` against the transcript
+and names what it refuses. A capture draft names its record on its
+`transcript:` line; if that file is gone, the report says the check rested on
+the draft's own quotes. Where no transcript is readable, as on a desktop
+assistant, the check runs against the conversation in context, and the report
+says that is what it was checked against. The script proves that each cited
+line exists and says what is quoted; whether the quote supports the claim is
+still a reading, the agent's and then the person's.
+
+The always-loaded tier gets the strictest check, because a wrong line there is
+read by every session: a line goes there only when it is supported, with at
+least one cited line that is the person's own words or a tool's output rather
+than the agent's, and the proposal shows those quotes. It comes from a
+correction or a gap in context, with the incident behind it: a generic lesson,
+however true, is not promoted there. An item whose source is a correction cites
+at least one line in the person's own words. The script refuses each of these,
+and an item with no `plain:` line.
+
+**Against the files.** Check each technical claim against the current state of the code or file. A
 behaviour that changed during this session is not a finding, and a claim written
 from memory of what happened two hours ago is how a wrong fact gets a permanent
 home.
@@ -114,10 +209,10 @@ any file the repository fences from agent editing. Nothing is deleted: supersede
 material is marked superseded, keeps its wording, and points at what replaced it.
 
 When a line is promoted, or proposed for promotion, to one of the two tiers
-loaded most often (by default working standards and general reference), offer an
-ablation; it is an offer, and a no ends it. Ask what task would go worse without
-the line. If there is one and the repository has `pilot/ablations/`, draft the
-ablation file there — that task as the prompt, a Check, and the lines exactly as
+loaded most often (by default working standards and general reference), offer a
+leave-out test; it is an offer, and a no ends it. Ask what task would go worse
+without the line. If there is one and the repository has `pilot/ablations/`,
+draft the test's file there — that task as the prompt, a Check, and the lines exactly as
 they will read (format in `pilot/README.md`, or copy a file already in
 `pilot/ablations/`) — listed in the commit plan with the promotion once it is agreed. If nobody can
 name a task, say so plainly: that is evidence about the tier, and the cheaper
@@ -148,6 +243,13 @@ the repository is the project — and open its entry point.
   `proposed by /projects:adopt` marker — stays as it is. A state change shows the
   register's one-cell edit, made on a yes; a folder move tied to it is named, not
   made.
+- **The page against the evidence.** Read what the README claims in the parts
+  this session touched (what is built, decided or true) against the files and
+  the session, and check that each path and link it names resolves. Correct what
+  is wrong in the README itself, shown and written on a yes, and name each
+  correction in the report. When the person spots something wrong in the page,
+  the correction goes through the agent the same way, so the fix and its reason
+  land together rather than as a quiet hand edit.
 - **No Current state block or Done when, or an older Now block?** Leave the
   README's shape alone and mention `/projects:adopt`.
 - **Every box ticked?** Say so and suggest `/projects:close <slug>`, which
@@ -179,13 +281,15 @@ channel and handle cells, is left out, and the report says whose: contact detail
 belong in a profile or an address book, not the repository.
 The project's roles win over the roster's; the roster adds anyone
 else whose default relationship, scoped or not, matches what changed. With one
-person or none, skip this without comment. Where the People section gives roles:
+person or none, skip this without comment. Where the People section gives roles (the older
+words read as the new ones: owns as accountable, does as responsible, helps as supporting, ask
+first as consulted, keep told as informed):
 
-- **owns**, **keep told**: the outcome — a box ticked, the finish line moved,
+- **accountable**, **informed**: the outcome — a box ticked, the finish line moved,
   ownership changed, a block.
-- **ask first**: this closeout's proposals, a Done when change or waiver — before,
+- **consulted**: this closeout's proposals, a Done when change or waiver — before,
   not after.
-- **does**, **helps**: work of theirs changed, blocked, unblocked or passed to them.
+- **responsible**, **supporting**: work of theirs changed, blocked, unblocked or passed to them.
 
 Without roles, name only those whose work is affected so, or whose profile makes
 them the one to go to. Present a short table. **How** is their channel, from the
@@ -196,13 +300,16 @@ there, on an explicit yes.
 
 | Who | What they need to know | Why them | How | Offer | Where it is recorded |
 |---|---|---|---|---|---|
-| <name> | <one line> | <owns / keep told / ask first / blocked by…> | <channel> | draft · note · none | `<path>` |
+| <name> | <one line, in the item's plain words> | <accountable / informed / consulted / blocked by…> | <channel> | draft · note · none | `<path>` |
 
 ## Report
 
-- What was promoted, and at which tier.
+- What was promoted, and at which tier, each by its plain sentence first.
+- What was already written, and where, and anything observed and not explained.
 - What is proposed and still needs a decision.
-- Any ablation offered: drafted, declined, or the tier reconsidered.
+- What each candidate was checked against (the transcript, the draft's quotes,
+  or the conversation), and which were corrected, dropped or left unverified.
+- Any leave-out test offered: drafted, declined, or the tier reconsidered.
 - Tracking, reported apart from the learnings: boxes ticked, how far from the
   finish line, and the Current state block's new state, blocker and date.
 - Who needs to know what, if that step applied.

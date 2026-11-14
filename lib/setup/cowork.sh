@@ -16,9 +16,9 @@
 # that fails is reported and not packaged. --check runs the checks and writes nothing.
 #
 # The upload is the person's step, and it is repeated after each kit update: the version in the file
-# name says which one Cowork has. A plugin whose name matches a skill already on the account (closeout,
-# where the Cowork closeout skill is installed) is refused by Cowork, which would replace that skill
-# with it; such a plugin is left out, and the account skill stays the way in.
+# name says which one Cowork has. Cowork refuses a plugin whose name matches a skill already on the
+# account (closeout, where the account has a closeout skill of its own). Its file is still built, and the
+# account's skill stays the way in; docs/setup.md says what that skill keeps for it to fit the kit.
 #
 # Output is one line per plugin:   built <path>   checked <plugin> <version>   refused <plugin>: <why>
 # Exit codes: 0 every plugin built (or checked), 1 one was refused or a file could not be written,

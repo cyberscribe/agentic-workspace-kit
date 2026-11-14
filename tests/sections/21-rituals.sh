@@ -209,8 +209,8 @@ printf 'file: CLAUDE.md\nablate:\n  - "# Test Team"\n' > "$s21_w/pilot/ablations
   for s21_i in 1 2 3; do printf '%s,x,without,%s,0,,100,50,0,1000,0.01,2,ok\n' "$(days_ago 0)" "$s21_i"; done
 } > "$s21_w/pilot/ablation-results.csv"
 cp "$KIT/pilot/measure.sh" "$s21_dir/lone/measure.sh"
-s21_a="$(cd "$s21_w" && bash kit/pilot/measure.sh --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
-s21_l="$(bash "$s21_dir/lone/measure.sh" --target "$s21_w" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+s21_a="$(cd "$s21_w" && bash kit/pilot/measure.sh --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
+s21_l="$(bash "$s21_dir/lone/measure.sh" --target "$s21_w" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$s21_a" == "1,1,0" && "$s21_l" == "1,1,0" ]] \
     && ok "21 measure.sh finds the runner beside it in kit/pilot/, and a copy elsewhere finds it in the workspace's kit/" \
     || ko "21 measure.sh finds the runner beside it in kit/pilot/, and a copy elsewhere finds it in the workspace's kit/" "kit/pilot: $s21_a, lone copy: $s21_l"
@@ -273,3 +273,81 @@ empty "21 quick-start: the one-person offer names CODEOWNERS and the PR template
 s21_v="$(jq -r '.enabledPlugins["closeout@closeout-marketplace"]' "$KIT/templates/workspace/settings.json" 2>/dev/null)"
 [[ "$s21_v" == false ]] && ok "21 the workspace settings turn the standalone closeout off, so the kit's copy runs alone" \
     || ko "21 the workspace settings turn the standalone closeout off, so the kit's copy runs alone" "closeout@closeout-marketplace: ${s21_v:-absent}"
+
+# --- Cadence: the passes and the area check-in on a schedule, offered and never installed -------------
+# The two shipped task files are valid as the scheduler reads them once their folder is set, run their
+# command with `report`, and may write only under audits/: no git add, commit, mv or rm in their tools.
+s21_bad=""
+s21_sw="$s21_dir/sched-ws"; mkdir -p "$s21_sw"
+for s21_t in hygiene-weekly register-audit-monthly; do
+    s21_tf="$KIT/plugins/workspace/scheduled/$s21_t.md"
+    [[ -f "$s21_tf" ]] || { s21_bad+="no plugins/workspace/scheduled/$s21_t.md"$'\n'; continue; }
+    sed "s#^cwd: .*#cwd: $s21_sw#" "$s21_tf" > "$s21_dir/$s21_t.md"
+    s21_o="$(SCHEDULER_HOME="$s21_dir/sched-home" SCHEDULER_DATA="$s21_dir/sched-data" SCHEDULER_BACKEND=none \
+        bash "$KIT/plugins/scheduler/scripts/schedule.sh" create --file "$s21_dir/$s21_t.md" --dry-run 2>&1)" \
+        || s21_bad+="$s21_t: the scheduler refuses it: $s21_o"$'\n'
+    grep -qx 'cwd: /path/to/your/workspace' "$s21_tf" || s21_bad+="$s21_t: its folder is not left for quick-start to set"$'\n'
+    s21_tools="$(sed -n 's/^allowed_tools: //p' "$s21_tf")"
+    grep -qF 'Edit(audits/**)' <<<"$s21_tools" || s21_bad+="$s21_t: writing is not limited to audits/"$'\n'
+    grep -qE '(^| )(Write|Edit)( |$)|git (add|commit|mv|rm|push)|Bash\(rm' <<<"$s21_tools" && s21_bad+="$s21_t: its tools reach past a report: $s21_tools"$'\n'
+    grep -qF 'with the argument `report`' <<<"$(s21_flat "plugins/workspace/scheduled/$s21_t.md")" || s21_bad+="$s21_t: does not run in report mode"$'\n'
+done
+s21_bad+="$(s21_needs plugins/workspace/commands/quick-start.md 'kit/plugins/workspace/scheduled/hygiene-weekly.md' \
+    '`register-audit-monthly.md`' 'nothing is scheduled without one' '--dry-run' 'In Cowork, give the person the scheduled task')"
+s21_bad+="$(s21_needs plugins/ongoing/commands/new.md '## Offer the check-in on a schedule' 'nothing is scheduled without a yes' \
+    '`awaits_reply: true`' '/scheduler:tasks' 'kit-ongoing-review' 'A dormant area gets no offer')"
+s21_bad+="$(s21_needs plugins/ongoing/commands/review.md 'it makes no edit until the owner has answered')"
+empty "21 cadence: report-only task files for hygiene and the register audit, offered by quick-start; /ongoing:new offers a scheduled check-in" "$s21_bad"
+
+# Hygiene's promotion candidates include decisions without a Generalises as field, read through the filter.
+s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'Then the entries without that field' \
+    'strip every reference to the project, technology, file path and stakeholder' 'Give the stripped sentence beside the entry')"
+s21_bad+="$(s21_needs rituals/weekly-hygiene.md 'and those without one that still say something once the strip filter has run')"
+empty "21 hygiene: promotion candidates include decisions with no Generalises as field that pass the strip filter" "$s21_bad"
+
+# The golden rule, the template destinations, the page against the evidence, and closeout in Cowork.
+s21_bad="$(s21_needs docs/memory-layers.md '**What the stores are for.**' '**Common ground between the person and the AI:**' \
+    '**Context the AI cannot find anywhere else.**' '**The test every promotion passes first: is it otherwise discoverable?**' \
+    'in the code, the files, the docs, `git log` or a tool'"'"'s own help')"
+s21_bad+="$(s21_needs plugins/closeout/commands/closeout.md '**is it otherwise discoverable?**' \
+    'Passes the test when it is…' '| `skills/`, `.claude/agents/`, `.claude/commands/` |' '`kit/docs/memory-layers.md` §3 names' \
+    'project reference in `projects/<slug>/` and its own `decisions.md`' '**The page against the evidence.**' \
+    'the correction goes through the agent the same way')"
+s21_bad+="$(s21_needs docs/getting-started.md '**The four shelves**' '**A bounded always-loaded tier**' \
+    "**Each candidate checked against the session's record**" '**No commits**' 'kit/plugins/closeout/commands/closeout.md')"
+s21_bad+="$(s21_needs docs/setup.md 'Cowork keeps that skill' 'the four shelves, a bounded always-loaded tier' "each candidate checked against the session's record, and no commits")"
+empty "21 consistency: the next-session test in memory-layers and closeout, closeout's destinations as memory-layers §3, the page checked against the evidence, and what an account's closeout skill keeps in Cowork" "$s21_bad"
+
+# --- The three vocabulary files ----------------------------------------------------------------------
+s21_bad="$(s21_needs templates/glossary.md '*What this is for:' '| Plain words | AI-speak | Note |' 'a person had to ask what a term meant')"
+s21_bad+="$(s21_needs templates/terms.md '*What this is for:' '| Term | Meaning |')"
+s21_bad+="$(s21_needs templates/project-decisions.md '*What this is for:' 'beside `glossary.md` and `terms.md`')"
+for s21_f in plugins/projects/commands/new.md plugins/ongoing/commands/new.md; do
+    s21_bad+="$(s21_needs "$s21_f" '**The three vocabulary files**' '`kit/templates/project-decisions.md`' '`kit/templates/glossary.md`' '`kit/templates/terms.md`')"
+done
+for s21_f in plugins/projects/commands/adopt.md plugins/ongoing/commands/adopt.md; do
+    s21_bad+="$(s21_needs "$s21_f" '**The vocabulary files.**' 'offer the missing ones' 'do not add a second')"
+done
+s21_bad+="$(s21_needs CLAUDE.kit.md '`memory/terms.md`' '`memory/glossary.md`' "Say things to the person in the glossary's plain words.")"
+s21_bad+="$(s21_needs plugins/workspace/commands/register-audit.md '**Plain language**' 'the glossary'"'"'s plain words as the rewrite' 'kit/docs/glossary.md')"
+s21_bad+="$(s21_needs templates/workspace/workspace-map.md '`memory/terms.md`' '`memory/glossary.md`')"
+# The kit's own glossary: at most ten rows, each with a note of where it was seen, leave-out first.
+s21_rows="$(awk '/^\| Plain words/ { f = 1; getline; next } f && /^\|/' "$KIT/docs/glossary.md")"
+s21_n="$(printf '%s\n' "$s21_rows" | grep -c '^|')"
+[[ "$s21_n" -ge 1 && "$s21_n" -le 10 ]] || s21_bad+="docs/glossary.md has $s21_n rows, not 1 to 10"$'\n'
+printf '%s\n' "$s21_rows" | awk 'NR == 1' | grep_all '^| leave out; a leave-out test .*| ablate, ablation |' || s21_bad+="docs/glossary.md: leave-out is not the first row"$'\n'
+printf '%s\n' "$s21_rows" | awk -F '|' '{ n = $4; gsub(/ /, "", n); if (n == "") bad = 1 } END { exit bad }' || s21_bad+="docs/glossary.md: a row with no note"$'\n'
+empty "21 vocabulary: the glossary, terms and decisions templates, made by both new commands and offered by both adopts, named in CLAUDE.kit.md, checked by the register audit; the kit's glossary seeded" "$s21_bad"
+
+# "Ablation" in prose is the glossary's plain words now. Identifiers stay: paths, CSV columns, env vars,
+# the runner's name and its ablate: key. The glossary and the register's example name the term on purpose,
+# and a quotation (in straight double quotes on one line) is someone else's words, not the kit's prose.
+s21_bad="$(cd "$KIT" && grep -rnIiE '(^|[^/_A-Za-z-])ablat(e|es|ed|ing|ion|ions)($|[^/_A-Za-z.-]|\.[^a-z])' \
+    --include='*.md' . 2>/dev/null | grep -v '^./CHANGELOG.md\|^./docs/glossary.md:\|^./tests/' \
+    | grep -v 'documentation-register.md:.*("ablate"' | python3 -c '
+import re, sys
+for line in sys.stdin:
+    body = line.split(":", 2)[2] if line.count(":") >= 2 else line
+    if re.search(r"(^|[^/_A-Za-z-])ablat(e|es|ed|ing|ion|ions)($|[^/_A-Za-z.-]|\.[^a-z])", re.sub(r"\x22[^\x22]*\x22", "", re.sub(r"`[^`]*`", "", body)), re.I):
+        print(line.rstrip()[:160])')"
+empty "21 vocabulary: no 'ablation' left in the kit's prose outside code spans and identifiers" "$s21_bad"

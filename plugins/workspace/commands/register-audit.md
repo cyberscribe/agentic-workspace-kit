@@ -100,6 +100,14 @@ markers. An `ignore-start` with no end is itself a finding: say where it opens.
   roster holds handles only; report the row and propose moving the detail to the
   person's profile or address book. It is a finding of its own, outside the
   severity counts.
+- **Plain language** — the AI-speak column of each glossary in reach
+  (`memory/glossary.md`, a project's or area's own `glossary.md`, and the
+  kit's `kit/docs/glossary.md`), matched as whole words in any case, in prose a
+  person reads: READMEs, `decisions.md`, `docs/`, reports in `audits/`. Report
+  the line and the glossary's plain words as the rewrite. Code spans, paths and
+  the glossaries themselves are left out, since a term there names a thing
+  rather than describing it. It is a finding of its own, outside the severity
+  counts, and a clean result says how many terms were looked for.
 
 Where a line matches at more than one severity ("you" followed by the word in
 capitals, say), count it once, at the highest. Drop a match whose span falls
@@ -118,6 +126,8 @@ same day replaces that day's report.
 - Findings grouped by file, highest severity first: line number, the matched
   words, the line as written, and a rewrite in the spirit of the file's
   Avoid / Prefer table.
+- The plain-language findings, grouped by term, with the plain words beside
+  each, and the number of glossary terms looked for.
 - The files with the most HIGH findings, then the most findings, as a short
   list at the end.
 - `## Judgement pass` — filled in by the next stage, or "waiting" on a

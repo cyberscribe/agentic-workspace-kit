@@ -125,7 +125,7 @@ done
 s17_bad+="$(s17_has "$s17_pc" 'stays versioned' 'the person' '(`_done`, `_delete`)')"
 # The kit's state check still reads the template as the kit's own conventions.
 grep -qiE '^#+[[:space:]]+Project conventions' "$s17_pc" || s17_bad+="no Project conventions heading"$'\n'
-grep -E '^[[:space:]]*[-*] \*\*' "$s17_pc" | grep -qi 'not set yet' && s17_bad+="a setting still reads not set yet"$'\n'
+grep -E '^[[:space:]]*[-*] \*\*' "$s17_pc" | grep_all -i 'not set yet' && s17_bad+="a setting still reads not set yet"$'\n'
 empty "17 .claude/projects.md template carries the 3.0 values (paused in place, _done, folder moves, versioned default, reserved, Not adopted)" "$s17_bad"
 s17_got="$(grep -E '^## ' "$KIT/templates/workspace/INDEX.md" | paste -sd'|' -)"
 [[ "$s17_got" == '## Active|## Paused|## Done' && "$(grep -c '^| Project | Folder |' "$KIT/templates/workspace/INDEX.md")" == 3 ]] \
@@ -209,6 +209,13 @@ s17_c="$(s17_ctx <<<"$s17_out")"
 grep -qF 'never guess one' <<<"$s17_c" && grep -qF '.claude/resources.local.md' <<<"$s17_c" && grep -qF 'kit/setup.sh link field-study' <<<"$s17_c" \
     && ok "17 hook: the agent is asked to offer the mapping once, asking for each path and never guessing" \
     || ko "17 hook: the agent is asked to offer the mapping once, asking for each path and never guessing" "$s17_c"
+# The page, not the summary: Claude Code is told by the hook's context, Cowork (no hooks) by the kit's
+# standards and its row of the surface table.
+s17_bad=""
+grep -qF 'Read projects/field-study/README.md in full before acting on this project' <<<"$s17_c" || s17_bad+="hook context: no instruction to read the page"$'\n'
+grep -qF 'reads its `README.md` before acting on it' "$KIT/CLAUDE.kit.md" || s17_bad+="CLAUDE.kit.md: no instruction to read the page"$'\n'
+grep -qF 'reads its `README.md` before acting' "$KIT/templates/workspace/surface-rows/cowork.md" || s17_bad+="the Cowork surface row: no instruction to read the page"$'\n'
+empty "17 the project page at session start: the hook's context, the kit's standards and the Cowork row each say to read the README before acting" "$s17_bad"
 s17_key="$(printf '%s' "$s17_ws" | sed 's#/#-#g; s#^-##')"
 check "17 hook: the offer is stamped outside the repository with the sorted list it offered" \
     test "$(cat "$s17_stamps/$s17_key.field-study.resources" 2>/dev/null)" = "media"
@@ -234,7 +241,7 @@ s17_m="$(s17_start "$s17_ws/projects/field-study" | s17_msg)"
 printf '# Legacy\n\n- **Versioned:** untracked\n- **Sensitivity:** sensitive\n\n## Now\n\n- **State:** doing\n\n## People\n\n- Ana — owns\n\n## Resources\n\n- archive — generated\n' \
     > "$s17_ws/projects/legacy/README.md"
 s17_m="$(s17_start "$s17_ws/projects/legacy" | s17_msg)"
-grep -qxF 'State: doing — owner Ana — from an older Now block; /projects:adopt converts it' <<<"$s17_m" \
+grep -qxF 'State: doing — accountable Ana — from an older Now block; /projects:adopt converts it' <<<"$s17_m" \
     && [[ "$(printf '%s\n' "$s17_m" | grep -c .)" == "3" ]] \
     && ok "17 hook: a README in the old Now format still gets the old-format line with fields 16-20 present" \
     || ko "17 hook: a README in the old Now format still gets the old-format line with fields 16-20 present" "$s17_m"
@@ -268,13 +275,13 @@ empty "17 hook: a folder with no Current state block that is not listed stays si
 empty "17 hook: every run exits quietly (nothing on stderr)" \
     "$(jq -nc --arg c "$s17_ws/projects/field-study" '{cwd: $c}' | PROJECTS_HOOK_STATE_DIR="$s17_stamps" "$st_bash" "$s17_hook" 2>&1 >/dev/null)"
 
-# ---- The ten commands ----------------------------------------------------------------------------
+# ---- The eighteen commands --------------------------------------------------------------------------
 
-s17_want="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the eleven commands, /projects:hold among them" \
-    || ko "17 the kit has exactly the eleven commands, /projects:hold among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the eighteen commands, /projects:hold among them" \
+    || ko "17 the kit has exactly the eighteen commands, /projects:hold among them" "has: $s17_got"
 
 # ---- What each projects command says -------------------------------------------------------------
 
@@ -346,44 +353,116 @@ s17_bad+="$(s17_has "$s17_c" "Done section, whatever it is called there")"
 s17_bad+="$(s17_has "$s17_p" "both as the conventions file names them")"
 empty "17 hold, close and pickup move register rows to the sections the conventions name" "$s17_bad"
 
-s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Seven commands' '/projects:hold' 'projects/_done/<slug>/' \
+s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Eight commands' '/projects:hold' 'projects/_done/<slug>/' \
     '## How a project is kept' '## Resources' 'Folder moves' 'Not adopted')"
 s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" 'Folder moves' 'Versioned default' \
     'Not adopted' 'projects/_done/<slug>/' 'kit/templates/project-readme.md')"
 empty "17 the plugin README and the example conventions describe the 3.0 lifecycle" "$s17_bad"
 
 # ---- ongoing areas ---------------------------------------------------------------------------------
-# An area is the other kind of work: standards to keep in place of Done when, three states of its own,
-# its own folder and register. The template carries the shape the commands write; the commands and docs
-# point at it rather than at general reference.
+# An area is the other kind of work: a desired state and standards to keep in place of a desired outcome
+# and Done when, three states of its own, its own folder, register and plugin. The template carries the
+# shape the ongoing commands write; the projects commands hand over to them.
 
 s17_t="$KIT/templates/area-readme.md"
+s17_o="$KIT/plugins/ongoing/commands"
 check "17 areas: templates/area-readme.md exists" test -f "$s17_t"
-s17_bad="$(s17_has "$s17_t" '- **Versioned:**' '- **Sensitivity:**' '## Standards to keep' '## Current state' \
-    '- **State:** <active · dormant · retired>' '- **Check-in:**' '- **Updated:**' '## Projects' \
-    'ongoing/<slug>/README.md' 'ongoing/INDEX.md')"
+s17_bad="$(s17_has "$s17_t" '- **Versioned:**' '- **Sensitivity:**' '## Desired state' '## Standards to keep' \
+    '## Current state' '- **State:** <active · dormant · archived>' '- **Check-in:**' '- **Updated:**' '## Projects' \
+    'ongoing/<slug>/README.md' 'ongoing/INDEX.md' '/ongoing:new' '/ongoing:review' '/ongoing:pause' '/ongoing:drop')"
+s17_bad+="$(s17_before "$s17_t" '## Desired state' '## Standards to keep')"
 s17_bad+="$(s17_before "$s17_t" '## Standards to keep' '## Current state')"
 s17_bad+="$(s17_before "$s17_t" '## Current state' '## Projects')"
 grep -qF '## Done when' "$s17_t" && s17_bad+="area-readme.md: has a Done when section"$'\n'
-empty "17 areas: the template has Standards to keep, then Current state with active · dormant · retired, then Projects" "$s17_bad"
+grep -qiF 'retired' "$s17_t" && s17_bad+="area-readme.md: still names a retired state"$'\n'
+empty "17 areas: the template has Desired state, Standards to keep, Current state with active · dormant · archived, then Projects" "$s17_bad"
 
 s17_bad="$(s17_has "$KIT/templates/project-readme.md" 'ongoing/<slug>/' 'templates/area-readme.md')"
 grep -qF 'belongs in general reference instead' "$KIT/templates/project-readme.md" \
     && s17_bad+="project-readme.md: still sends an area to general reference"$'\n'
 empty "17 areas: the project template routes work with no finish line to an area" "$s17_bad"
 
-s17_bad="$(s17_has "$s17_n" '## When it is an ongoing area' 'ongoing/<slug>/' 'ongoing/INDEX.md' \
-    'kit/templates/area-readme.md' 'standards to keep' '- not yet named' \
-    'Areas do not count against the in-flight limit')"
-s17_bad+="$(s17_before "$s17_n" '## When it is an ongoing area' '## Close with the finish line and the state')"
-grep -qF 'it belongs in general reference instead' "$s17_n" && s17_bad+="new.md: still sends an area to general reference"$'\n'
-s17_bad+="$(s17_has "$s17_a" 'ongoing/<slug>/' 'Standards to keep in place of Done when')"
-s17_bad+="$(s17_has "$s17_b" '### Ongoing areas' 'outside the counts line' 'a dormant area is never either')"
-empty "17 areas: new offers an area, adopt converts one, board lists them apart and flags the due ones" "$s17_bad"
+check "17 areas: the ongoing plugin has a plugin.json with a version" jq -e '.name == "ongoing" and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' "$KIT/plugins/ongoing/.claude-plugin/plugin.json"
+s17_bad="$(s17_has "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**' '5. **Check-in cadence**' \
+    '**How it is versioned, and whether anything in it is sensitive**' '**People and roles.**' '**accountable**' \
+    '**Recurring.**' '**Projects.**' '**Precedents.**' '- not yet named' 'Areas do not count against the in-flight limit' \
+    'ongoing/INDEX.md' '/projects:new')"
+s17_bad+="$(s17_before "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**')"
+s17_bad+="$(s17_has "$s17_o/review.md" 'Met, slipped or not known' '/projects:new' '`Check-in:` gets `last <today>`')"
+s17_bad+="$(s17_has "$s17_o/adopt.md" 'proposed by /ongoing:adopt' '## The move and the registers' 'live files')"
+s17_bad+="$(s17_has "$s17_o/pause.md" '`State: dormant`' 'look again on YYYY-MM-DD' 'Dormant')"
+s17_bad+="$(s17_has "$s17_o/drop.md" '`State: archived`' 'Open child projects' 'Archived section' '/ongoing:pause')"
+for s17_f in new review adopt pause drop; do
+    s17_bad+="$(s17_has "$s17_o/$s17_f.md" "\`/ongoing:$s17_f\` works inside a kit workspace" '.claude/projects.md' 'the commit to them')"
+    [[ "$s17_f" == new || "$s17_f" == adopt ]] || s17_bad+="$(s17_has "$s17_o/$s17_f.md" '## Which area')"
+done
+empty "17 areas: the five ongoing commands — new asks desired state, standards, cadence, versioning and people; review, adopt, pause and drop do their part" "$s17_bad"
 
-s17_bad="$(s17_has "$KIT/plugins/projects/README.md" '## Ongoing areas' 'templates/area-readme.md' \
-    'active · dormant · retired')"
+# People: the writers name the five roles in the new words only; the older words appear only where a
+# reader is told they still read the same.
+s17_bad=""
+for s17_f in "$KIT/templates/project-readme.md" "$KIT/templates/area-readme.md" "$KIT/templates/team-roster.md" \
+    "$KIT/plugins/projects/commands/new.md" "$KIT/plugins/ongoing/commands/new.md" "$KIT/plugins/projects/commands/adopt.md" \
+    "$KIT/plugins/projects/commands/close.md" "$KIT/plugins/projects/commands/pickup.md" "$KIT/plugins/closeout/commands/closeout.md"; do
+    s17_hit="$(grep -nE '\*\*(owns|does|helps|ask first|keep told)\*\*|— (owns|does|helps|ask first|keep told)\b|<(owns|ask-first)' "$s17_f" | grep -v 'older' || true)"
+    [[ -n "$s17_hit" ]] && s17_bad+="${s17_f#"$KIT"/}: $s17_hit"$'\n'
+done
+s17_bad+="$(s17_has "$KIT/templates/project-readme.md" '**accountable**' '**responsible**' '**supporting**' '**consulted**' '**informed**' 'still read the same' '<accountable>')"
+empty "17 people: the templates and commands write the new role words, and say the older words still read" "$s17_bad"
+
+s17_bad="$(s17_has "$s17_n" '/ongoing:new' 'serves an ongoing area')"
+grep -qF '## When it is an ongoing area' "$s17_n" && s17_bad+="new.md: still runs the area interview itself"$'\n'
+grep -qF 'it belongs in general reference instead' "$s17_n" && s17_bad+="new.md: still sends an area to general reference"$'\n'
+s17_bad+="$(s17_has "$s17_a" '/ongoing:adopt <folder>')"
+s17_bad+="$(s17_has "$s17_b" '### Ongoing areas' 'outside the counts line' 'a dormant area is never either' 'archived areas are left off' '/ongoing:review')"
+empty "17 areas: projects new and adopt hand over to /ongoing, and the board lists areas apart and flags the due ones" "$s17_bad"
+
+s17_bad="$(s17_has "$KIT/plugins/ongoing/README.md" '/ongoing:new' '/ongoing:review' '/ongoing:adopt' '/ongoing:pause' '/ongoing:drop' \
+    'active · dormant · archived' '**Desired state**')"
+s17_bad+="$(s17_has "$KIT/plugins/projects/README.md" '## Ongoing areas' 'plugins/ongoing/README.md')"
 s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" '## Ongoing areas' \
-    'kit/templates/area-readme.md' '**Area register:**')"
-s17_bad+="$(s17_has "$KIT/templates/workspace/workspace-map.md" 'ongoing/INDEX.md')"
-empty "17 areas: the plugin README, the example conventions and the workspace map describe areas" "$s17_bad"
+    'kit/templates/area-readme.md' '**Area register:**' '`archived`')"
+s17_bad+="$(s17_has "$KIT/templates/workspace/workspace-map.md" 'ongoing/INDEX.md' 'Active / Dormant / Archived')"
+empty "17 areas: the ongoing README, the projects README, the example conventions and the workspace map describe areas" "$s17_bad"
+
+# ---- One slug rule for projects and areas, and pickup's two read-only flags ---------------------------
+s17_sl="$KIT/plugins/projects/scripts/slug.sh"
+s17_bad=""
+for s17_pair in 'Spring Workshop|spring-workshop' 'Rose garden (2027)|rose-garden-2027' "Sam's  booking-form v2.1|sams-booking-form-v2-1" \
+    '  --Bonsai__Trees--  |bonsai-trees' 'Café Crème|cafe-creme'; do
+    s17_got="$(bash "$s17_sl" "${s17_pair%%|*}" 2>&1)"
+    [[ "$s17_got" == "${s17_pair#*|}" ]] || s17_bad+="slug.sh '${s17_pair%%|*}' gave '$s17_got', not '${s17_pair#*|}'"$'\n'
+done
+# The accented letters come out the same in the C locale, where iconv on a CI runner wrote "?" for each.
+for s17_pair in 'Café Crème|cafe-creme' 'Ærøskøbing Straße|aeroskobing-strasse' 'Über Niño|uber-nino'; do
+    s17_got="$(LC_ALL=C LANG=C bash "$s17_sl" "${s17_pair%%|*}" 2>&1)"
+    [[ "$s17_got" == "${s17_pair#*|}" ]] || s17_bad+="in the C locale, slug.sh '${s17_pair%%|*}' gave '$s17_got', not '${s17_pair#*|}'"$'\n'
+done
+s17_got="$(bash "$s17_sl" '!!!' 2>&1)"; s17_rc=$?
+[[ $s17_rc -eq 1 && -z "$s17_got" ]] || s17_bad+="slug.sh '!!!' gave '$s17_got' (exit $s17_rc), not nothing and exit 1"$'\n'
+bash "$s17_sl" >/dev/null 2>&1; [[ $? -eq 2 ]] || s17_bad+="slug.sh with no name does not exit 2"$'\n'
+[[ -x "$s17_sl" ]] || s17_bad+="slug.sh is not executable"$'\n'
+s17_bad+="$(s17_has "$s17_n" 'bash kit/plugins/projects/scripts/slug.sh "<name>"' 'the same rule `/ongoing:new` uses')"
+s17_bad+="$(s17_has "$s17_o/new.md" 'bash kit/plugins/projects/scripts/slug.sh "<name>"' 'the same rule `/projects:new` uses')"
+empty "17 one slug rule: slug.sh lowercases, hyphenates and strips, and /projects:new and /ongoing:new both use it" "$s17_bad"
+
+s17_bad="$(s17_has "$s17_p" 'a path or link in the README that does not resolve' 'a claim in it that the files plainly contradict' \
+    'asking the agent to correct the README')"
+empty "17 pickup: a broken reference and a contradicted claim are flagged, and their fix goes through the agent" "$s17_bad"
+
+# ---- /projects:overnight: the pre-flight, the bounds block, keeping it running, the morning, safety ----
+s17_ov="$s17_cmd/overnight.md"
+s17_bad="$(s17_has "$s17_ov" '**What do you want to wake up to?**' '**What would make it excellent?**' \
+    '*API:* none, or a cap.' 'one token' '*Subscription:* a cap' '**What may leave the machine.**' \
+    '**What may be committed, pushed, published or sent.**' 'push, publish and send nothing' '**Deletion.** Default: none.' \
+    'It stays on and awake.' 'A stop time' '**Permissions, tried now.**' '`git commit --dry-run`' '`git push --dry-run`' \
+    'a patch per step and one script the person runs in the morning' '**Wake time, and how they want the results:**' \
+    '**A manager–engineer pairing**' '**One agent**' '`/projects:pair`' '## Bounds for tonight' \
+    'take the reversible reading, note it under Assumptions, and carry on' 'These wait for the morning:' \
+    '**Check-ins re-armed through the night.**' '**A wake-up on every long job.**' '**Headless children start clean.**' \
+    '**The suite runs on the machine it is meant for.**' '**The private-word check before anything leaves.**' '**A usage warning is a stop.**' \
+    '**What was done**' '**The decisions**' '**The one script to run**' '**The files worth reading**' \
+    '**Nothing leaves the agreed lane.**' '**A stop is a successful outcome**')"
+s17_bad+="$(s17_has "$KIT/docs/getting-started.md" '**Overnight runs.**' '`/projects:overnight`')"
+s17_bad+="$(s17_has "$KIT/docs/principles.md" '**3. Decide before you leave what you would be woken for.**' 'plugins/projects/commands/overnight.md')"
+empty "17 /projects:overnight carries the two outcome questions, each call asked in advance, the shape, the bounds block, the night's mechanisms, the morning summary and the safety lines" "$s17_bad"

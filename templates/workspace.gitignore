@@ -30,8 +30,10 @@ _delete/
 
 # Operating-system and tool clutter
 .DS_Store
-# A macOS folder icon is a file named Icon and a carriage return; git drops one from the line's end.
-Icon
+# A macOS folder icon is a file named Icon and a carriage return. The pattern matches Icon and one
+# character outside printable ASCII: it leaves Icon and Icons alone, and has no invisible character an
+# editor could strip.
+Icon[! -~]
 
 __pycache__/
 *.pyc

@@ -231,7 +231,7 @@ added the kit's marketplace by hand in 2.x, from the old path, also has a user-l
 name that still points there, and `/plugin` shows that path. Re-point the user entry alone, after the
 migration's commit. `claude plugin marketplace remove` without `--scope` removes the marketplace from
 every scope, the workspace's settings included: it takes out `extraKnownMarketplaces.agentic-workspace`
-and the three `…@agentic-workspace` entries in `enabledPlugins`, and uninstalls the plugins. With
+and the kit's `…@agentic-workspace` entries in `enabledPlugins`, and uninstalls the plugins. With
 Claude Code closed, run these one at a time from the workspace:
 
 ```

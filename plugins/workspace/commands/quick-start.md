@@ -52,7 +52,7 @@ names what it reads, so the same keys come from reading those files yourself.
 | `person`, `person_profile`, `person_profile_candidates` | The person in front of you, from `git config user.name`, to confirm rather than assume; whether their profile is in `people_dir`; and profiles that may be theirs under another name |
 | `authors`, `author_names`, `readme`, `codeowners` | What the repository already says about the team: offer it as suggested answers, so people confirm rather than compose. One author is the cue for a Default owner line |
 | `conventions_not_set`, `in_flight_limit`, `staleness`, `default_owner` | The settings in `.claude/projects.md`. Each one still reading "not set yet" is a question for the team part |
-| `register_rows`, `glossary_terms`, `build_list`, `verification`, `catalogue` | What an earlier run already answered: offer only the questions still open |
+| `register_rows`, `glossary_terms`, `terms_rows`, `build_list`, `verification`, `catalogue` | What an earlier run already answered: offer only the questions still open |
 | `signs` | What says a system was here first, by key. The files the kit created, as created or as filled in, are never signs |
 | `legacy` | Traces of a 2.x install. They are the migration's, not this interview's: `kit/setup.sh migrate --dry-run` shows what moves, and the person runs it |
 | `kit_import`, `hooks`, `origin_visibility` | Whether the workspace is wired: the kit's standards imported, the git hooks active, the origin confirmed private. Anything else is `kit/setup.sh`'s to set: name the command, and leave running it to the person |
@@ -109,8 +109,10 @@ file with a one-line pointer.
 The rest of the team part lives in its own files rather than in `CLAUDE.md`, so
 none of it costs the always-loaded budget.
 
-7. *Optional* — **Five glossary terms** a newcomer or an agent would stumble on,
-   into `memory/glossary.md`.
+7. *Optional* — **Five terms** a newcomer or an agent would stumble on (the
+   team's acronyms, internal names, words used in a sense of its own), into
+   `memory/terms.md`, or into `memory/glossary.md` where `terms=missing` and the
+   glossary still holds the team's terms from before the kit split the two.
 8. *Optional* — **How projects run here**, into `.claude/projects.md`: the
    default **in-flight limit** (how many projects one person has in the `doing`
    state at once — 200, if the team has no view yet) and the **staleness**
@@ -299,7 +301,23 @@ order, and take a "not now" as an answer.
    plainly: a month with no closeout artefacts and no Current state updates
    means the system is a plan, not a practice. The baseline is team-level: when
    joining with `metrics_csv=present`, skip it.
-4. **First real use.** End on the first thing to do in one real project, with
+4. **The weekly and monthly passes.** Offer to put the two checks on a
+   schedule, report only: the hygiene pass weekly and the register audit
+   monthly, each writing its dated report to `audits/` and changing nothing
+   else, so the person works through it in a session when it suits. Each is
+   its own yes, and nothing is scheduled without one. In Claude Code, with the
+   scheduler plugin loaded, the kit ships both as task files:
+   `kit/plugins/workspace/scheduled/hygiene-weekly.md` and
+   `register-audit-monthly.md`. Copy one to the scratch folder, set its `cwd:`
+   to this workspace's root (and the schedule, if they want another day or
+   time), show what `bash kit/plugins/scheduler/scripts/schedule.sh create
+   --file <copy> --dry-run` prints, and run it without `--dry-run` on a yes;
+   `/scheduler:tasks` does the same in words. In Cowork, give the person
+   the scheduled task to make there, with its cadence and a prompt such as
+   "Run the kit-workspace-hygiene skill in this folder, report only, and write
+   its report to audits/". Where neither is available, say that the passes are
+   run by hand, and when.
+5. **First real use.** End on the first thing to do in one real project, with
    who does it, and suggest ending today's session with `/closeout`.
 
 ## Close

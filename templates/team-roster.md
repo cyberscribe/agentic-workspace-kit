@@ -9,8 +9,9 @@ section overrides it for that project. It is optional: without it, the people di
 project READMEs still work.*
 
 - **Role** is the job, at the level that stays true for months.
-- **Default relationship** is one of the five project roles — owns, does, helps, ask first, keep
-  told — and may be scoped to a kind of change: `keep told: anything touching measurement`.
+- **Default relationship** is one of the five project roles — accountable, responsible, supporting,
+  consulted, informed — and may be scoped to a kind of change: `informed: anything touching
+  measurement`. The older words (owns, does, helps, ask first, keep told) still read the same.
 - **Channel** is how they like to hear: Slack, Teams, email, a team meeting or in person.
 - **Handle** is a name or a channel, such as `@priya` or `#measurement`. Email addresses and phone
   numbers stay in the person's profile or an address book, outside the repository; the closeout
@@ -20,4 +21,4 @@ project READMEs still work.*
 
 | Name | Role | Default relationship | Channel | Handle |
 |---|---|---|---|---|
-| <full name> | <what they do> | <owns · does · helps · ask first · keep told, optionally scoped> | <Slack · Teams · email · team meeting · in person> | <@handle or #channel> |
+| <full name> | <what they do> | <accountable · responsible · supporting · consulted · informed, optionally scoped> | <Slack · Teams · email · team meeting · in person> | <@handle or #channel> |

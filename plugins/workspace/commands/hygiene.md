@@ -134,7 +134,13 @@ apart.
   them as waiting, and they do not stop a week from being clean.
 - **Promotion candidates.** Entries in project `decisions.md` files carrying a
   *Generalises as* field whose title does not appear in the cross-project
-  decisions log.
+  decisions log. Then the entries without that field, read against the
+  decisions log's filter (`kit/CLAUDE.kit.md`, Decisions log): strip every
+  reference to the project, technology, file path and stakeholder, and list an
+  entry when what is left still says something another project could use. Give
+  the stripped sentence beside the entry, as the general form a promotion would
+  carry, and mark these as suggested rather than flagged by their author. An
+  entry that means nothing once stripped stays where it is, unlisted.
 - **Staleness.** Guidance files (the kinds `kit/docs/documentation-register.md` says
   prime a session) whose own "Last updated" line is more than 120 days old.
   Give the stated date and the file's last commit side by side: a commit well
@@ -182,13 +188,13 @@ apart.
   printed row in the report, and say which file it changed. If it exits with an
   error, the report gives the error as this check's result and names any file
   it left behind. If there is no such script, leave this line out.
-- **Ablations.** If the repository keeps ablations in `pilot/ablations/`, find
+- **Leave-out tests.** If the repository keeps leave-out tests in `pilot/ablations/`, find
   the runner: `kit/pilot/ablate.sh`, whose default target is the workspace
   around the kit; else `pilot/ablate.sh` beside the metrics script, or in the
   kit checkout that `.claude/plugins/VENDORED` names or that
   `.claude/settings.json` registers as a directory marketplace; without one,
   this check is `not run`, with the reason. After the metrics run, offer the run in one line before
-  anything starts: how many ablations, how many runs (two arms, times each
+  anything starts: how many leave-out tests, how many runs (two arms, times each
   file's `runs:`, three if it gives none), and what they cost — the latest
   run's cost from `pilot/ablation-results.csv` as the estimate, labelled
   API-equivalent cost, and each file's `max_budget_usd` as the cap per run. The
@@ -197,12 +203,12 @@ apart.
   `bash <runner> --target <repository>`, then the metrics script again, so
   today's row counts the new results. Either way, `bash <runner> --target
   <repository> --report` prints the latest flags without running anything:
-  put each ablation's flag in the report with its n and date, and list every
+  put each leave-out test's flag in the report with its n and date, and list every
   `demotion candidate` and every `check needs revision` line under pending work,
   with `regressed`, `stale` and `without preferred` (the line may hurt) beside them.
 
 Read-only throughout Stage 1: the report, the metrics file and, when the person
-says yes to the ablation run, the results and report it writes are the only
+says yes to the leave-out test run, the results and report it writes are the only
 things it writes.
 
 ## The report
@@ -257,7 +263,7 @@ How that goes in a conversation:
 - A demotion candidate comes back as a proposal: the line, its last three
   weeks of flags, and the cheaper tier it could move to. The edit is theirs to
   approve, one line at a time, since it changes what loads every session. A
-  check that needs revision is the ablation's to fix, not the line's: propose
+  check that needs revision is the leave-out test's to fix, not the line's: propose
   the reworked check and leave the line where it is.
 - Record what was decided under `## Judgement pass` in the same report.
 

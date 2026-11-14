@@ -34,7 +34,8 @@ projects_root() {
 #       **Owner:** or **Default owner:** — one owner for every project with no
 #       People section), NOT_ADOPTED (the backticked **Not adopted:** list, as
 #       written: folders or slugs joined by commas), ALIAS_OUTCOME, ALIAS_DONE,
-#       ALIAS_PEOPLE
+#       ALIAS_PEOPLE, AREAS_PATTERN (the **Areas** location, where ongoing areas
+#       live; default ongoing/<slug>)
 # PAUSED_PATTERN is set whenever the conventions name one, even when it equals
 # ACTIVE_PATTERN (3.0 keeps paused projects in place). PROJECT_PATTERNS is the
 # active, paused and done patterns with empty and repeated ones removed, one per
@@ -61,6 +62,7 @@ projects_config() {
     ALIAS_OUTCOME=""
     ALIAS_DONE=""
     ALIAS_PEOPLE=""
+    AREAS_PATTERN="ongoing/<slug>"
     PROJECT_PATTERNS="$ACTIVE_PATTERN"
     [[ -f "$CONVENTIONS_FILE" ]] || return 0
 
@@ -75,6 +77,7 @@ projects_config() {
             done)        [[ -n "$value" ]] && DONE_PATTERN="$(projects_pattern "$value")" ;;
             entry\ point) [[ -n "$value" ]] && ENTRY_POINT="$value" ;;
             register)    [[ -n "$value" ]] && REGISTER_FILE="${value#./}" ;;
+            areas)       [[ -n "$value" ]] && AREAS_PATTERN="$(projects_pattern "$value")" ;;
             owner|default\ owner) [[ -n "$value" ]] && DEFAULT_OWNER="$value" ;;
             not\ adopted) NOT_ADOPTED="$value" ;;
             alias_outcome) ALIAS_OUTCOME="${ALIAS_OUTCOME:+$ALIAS_OUTCOME|}$value" ;;

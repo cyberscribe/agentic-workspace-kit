@@ -103,7 +103,7 @@ thing a newcomer can learn.
 **Uncommitted:** <n files changed, or nothing>
 **Open questions:**
 - <each, as written>
-**Who to ask:** owns — <name> (<profile>); ask first — <names>
+**Who to ask:** accountable — <name> (<profile>); consulted — <names>
 **Kept:** <Versioned: value> · <Sensitivity: value>; resources: <names, and any not reachable here>
 **Read first:** <the first one or two items of Read before acting, if it exists>
 **Worth knowing:** <the gaps and staleness below, one line each>
@@ -130,7 +130,9 @@ thing a newcomer can learn.
   block has fallen behind; a profile path in People that does not exist; a
   `Versioned:` line that disagrees with the folder; a resource not mapped or
   not reachable on this machine (`kit/setup.sh link <slug>`); a look-again
-  date that has passed.
+  date that has passed; a path or link in the README that does not resolve; a
+  claim in it that the files plainly contradict (a file it says exists that
+  does not, a Done when box ticked for work that is not there).
   If there is nothing to say, the line reads `nothing — the README is current`.
 
 Dates are absolute; day counts are from today. Quote the README's own words for
@@ -142,8 +144,10 @@ agreed, not your paraphrase of it.
 One line, only if the brief found something to fix, and what would fix it —
 `/projects:adopt` for missing sections or an older Now block to convert; the
 person's own edit to the README for a stale Current state block or a proposal
-to confirm (confirming one deletes its marker) — for the person to do when they
-choose.
+to confirm (confirming one deletes its marker); for a broken reference or a
+claim the files contradict, asking the agent to correct the README, which
+`/closeout` does as part of bringing the page up to date — for the person to do
+when they choose.
 
 **Resuming a paused project.** When the Current state block reads
 `State: paused`, offer to resume it — one question, after the brief. On a yes,
@@ -152,7 +156,7 @@ show the edits and write them:
 - `State: ready` — or `doing` if the person means to work on it from today,
   after counting what the owner already has in flight, as `/projects:new` does:
   the active projects whose Current state block reads `State: doing` and whose
-  People section names them as **owns** or **does**, against the limit in their
+  People section names them as **accountable** or **responsible**, against the limit in their
   profile, else the conventions' default, else 200. Over the limit is said
   plainly, with the names, and is advice, not a block.
 - The look-again `Check-in:` line (`look again on YYYY-MM-DD`) removed. If

@@ -22,8 +22,8 @@ copies drift.
 - **A change to the always-loaded tier is a proposal.** Write it on a branch and open a pull request
   that makes its case against the bound; the standards owner reviews it. Every other tier is additive and can land
   in the normal way.
-- **A promotion to the always-loaded tier or general reference is offered an ablation.** The question
-  is what task would go worse without the line; where there is one, a proposed ablation file in
+- **A promotion to the always-loaded tier or general reference is offered a leave-out test.** The question
+  is what task would go worse without the line; where there is one, a proposed leave-out test file in
   `pilot/ablations/` goes in the same pull request. It is offered, not required. Where nobody can name
   a task, that is evidence about the tier.
 - **Shared beats individual.** If a teammate or another surface would need it, it goes in a committed
@@ -56,7 +56,7 @@ their work is affected. A roster row looks like this:
 
 | Name | Role | Default relationship | Channel | Handle |
 |---|---|---|---|---|
-| Priya Shah | Measurement lead | keep told: anything touching measurement | Slack | @priya |
+| Priya Shah | Measurement lead | informed: anything touching measurement | Slack | @priya |
 
 The roster holds handles only, never an email address or a phone number. Each row of the table offers
 a `draft` (a short message in the closer's own voice), a `note` (a line for the next team meeting or

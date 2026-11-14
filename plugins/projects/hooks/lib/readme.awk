@@ -266,7 +266,8 @@ section == "people" && owner == "" && /^[ \t]*[-*][ \t]+/ {
     line = $0
     sub(/^[ \t]*[-*][ \t]+/, "", line)
     low = tolower(line)
-    if (low ~ /(^|[^a-z])owns([^a-z]|$)/) {
+    # The owner is the person marked accountable, or owns (the older word, still read).
+    if (low ~ /(^|[^a-z])(accountable|owns)([^a-z]|$)/) {
         # The name is what comes before the first dash separator.
         n = index(line, " — "); if (n == 0) n = index(line, " – "); if (n == 0) n = index(line, " - ")
         if (n > 0) line = substr(line, 1, n - 1)

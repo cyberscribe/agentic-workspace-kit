@@ -20,18 +20,39 @@ ritual with a defined shape rather than a good intention.
 
 ## What counts as a learning
 
-**A learning is worth recording if a future session would otherwise re-derive it.**
+**Memory is for the session that comes next.** It starts without this conversation, and what it finds
+in the files is what it acts on. One test comes first: **is it otherwise discoverable?** Could that
+session find it by itself, in the code, the files, the docs, `git log` or a tool's own help? If so, it is
+not promoted: say where it is already found, and move on. The work itself is already saved; a note is
+for what none of those show.
 
-Working code and finished deliverables are not learnings — they are the work, and they are already
-saved. The *constraint that shaped them* is the learning. So are: a decision and the option it beat, a
-behaviour of a tool that is not in its documentation, a correction to something previously believed, a
-boundary that turned out to matter.
+A second question goes with it: **where would the obvious next move go wrong?** The command anyone would
+try first, the file anyone would edit, the assumption anyone would make: where the session walked into a
+trap on that path, or the person steered it round one, record the trap as the likely move, what goes
+wrong and what to do instead, with the moment it went wrong as its evidence. Its plain sentence reads as
+a warning a colleague would give. It usually goes to project or general reference, beside what it is
+about.
+
+**Where learnings come from, in this order.** The order says where to look first, not what kinds to
+record.
+
+1. **The person's interventions:** what they redirected, corrected, refused or explained in the session.
+   Each shows context the session lacked, and comes first.
+2. **The agent's own mistakes, read as missing context.** Where would more context have helped? If it
+   arrived later in the session, record that context; if it never arrived, propose asking the person.
+3. **Only then a general lesson,** sparingly, the specific and practical over the general.
+
+**Plain words first.** The person reads each candidate as one everyday sentence before anything else.
+A term that is not plain goes through the glossary: its plain words are used, or a row is proposed. A
+decision goes to the `decisions.md` it belongs to, a term of the work to `terms.md`, a translation of
+AI-speak to the glossary; everything else follows the tiers.
 
 ## The pass
 
 ### 1. Review
 
-What was learned, decided, corrected or discovered this session?
+What did the person correct or explain, where did the agent go wrong for want of context, and only then
+what else was learned? Set aside anything a later session would find by itself, noting where.
 
 ### 2. Classify before writing
 
@@ -71,7 +92,32 @@ demotion is not.
 
 ### 3. Verify before recording
 
-Check each technical claim against the current state of the code or file. A behaviour that changed
+Two checks, in this order: against what this session said and did, then against the files as they are
+now.
+
+**Against the session's record.** A line promoted from a misremembered session carries the mistake into
+every later session that reads it. For each candidate, find the turn that supports it, then read on to
+the end for the same subject: a later turn can reverse an earlier one — a fix reverted, a belief
+corrected after a test — and the latest word holds. Each gets one result:
+
+- **supported** — the record shows it and nothing later reverses it; it may be promoted as fact;
+- **contradicted** — promoted as what the record now shows, or dropped, and the report says which;
+- **unsupported** — never promoted as fact; recorded as unverified, with what is missing, or left out;
+- **already written** — a later session would find it by itself; not promoted, and the report says where;
+- **observed** — seen and not explained; never promoted as fact, and brought to the person so the cause
+  can be found.
+
+Each candidate carries its evidence: where in the record it rests, and a short span quoted exactly, so
+the person approving it sees the support at a glance. The record is the session's transcript where the
+surface keeps one readable (the Claude Code plugin checks the cited lines with a script, which proves
+the lines exist and say what is quoted, not that they support the claim). Where it does not, the check
+runs against the conversation in context, and the report says so. The always-loaded tier gets the
+strictest check: a line goes there only when it is supported by at least one turn that is the person's
+own words or a tool's output rather than the agent's, with those quotes shown in the proposal. It comes
+from a correction or a gap in context, with the incident behind it; a generic lesson is not promoted
+there. A correction cites the person's own words.
+
+**Against the files.** Check each technical claim against the current state of the code or file. A behaviour that changed
 during this session is not a finding, and a claim recorded from memory of what happened two hours ago
 is how a wrong fact gets a permanent home.
 
@@ -93,9 +139,9 @@ Nothing is deleted. Superseded material is marked superseded, keeps its name and
 a pointer to what replaced it.
 
 When something is promoted, or proposed for promotion, to the always-loaded tier or general reference,
-offer an ablation: ask what task would go worse without the line. It is offered, not required. Where
-the team runs ablations (`pilot/ablations/`), the answer becomes a proposed ablation file — that task as
-the prompt, a check, and the lines exactly as they will read (the format is in the pilot README, or copy
+offer a leave-out test: ask what task would go worse without the line. It is offered, not required.
+Where the team runs leave-out tests (`pilot/ablations/`), the answer becomes a proposed test file — that
+task as the prompt, a check, and the lines exactly as they will read (the format is in the pilot README, or copy
 a file already in `pilot/ablations/`) — committed with the promotion once it is agreed. Where nobody
 can name a task, say so: that is evidence about the tier, and the cheaper tier is usually the answer.
 
@@ -131,21 +177,22 @@ channel and handle cells, is left out, and the report says whose.*
 
 A project's People section wins over the roster: the role it gives a person stands. The roster adds
 anyone the project does not name whose default relationship matches what changed — a scoped one,
-such as `keep told: anything touching measurement`, only for a change of that kind.
+such as `informed: anything touching measurement`, only for a change of that kind.
 
 Where the project README's People section gives roles, the roles do most of the choosing: whoever
-**owns** the outcome and whoever is to be **kept told** hear about progress on it — a criterion
-ticked, the finish line reached or moved, ownership changing, the project now blocked; whoever is to be **asked
-first** hears about decisions not yet taken — a proposal left open, a criterion someone wants to
-change or waive — before the decision rather than after it; and whoever **does** or **helps** hears
-where their own work is affected.
+is **accountable** for the outcome and whoever is **informed** hear about progress on it — a criterion
+ticked, the finish line reached or moved, ownership changing, the project now blocked; whoever is
+**consulted** hears about decisions not yet taken — a proposal left open, a criterion someone wants to
+change or waive — before the decision rather than after it; and whoever is **responsible** or
+**supporting** hears where their own work is affected. The older role words (owns, does, helps, ask
+first, keep told) mean the same.
 
 Promotion decides where a learning is kept. This step decides who should hear about it now — because a
 file that changed without anyone knowing reaches nobody until they happen to open it. It is the other
 half of the visibility rule.
 
-For each item promoted or proposed, ask whether a specific person's work is affected: they own the
-area it touches, a decision changes what they are doing, it blocks or unblocks them, or their profile
+For each item promoted or proposed, ask whether a specific person's work is affected: they are
+accountable for the area it touches, a decision changes what they are doing, it blocks or unblocks them, or their profile
 says they are the one to go to for it. The output is a short table. **How** is the person's channel,
 from the roster or the project; **Offer** is `draft` (a short message in the closer's voice, for that
 channel), `note` (a line to raise at the next team meeting or one-to-one) or `none` (recorded only),
@@ -153,7 +200,7 @@ picked per row:
 
 | Who | What they need to know | Why them | How | Offer | Where it is recorded |
 |---|---|---|---|---|---|
-| <name> | <one line> | <owns / keep told / ask first / blocked by / go-to for> | <channel> | draft · note · none | `<path it was promoted to>` |
+| <name> | <one line, in the item's plain words> | <accountable / informed / consulted / blocked by / go-to for> | <channel> | draft · note · none | `<path it was promoted to>` |
 
 - **Name someone only with a reason.** "Nobody in particular" is a common and correct answer; say it
   in one line.
@@ -173,7 +220,8 @@ picked per row:
 
 - What was promoted, and at which tier.
 - What is proposed and still needs a decision.
-- Any ablation offered: drafted, declined, or the tier reconsidered.
+- What each candidate was checked against, and which were corrected, dropped or left unverified.
+- Any leave-out test offered: drafted, declined, or the tier reconsidered.
 - Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new state and
   any blocker.
 - Who needs to know what, if step 6 applied.

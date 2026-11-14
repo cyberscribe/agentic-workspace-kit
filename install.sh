@@ -204,7 +204,7 @@ generate_commands() { # <format> <plugins dir> <repository root, resolved>
                 dest="$root/.gemini/commands/${ns:+$ns/}$cmd.toml" lab=".gemini/commands/${ns:+$ns/}$cmd.toml"
                 # A TOML literal string cannot hold three single quotes, and Gemini CLI would run !{...}
                 # and expand @{...} rather than pass them through as text.
-                if fm_body "$src" | grep -qE "'''|[!@][{]"; then
+                if grep -qE "'''|[!@][{]" <<<"$(fm_body "$src")"; then
                     die "$src contains ''', !{ or @{, which a Gemini CLI command cannot carry as written"
                 fi
                 {
@@ -359,7 +359,8 @@ owned_files() {
     printf '%s\n' \
         'projects/INDEX.md|templates/workspace/INDEX.md' \
         'logs/decisions.md|templates/workspace/decisions.md' \
-        'memory/glossary.md|templates/workspace/glossary.md' \
+        'memory/glossary.md|templates/glossary.md' \
+        'memory/terms.md|templates/terms.md' \
         'memory/people/README.md|templates/workspace/people-README.md' \
         'audits/README.md|templates/workspace/audits-README.md' \
         'docs/workspace-map.md|templates/workspace/workspace-map.md' \
@@ -375,8 +376,7 @@ GI_HEADER='# Added by the agentic workspace kit (kit/templates/workspace.gitigno
 # gi_missing <.gitignore or /dev/null> <declined list or /dev/null>: the template's lines (not blank,
 # not a # line) that the file does not have and the person has not declined, in template order. Lines
 # compare after one carriage return (a CRLF file's) and then trailing spaces are trimmed. A template
-# line is written with only its trailing spaces trimmed: the macOS Icon line ends in two carriage
-# returns, which are the pattern.
+# line is written with only its trailing spaces trimmed.
 gi_missing() {
     awk '
         { l = $0; sub(/\r$/, "", l); sub(/[ \t]+$/, "", l); o = $0; sub(/[ \t]+$/, "", o) }
@@ -483,7 +483,7 @@ fi
 if [[ $MODE == decline ]]; then
     DECLINE="$(printf '%s' "$DECLINE" | sed 's/[[:space:]]*$//')"
     [[ -n "$DECLINE" ]] || usage_error "--gitignore-decline needs a line"
-    if ! aw_ledger_declined "$LEDGER" | grep -qxF -- "$DECLINE"; then
+    if ! grep -qxF -- "$DECLINE" <<<"$(aw_ledger_declined "$LEDGER")"; then
         printf '!declined\t.gitignore\t%s\n' "$DECLINE" >> "$LEDGER" || die "cannot write $AW_LEDGER_REL"
     fi
     exit 0
@@ -680,7 +680,31 @@ process_file() {
     fi
 }
 
-while IFS='|' read -r dest src; do process_file "$dest" "$src"; done < <(owned_files)
+# The vocabulary split. memory/glossary.md once held the team's own terms (templates/workspace/glossary.md);
+# it now holds the plain words for AI-speak (templates/glossary.md), and the terms go in memory/terms.md.
+# A glossary from before the split, with no "Plain words" column and no terms file beside it, is this
+# workspace's terms file: neither file is written or offered over it, and a !vocabulary line in the
+# ledger says so. kit/setup.sh update offers the move to memory/terms.md. Once the person has made it
+# (no glossary, a terms file, and the old template's ledger line), that line goes, so the plain-words
+# glossary is created like any new file.
+vocab_legacy=0
+if [[ -f "$WS/memory/glossary.md" && ! -e "$WS/memory/terms.md" ]] && ! grep -q 'Plain words' "$WS/memory/glossary.md"; then
+    vocab_legacy=1
+    aw_ledger_put "$LW" '!vocabulary' "!vocabulary${AW_TAB}memory/glossary.md${AW_TAB}holds this workspace's terms; memory/terms.md not created" \
+        || die "cannot update the ledger copy"
+    r_notes+=("memory/glossary.md holds this workspace's terms, from before the kit kept terms in memory/terms.md and the plain words for AI-speak in memory/glossary.md; both are left as they are, and kit/setup.sh update offers the move")
+elif [[ ! -e "$WS/memory/glossary.md" && -e "$WS/memory/terms.md" ]] \
+     && awk -F '\t' '$1 == "!vocabulary" || ($1 == "memory/glossary.md" && $2 == "templates/workspace/glossary.md") { f = 1 } END { exit !f }' "$LW"; then
+    if ! awk -F '\t' '$1 != "!vocabulary" && !($1 == "memory/glossary.md" && $2 == "templates/workspace/glossary.md")' "$LW" > "$work/ledger.vocab" \
+        || ! cat "$work/ledger.vocab" > "$LW"; then
+        die "cannot update the ledger copy"
+    fi
+    [[ -e "$WS/memory/terms.md" ]] && r_notes+=("memory/terms.md holds the terms the glossary held; the plain-words glossary is memory/glossary.md")
+fi
+while IFS='|' read -r dest src; do
+    if [[ $vocab_legacy -eq 1 && ( "$dest" == memory/glossary.md || "$dest" == memory/terms.md ) ]]; then continue; fi
+    process_file "$dest" "$src"
+done < <(owned_files)
 for f in ${opaque_kept[@]+"${opaque_kept[@]}"}; do
     r_notes+=("$f is opaque here (AW_OPAQUE_PATHS): recorded as kept without being opened")
 done
@@ -827,7 +851,7 @@ if [[ $DRY -eq 0 ]]; then
         echo "     @kit/CLAUDE.kit.md; /workspace:quick-start maps your system onto the kit and changes nothing without your yes."
     fi
     i=$((i + 1))
-    echo "  $i. Each person, in Claude Code: trust the folder, then approve the closeout, projects and workspace plugins when asked."
+    echo "  $i. Each person, in Claude Code: trust the folder, then approve the closeout, ongoing, projects, scheduler and workspace plugins when asked."
     i=$((i + 1))
     if [[ "$AW_V_pilot" == 1 ]]; then
         echo "  $i. Put the team's own build list into pilot/build-list.md, commit, then run bash $REL/pilot/measure.sh."

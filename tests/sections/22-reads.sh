@@ -205,7 +205,7 @@ done
 s22_never="$(sed -n '/^## Reference files never read/,/^## The kit/p' "$s22_rep" 2>/dev/null | grep -c '^- ')"
 [[ "$s22_never" == 2 ]] || s22_bad+="never read lists $s22_never files, not 2"$'\n'
 for s22_f in docs/late.md projects/_done/two/README.md; do
-    sed -n '/^## Reference files never read/,/^## The kit/p' "$s22_rep" 2>/dev/null | grep -qxF -- "- \`$s22_f\`" || s22_bad+="$s22_f is not listed as never read"$'\n'
+    sed -n '/^## Reference files never read/,/^## The kit/p' "$s22_rep" 2>/dev/null | grep_all -xF -- "- \`$s22_f\`" || s22_bad+="$s22_f is not listed as never read"$'\n'
 done
 grep -qxF -- '- `kit/docs/guide.md` (1)' "$s22_rep" 2>/dev/null || s22_bad+="the kit's guide is not counted apart"$'\n'
 grep -qF 'kit/CLAUDE.kit.md' "$s22_rep" 2>/dev/null && s22_bad+="the always-loaded kit file is counted"$'\n'
@@ -299,11 +299,11 @@ s22_out="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$KIT/pilo
 s22_cols="agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from"
 s22_bad=""
 [[ $s22_rc -eq 0 ]] || s22_bad+="measure.sh --backfill exited $s22_rc: $s22_out"$'\n'
-[[ "$(head -n 1 "$s22_csv" | cut -d, -f21-)" == "$s22_cols" ]] || s22_bad+="the header's last columns are: $(head -n 1 "$s22_csv" | cut -d, -f21-)"$'\n'
-s22_got="$(tail -n +2 "$s22_csv" | cut -d, -f1,21- | paste -sd' ' -)"
+[[ "$(head -n 1 "$s22_csv" | cut -d, -f28-)" == "$s22_cols" ]] || s22_bad+="the header's last columns are: $(head -n 1 "$s22_csv" | cut -d, -f28-)"$'\n'
+s22_got="$(tail -n +2 "$s22_csv" | cut -d, -f1,28- | paste -sd' ' -)"
 s22_want="$(s22_d 14),,,,,,10,$s22_from $(s22_d 7),1,1,1,0,1,10,$s22_from $s22_today,3,2,17,5,9,11,$s22_from"
 [[ "$s22_got" == "$s22_want" ]] || s22_bad+="rows: want $s22_want"$'\n'"      got  $s22_got"$'\n'
-[[ "$(awk -F, '{ print NF }' "$s22_csv" | sort -u)" == 27 ]] || s22_bad+="not every row has 27 fields"$'\n'
+[[ "$(awk -F, '{ print NF }' "$s22_csv" | sort -u)" == 34 ]] || s22_bad+="not every row has 34 fields"$'\n'
 empty "22 measure.sh --backfill: the seven columns after the ablation columns, a row per week, a pruned week empty" "$s22_bad"
 
 # Counts only: no path or file name of the fixture, no session id, no folder of the machine.
@@ -313,16 +313,16 @@ for s22_f in $s22_ref docs/always.md kit/docs/guide.md src/code.md projects/one/
     grep -qF -- "${s22_f##*/}" "$s22_csv" && s22_bad+="the CSV names ${s22_f##*/}"$'\n'
 done
 grep -qE '[0-9a-f]{8}-[0-9a-f]{4}-|toolu_|/' "$s22_csv" && s22_bad+="the CSV carries an id or a path"$'\n'
-grep -vE '^(date,[a-z0-9_,]+|[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]*)*,([0-9]{4}-[0-9]{2}-[0-9]{2})?)$' "$s22_csv" | grep -q . && s22_bad+="a line of the CSV is not a header or dates and counts"$'\n'
+grep -vE '^(date,[a-z0-9_,]+|[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]*)*,([0-9]{4}-[0-9]{2}-[0-9]{2})?)$' "$s22_csv" | grep_all . && s22_bad+="a line of the CSV is not a header or dates and counts"$'\n'
 empty "22 metrics.csv holds dates and counts only: no file name, path or session id from the transcripts" "$s22_bad"
 
 # The daily row, a CSV with the older columns recomputed for its dates, and a copy of measure.sh with
 # no reads.sh to call.
 printf 'date,always_loaded_bytes\n%s,1\n' "$(s22_d 7)" > "$s22_dir/old.csv"
 s22_out="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$KIT/pilot/measure.sh" --target "$s22_w" --out "$s22_dir/old.csv" 2>&1)"
-s22_got="$(tail -n +2 "$s22_dir/old.csv" | cut -d, -f1,21- | paste -sd' ' -)"
+s22_got="$(tail -n +2 "$s22_dir/old.csv" | cut -d, -f1,28- | paste -sd' ' -)"
 mkdir -p "$s22_dir/lone" && cp "$KIT/pilot/measure.sh" "$s22_dir/lone/measure.sh"
-s22_lone="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$s22_dir/lone/measure.sh" --target "$s22_w" --print 2>/dev/null | tail -n 1 | cut -d, -f21-)"
+s22_lone="$(env -u READS_TRANSCRIPTS CLAUDE_CONFIG_DIR="$s22_cfg" bash "$s22_dir/lone/measure.sh" --target "$s22_w" --print 2>/dev/null | tail -n 1 | cut -d, -f28-)"
 [[ "$s22_got" == "$(s22_d 7),1,1,1,0,1,10,$s22_from $s22_today,3,2,17,5,9,11,$s22_from" && "$s22_lone" == ",,,,,," ]] \
     && ok "22 measure.sh: the daily row and a recomputed older CSV carry the columns; without reads.sh they are empty, not zero" \
     || ko "22 measure.sh: the daily row and a recomputed older CSV carry the columns; without reads.sh they are empty, not zero" "rows: $s22_got"$'\n'"lone: $s22_lone"$'\n'"$s22_out"
@@ -340,7 +340,7 @@ mkdir -p "$s22_dir/unreadable-system-config"
 s22_sys() { env -u GIT_CONFIG_NOSYSTEM -u GIT_ATTR_NOSYSTEM -u READS_TRANSCRIPTS GIT_CONFIG_SYSTEM="$s22_dir/unreadable-system-config" CLAUDE_CONFIG_DIR="$s22_cfg" "$@"; }
 s22_bad=""
 s22_sys git -C "$s22_w" rev-parse HEAD >/dev/null 2>&1 && s22_bad+="plain git still reads the repository, so this check proves nothing"$'\n'
-s22_got="$(s22_sys bash "$KIT/pilot/measure.sh" --target "$s22_w" --print 2>&1 | tail -n 1 | cut -d, -f1,2,21-)"
+s22_got="$(s22_sys bash "$KIT/pilot/measure.sh" --target "$s22_w" --print 2>&1 | tail -n 1 | cut -d, -f1,2,28-)"
 [[ "$s22_got" == "$s22_today,$(( $(wc -c < "$s22_w/CLAUDE.md") + $(wc -c < "$s22_w/kit/CLAUDE.kit.md") + $(wc -c < "$s22_w/docs/always.md") )),3,2,17,5,9,11,$s22_from" ]] \
     || s22_bad+="measure.sh --print: $s22_got"$'\n'
 s22_got="$(s22_sys bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"
@@ -391,13 +391,14 @@ empty "22 the pilot README has the Agent reads section, its limits (a floor; a s
 # --- Speed --------------------------------------------------------------------------------------------
 # 200 transcripts of 2,000 lines, read with the tools macOS ships (/usr/bin first on PATH, so its awk,
 # sed, find and jq where they exist). One line in four is a tool call, half of those worth parsing.
-s22_big="$s22_dir/big"
-python3 - "$s22_big" "$s22_w" <<'PYBIG'
+# gen.py writes <count> of them to a folder. The full set (about 230 MB) is for the timing alone, and the
+# interrupt checks below get twenty of their own, so neither depends on the other having been written.
+cat > "$s22_dir/gen.py" <<'PYBIG'
 import datetime, json, os, sys
-big, W = sys.argv[1:3]
+big, W, count = sys.argv[1], sys.argv[2], int(sys.argv[3])
 day = (datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=1)).isoformat()
 filler = "x" * 300
-for s in range(200):
+for s in range(count):
     sid = "%08d-3333-4333-8333-333333333333" % s
     d = os.path.join(big, "projects", "-ws"); os.makedirs(d, exist_ok=True)
     lines = []
@@ -414,21 +415,59 @@ for s in range(200):
             e = {"type": "assistant", "sessionId": sid, "isSidechain": False, "cwd": W, "timestamp": ts, "message": {"role": "assistant", "content": [t]}}
         lines.append(json.dumps(e))
     with open(os.path.join(d, sid + ".jsonl"), "w") as f: f.write("\n".join(lines) + "\n")
+if count < 200: sys.exit(0)
 # One more, quiet for twenty days, so the transcripts reach back past the window.
 old = (datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=20)).isoformat()
 with open(os.path.join(big, "projects", "-ws", "old.jsonl"), "w") as f:
     f.write(json.dumps({"type": "assistant", "sessionId": "old", "isSidechain": False, "cwd": "/nowhere", "timestamp": old + "T12:00:00.000Z", "message": {"content": []}}) + "\n")
 PYBIG
+# s22_room <KB>: success when the folder this section writes to has that much free. A small disk (a
+# Cowork VM's /sessions, where TMPDIR points, had 192 MB) cannot hold the timing fixture, and filling it
+# fails every check after it for a reason that is not theirs.
+s22_room() { [[ "$(df -Pk "$s22_dir" 2>/dev/null | awk 'NR == 2 { print $4 }')" -ge "$1" ]] 2>/dev/null; }
+s22_free() { df -Pk "$s22_dir" 2>/dev/null | awk 'NR == 2 { printf "%d MB", $4 / 1024 }'; }
+s22_big="$s22_dir/big"
+if ! s22_room 300000; then
+    skp "22 200 transcripts of 2,000 lines are read in under 10 seconds — $(s22_free) free in TMPDIR, under the 300 MB its 230 MB of transcripts need"
+else
+python3 "$s22_dir/gen.py" "$s22_big" "$s22_w" 200
+# The budget is 10 seconds times the load factor (aw_factor, in run.sh); past a factor of 3 it skips.
+# The load average misses much of what slows this read in a parallel run (other sections' disk and
+# memory traffic, on a machine with cores to spare), so the machine is also measured directly: twenty
+# transcripts read straight after, under the same conditions. A reader that scales with its input takes
+# about ten times as long for ten times the transcripts; one that has gone quadratic takes about a
+# hundred. Over the budget but within fifteen times the twenty, the slowness is the machine's, and the
+# line says so. The counts are checked whatever the load.
+s22_f="$(aw_factor)"
+s22_budget="$(awk -v f="$s22_f" 'BEGIN { printf "%d", 10 * f }')"
 s22_t0="$(python3 -c 'import time; print(time.time())')"
 s22_got="$(PATH="/usr/bin:/bin:$PATH" READS_TRANSCRIPTS="$s22_big/projects" bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"
 s22_secs="$(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$s22_t0")"
-[[ "$s22_got" == "$s22_today,200,200,50000,0,2,11,$s22_from" ]] && python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) < 10 else 1)' "$s22_secs" \
-    && ok "22 200 transcripts of 2,000 lines are read in under 10 seconds ($s22_secs s): 200 sessions, 50,000 reads of 2 files" \
-    || ko "22 200 transcripts of 2,000 lines are read in under 10 seconds ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s; got $s22_got"
+rm -rf "$s22_big"
+python3 "$s22_dir/gen.py" "$s22_dir/ref" "$s22_w" 20
+s22_t0="$(python3 -c 'import time; print(time.time())')"
+s22_rgot="$(PATH="/usr/bin:/bin:$PATH" READS_TRANSCRIPTS="$s22_dir/ref/projects" bash "$READS" --target "$s22_w" --rows "$s22_today" 2>&1)"
+s22_ref="$(python3 -c 'import sys,time; print("%.2f" % (time.time() - float(sys.argv[1])))' "$s22_t0")"
+rm -rf "$s22_dir/ref"
+s22_what="200 transcripts of 2,000 lines are read in under 10 seconds"
+[[ "$s22_f" == 1.0 ]] || s22_what+=", ${s22_budget} s at load factor $s22_f"
+if [[ "$s22_got" != "$s22_today,200,200,50000,0,2,11,$s22_from" ]]; then
+    ko "22 $s22_what ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s; got $s22_got"
+elif aw_over "$s22_f" 3; then
+    skp "22 $s22_what — counts right, but the machine is too busy to time it (load factor $s22_f, over 3; took $s22_secs s)"
+elif aw_over "$s22_budget" "$s22_secs"; then
+    ok "22 $s22_what ($s22_secs s; twenty took $s22_ref s): 200 sessions, 50,000 reads of 2 files"
+elif aw_over "$(awk -v r="$s22_ref" 'BEGIN { printf "%.2f", 15 * r }')" "$s22_secs"; then
+    ok "22 $s22_what ($s22_secs s): over that here, but within 15 times a read of twenty just now ($s22_ref s), so the time is the machine's"
+else
+    ko "22 $s22_what ($s22_secs s): 200 sessions, 50,000 reads of 2 files" "took $s22_secs s, over the budget and over 15 times a read of twenty just now ($s22_ref s); twenty: $s22_rgot"
+fi
+fi
+rm -rf "$s22_big"
 
 # --- The scratch folder -------------------------------------------------------------------------------
 # While it runs, reads.sh keeps the workspace's reference paths in a scratch folder: under TMPDIR, this
-# user's only, and gone however the run ends. The long run above is interrupted mid-read, as Ctrl-C
+# user's only, and gone however the run ends. A run over twenty transcripts is interrupted mid-read, as Ctrl-C
 # and a kill would do it (the signal goes to the script and the tools it started).
 s22_tmp="$s22_dir/tmp"
 mkdir -p "$s22_tmp/done" "$s22_tmp/fail" "$s22_tmp/int" "$s22_tmp/term" "$s22_dir/stub"
@@ -459,12 +498,19 @@ except subprocess.TimeoutExpired:
     rc = "still running; " + " | ".join(l.strip() for l in tree.splitlines())
 print("seen=%d open=%s left=%d rc=%s" % (seen, ",".join(open_modes) or "none", len(glob.glob(os.path.join(tmp, "*"))), rc))
 PYINT
-s22_got="int: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_big/projects" "$s22_tmp/int" "$s22_today" SIGINT)
-term: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_big/projects" "$s22_tmp/term" "$s22_today" SIGTERM)"
+# Twenty transcripts (about 23 MB) keep reads.sh busy for about a second, long enough to interrupt.
+s22_small="$s22_dir/small"
+if ! s22_room 60000; then
+    skp "22 interrupted mid-read (INT, TERM), reads.sh removes its scratch folder — $(s22_free) free in TMPDIR, under the 60 MB its 23 MB of transcripts need"
+else
+python3 "$s22_dir/gen.py" "$s22_small" "$s22_w" 20
+s22_got="int: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_small/projects" "$s22_tmp/int" "$s22_today" SIGINT)
+term: $(python3 "$s22_dir/interrupt.py" "$READS" "$s22_w" "$s22_small/projects" "$s22_tmp/term" "$s22_today" SIGTERM)"
 [[ "$s22_got" == "int: seen=1 open=none left=0 rc=130
 term: seen=1 open=none left=0 rc=143" ]] \
     && ok "22 interrupted mid-read (INT, TERM), reads.sh removes its scratch folder; while it ran, the folder and its files were this user's only" \
     || ko "22 interrupted mid-read (INT, TERM), reads.sh removes its scratch folder; while it ran, the folder and its files were this user's only" "$s22_got"
+fi
 
 # A run that finishes and a run that fails part-way (an awk that exits 7) leave nothing either.
 printf '#!/bin/sh\nexit 7\n' > "$s22_dir/stub/awk" && chmod +x "$s22_dir/stub/awk"

@@ -22,6 +22,8 @@ s23_mb="$s23_p/mailbox"
 mkdir -p "$s23_mb"
 # The hooks keep to kit workspaces (hooks/lib/boundary.sh): the fixture's root carries a ledger as the marker.
 mkdir -p "$SCRATCH/s23/.claude" && : > "$SCRATCH/s23/.claude/kit-templates.lock"
+# Every hook call in this section, direct or through a helper, sees the fixture as the workspace, so the
+# checks do not depend on where the kit is checked out. It is cleared again at the end of the section.
 export CLAUDE_PROJECT_DIR="$SCRATCH/s23"
 
 s23_reset() {
@@ -162,6 +164,8 @@ s23_other="$SCRATCH/s23/elsewhere"
 mkdir -p "$s23_other"
 # s23_bare <args...>: the hook with no launcher variables, the section's registry and no session id
 # unless the call sets one.
+# The fixture workspace is the hooks' folder by default, so a hook call that names no cwd does not depend on the
+# folder the suite runs from (a clone outside a workspace makes every hook exit silently).
 s23_bare() { env -u PAIR_ROLE -u PAIR_MAILBOX -u CLAUDE_CODE_SESSION_ID CLAUDE_PROJECT_DIR="$SCRATCH/s23" PAIR_REGISTRY="$s23_reg" "$@"; }
 # s23_hook_in <mode> <session id> <cwd> [VAR=value...]: a hook call as Claude Code makes it, with no
 # launcher variables; prints "<exit>|<stderr>".
@@ -294,6 +298,20 @@ kill "$s23_claude" 2>/dev/null
     && "$s23_out2" == *"Engineer: idle"*"isn't watching"* && "$s23_out3" != *"isn't watching"* && "$s23_out4" != *"isn't watching"* ]] \
     && ok "23 check: working on a fresh beat with its evidence; idle on a stale one, with the join line once; a fresh beat clears it" \
     || ko "23 check: working on a fresh beat with its evidence; idle on a stale one, with the join line once; a fresh beat clears it" "fresh: $s23_out"$'\n'"stale: $s23_out2"$'\n'"again: $s23_out3"$'\n'"fresh again: $s23_out4"
+# A transcript written in the last two minutes is the session at work even when its beat is stale, and the line says the
+# beat is the older evidence; once the transcript is old too, the session reads idle again.
+s23_home="$SCRATCH/s23-home"; mkdir -p "$s23_home/.claude/projects/-demo-slug"
+s23_claude_sleep
+printf 'sess-t\n' > "$s23_mb/.cc-session"; printf '%s\n' "$s23_claude" > "$s23_mb/.cc-pid"
+printf '%s\n' "$(( $(date +%s) - 900 ))" > "$s23_mb/.cc-beat"
+: > "$s23_home/.claude/projects/-demo-slug/sess-t.jsonl"
+s23_t1="$(HOME="$s23_home" s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+touch -t 202001010000 "$s23_home/.claude/projects/-demo-slug/sess-t.jsonl"
+s23_t2="$(HOME="$s23_home" s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+kill "$s23_claude" 2>/dev/null
+[[ "$s23_t1" == *"Engineer: working: transcript written"*"the activity beat is older"* && "$s23_t2" == *"Engineer: idle"* ]] \
+    && ok "23 check: a fresh transcript outranks a stale beat, and the line says so; an old transcript leaves the session idle" \
+    || ko "23 check: a fresh transcript outranks a stale beat, and the line says so; an old transcript leaves the session idle" "fresh transcript: $s23_t1"$'\n'"old transcript: $s23_t2"
 s23_reset
 printf 'sess-j\n' > "$s23_mb/.cc-session"; printf 'state: waiting\nsince: x\n' > "$s23_mb/.cc-state"; age "$s23_mb/.cc-state" 0.05
 s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
@@ -332,11 +350,84 @@ s23_ctx="$(printf '{"session_id":"sess-123","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc
 s23_rs="$KIT/plugins/projects/scripts/registry.sh"
 s23_b="$SCRATCH/s23/board.md"
 printf '# Claims board\n' > "$s23_b"
-for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do bash "$s23_rs" add "$s23_b" "claim $s23_i" >/dev/null 2>&1 & done
+# Two checks. What the lock guarantees holds at any load: a writer that says it landed did, and none
+# that gave up did. That all twelve land is a matter of time, since a writer gives up after the lock's
+# own wait of about ten seconds (lock.sh), a product setting a test cannot scale; above a load of 1.5
+# per core a writer giving up is the machine, and that check skips.
+s23_rc="$SCRATCH/s23/writers"
+: > "$s23_rc"
+for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    { bash "$s23_rs" add "$s23_b" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rc"; } &
+done
 wait
-[[ "$(head -n 1 "$s23_b")" == "# Claims board" && "$(grep -c '^claim ' "$s23_b")" == 12 && ! -d "$s23_b.lock" ]] \
-    && ok "23 registry.sh: twelve writers at once all land, the header stays and no lock is left" \
-    || ko "23 registry.sh: twelve writers at once all land, the header stays and no lock is left" "$(cat "$s23_b")"
+s23_said="$(awk '$2 == 0 { print "claim " $1 }' "$s23_rc" | LC_ALL=C sort)"
+s23_have="$(grep '^claim ' "$s23_b" | LC_ALL=C sort)"
+[[ "$(head -n 1 "$s23_b")" == "# Claims board" && "$(wc -l < "$s23_rc" | tr -d ' ')" == 12 && "$s23_said" == "$s23_have" && ! -d "$s23_b.lock" ]] \
+    && ok "23 registry.sh: twelve writers at once — each that says it landed did, no other line appears, the header stays, no lock is left" \
+    || ko "23 registry.sh: twelve writers at once — each that says it landed did, no other line appears, the header stays, no lock is left" "exits: $(sort -n "$s23_rc" | paste -sd, -)"$'\n'"$(cat "$s23_b")"
+s23_load="$(aw_load)"
+s23_gave="$(awk '$2 != 0' "$s23_rc" | wc -l | tr -d ' ')"
+if [[ "$s23_gave" == 0 ]]; then
+    ok "23 registry.sh: all twelve writers land within the lock's wait"
+elif aw_over "$s23_load" 1.5; then
+    skp "23 registry.sh: all twelve writers land within the lock's wait — $s23_gave gave up, at a load of $s23_load per core (over 1.5)"
+else
+    ko "23 registry.sh: all twelve writers land within the lock's wait" "$s23_gave gave up, at a load of $s23_load per core"
+fi
+# The takeover race, made certain. A waiter reads the holder, the holder lets go and exits, another
+# writer takes the lock, and the waiter, finding the holder gone, must not remove the new writer's
+# lock. A copy of lock.sh waits 50 ms between reading the holder and asking whether it lives, which a
+# busy machine does now and then by chance (a CI runner lost a write to it); before the fix every
+# round lost one.
+s23_race="$SCRATCH/s23/race"
+mkdir -p "$s23_race/scripts" "$s23_race/hooks/lib"
+cp "$s23_rs" "$s23_race/scripts/registry.sh"
+s23_bad=""
+python3 - "$KIT/plugins/projects/hooks/lib/lock.sh" "$s23_race/hooks/lib/lock.sh" <<'PYRACE' || s23_bad+="the line that reads the holder is not in lock.sh as the check expects"$'\n'
+import sys
+s = open(sys.argv[1]).read()
+line = '        holder="$(cat "$l/pid" 2>/dev/null)"\n'
+if s.count(line) != 1: sys.exit(1)
+open(sys.argv[2], "w").write(s.replace(line, line + '        sleep 0.05\n'))
+PYRACE
+for s23_r in 1 2 3; do
+    s23_rb="$s23_race/board.$s23_r"; printf '# Claims board\n' > "$s23_rb"; : > "$s23_rb.rc"
+    for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        { bash "$s23_race/scripts/registry.sh" add "$s23_rb" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rb.rc"; } &
+    done
+    wait
+    [[ "$(awk '$2 == 0 { print "claim " $1 }' "$s23_rb.rc" | LC_ALL=C sort)" == "$(grep '^claim ' "$s23_rb" | LC_ALL=C sort)" ]] \
+        || s23_bad+="round $s23_r: a writer that said it landed is missing: $(grep -c '^claim ' "$s23_rb") lines, exits $(sort -n "$s23_rb.rc" | awk '{ printf "%s ", $2 }')"$'\n'
+done
+empty "23 lock: a holder that lets go while a waiter is reading it does not cost the next writer its lock (three rounds, the race widened to 50 ms)" "$s23_bad"
+# A clock that steps forward. Every lock then looks a minute old at once, and a waiter that judged age
+# by the clock alone took a working writer's lock (a CI runner lost a write to it). A copy of lock.sh
+# dates each lock back to 2020 as it is taken, and holds 50 ms between reading the file and replacing
+# it; before the fix every round lost a write.
+s23_step="$SCRATCH/s23/step"
+mkdir -p "$s23_step/scripts" "$s23_step/hooks/lib"
+cp "$s23_rs" "$s23_step/scripts/registry.sh"
+s23_bad=""
+python3 - "$KIT/plugins/projects/hooks/lib/lock.sh" "$s23_step/hooks/lib/lock.sh" <<'PYSTEP' || s23_bad+="the lines the check changes are not in lock.sh as it expects"$'\n'
+import sys
+s = open(sys.argv[1]).read()
+taken, read = '    date +%s > "$l/since"\n', '    rc=$?\n'
+if s.count(taken) != 1 or s.count(read) != 1: sys.exit(1)
+s = s.replace(taken, taken + '    touch -t 202001010000 "$l"\n').replace(read, read + '    sleep 0.05\n')
+open(sys.argv[2], "w").write(s)
+PYSTEP
+for s23_r in 1 2 3; do
+    s23_rb="$s23_step/board.$s23_r"; printf '# Claims board\n' > "$s23_rb"; : > "$s23_rb.rc"
+    for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        { bash "$s23_step/scripts/registry.sh" add "$s23_rb" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rb.rc"; } &
+    done
+    wait
+    [[ "$(awk '$2 == 0 { print "claim " $1 }' "$s23_rb.rc" | LC_ALL=C sort)" == "$(grep '^claim ' "$s23_rb" | LC_ALL=C sort)" ]] \
+        || s23_bad+="round $s23_r: a writer that said it landed is missing: $(grep -c '^claim ' "$s23_rb") lines, exits $(sort -n "$s23_rb.rc" | awk '{ printf "%s ", $2 }')"$'\n'
+done
+empty "23 lock: a clock that steps forward does not cost a working writer its lock (three rounds, every lock dated 2020)" "$s23_bad"
+# The checks below start from a known board, whatever the writers managed.
+{ printf '# Claims board\n'; for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do printf 'claim %s\n' "$s23_i"; done; } > "$s23_b"
 bash "$s23_rs" replace "$s23_b" "claim 12" "claim 12 done" >/dev/null && bash "$s23_rs" remove "$s23_b" "claim 3" >/dev/null
 [[ "$(grep -c '^claim ' "$s23_b")" == 11 && "$(grep -c '^claim 12 done$' "$s23_b")" == 1 && "$(head -n 1 "$s23_b")" == "# Claims board" ]] \
     && ok "23 registry.sh: replace and remove change only the lines holding the text" \
@@ -414,6 +505,12 @@ s23_out2="$(CLAUDE_CONFIG_DIR="$s23_cfg" bash "$s23_launch" "$s23_p" --print --s
 [[ "$s23_out" == *"--resume sess-777"* && "$s23_out2" == *"no transcript for session sess-none"*"rc=2" ]] \
     && ok "23 launcher: --session resumes that session, and refuses one with no transcript here" \
     || ko "23 launcher: --session resumes that session, and refuses one with no transcript here" "$s23_out"$'\n'"$s23_out2"
+# /dev/urandom never ends, so a command reading it straight ends only when SIGPIPE kills it. Under
+# Claude Code or a CI runner SIGPIPE is ignored, and macOS's tr then spins for ever (the PM launcher's
+# token did, and hung a macOS CI job). Every read of it goes through head -c or od -N.
+s23_bad="$(grep -rn --include='*.sh' '/dev/urandom' "$KIT/setup.sh" "$KIT/install.sh" "$KIT/lib" "$KIT/plugins" "$KIT/scripts" "$KIT/githooks" "$KIT/pilot" 2>/dev/null \
+    | grep -vE 'head -c [0-9]+ /dev/urandom|od [^|]*-N ?[0-9]+[^|]* /dev/urandom' | grep -v '^[^:]*:[0-9]*: *#')"
+empty "23 every read of /dev/urandom is bounded, so nothing spins where SIGPIPE is ignored" "$s23_bad"
 rm -f "$s23_cfg/projects/x/sess-123.jsonl" "$s23_cfg/projects/x/sess-777.jsonl"
 s23_out="$(bash "$s23_launch" "$SCRATCH/s23" --print 2>&1; echo "rc=$?")"
 [[ "$s23_out" == *"no mailbox"*"rc=2" ]] && ok "23 launcher: no mailbox, no launch" || ko "23 launcher: no mailbox, no launch" "$s23_out"
@@ -808,6 +905,24 @@ grep -q 'received' "$s23_ex/README.md" && grep -q 'watch --role pm' "$s23_ex/REA
 grep -q 'received' "$s23_ex/KICKOFF.md" && grep -q "date '+%Y-%m-%d %H:%M %z'" "$s23_ex/KICKOFF.md" || s23_bad+="KICKOFF: received lines and the clock"$'\n'
 grep -q '{token}' "$s23_ex/PM-KICKOFF.md" && grep -q '{watch}' "$s23_ex/PM-KICKOFF.md" && grep -q 'commands/pair.md' "$s23_ex/PM-KICKOFF.md" || s23_bad+="PM-KICKOFF: token, watch, the role's source"$'\n'
 empty "23 guidance (PM-057): the command's PM watch and kinds of PM, the PM's rule, the README, KICKOFF and PM-KICKOFF" "$s23_bad"
+# One default manager, said the same way wherever pairing is described: the command, the projects README's
+# Pair section and the getting-started guide's pairing section. Each section is read with its line breaks
+# folded, and the check-in is named by what it is, not by a scheduler's internal call or a fixed interval.
+s23_bad=""
+s23_section() { awk -v h="$2" 'index($0, h) == 1 { on = 1; next } on && /^## / { exit } on' "$1" | tr '\n' ' ' | tr -s ' '; }
+s23_default='Cowork by default, with Claude Code as the fallback'
+for s23_doc in "$s23_cmd|" "$KIT/plugins/projects/README.md|## Pair" "$KIT/docs/getting-started.md|## 7. "; do
+    s23_f="${s23_doc%%|*}"; s23_h="${s23_doc#*|}"
+    if [[ -z "$s23_h" ]]; then s23_txt="$(tr '\n' ' ' <"$s23_f" | tr -s ' ')"; else s23_txt="$(s23_section "$s23_f" "$s23_h")"; fi
+    [[ -n "$s23_txt" ]] || { s23_bad+="${s23_f#"$KIT"/}: no ${s23_h:-text} to read"$'\n'; continue; }
+    [[ "$s23_txt" == *"$s23_default"* ]] || s23_bad+="${s23_f#"$KIT"/}: lacks \"$s23_default\""$'\n'
+    for s23_w in update_trigger run_once_at 'every 30 minutes'; do
+        [[ "$s23_txt" != *"$s23_w"* ]] || s23_bad+="${s23_f#"$KIT"/}: names $s23_w"$'\n'
+    done
+done
+grep -q 'While the machine sleeps' "$s23_cmd" && grep -q 'Testing from a chat' "$s23_cmd" || s23_bad+="command: no sleep note or no chat manager's testing"$'\n'
+grep -rqi 'caffeinate\|systemd-inhibit' "$KIT/plugins/projects" && s23_bad+="the projects plugin keeps the machine awake: $(grep -rli 'caffeinate\|systemd-inhibit' "$KIT/plugins/projects")"$'\n'
+empty "23 one default manager (Cowork, Claude Code the fallback) in the command, the projects README and getting-started; check-ins named without an internal call; sleep documented, nothing kept awake" "$s23_bad"
 # PM-057 review: a beat clears a stale end mark (a /clear, or a session that goes on after SessionEnd); with no
 # recorded pid and a fresh beat the state reads working, not ended; a mailbox path with a space is shell-quoted
 # in the PM's printed command.
@@ -829,7 +944,8 @@ s23_spp="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23
 s23_reset
 
 # The last stand-in watch and the claude stand-in are ended here, not left for the next section.
-    [ -f "$s23_mb/.cc-watch" ] && pkill -P "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
+[ -f "$s23_mb/.cc-watch" ] && pkill -P "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -n "${s23_claude:-}" ] && kill "$s23_claude" 2>/dev/null
+unset CLAUDE_PROJECT_DIR
 true

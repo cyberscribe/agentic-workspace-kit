@@ -12,8 +12,8 @@
 #   --ultracode     start at ultracode effort, for a phase that fans out across many pieces
 #   --mode MODE     the permission mode (default auto; PAIR_PERMISSION_MODE sets it too)
 #   --pm            start, or resume, the PM's own Claude Code session, named <slug>-pm, with the PM's
-#                   prompt (examples/pair/PM-KICKOFF.md). A PM's session is for a build pairing; a Cowork
-#                   PM is started from Cowork instead
+#                   prompt (examples/pair/PM-KICKOFF.md): the fallback manager, where Cowork is not used. A
+#                   Cowork PM is started from Cowork instead
 #   --print         print the command it would run, and run nothing
 #
 # The PM writes the mailbox and its KICKOFF.md first (/projects:pair). This script runs on the person's
@@ -104,7 +104,10 @@ if [ $pm -eq 1 ]; then
     if [ $resume -eq 0 ] || [ -z "$tok" ]; then
         fresh=1
         if [ $print -eq 1 ]; then tok="<token made at launch>"
-        else tok="$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 12)"
+        # A bounded read: tr reading /dev/urandom itself would end only when killed by SIGPIPE, and a
+        # process started from Claude Code or a CI runner ignores SIGPIPE, so there it never ends.
+        # 1024 random bytes hold about 144 lower-case letters and digits, for the 12 wanted.
+        else tok="$(head -c 1024 /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | cut -c1-12)"
         fi
     fi
 fi

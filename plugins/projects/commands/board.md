@@ -116,7 +116,7 @@ reads the same everywhere.
   against total. A heading with no checklist under it, or a list under another
   name the conventions file does not give, is not seen — that is what the flag
   is for.
-- **The owner** — the line marked **owns** in the section headed `People`, or
+- **The owner** — the line marked **accountable** (or **owns**, the older word) in the section headed `People`, or
   by a name the conventions file gives. If the README has no such section, the
   register's Owner column; failing that, an owner the conventions file names for
   every project. A list of people under another heading ("Team", "Contacts") is
@@ -151,7 +151,7 @@ After the project columns, when the workspace has ongoing areas (the
 conventions' **Areas** setting, else `ongoing/<slug>/` with a README), one more
 section, headed with its count. Areas are not in flight and never done, so they
 sit apart from the columns and outside the counts line. One line per area,
-active first, then dormant; retired areas are left off:
+active first, then dormant; archived areas are left off:
 
 ```
 - **<name>** · <owner> · <state> · <n> standards · checked <n>d ago (every <cadence>) · <k> live projects
@@ -163,8 +163,8 @@ has no cadence and is older than the staleness setting; a dormant area is never
 either. `<k> live projects` counts the links in its Projects section whose
 project is not done, and is left out at zero. A gap is named in place, as on a
 project card: `no standards`, `standards not yet named`, `no owner`.
-Flags for areas join the list below: an active area due for its check-in, one
-with no standards named, and a project whose What this is names an area that
+Flags for areas join the list below, each pointing at its command: an active area due for its check-in (`/ongoing:review`), one
+with no standards named (`/ongoing:review`), and a project whose What this is names an area that
 does not exist.
 
 ## Flags
@@ -192,7 +192,7 @@ that one is about what the repository holds.
    not saying on what.
 5. **Over the in-flight limit** — per person: the active projects whose Current
    state block reads `State: doing` and whose People section names them as
-   **owns** or **does**, or, where a README has no People section, whose
+   **accountable** or **responsible**, or, where a README has no People section, whose
    register Owner is them — or however the conventions file says to count.
    Their limit is the **In-flight limit** in their profile (the file in the
    people directory matching their name), else the conventions default, else 200.

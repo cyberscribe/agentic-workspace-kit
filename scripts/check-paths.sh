@@ -608,7 +608,7 @@ EOF
         sort -u "$tmp/ids" | while IFS=$'\t' read -r kind id; do
             [[ -n "$id" ]] || continue
             lid="$(printf '%s' "$id" | tr '[:upper:]' '[:lower:]')"
-            if [[ -n "$may" ]] && printf '%s\n' "$may" | grep -qxF -- "$lid"; then continue; fi
+            if [[ -n "$may" ]] && grep -qxF -- "$lid" <<<"$may"; then continue; fi
             grep -qxF -- "$lid" "$tmp/inhead" && continue
             printf '%s\n' "$id" > "$tmp/id1"
             hits "$tmp/id1" -iwF "names $kind of the workspace" || cnr R4 "the derived-name scan could not run"
@@ -618,6 +618,41 @@ EOF
         # workspace file; so is an added line of 60 characters or more that the kit did not already
         # have and a workspace file holds word for word.
         allow_copy=",${AW_ALLOW_COPY:-},"
+        # The direction of a copy, at the push. Content the workspace and a pushed kit commit share
+        # may have run either way: into the kit from a private file, or out of the kit into a
+        # snapshot, a transcript or a note quoting it. At the push it counts as a copy of a workspace
+        # file only when that file is shown to have held it no later than the kit commit that brought
+        # it in, a minute's clock skew included (ties refuse). A file's mtime shows it held its
+        # content then; for a tracked file, so does the first workspace commit holding it, and the
+        # earlier of the two counts. A file written after the commit shows nothing either way and
+        # is read as quoting the kit; the pre-commit, which saw the workspace as the change was made,
+        # stays as strict as before. A file copied in with its old mtime kept (cp -p, a move) is
+        # refused, the safe side. docs/design-notes.md, "The copy check's direction", has the options
+        # this beat.
+        dir_rule=0
+        if [[ "$source" == push && ${#walked[@]} -gt 0 ]]; then
+            dir_rule=1
+            g log --no-walk=unsorted --format='%H %ct' "${walked[@]}" > "$tmp/ct" 2>/dev/null
+            aw_git_elsewhere "$ws" ls-files 2>/dev/null > "$tmp/wstracked"
+            # Each pushed blob with the earliest committer time among the pushed commits bringing it in.
+            awk 'FNR == NR { split($0, a, " "); c[a[1]] = a[2]; next }
+                { split($0, f, "\t") } (f[1] in c) && (!(f[4] in m) || c[f[1]] < m[f[4]]) { m[f[4]] = c[f[1]] }
+                END { for (s in m) print s, m[s] }' "$tmp/ct" "$tmp/entries" > "$tmp/blobct"
+        fi
+        # cp_held_before <kit time> <workspace path> [git log pickaxe]: success when the file held the
+        # content at or before the kit time plus the skew allowance, or when that cannot be told.
+        cp_held_before() {
+            local tk="$1" wf="$2" h t; shift 2
+            [[ "$tk" =~ ^[0-9]+$ ]] || return 0
+            # GNU stat first: BSD stat has no -c and fails, while GNU stat -f succeeds with other output.
+            h="$(stat -c %Y "$ws/$wf" 2>/dev/null || stat -f %m "$ws/$wf" 2>/dev/null)"
+            [[ "$h" =~ ^[0-9]+$ ]] || return 0
+            if [[ $# -gt 0 ]] && grep -qxF -- "$wf" "$tmp/wstracked"; then
+                t="$(aw_git_elsewhere "$ws" log --format=%ct "$@" -- "$wf" 2>/dev/null | tail -n 1)"
+                [[ "$t" =~ ^[0-9]+$ && "$t" -lt "$h" ]] && h="$t"
+            fi
+            [[ "$h" -le $((tk + 60)) ]]
+        }
         while IFS=$'\t' read -r key nm os ns path; do
             [[ "$nm" == 160000 || "$ns" == - ]] && continue
             case "$allow_copy" in *",$(pp "$path"),"*) continue ;; esac
@@ -626,6 +661,10 @@ EOF
                 continue
             fi
             wf="$(aw_git_elsewhere "$ws" ls-files -s 2>/dev/null | awk -v s="$ns" '$2 == s { sub(/^[^\t]*\t/, ""); print; exit }')"
+            if [[ $dir_rule -eq 1 && -n "$wf" ]]; then
+                tk="$(awk -v s="$ns" '$1 == s { print $2; exit }' "$tmp/blobct")"
+                cp_held_before "$tk" "$wf" --find-object="$ns" || continue
+            fi
             refused "$(item "$key" "$path")" "a copy of ${wf:-a workspace file}"
             : "$os"
         done < "$tmp/entries"
@@ -696,11 +735,13 @@ EOF
                 if [[ -s "$tmp/wsg" ]]; then
                     # file:line, with a file name that may itself hold a colon: the split is the one whose
                     # right-hand side is a candidate line, word for word (which also drops substring hits).
-                    awk 'FNR == NR { c[$0] = 1; next }
+                    # Under the direction rule every file holding a line is kept, since any one of
+                    # them that held it first decides; otherwise the first file found names the copy.
+                    awk -v all="$dir_rule" 'FNR == NR { c[$0] = 1; next }
                         { s = $0; i = 0
                           while ((k = index(substr(s, i + 1), ":")) > 0) {
                               i += k
-                              if (substr(s, i + 1) in c) { if (!(substr(s, i + 1) in seen)) { seen[substr(s, i + 1)] = 1; print substr(s, i + 1) "\t" substr(s, 1, i - 1) }; break }
+                              if (substr(s, i + 1) in c) { if (all == 1 || !(substr(s, i + 1) in seen)) { seen[substr(s, i + 1)] = 1; print substr(s, i + 1) "\t" substr(s, 1, i - 1) }; break }
                           } }' "$tmp/cand" "$tmp/wsg" > "$tmp/lmap"
                     # One awk pass joins the new lines to the workspace files they copy, so the shell loop
                     # below runs only for the copies. A process per new line took seconds on a large commit.
@@ -710,10 +751,30 @@ EOF
                          { t = $0; for (n = 0; n < 3; n++) t = substr(t, index(t, "\t") + 1)
                            if (t in m) { split($0, f, "\t"); print f[1] "\t" f[2] "\t" f[3] "\t" m[t] } }' \
                         "$tmp/lmap" "$tmp/long" > "$tmp/copies"
-                    while IFS=$'\t' read -r key path ln wf; do
-                        case "$allow_copy" in *",$(pp "$path"),"*) continue ;; esac
-                        refused "$(item "$key" "$path")" "a copy of $wf (line $ln)"
-                    done < "$tmp/copies"
+                    if [[ $dir_rule -eq 0 ]]; then
+                        while IFS=$'\t' read -r key path ln wf; do
+                            case "$allow_copy" in *",$(pp "$path"),"*) continue ;; esac
+                            refused "$(item "$key" "$path")" "a copy of $wf (line $ln)"
+                        done < "$tmp/copies"
+                    else
+                        # One row per added line and workspace file holding it: key, path, line
+                        # number, the earliest committer time among the pushed commits adding that
+                        # text, the workspace file, then the text itself (which may hold a tab).
+                        awk 'FNR == 1 { fi++ }
+                            function txt(r,   n) { for (n = 0; n < 3; n++) r = substr(r, index(r, "\t") + 1); return r }
+                            fi == 1 { split($0, a, " "); c[a[1]] = a[2]; next }
+                            fi == 2 { split($0, f, "\t"); t = txt($0); if ((f[1] in c) && (!(t in tk) || c[f[1]] < tk[t])) tk[t] = c[f[1]]; next }
+                            fi == 3 { i = 0; while ((k = index(substr($0, i + 1), "\t")) > 0) i += k
+                                      m[substr($0, 1, i - 1)] = m[substr($0, 1, i - 1)] "\n" substr($0, i + 1); next }
+                            { t = txt($0); if (t in m) { split($0, f, "\t"); n = split(substr(m[t], 2), w, "\n")
+                                for (j = 1; j <= n; j++) print f[1] "\t" f[2] "\t" f[3] "\t" tk[t] "\t" w[j] "\t" t } }' \
+                            "$tmp/ct" "$tmp/long" "$tmp/lmap" "$tmp/long" > "$tmp/copies"
+                        while IFS=$'\t' read -r key path ln tk wf text; do
+                            case "$allow_copy" in *",$(pp "$path"),"*) continue ;; esac
+                            cp_held_before "$tk" "$wf" -S"$text" || continue
+                            refused "$(item "$key" "$path")" "a copy of $wf (line $ln)"
+                        done < "$tmp/copies"
+                    fi
                 fi
             fi
         fi

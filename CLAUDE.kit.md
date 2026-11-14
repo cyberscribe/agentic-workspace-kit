@@ -44,6 +44,9 @@ Full rule and translation table: `kit/docs/documentation-register.md`.
 - Layout, the canonical-fact table and where new files go: `docs/workspace-map.md`, the workspace's.
 - Which store a durable fact belongs in: `kit/docs/memory-layers.md`.
 - Which surfaces read what: the surface table in §4 of the workspace's `CLAUDE.md`.
+- The shared vocabulary: `memory/terms.md` (the team's own terms) and `memory/glossary.md` (plain words
+  for AI-speak), and each project's and area's own `terms.md`, `glossary.md` and `decisions.md`. Say
+  things to the person in the glossary's plain words.
 
 Drift between surfaces is the failure mode to avoid. When adding a fact, add it once to the canonical
 location and point at it from the always-loaded file.
@@ -51,7 +54,9 @@ location and point at it from the always-loaded file.
 ## Active work
 
 The live list is `projects/INDEX.md`. Load it at startup to know what is running; load a specific
-project folder only when the task touches that project.
+project folder only when the task touches that project. A session opened in or about a project, or an
+ongoing area, reads its `README.md` before acting on it: that page is where the work stands and who is
+accountable for it, and any session-start summary of it points there rather than standing in for it.
 
 ## Session startup
 
@@ -99,4 +104,4 @@ The workspace is private and the kit is public, and the git hooks in `kit/githoo
 - A commit or push the hooks refuse is reported to the person with the hook's reason. Retrying with
   `--no-verify`, or any other bypass, is not part of this workflow.
 
-*Kit 3.5.0*
+*Kit 3.6.0*

@@ -12,7 +12,9 @@ nothing. With some, it adds context for the agent, not a line on screen, asking 
 
 - raise the drafts in its first response and wait for the person's go-ahead before promoting or
   deleting any;
-- check each technical claim against the code as it is now, since a draft may be stale;
+- check each item against the session it came from, by running `scripts/check-evidence.sh` on the
+  draft, which resolves every cited transcript line and refuses what does not hold; then against the
+  code as it is now, since a draft may be stale;
 - treat each draft's tier as a proposal, and name what a promotion into the always-loaded tier would
   displace;
 - promote with surgical edits, then delete the draft.

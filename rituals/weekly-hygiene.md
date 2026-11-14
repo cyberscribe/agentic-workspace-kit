@@ -20,7 +20,7 @@ remember to ask.
 | **Strays** | Durable-looking files outside the conventions — loose at the root, loose in `projects/`, or sitting in a scratch directory long enough to have stopped being scratch |
 | **Registers** | Project folders against the rows in the index, in both directions: active and paused folders against their sections, and `projects/_done/<slug>/` against the Done section |
 | **Promised, absent** | Paths the canonical-fact table names that do not exist on disk |
-| **Promotion candidates** | Project decisions carrying a *Generalises as* field that have not reached the cross-project log |
+| **Promotion candidates** | Project decisions carrying a *Generalises as* field that have not reached the cross-project log, and those without one that still say something once the strip filter has run |
 | **Staleness** | Guidance whose own "last updated" line has gone quiet |
 | **Pending work** | Proposals the other rituals left unconfirmed |
 | **Drafts sweep** | Closeout's drafts for this repository and each project folder, oldest first: drafts not yet promoted, and the files of other kinds and subdirectories that the drafts' retention never touches |
@@ -28,10 +28,10 @@ remember to ask.
 Add version-control state and any bridge or mirror your setup keeps in sync. If the repository keeps
 metrics, the kit's `kit/pilot/measure.sh` run from the workspace root is its weekly run; it belongs to
 this pass, and its row goes in the report.
-If it keeps ablations in `pilot/ablations/`, the pass offers to run them after `measure.sh`
+If it keeps leave-out tests in `pilot/ablations/`, the pass offers to run them after `measure.sh`
 (`bash kit/pilot/ablate.sh`, whose default target is the workspace around the kit), with the number
 of runs and their API-equivalent cost stated first; the person decides, and `measure.sh` runs again afterwards so the
-week's row counts the new results. Run or not, the report carries each ablation's latest flag, and lists demotion
+week's row counts the new results. Run or not, the report carries each leave-out test's latest flag, and lists demotion
 candidates and checks that need revision under pending work.
 Write the report to a dated file, keep it, and **commit it** — the trail is what lets you tell a clean
 week from a broken check, and a trail on one machine reaches nobody. Excluding audit output from
@@ -100,7 +100,7 @@ remove the project, the stack and the stakeholder, and see whether anything surv
 proposed general-form rewrite back to a human. The cross-project log is consulted by every future
 session; entries arriving in it are a person's call.
 
-**8. Demotion is a proposal; the person applies it.** A demotion candidate is a line whose ablation found no
+**8. Demotion is a proposal; the person applies it.** A demotion candidate is a line whose leave-out test found no
 difference three weeks running: bring it back with its flag history and the cheaper tier it could
 move to, and let the person decide. A check that needs revision says nothing about its line; the
 proposal is to rework the check, and the line stays where it is.

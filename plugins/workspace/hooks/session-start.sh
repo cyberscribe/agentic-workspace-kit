@@ -21,7 +21,7 @@
 #
 # Environment:
 #   WORKSPACE_HOOK_DISABLED=1    turn the hook off
-#   AW_HEADLESS_RUN=1            a headless run (an ablation arm): say nothing
+#   AW_HEADLESS_RUN=1            a headless run (a leave-out test arm): say nothing
 #   CLOSEOUT_HOOK_CHILD          set by the closeout plugin's capture child, which has no one to tell
 #
 # Wired from hooks/hooks.json -> hooks.SessionStart (matcher startup).

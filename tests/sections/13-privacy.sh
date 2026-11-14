@@ -386,6 +386,80 @@ printf 'refs/notes/commits %s refs/notes/commits %s\n' "$s13_clean" 000000000000
 s13_run bash -c 'cd "$1" && exec "$2" githooks/pre-push origin "$3" < "$4"' _ "$s13_K" "$st_bash" "$KITSRC" "$s13_S/push-notes"
 s13_expect "13 kit pre-push: a notes ref is refused" 1 "a notes ref is not pushed to the kit"
 
+# The copy check's direction at the push (docs/design-notes.md): a pushed line counts as a copy of a
+# workspace file only when the file held it no later than the kit commit that brought it in, a minute
+# of skew included. Each case is one kit commit, dated two days ago, pushed on its own.
+s13_tk=$(( $(date +%s) - 172800 ))
+s13_mtime() { python3 -c 'import os, sys; os.utime(sys.argv[1], (int(sys.argv[2]), int(sys.argv[2])))' "$1" "$2"; }
+# s13_dated <branch> <kit file> <line>: a commit on a branch from the base, adding docs/<kit file> with
+# the line, committed at s13_tk; fetched into the kit. Prints its sha.
+s13_dated() {
+    git -C "$s13_C" checkout -q -B "$1" "$s13_base" \
+        && printf 'Intro.\n%s\n' "$3" > "$s13_C/docs/$2" && git -C "$s13_C" add "docs/$2" \
+        && GIT_COMMITTER_DATE="@$s13_tk +0000" GIT_AUTHOR_DATE="@$s13_tk +0000" git -C "$s13_C" commit -q -m "Add $2" \
+        && git -C "$s13_K" fetch -q "$s13_C" "$1" 2>/dev/null && git -C "$s13_C" rev-parse HEAD
+}
+s13_dpriv="$s13_W/projects/$s13_slug/private"
+# A snapshot of the kit, written after the commit: it quotes the kit, and the push goes through.
+s13_dq="The snapshot of the kit page quotes this sentence long after the kit commit was made, word for word."
+printf 'Snapshot\n%s\n' "$s13_dq" > "$s13_dpriv/kit-snapshot.md"
+s13_kitpush origin "$KITSRC" "$(s13_dated dir-quote quoted.md "$s13_dq")" "$s13_origin"
+s13_expect "13 kit pre-push: a line a workspace file holds, written after the kit commit, reads as quoting the kit" 0
+# The pre-commit, which sees the workspace as the change is made, still refuses the same line.
+s13_kitpc "$(s13_stage "$s13_K" 100644 docs/quoted-again.md "$(s13_file quoted-again.md "Intro.\n$s13_dq\n")")"
+s13_expect "13 kit pre-commit: the same line is still refused, the pre-commit being unchanged" 1 \
+    "a copy of projects/$s13_slug/private/kit-snapshot.md (line 2)"
+# A private note that held the line a day before the kit commit: refused, naming the note.
+s13_dp="The private note held this sentence a day before the kit commit that copied it in, word for word."
+printf 'Note\n%s\n' "$s13_dp" > "$s13_dpriv/old-note.md"
+s13_mtime "$s13_dpriv/old-note.md" $((s13_tk - 86400))
+s13_kitpush origin "$KITSRC" "$(s13_dated dir-leak leak.md "$s13_dp")" "$s13_origin"
+s13_expect "13 kit pre-push: a line an untracked workspace file held before the kit commit is refused" 1 \
+    "a copy of projects/$s13_slug/private/old-note.md (line 2)"
+# A tracked workspace file, written since, whose history holds the line from before the kit commit.
+s13_dt="The tracked page recorded this sentence in the workspace before the kit ever carried it, as written."
+printf 'Tracked\n%s\n' "$s13_dt" > "$s13_W/memory/tracked-note.md"
+git -C "$s13_W" add memory/tracked-note.md \
+    && GIT_COMMITTER_DATE="@$((s13_tk - 86400)) +0000" GIT_AUTHOR_DATE="@$((s13_tk - 86400)) +0000" \
+       git -C "$s13_W" commit -q -m "A tracked note"
+printf '\nAn edit since.\n' >> "$s13_W/memory/tracked-note.md"
+s13_kitpush origin "$KITSRC" "$(s13_dated dir-tracked tracked.md "$s13_dt")" "$s13_origin"
+s13_expect "13 kit pre-push: a line a tracked workspace file's history held before the kit commit is refused, its mtime newer" 1 \
+    "a copy of memory/tracked-note.md (line 2)"
+# The same line in an old private file and a fresh snapshot: the old file held it first, so it refuses.
+s13_db="This sentence sits in an old private file and in a fresh snapshot of the kit at the same time."
+printf 'Old\n%s\n' "$s13_db" > "$s13_dpriv/old-both.md"
+s13_mtime "$s13_dpriv/old-both.md" $((s13_tk - 86400))
+printf 'Fresh\n%s\n' "$s13_db" > "$s13_dpriv/fresh-both.md"
+s13_kitpush origin "$KITSRC" "$(s13_dated dir-both both.md "$s13_db")" "$s13_origin"
+s13_expect "13 kit pre-push: a line in an old private file and a fresh snapshot is refused, naming the old file" 1 \
+    "a copy of projects/$s13_slug/private/old-both.md (line 2)"
+s13_has "fresh-both.md" && ko "13 ... and the fresh snapshot is not named" "$(cat "$s13_out")" \
+    || ok "13 ... and the fresh snapshot is not named"
+# Within the minute's skew allowance, a file written just after the commit counts as holding it before.
+s13_ds="This sentence was written into a workspace file thirty seconds after the kit commit was made."
+printf 'Skew\n%s\n' "$s13_ds" > "$s13_dpriv/skew.md"
+s13_mtime "$s13_dpriv/skew.md" $((s13_tk + 30))
+s13_kitpush origin "$KITSRC" "$(s13_dated dir-skew skew.md "$s13_ds")" "$s13_origin"
+s13_expect "13 kit pre-push: a file written within a minute after the kit commit counts as holding the line before" 1 \
+    "a copy of projects/$s13_slug/private/skew.md (line 2)"
+# Whole files: a tracked workspace file with the same content as a pushed kit file. Committed to the
+# workspace after the kit commit, it is a copy of the kit; committed before, the kit copied it.
+s13_blob_after="$(s13_dated dir-blob-after whole-after.md "A page the workspace copied whole from the kit after the commit.")"
+cp "$s13_C/docs/whole-after.md" "$s13_W/memory/whole-after.md"
+git -C "$s13_W" add memory/whole-after.md && git -C "$s13_W" commit -q -m "A copy of a kit page"
+s13_kitpush origin "$KITSRC" "$s13_blob_after" "$s13_origin"
+s13_expect "13 kit pre-push: a kit file a tracked workspace file copied whole after the kit commit is allowed" 0
+printf 'Intro.\nA page the workspace held whole before the kit commit took it in.\n' > "$s13_W/memory/whole-before.md"
+git -C "$s13_W" add memory/whole-before.md \
+    && GIT_COMMITTER_DATE="@$((s13_tk - 86400)) +0000" GIT_AUTHOR_DATE="@$((s13_tk - 86400)) +0000" \
+       git -C "$s13_W" commit -q -m "A page of the workspace's own"
+s13_kitpush origin "$KITSRC" "$(s13_dated dir-blob-before whole-before.md "A page the workspace held whole before the kit commit took it in.")" "$s13_origin"
+s13_expect "13 kit pre-push: a kit file a tracked workspace file held whole before the kit commit is refused" 1 \
+    "a copy of memory/whole-before.md"
+rm -f "$s13_dpriv/kit-snapshot.md" "$s13_dpriv/old-note.md" "$s13_dpriv/old-both.md" "$s13_dpriv/fresh-both.md" "$s13_dpriv/skew.md"
+git -C "$s13_C" checkout -q clean
+
 # A contributor's standalone clone of the kit, with no workspace around it: gitconfig.sh takes the kit
 # itself as its target, and the kit's checks run without the workspace ones.
 s13_run "$st_bash" "$s13_C/lib/setup/gitconfig.sh" --target "$s13_C" --hooks
@@ -662,7 +736,7 @@ printf 'Closed.\n' >> "$s13_W/projects/_done/lab-log/README.md"
 git -C "$s13_W/projects/_done/lab-log" add README.md
 s13_run git -C "$s13_W/projects/_done/lab-log" commit -q -m "Closed"
 s13_expect "13 stubs: after the project folder moves into _done/, a commit there still goes through the kit's hooks" 0
-[[ "$(grep -c . "$s13_S/moved.marker" 2>/dev/null)" == 2 ]] && tail -n 1 "$s13_S/moved.marker" | grep -q '/_done/lab-log$' \
+[[ "$(grep -c . "$s13_S/moved.marker" 2>/dev/null)" == 2 ]] && tail -n 1 "$s13_S/moved.marker" | grep_all '/_done/lab-log$' \
     && ok "13 ... both before and after the move (the chained hook ran each time)" \
     || ko "13 ... both before and after the move (the chained hook ran each time)" "$(cat "$s13_S/moved.marker" 2>&1)"
 
@@ -762,5 +836,31 @@ empty "13 guard-git.sh allows plain commands, and reading core.hooksPath" "$s13_
     && ok "13 guard-git.sh is silent with AW_GIT_GUARD_DISABLED=1" || ko "13 guard-git.sh is silent with AW_GIT_GUARD_DISABLED=1"
 s13_o="$(printf 'not json at all' | "$st_bash" "$s13_G"; echo "rc=$?")"
 [[ "$s13_o" == "rc=0" ]] && ok "13 guard-git.sh is silent on input it cannot read" || ko "13 guard-git.sh is silent on input it cannot read" "$s13_o"
+
+
+# ---- A worktree of the kit, made outside the workspace's kit/ -------------------------------------------
+# A worktree has no superproject of its own; its workspace is found through the repository it shares
+# with kit/, so the workspace's private word list still guards a commit made there.
+s13_W3="$s13_S/ws-wt"
+mkdir -p "$s13_W3" && git -C "$s13_W3" init -q && git -C "$s13_W3" symbolic-ref HEAD refs/heads/main
+git -C "$s13_W3" -c protocol.file.allow=always submodule add -q -b main "$KITSRC" kit >/dev/null 2>&1
+mkdir -p "$s13_W3/.claude"
+cp "$s13_words" "$s13_W3/.claude/words.txt"
+printf -- '- **Private word list:** `.claude/words.txt`\n' > "$s13_W3/.claude/workspace.md"
+s13_WT="$s13_S/kit-elsewhere"
+git -C "$s13_W3/kit" worktree add -q -b elsewhere "$s13_WT" >/dev/null 2>&1
+s13_got="$( . "$KIT/lib/common.sh" && aw_kit_workspace "$s13_WT")"
+[[ "$s13_got" == "$(cd "$s13_W3" && pwd -P)" ]] \
+    && ok "13 a kit worktree outside kit/ finds its workspace through the repository it shares" \
+    || ko "13 a kit worktree outside kit/ finds its workspace through the repository it shares" "got: ${s13_got:-nothing}"
+s13_got="$( . "$KIT/lib/common.sh" && aw_kit_workspace "$KITSRC")"
+[[ -z "$s13_got" ]] && ok "13 ... and a kit clone in no workspace finds none" || ko "13 ... and a kit clone in no workspace finds none" "got: $s13_got"
+printf 'A note naming zorblax.\n' > "$s13_WT/docs/worktree-note.md"
+git -C "$s13_WT" add docs/worktree-note.md
+s13_run env -u AW_BANNED_WORDS_FILE HOME="$s13_S/no-home" bash -c 'cd "$1" && exec "$2" githooks/pre-commit' _ "$s13_WT" "$st_bash"
+s13_expect "13 kit pre-commit in a worktree outside kit/: the workspace's private word list refuses a listed word" 1 "refused"
+s13_has "no workspace around this kit checkout" && ko "13 ... with the workspace checks run, not skipped" "$(head -n 12 "$s13_out")" \
+    || ok "13 ... with the workspace checks run, not skipped"
+git -C "$s13_WT" rm -q --cached docs/worktree-note.md
 
 fi

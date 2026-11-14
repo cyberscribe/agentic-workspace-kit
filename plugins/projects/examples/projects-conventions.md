@@ -22,7 +22,7 @@ workspace unless it says otherwise; folders under `projects/` starting with `_` 
 `.` are not projects; lowercase hyphenated slugs with no prefix; an in-flight
 limit of 3; a project flagged stale when its `Updated:` date is more than a week
 old; the README from `kit/templates/project-readme.md`; ongoing areas in
-`ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant / Retired),
+`ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant / Archived),
 from `kit/templates/area-readme.md`.
 
 Everything below the line is the example itself — a team that files work by status
@@ -69,11 +69,13 @@ explain each choice; delete them in your copy.
 - **Area template:** `.github/templates/area.md`
 
 > An ongoing area is work with no finish line — a practice, a responsibility,
-> something kept up. It has Standards to keep where a project has Done when, a
-> `State:` of `active`, `dormant` or `retired`, and its own `Check-in:` cadence,
+> something kept up. It has a Desired state and Standards to keep where a project
+> has a Desired outcome and Done when, a `State:` of `active`, `dormant` or
+> `archived`, and its own `Check-in:` cadence,
 > which the board measures it against. When a piece of an area has a finish line,
-> that piece is a project, linked from the area's Projects section. The default
-> home is `ongoing/`; this team calls the folder `areas/`.
+> that piece is a project, linked from the area's Projects section. The
+> `/ongoing:*` commands read these lines; the default home is `ongoing/`, and
+> this team calls the folder `areas/`.
 
 ## How projects are kept
 
@@ -105,7 +107,7 @@ explain each choice; delete them in your copy.
 
 > The in-flight limit is a team default; a person's profile can carry their own.
 > It is advice the commands raise, never a block. A person's count is the active
-> projects in `doing` whose People section names them as **owns** or **does**
+> projects in `doing` whose People section names them as **accountable** or **responsible**
 > (the register's Owner, where a README has no People section); say so here if
 > your team counts differently.
 

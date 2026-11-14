@@ -38,6 +38,12 @@ that one remote for that one command, and says so. It never covers a sensitive p
 names the project's folder; `/projects:new` and `/projects:adopt` offer it. The same remote is refused
 from any other folder's repository.
 
+**A kit push was refused as "a copy of" a workspace file that quotes the kit.** At the push, a line
+counts as a copy only when the workspace file held it no later than the kit commit that brought it in
+(its mtime, or for a tracked file its first commit holding the line, a minute's skew included). A
+snapshot or transcript written after the commit passes; one copied in with its old mtime kept is
+refused. `docs/design-notes.md` has the rule and what it was chosen over.
+
 **A local folder remote was refused.** Only local paths under the temporary folder are allowed as they
 are: a synced folder can be shared. List it under Private remotes once confirmed.
 

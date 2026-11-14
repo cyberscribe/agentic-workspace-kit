@@ -49,7 +49,7 @@
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook       9 the eleven commands, on Claude Code and as skills; the
+#   4b the projects session-start hook       9 the eighteen commands, on Claude Code and as skills; the
 #                                               closeout command and ritual carry the same core rules
 #                                            10 ablations: pilot/ablate.sh against a stub claude; the
 #                                               blind comparator, the bare arm, the login-token switch,
@@ -60,7 +60,8 @@
 # and then, from tests/sections/: 12 the docs (a page per command and hook, in four parts, and a README
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
-# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files.
+# pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files,
+# 25 the workspace boundary, 26 the scheduler plugin.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -116,15 +117,72 @@ else
     trap 'rm -rf "$SCRATCH"' EXIT
 fi
 
+# Timing. Every section and every check records its wall time in $AW_TIMES, a tab-separated file:
+# "S <section> <microseconds>" per section ("prelude" is the time before the first section, the
+# fixture repository's build included), "C <section> <microseconds> <check>" per check, timed from
+# the check before it, and "F <section> 0 <check>" per failure, so the summary names the part a
+# failing check ran in (15b, not 15). A parallel run gives each job its own file and gathers them; the summary at the
+# end names the slowest sections. aw_now sets aw_t rather than printing, so under bash 5 a reading costs
+# no fork. Without EPOCHREALTIME (bash 3.2, which a parallel run's jobs run under) a section mark asks
+# perl, and checks are not timed one by one: a serial run under bash 5 gives the per-check times.
+AW_TIMES="${AW_TIMES:-${TMPDIR:-/tmp}/aw-test-times.tsv}"
+aw_now() {
+    aw_t="${EPOCHREALTIME:-}"
+    if [[ -n "$aw_t" ]]; then aw_t="${aw_t//[.,]/}"
+    else aw_t="$(perl -MTime::HiRes=time -e 'printf "%d\n", time() * 1e6' 2>/dev/null || echo "$(date +%s)000000")"; fi
+}
+aw_now; aw_t_start="$aw_t" aw_t_sec="$aw_t" aw_t_chk="$aw_t" aw_t_id=prelude
+: > "$AW_TIMES" 2>/dev/null || AW_TIMES=/dev/null
+aw_tick() { [[ -n "${EPOCHREALTIME:-}" ]] || return 0; aw_now; printf 'C\t%s\t%s\t%s\n' "$aw_t_id" "$((aw_t - aw_t_chk))" "$1" >> "$AW_TIMES"; aw_t_chk="$aw_t"; }
+# aw_sec_mark <next section>: closes the section being timed and starts the next ("" at the end).
+aw_sec_mark() { aw_now; printf 'S\t%s\t%s\n' "$aw_t_id" "$((aw_t - aw_t_sec))" >> "$AW_TIMES"; aw_t_sec="$aw_t" aw_t_chk="$aw_t" aw_t_id="$1"; }
+
 pass=0 fail=0 skip=0
-ok()   { pass=$((pass + 1)); printf 'PASS  %s\n' "$1"; }
+ok()   { pass=$((pass + 1)); printf 'PASS  %s\n' "$1"; aw_tick "$1"; }
 # ko <description> [detail]: the detail, if any, is indented under the FAIL line.
-ko()   { fail=$((fail + 1)); printf 'FAIL  %s\n' "$1"; [[ -n "${2:-}" ]] && printf '%s\n' "$2" | sed '/^$/d' | head -n 20 | sed 's/^/        /'; return 0; }
-skp()  { skip=$((skip + 1)); printf 'SKIP  %s\n' "$1"; }
+ko()   { fail=$((fail + 1)); printf 'FAIL  %s\n' "$1"; [[ -n "${2:-}" ]] && printf '%s\n' "$2" | sed '/^$/d' | head -n 20 | sed 's/^/        /'
+         aw_fail_rec "$1"; aw_tick "$1"; return 0; }
+# aw_fail_rec <check>: an F line, from the runner's own shell only. Some checks call ko inside a subshell
+# to test the helpers themselves; those failures are not the run's. ($$ is the runner's pid in a
+# subshell too; BASHPID, or the parent of a forked sh where there is none, is the subshell's own.)
+aw_fail_rec() {
+    local p="${BASHPID:-}"
+    [[ -n "$p" ]] || p="$(exec sh -c 'echo "$PPID"')"
+    [[ "$p" == "$$" ]] && printf 'F\t%s\t0\t%s\n' "$aw_t_id" "$1" >> "$AW_TIMES"
+    return 0
+}
+skp()  { skip=$((skip + 1)); printf 'SKIP  %s\n' "$1"; aw_tick "$1"; }
 # check <description> <command...>: passes when the command succeeds.
 check() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$d"; else ko "$d"; fi; }
 # empty <description> <text>: passes when the text is empty; otherwise the text is the detail.
 empty() { if [[ -z "$2" ]]; then ok "$1"; else ko "$1" "$2"; fi; }
+# grep_all <grep options and pattern>: grep -q at the end of a pipe, reading all of its input. grep -q
+# stops at the first match, and under pipefail the command still writing then fails the whole pipe: it
+# is killed by SIGPIPE, or, where SIGPIPE is ignored (a CI runner, anything Claude Code starts), its
+# write fails. Either way a check that matched reads as failed, more often the busier the machine.
+grep_all() { grep "$@" >/dev/null; }
+
+# The few checks that time something (4b, 22, 23) read how busy the machine is, so a red run means a
+# fault rather than a busy machine. aw_load prints the 1-minute load average per core. aw_factor prints
+# what a time budget is multiplied by: the load per core, at least 1, and at least 2 under CI=true,
+# since a shared runner is slower than a desk machine with nothing else on it. Each such check names
+# the factor in its line, so a pass under load, or a skip, says so.
+aw_load() {
+    local l n
+    # AW_LOAD stands in for the measurement, to see how the checks read on a busy machine.
+    if [[ -n "${AW_LOAD:-}" ]]; then printf '%s\n' "$AW_LOAD"; return; fi
+    if [[ -r /proc/loadavg ]]; then
+        l="$(cut -d ' ' -f 1 /proc/loadavg)"; n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)"
+    else
+        l="$(sysctl -n vm.loadavg 2>/dev/null | awk '{ print $2 }')"; n="$(sysctl -n hw.ncpu 2>/dev/null)"
+    fi
+    awk -v l="${l:-0}" -v n="${n:-1}" 'BEGIN { printf "%.2f\n", (n > 0 ? l / n : 0) }'
+}
+aw_factor() {
+    awk -v f="$(aw_load)" -v ci="${CI:-}" 'BEGIN { if (f < 1) f = 1; if (ci == "true" && f < 2) f = 2; printf "%.1f\n", f }'
+}
+# aw_over <number> <limit>: success when the number is over the limit (decimals allowed).
+aw_over() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a > b) }'; }
 
 # Dates relative to today, in local time, portable across BSD and GNU date.
 days_ago() { python3 -c 'import datetime,sys; print(datetime.date.today() - datetime.timedelta(days=int(sys.argv[1])))' "$1"; }
@@ -139,11 +197,26 @@ install_args=(--team "Test Team" --owner "Sam Example" --owner-handle "@sam")
 # tests/sections/ by their leading number. A section is named by its number as printed ("4b", "11").
 aw_all="1 2 2b 3 4 4b 5 6 7 8 9 10 11"
 for aw_f in "$KIT"/tests/sections/[0-9]*.sh; do aw_f="${aw_f##*/}"; aw_f="${aw_f%%-*}"; aw_all+=" ${aw_f%.sh}"; done
-# The slow tier: the sections that build whole workspaces through the installer, the migration or the
-# ablation runner, and change least often (AW_SLOW, in the header).
-aw_slow="10 15 16 20 25"
 # aw_has <list> <id>: 0 when the space-separated list holds the id.
 aw_has() { case " $1 " in *" $2 "*) return 0 ;; esac; return 1; }
+# A long section is split into parts, each its own file and its own parallel job: 15a-setup.sh,
+# 15b-setup.sh and so on are sections 15a and 15b, with what they share in tests/sections/lib/.
+# aw_expand <ids>: each id as it is when a section has it, or else the parts it was split into, so
+# "15" names 15a, 15b and 15c wherever a section number is written (AW_SECTIONS, the path map, the
+# slow tier). An id that names neither is printed with a leading "?".
+aw_expand() {
+    local id p out="" hit
+    for id in $1; do
+        if aw_has "$aw_all" "$id"; then out+=" $id"; continue; fi
+        hit=""
+        for p in $aw_all; do case "$p" in "$id"[a-z]) hit+=" $p" ;; esac; done
+        out+="${hit:- ?$id}"
+    done
+    echo "${out# }"
+}
+# The slow tier: the sections that build whole workspaces through the installer, the migration or the
+# ablation runner, and change least often (AW_SLOW, in the header).
+aw_slow="$(aw_expand "10 15 16 20 25")"
 # aw_needs <id>: the section whose fixtures or functions this one reads, which comes along with it:
 # 3 and 9 read 1's fixtures, 19 calls 9's skill_ok.
 aw_needs() { case "$1" in 3|9) echo 1 ;; 19) echo 9 ;; esac; }
@@ -155,7 +228,7 @@ if [[ -n "${AW_SECTIONS:-}" && -n "$aw_changed" ]]; then
 fi
 aw_pick="" aw_scoped=0 aw_unknown="" aw_banner=""
 if [[ -n "${AW_SECTIONS:-}" ]]; then
-    for aw_s in $AW_SECTIONS; do aw_has "$aw_all" "$aw_s" && aw_pick+=" $aw_s" || aw_unknown+=" $aw_s"; done
+    for aw_s in $(aw_expand "$AW_SECTIONS"); do [[ "$aw_s" == "?"* ]] && aw_unknown+=" ${aw_s#?}" || aw_pick+=" $aw_s"; done
     aw_banner="Sections: $AW_SECTIONS (AW_SECTIONS)"
 elif [[ -n "$aw_changed" ]]; then
     # The paths changed against the base: the working tree and untracked files against HEAD or a ref's
@@ -178,11 +251,15 @@ elif [[ -n "$aw_changed" ]]; then
     while IFS= read -r aw_p; do
         [[ -n "$aw_p" ]] || continue
         aw_n=$((aw_n + 1)) aw_hit=0
-        case "$aw_p" in tests/sections/[0-9]*.sh) aw_s="${aw_p#tests/sections/}"; aw_pick+=" ${aw_s%%-*}"; aw_hit=1 ;; esac
+        case "$aw_p" in
+            tests/sections/[0-9]*.sh) aw_s="${aw_p#tests/sections/}"; aw_pick+=" ${aw_s%%-*}"; aw_hit=1 ;;
+            # A split section's shared helpers run every part of it.
+            tests/sections/lib/[0-9]*.sh) aw_s="${aw_p#tests/sections/lib/}"; aw_pick+=" $(aw_expand "${aw_s%%-*}")"; aw_hit=1 ;;
+        esac
         while IFS=$'\t' read -r aw_pat aw_secs; do
             [[ "$aw_pat" == always ]] && continue
             # shellcheck disable=SC2254
-            case "$aw_p" in $aw_pat) aw_pick+=" $aw_secs"; aw_hit=1 ;; esac
+            case "$aw_p" in $aw_pat) aw_pick+=" $(aw_expand "$aw_secs")"; aw_hit=1 ;; esac
         done <<< "$aw_rules"
         [[ $aw_hit -eq 1 ]] || aw_unmapped+=" $aw_p"
     done <<< "$aw_paths"
@@ -193,10 +270,10 @@ elif [[ -n "$aw_changed" ]]; then
     if [[ -n "$aw_unmapped" ]]; then
         aw_pick="" aw_banner="Changed against ${aw_changed}: $aw_n path$([[ $aw_n -eq 1 ]] || echo s); no rule in the path map for${aw_unmapped}, so every section runs"
     else
-        aw_pick+=" $(awk -F'\t' '$1 == "always" { print $2 }' <<< "$aw_rules")"
+        aw_pick+=" $(aw_expand "$(awk -F'\t' '$1 == "always" { print $2 }' <<< "$aw_rules")")"
         aw_scoped=1 aw_banner="Changed against ${aw_changed}: $aw_n path$([[ $aw_n -eq 1 ]] || echo s)"
     fi
-    for aw_s in $aw_pick; do aw_has "$aw_all" "$aw_s" || { echo "tests/run.sh: the path map names section $aw_s, and there is none" >&2; exit 2; }; done
+    for aw_s in $aw_pick; do aw_has "$aw_all" "$aw_s" || { echo "tests/run.sh: the path map names section ${aw_s#?}, and there is none" >&2; exit 2; }; done
 fi
 # The slow tier runs unless AW_SLOW=0, or a --changed run chose the sections and AW_SLOW is not 1. A
 # release (AW_REQUIRE_CLAUDE=1) and CI (CI set) always run it.
@@ -218,7 +295,7 @@ for aw_s in $aw_all; do
     elif aw_has "$aw_pick" "$aw_s"; then aw_in=1
     fi
     [[ $aw_in -eq 1 ]] || continue
-    if [[ "$aw_slow_on" != 1 ]] && aw_has "$aw_slow" "$aw_s" && ! aw_has "${AW_SECTIONS:-}" "$aw_s"; then
+    if [[ "$aw_slow_on" != 1 ]] && aw_has "$aw_slow" "$aw_s" && ! aw_has "$(aw_expand "${AW_SECTIONS:-}")" "$aw_s"; then
         aw_held+=" $aw_s"; continue
     fi
     aw_run+=" $aw_s"
@@ -233,7 +310,22 @@ fi
 aw_want() {
     aw_has "$aw_run" "$1" || return 1
     [[ -z "${AW_RUN_CHILD:-}" ]] || printf '@@aw-section %s\n' "$1"
+    aw_sec_mark "$1"
     return 0
+}
+# aw_time_summary <times file> <wall microseconds> <jobs>: the slowest ten sections and the totals.
+aw_time_summary() {
+    awk -F'\t' -v wall="$2" -v jobs="$3" -v file="$4" '
+        $1 == "S" { t[$2] += $3; sum += $3; if ($2 == "prelude") pre += $3 }
+        $1 == "F" { fl[++nf] = $2 ": " $4 }
+        END {
+            n = 0; for (k in t) { n++; key[n] = k }
+            for (i = 1; i <= n; i++) for (j = i + 1; j <= n; j++) if (t[key[j]] > t[key[i]]) { x = key[i]; key[i] = key[j]; key[j] = x }
+            print "Time: " sprintf("%.0f", wall / 1e6) " s wall, " jobs " job(s); " sprintf("%.0f", sum / 1e6) " s of section time, " sprintf("%.0f", pre / 1e6) " s of it building the fixture repository (prelude). Slowest:"
+            for (i = 1; i <= n && i <= 10; i++) printf "  %-8s %6.1f s\n", key[i], t[key[i]] / 1e6
+            print "  Per check: " file " (C lines; sort -t\"\t\" -k3 -n -r)"
+            if (nf) { print "Failed, by the part each ran in:"; for (i = 1; i <= nf; i++) print "  " fl[i] }
+        }' "$1"
 }
 
 
@@ -314,6 +406,30 @@ export AW_CLAUDE="$SCRATCH/no-claude"
 # session inherits that session's, so it is cleared here and set by the checks that want one.
 unset CLAUDE_PROJECT_DIR
 
+# KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
+# and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
+# so the scripts under test are the working tree's, committed or not.
+# Automatic gc and maintenance are off in it, for good: started in the background after a commit, they
+# can pack the loose objects while a fixture's clone is copying them, and that clone then fails.
+# A parallel run builds it once, before the jobs start, and each job gets its own full copy (cp -a, not
+# a clone, which would hardlink objects that another job's git could then change).
+KITSRC="$SCRATCH/kit-src"
+kitsrc_ok=0
+if [[ -n "${AW_KITSRC_FROM:-}" && -d "$AW_KITSRC_FROM/.git" ]]; then
+    cp -a "$AW_KITSRC_FROM" "$KITSRC" && kitsrc_ok=1
+elif git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
+    mkdir -p "$KITSRC" && git -C "$KITSRC" init -q && git -C "$KITSRC" symbolic-ref HEAD refs/heads/main \
+        && git -C "$KITSRC" config gc.auto 0 && git -C "$KITSRC" config maintenance.auto false
+    while IFS= read -r -d '' aw_f; do
+        [[ -f "$KIT/$aw_f" ]] || continue
+        mkdir -p "$KITSRC/$(dirname "$aw_f")" && cp -p "$KIT/$aw_f" "$KITSRC/$aw_f"
+    done < <(git --no-optional-locks -C "$KIT" ls-files -z -co --exclude-standard)
+    git -C "$KITSRC" add -A \
+        && git -C "$KITSRC" -c commit.gpgsign=false commit -q -m "The kit's working tree, for the tests" \
+        && kitsrc_ok=1
+fi
+[[ $kitsrc_ok -eq 1 ]] || echo "note: the kit is not a git checkout; the fixtures built from KITSRC are not available"
+
 # The parallel run. Each job is this script run again for some sections (AW_RUN_CHILD=1), in its own
 # scratch directory, KITSRC included, so no two jobs share a file. (A shared KITSRC is not safe: a
 # local clone hardlinks its objects, so one job's git touching an object changes another's fixture.) Sections that need one another run in one job (1, 3, 9 and 19: aw_needs). The
@@ -330,7 +446,7 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
     # Jobs, in the order they start: the heavy sections first (measured on a Mac, 2026-10-23), then
     # the rest in serial order. The order changes only how soon the run ends.
     aw_groups=() aw_roots=""
-    for aw_s in 15 20 16 25 13 10 11 14 22 19 $aw_run; do
+    for aw_s in $(aw_expand "15 20 16 25 13 10 11 14 22 19") $aw_run; do
         aw_has "$aw_run" "$aw_s" || continue
         aw_r="$(aw_root "$aw_s")"
         aw_has "$aw_roots" "$aw_r" && continue
@@ -339,7 +455,12 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
         aw_groups+=("${aw_g# }")
     done
     aw_par="$SCRATCH/parallel"; mkdir -p "$aw_par"
-    aw_pids=() aw_next=0 aw_live=0
+    aw_pids=() aw_next=0 aw_live=0 aw_t0=()
+    # AW_SECTION_TIMEOUT=<seconds> (CI sets it): a job running longer is stopped, its whole process tree,
+    # and reported with its sections and the last check it finished, so a hang fails in minutes and says
+    # where it is rather than running into the CI job's own limit.
+    aw_limit="${AW_SECTION_TIMEOUT:-}"; case "$aw_limit" in ''|*[!0-9]*) aw_limit=0 ;; esac
+    aw_kill_tree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do aw_kill_tree "$c"; done; kill -TERM "$1" 2>/dev/null; }
     # An interrupted run stops its jobs, each of which removes its own scratch directory on the way out.
     trap 'for aw_x in ${aw_pids[@]+"${aw_pids[@]}"}; do pkill -TERM -P "$aw_x" 2>/dev/null; kill "$aw_x" 2>/dev/null; done; exit 130' INT TERM
     aw_printed="" aw_pre=""
@@ -362,11 +483,22 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
     aw_started=0
     while :; do
         while [[ $aw_live -lt $aw_jobs && $aw_started -lt ${#aw_groups[@]} ]]; do
-            ( AW_RUN_CHILD=1 AW_JOBS=1 AW_SLOW=1 AW_SECTIONS="${aw_groups[$aw_started]}" \
+            ( AW_RUN_CHILD=1 AW_JOBS=1 AW_SLOW=1 AW_SECTIONS="${aw_groups[$aw_started]}" AW_TIMES="$aw_par/$aw_started.times" AW_KITSRC_FROM="$KITSRC" \
                 bash "$KIT/tests/run.sh" > "$aw_par/$aw_started.out" 2>&1
               echo "$?" > "$aw_par/$aw_started.rc"; : > "$aw_par/$aw_started.done" ) &
-            aw_pids+=("$!"); aw_started=$((aw_started + 1)); aw_live=$((aw_live + 1))
+            aw_pids+=("$!"); aw_t0+=("$SECONDS"); aw_started=$((aw_started + 1)); aw_live=$((aw_live + 1))
         done
+        if [[ $aw_limit -gt 0 ]]; then
+            for aw_i in "${!aw_pids[@]}"; do
+                [[ -f "$aw_par/$aw_i.done" ]] && continue
+                [[ $((SECONDS - aw_t0[aw_i])) -gt $aw_limit ]] || continue
+                aw_kill_tree "${aw_pids[$aw_i]}"
+                aw_last="$(awk -F '\t' '$1 == "C" { l = $4 } END { print l }' "$aw_par/$aw_i.times" 2>/dev/null)"
+                printf 'TIMEOUT  section(s) %s stopped after %s s (AW_SECTION_TIMEOUT); the last check to finish: %s\n' \
+                    "${aw_groups[$aw_i]}" "$aw_limit" "${aw_last:-none}" >> "$aw_par/$aw_i.out"
+                echo 124 > "$aw_par/$aw_i.rc"; : > "$aw_par/$aw_i.done"
+            done
+        fi
         aw_live=0
         for aw_i in "${!aw_pids[@]}"; do [[ -f "$aw_par/$aw_i.done" ]] || aw_live=$((aw_live + 1)); done
         aw_flush
@@ -385,28 +517,16 @@ if [[ -z "${AW_RUN_CHILD:-}" && $aw_jobs -gt 1 && "$aw_run" == *" "* ]]; then
         pass=$((pass + aw_p)) fail=$((fail + aw_f)) skip=$((skip + aw_k))
     done
     for aw_s in $aw_unknown; do echo "note: AW_SECTIONS names $aw_s, and no section has that number"; done
+    # The jobs' times, gathered into this run's file; each job's prelude is its own fixture build.
+    for aw_i in "${!aw_groups[@]}"; do cat "$aw_par/$aw_i.times" 2>/dev/null; done >> "$AW_TIMES"
+    aw_now
     echo
+    aw_time_summary "$AW_TIMES" "$((aw_t - aw_t_start))" "$aw_jobs" "$AW_TIMES"
     echo "$pass passed, $fail failed, $skip skipped"
     [[ $fail -eq 0 ]]
     exit
 fi
 
-# KITSRC: a repository on branch main with one commit, whose tree is the kit's working tree (tracked
-# and untracked files, ignored ones left out, modes kept). Every workspace fixture adds the kit from it,
-# so the scripts under test are the working tree's, committed or not.
-KITSRC="$SCRATCH/kit-src"
-kitsrc_ok=0
-if git --no-optional-locks -C "$KIT" rev-parse --git-dir >/dev/null 2>&1; then
-    mkdir -p "$KITSRC" && git -C "$KITSRC" init -q && git -C "$KITSRC" symbolic-ref HEAD refs/heads/main
-    while IFS= read -r -d '' aw_f; do
-        [[ -f "$KIT/$aw_f" ]] || continue
-        mkdir -p "$KITSRC/$(dirname "$aw_f")" && cp -p "$KIT/$aw_f" "$KITSRC/$aw_f"
-    done < <(git --no-optional-locks -C "$KIT" ls-files -z -co --exclude-standard)
-    git -C "$KITSRC" add -A \
-        && git -C "$KITSRC" -c commit.gpgsign=false commit -q -m "The kit's working tree, for the tests" \
-        && kitsrc_ok=1
-fi
-[[ $kitsrc_ok -eq 1 ]] || echo "note: the kit is not a git checkout; the fixtures built from KITSRC are not available"
 
 
 # mkws_min <dir>: the smallest 3.0 workspace, with no setup code. A new repository on main, the kit
@@ -494,6 +614,28 @@ mkws() {
     return $rc
 }
 
+# mkws_copy <dir> [setup args...]: the same workspace as mkws, built once per job for each set of
+# arguments and then copied (cp -a), for checks that start from a fresh workspace and change it. The one
+# absolute path setup writes into a workspace is where its git hooks live; the kit's own hooks setup
+# (lib/setup/gitconfig.sh --hooks, as setup runs it) points the copy's at the copy. The setup log is
+# copied to <dir>.log with the path rewritten. Only for calls whose environment is the runner's own: a
+# check that puts a stub on PATH, or sets a variable setup reads, calls mkws.
+mkws_copy() {
+    local d="$1" c rc; shift
+    c="$SCRATCH/mkws-cache/$(printf '%s\n' "$@" | cksum | tr ' ' '-')"
+    if [[ ! -e "$c.rc" ]]; then
+        mkdir -p "$SCRATCH/mkws-cache"; mkws "$c" "$@"; echo "$?" > "$c.rc"
+    fi
+    rc="$(cat "$c.rc")"
+    [[ -d "$c" ]] || return "$rc"
+    cp -a "$c" "$d" || return 1
+    if [[ -f "$d/kit/lib/setup/gitconfig.sh" ]]; then
+        "$st_bash" "$d/kit/lib/setup/gitconfig.sh" --target "$d" --hooks >/dev/null 2>&1 || return 1
+    fi
+    [[ -f "$c.log" ]] && awk -v a="$c" -v b="$d" '{ while ((i = index($0, a)) > 0) $0 = substr($0, 1, i - 1) b substr($0, i + length(a)); print }' "$c.log" > "$d.log"
+    return "$rc"
+}
+
 # mkws2x <dir>: a workspace in the 2.2.0 layout, for the migration: the kit at 915c528 (its own
 # repository, built once) as a submodule at templates/agentic-workspace, its 2.2.0 install.sh run with
 # vendored plugins and skills in <dir>/skills, and everything committed. Returns 3 when 915c528 is not
@@ -560,7 +702,7 @@ out1="$(bash "$KIT/install.sh" --target "$T1" "${install_args[@]}" --pilot </dev
 if [[ $rc1 -eq 0 ]]; then ok "1 first run exits 0"; else ko "1 first run exits 0" "$out1"; fi
 missing=""
 for f in CLAUDE.md AGENTS.md README.md .claude/settings.json .gitignore .claude/closeout.md .claude/projects.md \
-         .claude/workspace.md projects/INDEX.md logs/decisions.md memory/glossary.md memory/people/README.md \
+         .claude/workspace.md projects/INDEX.md logs/decisions.md memory/glossary.md memory/terms.md memory/people/README.md \
          audits/README.md docs/workspace-map.md .github/CODEOWNERS .github/pull_request_template.md \
          .github/workflows/stay-private.yml pilot/build-list.md .claude/kit-templates.lock; do
     [[ -e "$T1/$f" ]] || missing+="$f"$'\n'
@@ -632,9 +774,9 @@ empty "1 a Claude-only install names no Gemini CLI surface in the files read fir
     "$(grep -n -i -E 'gemini cli|\.gemini/settings' "$T1/CLAUDE.md" "$T1/AGENTS.md" "$T1/.claude/projects.md")"
 check "1 the surface table carries the Claude Code row, naming the plugins and the git hooks in kit/" \
     grep -qxF "$(head -n 1 "$KIT/templates/workspace/surface-rows/claude.md")" "$T1/CLAUDE.md"
-grep -qF "approve the closeout, projects and workspace plugins when asked" <<<"$out1" \
-    && ok "1 the Next message asks each person to approve the three plugins" \
-    || ko "1 the Next message asks each person to approve the three plugins" "$(grep -A6 '^Next' <<<"$out1")"
+grep -qF "approve the closeout, ongoing, projects, scheduler and workspace plugins when asked" <<<"$out1" \
+    && ok "1 the Next message asks each person to approve the kit's plugins" \
+    || ko "1 the Next message asks each person to approve the kit's plugins" "$(grep -A6 '^Next' <<<"$out1")"
 grep -qF "bash kit/pilot/measure.sh" <<<"$out1" && ok "1 the pilot's Next line runs the measurement from kit/" \
     || ko "1 the pilot's Next line runs the measurement from kit/" "$(grep -A6 '^Next' <<<"$out1")"
 empty "1 no .kit-incoming files after two runs" "$(find "$T1" -name '*.kit-incoming' -not -path '*/.git/*' -not -path "$T1/kit/*")"
@@ -821,12 +963,12 @@ empty "3 every plugin.json carries a semantic version" "$bad"
 
 # lists_plugins <marketplace.json> <source prefix> <plugins root> [<directory set>]: the marketplace's
 # plugin set equals the directories in <directory set> (default: the kit's plugins/) in both
-# directions, each source resolves to that plugin under <plugins root>, and the three the kit ships
+# directions, each source resolves to that plugin under <plugins root>, and the four the kit ships
 # are there by name. A directory the marketplace omits never installs; an entry with no directory
 # fails at install time on someone else's machine, which is why both directions are checked.
 lists_plugins() {
     local mp="$1" prefix="$2" root="$3" dirs="${4:-$KIT/plugins}" d name src shown problems=""
-    for name in closeout projects workspace; do
+    for name in closeout ongoing projects scheduler workspace; do
         jq -e --arg n "$name" '.plugins | map(.name) | index($n) != null' "$mp" >/dev/null || problems+="$name not listed"$'\n'
     done
     for d in "$dirs"/*/; do
@@ -842,7 +984,7 @@ lists_plugins() {
     done < <(jq -r '.plugins[].name' "$mp")
     printf '%s' "$problems" | sort -u
 }
-empty "3 the root marketplace lists all three plugins, and every plugin in plugins/" \
+empty "3 the root marketplace lists the kit's five plugins, and every plugin in plugins/" \
     "$(lists_plugins "$KIT/.claude-plugin/marketplace.json" "./plugins/" "$KIT/plugins")"
 # Cowork installs a plugin as a .plugin file and refuses one that a claude.ai-hosted plugin may not be:
 # a description over 500 characters, or a top-level bin/ (Claude Code puts it on PATH, and the admin
@@ -912,10 +1054,10 @@ fi
 
 bad="$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' "$T1/.claude/settings.json" 2>/dev/null)"
 missing=""
-for name in closeout projects workspace; do grep -qx "$name@agentic-workspace" <<<"$bad" || missing+="$name@agentic-workspace"$'\n'; done
+for name in closeout ongoing projects scheduler workspace; do grep -qx "$name@agentic-workspace" <<<"$bad" || missing+="$name@agentic-workspace"$'\n'; done
 jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "directory", "path": "kit"}' "$T1/.claude/settings.json" >/dev/null 2>&1 \
     || missing+="the marketplace is not the directory kit"$'\n'
-empty "3 .claude/settings.json enables all three plugins from the directory marketplace at kit" "$missing"
+empty "3 .claude/settings.json enables the kit's five plugins from the directory marketplace at kit" "$missing"
 
 # One source per procedure works on both surfaces only if commands speak of arguments in prose.
 empty "3 no command uses a tool-specific argument placeholder" \
@@ -988,6 +1130,7 @@ pwd -P > "$out.pwd"
 printf '%s' "${CLOSEOUT_HOOK_CHILD:-}" > "$out.child"
 printf '%s\n' "$@" > "$out.args"
 printf '%s' "$2" > "$out.prompt"
+env | grep -E '^(PAIR_|CLAUDECODE|CLAUDE_CODE_|AW_HEADLESS_RUN)' | LC_ALL=C sort > "$out.env"
 : > "$out.done"
 STUBSCRIPT
 chmod +x "$STUB/claude"
@@ -1025,12 +1168,67 @@ suppressed() {
     else ok "$d"; fi
 }
 
+# The child starts clean: a session in a pairing passes neither its PAIR_* variables nor its own
+# session identity down, and the child is marked headless.
+if capture "$P3" s-clean prompt_input_exit "$TRANSCRIPT" PAIR_ROLE=cc PAIR_MAILBOX="$SCRATCH/mailbox" \
+        CLAUDECODE=1 CLAUDE_CODE_SESSION_ID=parent-session CLAUDE_CODE_ENTRYPOINT=cli; then
+    [[ "$(grep -E '^(PAIR_|CLAUDECODE=|CLAUDE_CODE_(SESSION_ID|ENTRYPOINT|SESSION_ATTENDED)=|AW_HEADLESS_RUN=)' "$REC.env")" == "AW_HEADLESS_RUN=1" ]] \
+        && ok "4 capture child starts without the pairing's PAIR_* or the ending session's identity, marked headless" \
+        || ko "4 capture child starts without the pairing's PAIR_* or the ending session's identity, marked headless" "$(cat "$REC.env")"
+else ko "4 capture child starts without the pairing's PAIR_* or the ending session's identity, marked headless" "the stub never ran"; fi
 if capture "$P3" s-three; then
     ok "4 capture: spawns the claude found on PATH"
     prompt="$(cat "$REC.prompt")"
     grep -qF "$TRANSCRIPT" <<<"$prompt" && ok "4 capture prompt names the transcript" || ko "4 capture prompt names the transcript"
     grep -qF "$DRAFTS/three/s-three.md" <<<"$prompt" && ok "4 capture prompt names the per-session draft file" || ko "4 capture prompt names the per-session draft file"
     grep -qF '| Working standards |' <<<"$prompt" && ok "4 capture prompt carries the default tier table" || ko "4 capture prompt carries the default tier table"
+    # The record check: the prompt asks for the three results read to the end of the transcript, starts
+    # the draft with the transcript: line, and its item shape names every field check-evidence.sh reads.
+    bad=""
+    grep -qxF "  transcript: $TRANSCRIPT" <<<"$prompt" || bad+="no transcript: line naming the record"$'\n'
+    for w in '- check: supported | contradicted | unsupported' '- evidence: L<n> "' '- was: L<n> "' '- correction:' '- dropped:' '- missing:' \
+        'read on to the end of the transcript' 'the latest word holds' "the person's words or a tool's output"; do
+        grep -qF -- "$w" <<<"$prompt" || bad+="no: $w"$'\n'
+    done
+    for w in check evidence was correction dropped missing; do
+        grep -qE "\\\$2 == \"$w\"|get $w|\"$w\"" "$KIT/plugins/closeout/scripts/check-evidence.sh" || bad+="the checker does not read $w"$'\n'
+    done
+    empty "4 capture prompt checks each item against the record, with the fields the checker reads" "$bad"
+    # Not otherwise discoverable, where learnings come from, and the plain words (W3): the prompt, the
+    # command and the ritual say the same, the review reminder shows plain: first, and DESIGN.md says why.
+    # What the model makes of them is judgement; this checks the guidance carries them.
+    bad=""
+    for w in "could that session find this by itself, in the code, the files, the docs," "git log or a tool's own help" \
+        "1. The person's interventions" "2. Your own mistakes in the session, read as missing context" "3. Only then a general lesson" \
+        '- plain: <the claim as one everyday sentence' '- source: correction | missing-context | general' \
+        '| already-written | observed' '- found: <where a later session would find it>' 'goes through the glossary' \
+        'a general lesson with no incident is not' 'write' 'the file with that one item, as observed' 'a quotation mark as \"' \
+        'where would the obvious next move go wrong?' 'the likely move, what goes' 'reads as a warning a colleague'; do
+        grep -qF -- "$w" <<<"$prompt" || bad+="capture prompt: no: $w"$'\n'
+    done
+    for w in plain source found; do
+        grep -qE "get $w" "$KIT/plugins/closeout/scripts/check-evidence.sh" || bad+="the checker does not read $w"$'\n'
+    done
+    for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
+        flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
+        for w in '**is it otherwise discoverable?**' '`git log` or a tool'"'"'s own help' "**The person's interventions" \
+            'read as missing context.**' '**Only then a general lesson' '**Plain words first.**' 'not what kinds to' \
+            'a generic lesson' 'goes through the glossary' 'where would the obvious next move go wrong?**' \
+            'the likely move, what goes wrong and what to do instead' 'a warning a colleague would give'; do
+            grep -qF -- "$w" <<<"$flat" || bad+="$f: no: $w"$'\n'
+        done
+    done
+    grep -qF 'Show each item to the user by its plain: line first' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: plain: first"$'\n'
+    grep -qF 'An item that warns of a trap on the obvious next move is shown as that warning' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: the trap as a warning"$'\n'
+    flat="$(tr '\n' ' ' < "$KIT/plugins/closeout/docs/DESIGN.md" | tr -s ' ')"
+    for w in '## Not otherwise discoverable, and where learnings come from' '**The bias guard.**' '## Plain words first' \
+        '"If ablation is the crux of the spine of synthesis, conjugate the nominal as an irreversible prime."' \
+        '"Avoid writing to files another agent is already working on."' '**The quoting rule.**' "**A run's prompt is a turn.**" \
+        '**Observed, cause unknown.**' 'It starts without the ending session'"'"'s identity.' '**The obvious next move.**' \
+        'not as a kind of item to collect, because telling the capture to record only failures cut memory'"'"'s gain'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="DESIGN.md: no: $w"$'\n'
+    done
+    empty "4 closeout by what is not otherwise discoverable: the capture prompt, the command and the ritual alike — corrections first, plain words, the bias guard, already written and observed, and the trap on the obvious next move" "$bad"
     if grep -qF 'People known for this repository' <<<"$prompt" && grep -qF 'Who needs to' <<<"$prompt" \
         && grep -qE '^  - casey$' <<<"$prompt"; then
         ok "4 capture prompt adds who-needs-to-know for three people, naming them"
@@ -1041,10 +1239,10 @@ if capture "$P3" s-three; then
     [[ "$(cat "$REC.pwd")" == "$(cd "$DRAFTS/three" && pwd -P)" ]] \
         && ok "4 capture child runs from the draft directory" || ko "4 capture child runs from the draft directory" "pwd was $(cat "$REC.pwd")"
     [[ "$(cat "$REC.child")" == "1" ]] && ok "4 capture child carries the recursion guard" || ko "4 capture child carries the recursion guard"
-    if grep -qx -- '--allowedTools' "$REC.args" && grep -qx 'Read,Write' "$REC.args" \
+    if grep -qx -- '--allowedTools' "$REC.args" && grep -qx 'Read,Grep,Write' "$REC.args" \
         && grep -qx -- '-p' "$REC.args" && grep -qxF "$DRAFTS/three" "$REC.args"; then
-        ok "4 capture child is limited to Read,Write with the draft directory added"
-    else ko "4 capture child is limited to Read,Write with the draft directory added" "$(cat "$REC.args" | grep -E '^--' )"; fi
+        ok "4 capture child is limited to Read,Grep,Write with the draft directory added"
+    else ko "4 capture child is limited to Read,Grep,Write with the draft directory added" "$(cat "$REC.args" | grep -E '^--' )"; fi
 else
     ko "4 capture: spawns the claude found on PATH" "the stub never ran"
 fi
@@ -1098,10 +1296,14 @@ printf '### a claim\n' > "$DR/s1.md"
 empty "4 review: silent inside the capture child, and marks nothing" "$(review "$PR" CLOSEOUT_HOOK_CHILD=1)$(find "$DR" -mindepth 1 -maxdepth 1 -name '.seen*' | sed 's#.*/##')"
 outr="$(review "$PR")"
 if jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' <<<"$outr" >/dev/null 2>&1 \
-    && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF "$DR/s1.md"; then
+    && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F "$DR/s1.md"; then
     ok "4 review: a pending draft is surfaced as SessionStart additionalContext"
 else ko "4 review: a pending draft is surfaced as SessionStart additionalContext" "$outr"; fi
-jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF 'Take the step only when two or more are known for this project' \
+rchk="$(jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -oE 'bash [^ ]+/check-evidence\.sh' | sed 's/^bash //')"
+if [[ -n "$rchk" && -f "$rchk" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F 'never promoted as fact'; then
+    ok "4 review: names the evidence checker by a path that exists, and the three results"
+else ko "4 review: names the evidence checker by a path that exists, and the three results" "checker: ${rchk:-none}"; fi
+jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F 'Take the step only when two or more are known for this project' \
     && ok "4 review: names the who-needs-to-know step when the project has a team" || ko "4 review: names the who-needs-to-know step when the project has a team"
 empty "4 review: the injected context has no capitals-for-emphasis" \
     "$(jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -nwE "$shouted" || true)"
@@ -1116,7 +1318,7 @@ age "$DR/.seen.s1.md" 5
 : > "$DR/.seen.gone.md"
 outr="$(review "$PR")"
 check "4 review: a draft first surfaced beyond the retention window is pruned with its marker" test ! -e "$DR/s1.md" -a ! -e "$DR/.seen.s1.md"
-if [[ -f "$DR/s2.md" && -f "$DR/.seen.s2.md" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep -qF "$DR/s2.md"; then
+if [[ -f "$DR/s2.md" && -f "$DR/.seen.s2.md" ]] && jq -r '.hookSpecificOutput.additionalContext' <<<"$outr" | grep_all -F "$DR/s2.md"; then
     ok "4 review: an old draft never yet surfaced is kept and surfaced (retention counts from first surfacing)"
 else ko "4 review: an old draft never yet surfaced is kept and surfaced (retention counts from first surfacing)"; fi
 check "4 review: a marker whose draft is gone is removed" test ! -e "$DR/.seen.gone.md"
@@ -1264,8 +1466,8 @@ for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
     grep -qE '^\| Who \| What they need to know \| Why them \| How \| Offer \| Where it is recorded \|$' "$KIT/$f" || bad+="$f: no Who | … | How | Offer | … table header"$'\n'
     grep -qF '`draft`' "$KIT/$f" && grep -qF '`note`' "$KIT/$f" && grep -qF '`none`' "$KIT/$f" || bad+="$f: the three offers are not all named"$'\n'
     grep -qF 'Who needs to know:' "$KIT/$f" && grep -qF '`ask`' "$KIT/$f" && grep -qF '`off`' "$KIT/$f" || bad+="$f: no auto | ask | off setting"$'\n'
-    tr '\n' ' ' < "$KIT/$f" | grep -qE '`off`[^.;]* (skips this step|leaves it out)' || bad+="$f: off does not skip the step"$'\n'
-    tr '\n' ' ' < "$KIT/$f" | grep -qE '`ask`[^.;]* offers it in one line' || bad+="$f: ask is not a one-line offer"$'\n'
+    tr '\n' ' ' < "$KIT/$f" | grep_all -E '`off`[^.;]* (skips this step|leaves it out)' || bad+="$f: off does not skip the step"$'\n'
+    tr '\n' ' ' < "$KIT/$f" | grep_all -E '`ask`[^.;]* offers it in one line' || bad+="$f: ask is not a one-line offer"$'\n'
     grep -qF 'team/people.md' "$KIT/$f" || bad+="$f: does not name the roster"$'\n'
 done
 grep -qF "The project's roles win over the roster's" "$KIT/plugins/closeout/commands/closeout.md" || bad+="closeout.md: no precedence sentence"$'\n'
@@ -1277,6 +1479,103 @@ grep -qF 'team/people.md' "$KIT/plugins/projects/commands/new.md" || bad+="proje
 grep -qxF -- '- **Who needs to know:** auto' "$KIT/templates/workspace/closeout.md" || bad+="templates/workspace/closeout.md: no setting line"$'\n'
 grep -qE '^\| Name \| Role \| Default relationship \| Channel \| Handle \|$' "$KIT/templates/workspace/closeout.md" || bad+="templates/workspace/closeout.md: no roster example"$'\n'
 empty "4 who needs to know: the setting, the roster, precedence and How / Offer in the command, ritual, conventions, audit and /projects:new" "$bad"
+
+# Checked against the record (closeout, Unreleased): scripts/check-evidence.sh resolves each candidate's
+# anchors in a fixture transcript (a timeout raise that "fixed" a flake, the person reporting it flaked
+# again, the revert, and the real cause shown by a test). Deterministic: the format, anchors resolving,
+# who spoke, the order of a contradiction, and the gate for the always-loaded tier. Whether a quote
+# supports its claim is the model's judgement, and nothing here tests it.
+CHK="$KIT/plugins/closeout/scripts/check-evidence.sh" CFX="$KIT/tests/fixtures/closeout-record"
+ce() { cout="$(env -u CLOSEOUT_TIER_ALWAYS CLAUDE_CONFIG_DIR="$SCRATCH/no-config" bash "$CHK" "$@" 2>&1)"; crc=$?; }
+ce "$CFX/candidates.md"
+if [[ $crc -eq 0 ]] && grep -qF '4 items: 2 supported, 1 contradicted, 1 unsupported (unverified); 0 refused' <<<"$cout"; then
+    ok "4 evidence: a supported control, a contradicted item and an unsupported one pass, counted by result"
+else ko "4 evidence: a supported control, a contradicted item and an unsupported one pass, counted by result" "rc=$crc"$'\n'"$cout"; fi
+grep -qF 'evidence L13 (tool): ok' <<<"$cout" && grep -qF 'evidence L8 (person): ok' <<<"$cout" && grep -qF 'was L6 (agent): ok' <<<"$cout" \
+    && ok "4 evidence: each anchor resolves into the transcript and names who spoke (tool, person, agent)" \
+    || ko "4 evidence: each anchor resolves into the transcript and names who spoke (tool, person, agent)" "$cout"
+grep -qF '→ corrected: Raising the timeout did not fix the flake' <<<"$cout" \
+    && ok "4 evidence: a contradicted item is reported with its correction" || ko "4 evidence: a contradicted item is reported with its correction" "$cout"
+grep -qF '→ unverified: missing nothing in the session measured the runner' <<<"$cout" \
+    && ok "4 evidence: an unsupported item is reported unverified, with what is missing" || ko "4 evidence: an unsupported item is reported unverified, with what is missing" "$cout"
+grep -qF 'Every worker script removes a stale lock on start  [always-loaded]' <<<"$cout" \
+    && ok "4 evidence: a working-standards item cited by the person and a test passes the strict check" \
+    || ko "4 evidence: a working-standards item cited by the person and a test passes the strict check" "$cout"
+
+ce "$CFX/refused.md"
+bad=""
+[[ $crc -eq 1 ]] || bad+="exit $crc, not 1"$'\n'
+for want in \
+    'four workers: unsupported, and bound for the always-loaded tier' \
+    "whole cause of the flake: for the always-loaded tier, cited only by the agent's own words" \
+    'Sixty runs passed after the fix: an anchor does not resolve' \
+    'ran a hundred times: an anchor does not resolve' \
+    'the contradicting evidence (L5) is not later than what it reverses (L6)' \
+    'timeout fixes the flake: an anchor does not resolve' \
+    'written in bash: no check: line' \
+    'L13 (tool): the quote is not on this line' \
+    'L99: past the end of the record (16 lines)' \
+    'L7: not a turn of the conversation' \
+    '7 refused'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 evidence: refused, each by name — unsupported or agent-only for working standards, a quote not on its line, a line past the end, a hook injection, a contradiction no later than what it reverses, no result" "$bad"
+
+# The record, found four ways: the transcript: line (relative to the draft), --transcript, --session and
+# the draft's own name under CLAUDE_CONFIG_DIR; and gone, which resolves nothing and holds back the
+# always-loaded item.
+CCFG="$SCRATCH/evidence-config" CDR="$SCRATCH/evidence-drafts"
+mkdir -p "$CCFG/projects/-some-project" "$CDR"
+cp "$CFX/transcript.jsonl" "$CCFG/projects/-some-project/sess-ev1.jsonl"
+sed '1d' "$CFX/candidates.md" > "$CDR/sess-ev1.md"
+sed '1s|.*|transcript: /nonexistent/gone.jsonl|' "$CFX/candidates.md" > "$CDR/gone.md"
+bad=""
+ce "$CFX/candidates.md"
+grep -qF "record: $CFX/transcript.jsonl (16 lines)" <<<"$cout" || bad+="the transcript: line, relative to the draft"$'\n'
+ce "$CDR/gone.md" --transcript "$CFX/transcript.jsonl"; [[ $crc -eq 0 ]] || bad+="--transcript"$'\n'
+cout="$(CLAUDE_CONFIG_DIR="$CCFG" bash "$CHK" "$CDR/sess-ev1.md" 2>&1)" || bad+="the draft's name as a session id"$'\n'
+cout="$(CLAUDE_CONFIG_DIR="$CCFG" bash "$CHK" "$CDR/gone.md" --session sess-ev1 2>&1)" || bad+="--session"$'\n'
+empty "4 evidence: the record is found by the transcript: line, --transcript, --session and the draft's own name" "$bad"
+ce "$CDR/gone.md"
+if [[ $crc -eq 1 ]] && grep -qF 'record: none found (/nonexistent/gone.jsonl is gone)' <<<"$cout" \
+    && grep -qF 'evidence L11: not resolved (no record)' <<<"$cout" && grep -qF '1 refused' <<<"$cout" \
+    && grep -qF 'removes a stale lock on start: for the always-loaded tier, and the record is not here' <<<"$cout"; then
+    ok "4 evidence: with the transcript gone, nothing resolves, the report says so, and only the always-loaded item is held back"
+else ko "4 evidence: with the transcript gone, nothing resolves, the report says so, and only the always-loaded item is held back" "rc=$crc"$'\n'"$cout"; fi
+sed 's/^- destination: CLAUDE.md$/- destination: GUIDELINES.md/; s/^- tier: Working standards$/- tier: Standing rules/' "$CFX/refused.md" > "$CDR/moved.md"
+cout="$(env CLOSEOUT_TIER_ALWAYS=GUIDELINES.md bash "$CHK" "$CDR/moved.md" --transcript "$CFX/transcript.jsonl" 2>&1)"
+grep -qF "cited only by the agent's own words" <<<"$cout" \
+    && ok "4 evidence: CLOSEOUT_TIER_ALWAYS moves the strict check with the always-loaded file, whatever the tier is called" \
+    || ko "4 evidence: CLOSEOUT_TIER_ALWAYS moves the strict check with the always-loaded file, whatever the tier is called" "$cout"
+
+# Where a learning came from, and the plain words (W3), on a second fixture: a person's correction, an
+# agent's mistake whose missing context arrives later, a general lesson, a run's prompt in a queue record
+# and a queued_command attachment, JSON output quoted with escaped quotes and a line break, something
+# seen and not explained, and something already written. Deterministic: the shape, the anchors, who
+# spoke, and the three source rules. Which source an item has, and whether it is otherwise
+# discoverable, are the model's judgement; nothing here tests them.
+ce "$CFX/sources.md"
+bad=""
+[[ $crc -eq 0 ]] || bad+="exit $crc, not 0"$'\n'
+for want in '7 items: 5 supported, 0 contradicted, 0 unsupported (unverified), 1 already written, 1 observed; 0 refused' \
+    'evidence L1 (prompt): ok' 'evidence L2 (prompt): ok' 'evidence L8 (tool): ok' 'evidence L9 (agent): ok' 'evidence L6 (person): ok' \
+    'evidence L15 (tool): ok' 'evidence L16 (person): ok' \
+    '→ already written: .github/CODEOWNERS' '→ observed, cause unknown'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 sources: a correction cited by the person, missing context, a general lesson elsewhere, a run's prompt as its turn, escaped quotes and a line break, already written, observed, and a trap on the obvious next move cited by the failed step and the person all pass" "$bad$([[ -n "$bad" ]] && printf '%s' "$cout")"
+ce "$CFX/sources-refused.md"
+bad=""
+[[ $crc -eq 1 ]] || bad+="exit $crc, not 1"$'\n'
+for want in 'Owners are in notes/owners.jsonl: no plain: line' \
+    'Always keep summaries short: for the always-loaded tier, from a general lesson' \
+    "Summaries name the feature and the person to ask: a correction, with no evidence line in the person's own words" \
+    'L3: not a turn of the conversation' "source: is 'hunch', not correction, missing-context or general" \
+    'already-written, with no found: line saying where' 'Search fails for reasons unknown: observed, and bound for the always-loaded tier' \
+    '7 refused'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 sources: refused by name — no plain line, a general lesson for the always-loaded tier, a correction not in the person's words, a task notification as a turn, an unknown source, already written with no place, observed for the always-loaded tier" "$bad"
 
 fi
 # ---------------------------------------------------------------------------------------------------
@@ -1314,14 +1613,23 @@ msg="$(pmsg <<<"$out")"
 if [[ "$(printf '%s\n' "$msg" | grep -c .)" == "3" ]] \
     && grep -qxF 'Project: Project p07 — outcome: The p07 rollout is live for every team.' <<<"$msg" \
     && grep -qxF 'Done when: 2 of 4 ticked' <<<"$msg" \
-    && grep -qxF 'State: doing — owner Sam' <<<"$msg"; then
+    && grep -qxF 'State: doing — accountable Sam' <<<"$msg"; then
     ok "4b session-start: three lines in a project folder — outcome, done-when progress, state and owner"
 else ko "4b session-start: three lines in a project folder — outcome, done-when progress, state and owner" "$msg"; fi
 jq -e '.hookSpecificOutput.hookEventName == "SessionStart" and (.hookSpecificOutput.additionalContext | contains("projects/p07/README.md"))' <<<"$out" >/dev/null 2>&1 \
     && ok "4b session-start: the agent gets the same lines as additionalContext, naming the file" \
     || ko "4b session-start: the agent gets the same lines as additionalContext, naming the file" "$out"
+# People: the owner is the person marked accountable; owns, the older word, reads the same (p07 above).
+PRL="$SCRATCH/projects-roles"
+mkdir -p "$PRL/.claude" "$PRL/projects/roles" && git -C "$PRL" init -q && : > "$PRL/.claude/kit-templates.lock"
+cp "$KIT/templates/workspace/projects.md" "$PRL/.claude/projects.md"
+printf '# Roles\n\n## Current state\n\n- **State:** doing\n\n## People\n\n- Priya — supporting (the copy)\n- Jo — accountable, responsible\n- Alex — informed\n' > "$PRL/projects/roles/README.md"
+msg="$(pstart "$PRL/projects/roles" | pmsg)"
+grep -qxF 'State: doing — accountable Jo' <<<"$msg" \
+    && ok "4b session-start: the owner is the person marked accountable, as owns still reads" \
+    || ko "4b session-start: the owner is the person marked accountable, as owns still reads" "$msg"
 msg="$(pstart "$PF/projects/gap/notes" | pmsg)"
-grep -qF 'Project: Gap (proposed)' <<<"$msg" && grep -qxF 'State: ready — no owner named' <<<"$msg" \
+grep -qF 'Project: Gap (proposed)' <<<"$msg" && grep -qxF 'State: ready — no one accountable named' <<<"$msg" \
     && ok "4b session-start: a 'not yet named' blocker is a gap, and a proposed block says so, from a subfolder" \
     || ko "4b session-start: a 'not yet named' blocker is a gap, and a proposed block says so, from a subfolder" "$msg"
 
@@ -1331,11 +1639,11 @@ mkdir -p "$PF/projects/held" "$PF/projects/snag"
 printf '# Held\n\n## Current state\n\n- **State:** blocked\n- **Blocked by:** the signed budget from finance — since 2026-09-01\n\n## People\n\n- Dana — owns\n' > "$PF/projects/held/README.md"
 printf '# Snag\n\n## Current state\n\n- **State:** doing\n- **Blocked by:** the test rig\n  being rebuilt\n\n## People\n\n- Dana — owns\n' > "$PF/projects/snag/README.md"
 msg="$(pstart "$PF/projects/held" | pmsg)"
-grep -qxF 'State: blocked by the signed budget from finance — since 2026-09-01 — owner Dana' <<<"$msg" \
+grep -qxF 'State: blocked by the signed budget from finance — since 2026-09-01 — accountable Dana' <<<"$msg" \
     && ok "4b session-start: a blocked project names what blocks it and since when" \
     || ko "4b session-start: a blocked project names what blocks it and since when" "$msg"
 msg="$(pstart "$PF/projects/snag" | pmsg)"
-grep -qxF 'State: doing — blocked by the test rig being rebuilt — owner Dana' <<<"$msg" \
+grep -qxF 'State: doing — blocked by the test rig being rebuilt — accountable Dana' <<<"$msg" \
     && ok "4b session-start: a Blocked by line on another state is named after it, joined across a wrapped line" \
     || ko "4b session-start: a Blocked by line on another state is named after it, joined across a wrapped line" "$msg"
 rm -rf "$PF/projects/held" "$PF/projects/snag"
@@ -1387,7 +1695,7 @@ printf '# Projects
 | Reg | `projects/03-reg/` | doing | Kim Lee | x |
 ' > "$PF/projects/INDEX.md"
 msg="$(pstart "$PF/projects/03-reg" | pmsg)"
-grep -qF 'Project: Reg — ' <<<"$msg" && grep -qxF 'State: doing — owner Kim Lee' <<<"$msg" \
+grep -qF 'Project: Reg — ' <<<"$msg" && grep -qxF 'State: doing — accountable Kim Lee' <<<"$msg" \
     && ok "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" \
     || ko "4b session-start: with no People section the register row names the owner, and a bold State reads plainly" "$msg"
 
@@ -1408,7 +1716,7 @@ grep -qF 'Project: Thesis rewrite — ' <<<"$(pstart "$PF/projects/thesis" | pms
 mkdir -p "$PF/projects/legacy"
 printf '# Legacy\n\n## Now\n\n- **State:** doing\n\n## People\n\n- Ana — owns\n' > "$PF/projects/legacy/README.md"
 msg="$(pstart "$PF/projects/legacy" | pmsg)"
-grep -qxF 'State: doing — owner Ana — from an older Now block; /projects:adopt converts it' <<<"$msg" \
+grep -qxF 'State: doing — accountable Ana — from an older Now block; /projects:adopt converts it' <<<"$msg" \
     && ok "4b session-start: an older Now block is read and labelled for conversion by /projects:adopt" \
     || ko "4b session-start: an older Now block is read and labelled for conversion by /projects:adopt" "$msg"
 rm -rf "$PF/projects/legacy"
@@ -1430,6 +1738,47 @@ grep -qF 'Project: Old — ' <<<"$msg" && grep -qF 'State: paused' <<<"$msg" \
     && ok "4b session-start: the most specific location wins (paused inside active)" \
     || ko "4b session-start: the most specific location wins (paused inside active)" "$msg"
 
+# Ongoing areas: one line inside an area folder, with the desired state, the standards met as last
+# reviewed (or not yet reviewed, never zero), the state, and the check-in against its own cadence.
+# pa <folder> <state> <check-in> [standards met]: an area README in that folder, from the template's shape.
+pa() {
+    mkdir -p "$1/notes"
+    { printf '# %s\n\n## What this is\n\nAn area for the tests.\n\n## Desired state\n\nThe %s collection stays\nhealthy all year.\n\n## Standards to keep\n\n- every tree checked weekly\n\n## Current state\n\n- **State:** %s\n- **Check-in:** %s\n' \
+        "${1##*/}" "${1##*/}" "$2" "$3"
+      [[ -z "${4:-}" ]] || printf -- '- **Standards met:** %s\n' "$4"
+      printf -- '- **Updated:** 2026-10-01\n\n2026-10-01 — Started.\n'; } > "$1/README.md"
+}
+pa "$PF/ongoing/bonsai" active "every 2 weeks — last 2026-10-20" "3 of 5 — 2026-10-20"
+pa "$PF/ongoing/garden" active "monthly — last 2026-11-01"
+pa "$PF/ongoing/kiln" dormant "every 2 weeks — last 2026-01-01" "2 of 4 — 2026-01-01"
+pa "$PF/ongoing/press" archived "every 2 weeks — last 2026-01-01"
+pa "$PF/ongoing/loom" active "each season"
+s4b_area() { pstart "$1" PROJECTS_HOOK_TODAY=2026-11-11 | pmsg; }
+bad=""
+msg="$(s4b_area "$PF/ongoing/bonsai/notes")"
+[[ "$msg" == "Area: bonsai — desired state: The bonsai collection stays healthy all year. — standards met: 3 of 5 (2026-10-20) — State: active; check-in due (last 2026-10-20, 22 days ago, every 14 days) — /ongoing:review" ]] \
+    || bad+="due, reviewed, from a subfolder: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/garden")"
+[[ "$msg" == *"— standards met: not yet reviewed — State: active; next check-in in 20 days" ]] || bad+="not yet reviewed, not due: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/kiln")"
+[[ "$msg" == *"— standards met: 2 of 4 (2026-01-01) — State: dormant; no check-in while dormant" ]] || bad+="dormant: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/press")"
+[[ "$msg" == *"— State: archived; no check-in once archived" ]] || bad+="archived: $msg"$'\n'
+msg="$(s4b_area "$PF/ongoing/loom")"
+[[ "$msg" == *"— State: active; next check-in in 50 days" ]] || bad+="a season, dated by Updated with no last date: $msg"$'\n'
+[[ "$(printf '%s\n' "$(s4b_area "$PF/ongoing/bonsai")" | grep -c .)" == 1 ]] || bad+="more than one line"$'\n'
+jq -e '.hookSpecificOutput.additionalContext | contains("ongoing/bonsai/README.md")' <<<"$(pstart "$PF/ongoing/bonsai" PROJECTS_HOOK_TODAY=2026-11-11)" >/dev/null 2>&1 \
+    || bad+="the agent's context does not name the file"$'\n'
+jq -e '.hookSpecificOutput.additionalContext | contains("Read ongoing/bonsai/README.md in full before acting on this area")' <<<"$(pstart "$PF/ongoing/bonsai" PROJECTS_HOOK_TODAY=2026-11-11)" >/dev/null 2>&1 \
+    || bad+="the agent's context does not ask it to read the area's page"$'\n'
+empty "4b session-start: one line inside an area — desired state, standards met or not yet reviewed, state, check-in due against its own cadence and never while dormant or archived" "$bad"
+# The conventions' Areas line moves them: the example conventions keep areas in areas/<slug>/.
+pa "$PX/areas/darkroom" active "every week — last 2026-11-01" "1 of 2 — 2026-11-01"
+msg="$(s4b_area "$PX/areas/darkroom")"
+[[ "$msg" == *"standards met: 1 of 2 (2026-11-01) — State: active; check-in due (last 2026-11-01, 10 days ago, every 7 days)"* ]] \
+    && ok "4b session-start: follows the conventions' Areas location" \
+    || ko "4b session-start: follows the conventions' Areas location" "$msg"
+
 # Silent on failure, and fast.
 errs=""
 for input in 'not json' '{"cwd":"/nonexistent/place"}' ''; do
@@ -1442,6 +1791,10 @@ done
 empty "4b session-start: bad input exits 0 with no output" "$errs"
 empty "4b session-start: silent when turned off, or inside the closeout capture child" \
     "$(pstart "$PF/projects/p01" PROJECTS_HOOK_DISABLED=1)$(pstart "$PF/projects/p01" CLOSEOUT_HOOK_CHILD=1)"
+# The budget is 100 ms times the load factor (aw_factor), so a hook that got slower still fails on a
+# busy machine; past a factor of 4 the timing says more about the machine than the hook, and it skips.
+f13_f="$(aw_factor)"
+f13_budget="$(awk -v f="$f13_f" 'BEGIN { printf "%d", 100 * f }')"
 ms="$(python3 - "$PHOOK" "$PF" <<'PY'
 import json, os, subprocess, sys, time
 hook, repo = sys.argv[1], sys.argv[2]
@@ -1458,8 +1811,15 @@ for cwd in (repo, repo + "/projects/p07"):
 print(int(worst * 1000))
 PY
 )"
-[[ "$ms" -lt 100 ]] && ok "4b session-start: under 100 ms with 20 projects (median ${ms} ms)" \
-    || ko "4b session-start: under 100 ms with 20 projects (median ${ms} ms)"
+if aw_over "$f13_f" 4; then
+    skp "4b session-start: under 100 ms with 20 projects — the machine is too busy to time it (load factor $f13_f, over 4; median ${ms} ms)"
+elif [[ "$f13_f" == 1.0 ]]; then
+    [[ "$ms" -lt 100 ]] && ok "4b session-start: under 100 ms with 20 projects (median ${ms} ms)" \
+        || ko "4b session-start: under 100 ms with 20 projects (median ${ms} ms)"
+else
+    [[ "$ms" -lt "$f13_budget" ]] && ok "4b session-start: under 100 ms with 20 projects, ${f13_budget} ms at load factor $f13_f (median ${ms} ms)" \
+        || ko "4b session-start: under 100 ms with 20 projects, ${f13_budget} ms at load factor $f13_f (median ${ms} ms)"
+fi
 
 fi
 # ---------------------------------------------------------------------------------------------------
@@ -1500,6 +1860,16 @@ printf '# Blair\n' > "$F/memory/people/blair.md"
 fx_readme beta ready
 mkdir -p "$F/audits"; printf '# Audits\n' > "$F/audits/README.md"; printf 'report\n' > "$F/audits/hygiene-1.md"
 printf '# Build list\n\n| # | Item | Owner | Due | Status |\n|---|---|---|---|---|\n| 1 | Thing one | Alex | soon | exists |\n| 2 | Thing two | Blair | later | planned |\n' > "$F/pilot/build-list.md"
+# Three ongoing areas, in the default location: one active and due (every 2 weeks, last checked 30 days
+# ago) and reviewed at 3 of 5; one active, monthly, checked 12 days ago and not yet reviewed; one dormant.
+fx_area() { # <slug> <state> <check-in> [standards met]
+    mkdir -p "$F/ongoing/$1"
+    { printf '# %s\n\n## Desired state\n\nIt is kept up.\n\n## Standards to keep\n\n- one\n\n## Current state\n\n- **State:** %s\n- **Check-in:** %s\n' "$1" "$2" "$3"
+      [[ -z "${4:-}" ]] || printf -- '- **Standards met:** %s\n' "$4"; } > "$F/ongoing/$1/README.md"
+}
+fx_area kept active "every 2 weeks — last $(days_ago 30)" "3 of 5 — $(days_ago 30)"
+fx_area tended active "monthly — last $(days_ago 12)"
+fx_area resting dormant "every 2 weeks — last $(days_ago 100)"
 fx_commit 11 Blair blair@example.test "Start beta"
 
 decision 4 3
@@ -1539,8 +1909,8 @@ bad="$(
     expect 3 audit_reports 1; expect 3 doc_commits_7d 2; expect 3 doc_contributors_7d 2
 )"
 empty "5 every established column counts the fixture history correctly, week by week" "$bad"
-empty "5 metrics.csv holds counts only — a date, fifteen integers, the median days (empty until a project is done), the three ablation counts, and the agent-read counts with their date" \
-    "$(tail -n +2 "$CSV" | grep -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]+){15},[0-9]*,[0-9]+,[0-9]*,[0-9]*(,[0-9]*){6},([0-9]{4}-[0-9]{2}-[0-9]{2})?$' || true)"
+empty "5 metrics.csv holds counts only — a date, fifteen integers, the median days (empty until a project is done), seven area counts, the three ablation counts, and the agent-read counts with their date" \
+    "$(tail -n +2 "$CSV" | grep -vE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]+){15},[0-9]*(,[0-9]+){7},[0-9]+,[0-9]*,[0-9]*(,[0-9]*){6},([0-9]{4}-[0-9]{2}-[0-9]{2})?$' || true)"
 
 # --- F12: the project columns ---------------------------------------------------------------------
 # In the fixture above, alpha is created 18 days ago in state doing and set to done 4 days ago (14
@@ -1549,12 +1919,13 @@ empty "5 metrics.csv holds counts only — a date, fifteen integers, the median 
 # project reaches done.
 known="$(printf '%s\n' ${base//,/ } projects_active projects_blocked projects_with_done_when \
     projects_done blocked_over_14d max_in_flight_per_person median_days_to_done \
+    areas_active areas_dormant areas_archived areas_due_checkin areas_not_reviewed area_standards_met area_standards_reviewed \
     ablations_named ablations_discriminating ablations_no_difference \
     agent_sessions_7d sessions_reading_reference_7d reference_reads_7d reference_searches_7d \
     reference_files_read_7d reference_files_total transcripts_from)"
-[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done,ablations_named,ablations_discriminating,ablations_no_difference,agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from" ]] \
-    && ok "5 F12 the header carries the seven project columns, the three ablation columns, then the seven agent-read columns, in order" \
-    || ko "5 F12 the header carries the seven project columns, the three ablation columns, then the seven agent-read columns, in order" "$(head -n 1 "$CSV")"
+[[ "$(head -n 1 "$CSV")" == "$base,projects_active,projects_blocked,projects_with_done_when,projects_done,blocked_over_14d,max_in_flight_per_person,median_days_to_done,areas_active,areas_dormant,areas_archived,areas_due_checkin,areas_not_reviewed,area_standards_met,area_standards_reviewed,ablations_named,ablations_discriminating,ablations_no_difference,agent_sessions_7d,sessions_reading_reference_7d,reference_reads_7d,reference_searches_7d,reference_files_read_7d,reference_files_total,transcripts_from" ]] \
+    && ok "5 F12 the header carries the seven project columns, the seven area columns, the three ablation columns, then the seven agent-read columns, in order" \
+    || ko "5 F12 the header carries the seven project columns, the seven area columns, the three ablation columns, then the seven agent-read columns, in order" "$(head -n 1 "$CSV")"
 bad=""
 for c in $(head -n 1 "$CSV" | tr , ' '); do grep -qxF "$c" <<<"$known" || bad+="unknown column $c"$'\n'; done
 empty "5 every metrics.csv column is a known one" "$bad"
@@ -1567,6 +1938,17 @@ bad="$(
     expect 3 blocked_over_14d 0; expect 3 max_in_flight_per_person 0; expect 3 median_days_to_done 14
 )"
 empty "5 F12 the project columns count the fixture history correctly, week by week" "$bad"
+# Areas, apart from the projects: none before they are added 11 days ago; then two active (one due,
+# one not yet reviewed, which is not a zero in the standards columns) and one dormant, never due.
+bad="$(
+    for c in areas_active areas_dormant areas_archived areas_due_checkin areas_not_reviewed area_standards_met area_standards_reviewed; do expect 1 "$c" 0; done
+    for r in 2 3; do
+        expect "$r" areas_active 2; expect "$r" areas_dormant 1; expect "$r" areas_archived 0; expect "$r" areas_due_checkin 1
+        expect "$r" areas_not_reviewed 1; expect "$r" area_standards_met 3; expect "$r" area_standards_reviewed 5
+    done
+    expect 2 projects_active 2; expect 3 projects_active 1
+)"
+empty "5 the area columns count areas by state, those due for their check-in, those not yet reviewed and the standards met, and leave the project columns alone" "$bad"
 
 # A second history exercises the data-model rules: a conventions file with its own locations,
 # register and a Done when alias; plain and bold labels; honest gaps; a Blocked by line by date; the
@@ -1618,7 +2000,7 @@ tcsv="$SCRATCH/measure-out/t.csv"
 tout="$(cd "$SCRATCH" && MEASURE_ALWAYS_LOADED="CLAUDE.md" bash "$KIT/pilot/measure.sh" --target "$G/work" --backfill 0 --out measure-out/t.csv 2>&1)"; trc=$?
 # The repository's own copy of measure.sh has no reads.sh to call and the kit's does, so the rows are
 # compared up to the agent-read columns.
-[[ $trc -eq 0 && "$(cut -d, -f1-20 "$tcsv" 2>/dev/null)" == "$(cut -d, -f1-20 "$gcsv")" && ! -e "$G/pilot/metrics.csv" ]] \
+[[ $trc -eq 0 && "$(cut -d, -f1-27 "$tcsv" 2>/dev/null)" == "$(cut -d, -f1-27 "$gcsv")" && ! -e "$G/pilot/metrics.csv" ]] \
     && ok "5 --target measures that repository from another directory, the same rows as from inside it" \
     || ko "5 --target measures that repository from another directory, the same rows as from inside it" "rc=$trc $tout"
 
@@ -1680,6 +2062,23 @@ hcol() { awk -F, -v name="$1" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == nam
 bad="$(for pair in projects_active=3 projects_blocked=1 projects_with_done_when=2 blocked_over_14d=0 max_in_flight_per_person=2; do
     got="$(hcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"; done)"
 empty "5 F12 reads READMEs by the shared rules (headings, checklists, blocked, since-only dates, gaps)" "$bad"
+# People: in flight counts accountable and responsible (and owns and does, the older words), never
+# supporting, consulted or informed. Jo is accountable for x and responsible for y; consulted for z.
+Hr="$SCRATCH/measure-roles"
+mkdir -p "$Hr/pilot" "$Hr/projects/x" "$Hr/projects/y" "$Hr/projects/z" && git -C "$Hr" init -q && cp "$KIT/pilot/measure.sh" "$Hr/pilot/measure.sh"
+for hr_p in x y z; do
+    case "$hr_p" in
+        x) hr_people='- Jo — accountable, responsible\n- Priya — supporting' ;;
+        y) hr_people='- Kim — accountable\n- Jo — responsible' ;;
+        z) hr_people='- Kim — owns, does\n- Jo — consulted\n- Alex — informed' ;;
+    esac
+    printf '# %s\n\n## Done when\n\n- [ ] it ships\n\n## Current state\n\n- **State:** doing\n\n## People\n\n%b\n' "$hr_p" "$hr_people" > "$Hr/projects/$hr_p/README.md"
+done
+git -C "$Hr" add -A && git -C "$Hr" -c commit.gpgsign=false commit -q -m roles
+hrow="$(cd "$Hr" && bash pilot/measure.sh --print 2>/dev/null | tail -n 1)"
+bad="$(for pair in projects_active=3 max_in_flight_per_person=2; do
+    got="$(hcol "${pair%%=*}")"; [[ "$got" == "${pair#*=}" ]] || printf '%s: expected %s, got %s\n' "${pair%%=*}" "${pair#*=}" "$got"; done)"
+empty "5 F12 in flight counts accountable and responsible (and the older owns and does), not consulted or informed" "$bad"
 # A repository with nothing committed has no history to read: a note, and no file.
 Hn="$SCRATCH/measure-empty"
 mkdir -p "$Hn/pilot" && git -C "$Hn" init -q && cp "$KIT/pilot/measure.sh" "$Hn/pilot/measure.sh"
@@ -1752,12 +2151,12 @@ aflags="$(cd "$A" && bash pilot/ablate.sh --target "$A" --report 2>&1 | awk -F'|
 # Without the runner beside it, measure.sh counts the files and leaves the two result counts empty; a
 # kit checkout named in .claude/plugins/VENDORED supplies the runner.
 mkdir -p "$SCRATCH/measure-lone"; cp "$KIT/pilot/measure.sh" "$SCRATCH/measure-lone/measure.sh"
-lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$lrow" == "4,," ]] && ok "5 without the runner, ablations_named is counted and the other two are empty" \
     || ko "5 without the runner, ablations_named is counted and the other two are empty" "got $lrow"
 mkdir -p "$A/.claude/plugins"
 printf 'Vendored from github.com/example/kit (plugins/)\nkit commit: 0000000\nkit checkout: %s (on the machine that ran the installer)\n' "$KIT" > "$A/.claude/plugins/VENDORED"
-lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+lrow="$(bash "$SCRATCH/measure-lone/measure.sh" --target "$A" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$lrow" == "4,3,0" ]] && ok "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" \
     || ko "5 the runner is found through the kit checkout .claude/plugins/VENDORED names" "got $lrow"
 
@@ -1920,15 +2319,15 @@ fi
 # ---------------------------------------------------------------------------------------------------
 if aw_want 9; then
 echo
-echo "9 · The eleven commands, on Claude Code and as skills, from one source each"
+echo "9 · The eighteen commands, on Claude Code and as skills, from one source each"
 
-# The command set is fixed by the contract's command list; an eleventh, or a missing one, fails here
+# The command set is fixed by the contract's command list; a nineteenth, or a missing one, fails here
 # so the plugins, the skills and this list move together.
-commands="closeout/closeout projects/adopt projects/board projects/close projects/hold projects/new projects/pair projects/pickup
-workspace/hygiene workspace/quick-start workspace/register-audit"
+commands="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup
+scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the eleven commands" \
-    || ko "9 the kit has exactly the eleven commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the eighteen commands" \
+    || ko "9 the kit has exactly the eighteen commands" "has: $have"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }
@@ -2006,19 +2405,31 @@ for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
 done
 [[ -z "$bad" ]] && ok "9 closeout parity: the command and the ritual carry the same core rules" \
     || ko "9 closeout parity: the command and the ritual carry the same core rules" "$bad"
-# The ablation offer at promotion: only for the two tiers loaded most often, offered and not required,
+# The leave-out test offer at promotion: only for the two tiers loaded most often, offered and not required,
 # made on a proposal as well as a promotion, asked as "what task would go worse", and reported.
 bad=""
 for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
     flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
     grep -qE 'two tiers loaded most often|always-loaded tier or general reference' <<<"$flat" || bad+="$f: the offer is not limited to the top two tiers"$'\n'
-    grep -qF 'offer an ablation' <<<"$flat" || bad+="$f: no offer of an ablation"$'\n'
+    grep -qF 'offer a leave-out test' <<<"$flat" || bad+="$f: no offer of a leave-out test"$'\n'
     grep -qE 'a no ends it|offered, not required' <<<"$flat" || bad+="$f: the offer is not optional"$'\n'
     grep -qF 'proposed for promotion' <<<"$flat" || bad+="$f: the offer does not ride with a proposal"$'\n'
     grep -qF 'what task would go worse' <<<"$flat" || bad+="$f: no question about what task would go worse"$'\n'
-    grep -qF -- '- Any ablation offered' "$KIT/$f" || bad+="$f: no report line for the ablation offer"$'\n'
+    grep -qF -- '- Any leave-out test offered' "$KIT/$f" || bad+="$f: no report line for the leave-out test offer"$'\n'
 done
-empty "9 closeout parity: the command and the ritual both offer an ablation on the top two tiers, optionally, and report it" "$bad"
+empty "9 closeout parity: the command and the ritual both offer a leave-out test on the top two tiers, optionally, and report it" "$bad"
+# The check against the session's record: both copies name the three results, reading to the end,
+# the strict check for the always-loaded tier, the surface with no transcript, and the report line.
+bad=""
+for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
+    flat="$(tr '\n' ' ' < "$KIT/$f" | tr -s ' ')"
+    for w in "Against the session's record" '**supported**' '**contradicted**' '**unsupported**' 'never promoted as fact' \
+        'the latest word holds' 'strictest check' "the person's own words or a tool's output" 'against the conversation in context' \
+        'checked against'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="$f: no $w"$'\n'
+    done
+done
+empty "9 closeout parity: the command and the ritual both check candidates against the session's record, with the same results and the strict tier" "$bad"
 
 fi
 # ---------------------------------------------------------------------------------------------------
@@ -2546,7 +2957,7 @@ for r in "$ALOG"/call.*; do
         || bad+="$(basename "$r"): auto-update not off: $(grep 'autoupdate' "$r" | paste -sd' ' -)"$'\n'
 done
 [[ "$(find "$ALOG" -mindepth 1 -maxdepth 1 -name 'call.*' | grep -c .)" == 6 ]] || bad+="$(find "$ALOG" -mindepth 1 -maxdepth 1 -name 'call.*' | grep -c .) calls, not 6"$'\n'
-if find "$ATMP" -mindepth 1 -maxdepth 1 | sed 's#.*/##' | grep -qE '^ablate-(cfg|home|judge)\.'; then bad+="left in TMPDIR: $(ls "$ATMP")"$'\n'; fi
+if find "$ATMP" -mindepth 1 -maxdepth 1 | sed 's#.*/##' | grep_all -E '^ablate-(cfg|home|judge)\.'; then bad+="left in TMPDIR: $(ls "$ATMP")"$'\n'; fi
 [[ "$(homesum)" == "$home0" ]] || bad+="the person's own config changed"$'\n'
 empty "10 each run gets its own temporary config (the minimum set only) and HOME, removed after, the token passed through, and the person's config untouched" "$bad"
 pick() { grep -l -x "$1" "$ALOG"/call.* | xargs grep -l -x "$2" | grep -c .; }
@@ -2667,7 +3078,7 @@ early="$(grep -F '| early | 2026-09-21 |' <<<"$aout")"
 # measure.sh counts by the same rule: only `discriminates` as discriminating, only `no difference (both
 # pass)` as no difference; a lean and a check failing both arms count in neither.
 for x in gap3 gap2 gap2low gap1 gap1low weak same; do printf -- '---\nfile: CLAUDE.md\nablate:\n  - "A line."\n---\n' > "$AF/pilot/ablations/$x.md"; done
-mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -n 1 | cut -d, -f18-20)"
+mrow="$(bash "$KIT/pilot/measure.sh" --target "$AF" --print 2>/dev/null | tail -n 1 | cut -d, -f25-27)"
 [[ "$mrow" == "9,3,1" ]] \
     && ok "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" \
     || ko "10 measure.sh counts three discriminating (gaps 3, 2, 2) and one no difference, and neither a lean nor a failing check" "got $mrow"
@@ -2710,7 +3121,7 @@ st_expect "11 fresh: register, decisions log and the other canonical files" "$r"
     glossary=present glossary_terms=0 build_list=present verification=missing catalogue=missing \
     codeowners=.github/CODEOWNERS kit_incoming= own_skills= foreign_skills=
 st_expect "11 fresh: plugins, surfaces and measurement, all read in place from kit/" "$r" settings=present \
-    plugins_registered=closeout,projects,workspace plugins_mode=kit plugins_path=kit \
+    plugins_registered=closeout,ongoing,projects,scheduler,workspace plugins_mode=kit plugins_path=kit \
     kit_checkout=kit closeout_conventions=present surfaces=claude gemini_commands=0 \
     measure_script=kit/pilot/measure.sh metrics_csv=missing vendored_commit= state_version=2
 
@@ -2864,7 +3275,7 @@ done
 grep -qF '`kit/plugins/workspace/scripts/state.sh`' "$QS" || bad+="the quick-start does not name the path in kit/"$'\n'
 grep -q 'With no$' "$QS" && grep -q '^shell at all, read `state.sh` as a file' "$QS" || bad+="no fallback for a surface with no shell"$'\n'
 awk '/^## The team part/ { s = 1; next } /^## / { s = 0 } s' "$QS" | tr '\n' ' ' \
-    | grep -q 'start `team/people.md` from *`templates/team-roster.md`' || bad+="the team part does not offer the team roster"$'\n'
+    | grep_all 'start `team/people.md` from *`templates/team-roster.md`' || bad+="the team part does not offer the team roster"$'\n'
 emitted="$(st_run "$SF" | sed 's/=.*//' | sort -u)"
 # Keys are the first column of the discovery table, and any key written with an underscore or as
 # key=value anywhere in the command (the format's own `key=value` aside).
@@ -2889,11 +3300,13 @@ sc_list=(setup.sh install.sh lib/wizard.sh lib/common.sh lib/templates.sh plugin
     githooks/pre-commit githooks/pre-merge-commit githooks/commit-msg githooks/pre-push githooks/stub.sh
     githooks/lib/common.sh)
 for f in "$KIT"/scripts/*.sh "$KIT"/lib/setup/*.sh "$KIT"/plugins/workspace/hooks/*.sh \
-         "$KIT"/plugins/projects/hooks/*.sh "$KIT"/plugins/projects/hooks/lib/*.sh "$KIT"/plugins/projects/scripts/*.sh; do
+         "$KIT"/plugins/projects/hooks/*.sh "$KIT"/plugins/projects/hooks/lib/*.sh "$KIT"/plugins/projects/scripts/*.sh \
+         "$KIT"/plugins/scheduler/scripts/*.sh \
+         "$KIT"/plugins/closeout/scripts/*.sh; do
     sc_list+=("${f#"$KIT"/}")
 done
 if command -v shellcheck >/dev/null 2>&1; then
-    check "11 shellcheck -x is clean on setup.sh, install.sh, the libraries, state.sh, the pilot, the git hooks, scripts/, lib/setup/, the workspace hooks and the projects plugin's scripts" \
+    check "11 shellcheck -x is clean on setup.sh, install.sh, the libraries, state.sh, the pilot, the git hooks, scripts/, lib/setup/, the workspace hooks, the projects plugin's scripts and the scheduler's" \
         bash -c 'cd "$1" && shift && shellcheck -x "$@"' _ "$KIT" "${sc_list[@]}"
 else
     skp "11 shellcheck not on PATH; the kit's scripts not linted"
@@ -2917,7 +3330,12 @@ for aw_section_file in ${aw_section_files[@]+"${aw_section_files[@]}"}; do
 done
 for aw_s in $aw_unknown; do echo "note: AW_SECTIONS names $aw_s, and no section has that number"; done
 
-# A parallel run's job leaves out the blank line, so its sections join up as a serial run's do.
-[[ -n "${AW_RUN_CHILD:-}" ]] || echo
+aw_sec_mark ""
+# A parallel run's job leaves out the blank line and the time summary, so its sections join up as a
+# serial run's do.
+if [[ -z "${AW_RUN_CHILD:-}" ]]; then
+    echo
+    aw_now; aw_time_summary "$AW_TIMES" "$((aw_t - aw_t_start))" 1 "$AW_TIMES"
+fi
 echo "$pass passed, $fail failed, $skip skipped"
 [[ $fail -eq 0 ]]

@@ -74,10 +74,11 @@ id holds. A status:
   The first time the watch or a hook points it at a message, `status-cc.md` gains a `received <time>` line
   for that id, so the PM sees how long the message waited. A `received` line is a pickup record, not a
   settlement: the message stays open until a status line says otherwise.
-- **The PM** runs `pair.sh watch --role pm` as a background command, which wakes it when a CC message arrives, and
-  reads `pair.sh check` before saying anything about the engineer. A Claude Code PM is started with
-  `pair.sh <folder> --pm`; a Cowork PM checks on a schedule instead. Either way it tests what the engineer
-  reports before accepting it.
+- **The PM** is a Cowork session by default, which checks back by a scheduled message into its own
+  conversation. A Claude Code PM, the fallback, is started with `pair.sh <folder> --pm` and runs
+  `pair.sh watch --role pm` as a background command, which wakes it when a CC message arrives. Either way
+  it reads `pair.sh check` before saying anything about the engineer, and tests what the engineer reports
+  before accepting it.
 - A message that cannot wait for a check goes to the person directly.
 
 ## Commands handed to the person

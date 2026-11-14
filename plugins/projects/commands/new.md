@@ -53,8 +53,10 @@ Anything it does not mention falls back to the defaults.
 
 ## What to find out
 
-1. **Name** — and a short slug for the folder (lowercase, hyphens, unless the
-   conventions file names another rule or a folder prefix). If a folder for this
+1. **Name** — and a short slug for the folder, from
+   `bash kit/plugins/projects/scripts/slug.sh "<name>"` (lowercase, hyphens, the
+   same rule `/ongoing:new` uses), unless the conventions file names another
+   rule or a folder prefix. Show it; the person may give another. If a folder for this
    project already exists, the work has already started: stop here and suggest
    they run `/projects:adopt <folder>`, which adds the missing sections without
    rewriting what is there. A second README is not part of this command.
@@ -64,10 +66,10 @@ Anything it does not mention falls back to the defaults.
 3. **Desired outcome** — one sentence. If there is no finish line, no named
    deliverable, no question it exists to answer, say so gently: it may be an
    ongoing area rather than a project — a practice or responsibility that is kept
-   up, not finished. Offer it as one, and if they agree, follow *When it is an
-   ongoing area* below instead of the rest of this list. Ask, too, whether some
-   piece of it has a finish line: that piece can be a project of its own, linked
-   from the area.
+   up, not finished. Offer `/ongoing:new`, the kit's interview for an area, and
+   hand over to it with what they have said so far. Ask, too, whether some piece
+   of it has a finish line: that piece can be a project of its own, linked from
+   the area.
 4. **Done when** — three to five criteria someone else could check without asking
    the owner. "Stakeholders are happy" becomes "the sponsor has signed off the
    rollout plan in writing". This is the project's closeout state: every later
@@ -83,10 +85,10 @@ That is the quick path; go straight to the close. The full path continues:
    distinct from done: a measure, a behaviour that changes, a number with its
    baseline and its window.
 7. *Optional* — **People and roles.** Who is involved, and in which of five roles:
-   **owns** (answers for the outcome), **does** (does the work), **helps**
-   (supports it), **ask first** (consulted before a decision is taken), **keep
-   told** (hears how it went). One person owns each outcome; a person can hold
-   two roles, as in "owns, does". Check the people directory (the conventions
+   **accountable** (answers for the outcome), **responsible** (does the work),
+   **supporting** (helps with it), **consulted** (asked before a decision is
+   taken), **informed** (hears how it went). One person is accountable for each
+   outcome; a person can hold two roles, as in "accountable, responsible". Check the people directory (the conventions
    file's, else `memory/people/`, `docs/people/` or `people/`) and link existing
    profiles; offer to start a profile, from the repository's person template if it
    has one, for anyone new. With a team roster (`team/people.md`), offer to seed
@@ -202,41 +204,6 @@ Where the repository has no `kit/` (the plugin installed on its own), the
 versioning question is still asked and written down, and the hooks and the
 Public and Private remote lines are left out, with a line saying so.
 
-## When it is an ongoing area
-
-An area is first-class, not a lesser project: it has its own folder, register and
-template, the same versioning and sensitivity lines, and a Current state block the
-same readers find. What differs is what it is measured against.
-
-- **Where it lives:** the conventions file's **Areas** setting, else
-  `ongoing/<slug>/`, with its register at **Area register**, else
-  `ongoing/INDEX.md` (sections Active, Dormant, Retired). When the register does
-  not exist yet, create it with a one-paragraph header saying what an area is and
-  those three sections, each a table of Area · Folder · One-liner.
-- **Ask, on the quick path:** the name and slug, what is kept up (one sentence),
-  the **standards to keep** — two to five, each one someone else could check, the
-  way a Done when item is checkable ("every tree is watered on a hot day", not
-  "look after the trees") — how often it should be checked (the `Check-in:`
-  cadence), how it is versioned and whether it is sensitive, and who owns it.
-  Push back on vague standards as you would on a vague Done when. When they cannot
-  name standards yet, write `- not yet named` rather than inventing them.
-- **Full path:** add what keeps the standards met without anyone remembering
-  (Recurring: scheduled tasks, reminders), any child projects, and the optional
-  sections as for a project.
-- **State:** `active`, unless it is seasonal or set aside now, which is
-  `dormant`. Areas do not count against the in-flight limit.
-- **What to write:** `ongoing/<slug>/README.md` from the area template (the one
-  the conventions file names, else `kit/templates/area-readme.md`, else
-  `templates/area-readme.md`), keeping its order and removing its instructions;
-  only sections with something true in them; a row in the area register; and the
-  versioning steps above, each on its own yes. Show the README before writing it.
-- **A child project** the conversation turns up is started with this command in
-  its own right; its What this is names the area, and the area's Projects section
-  links it.
-
-End in one line: the state the area starts in, its check-in cadence, who owns it
-and how it is versioned.
-
 ## Close with the finish line and the state
 
 Before writing anything, read back the outcome and the done-when list in one
@@ -252,7 +219,7 @@ before any work can start, it starts as `blocked`, with a `Blocked by:` line
 saying what, and since today. If the owner means to be working on it from
 today, it starts as `doing` — and first count what they already have in flight:
 the active projects whose Current state block reads `State: doing` and whose
-People section names them as **owns** or **does** (or, where a README has no
+People section names them as **accountable** or **responsible** (or, where a README has no
 People section, whose register Owner is them). Their limit is the **In-flight
 limit** in their profile — the file in the people directory matching their
 name — else the team default in `.claude/projects.md`, else 200. If starting this
@@ -294,6 +261,8 @@ block.
   standard section with nothing to say yet — Read before acting, Where
   everything lives — is left out too; the template's order is where it goes
   once it has content.
+- **When the project serves an ongoing area**, its What this is names the area,
+  and the area's Projects section gets a link to it, on a yes.
 - **A row in the project register** — `projects/INDEX.md` under Active, unless
   the conventions file names another register or section: name, link to the
   folder, state, owner, one line. If the register's table has no State or Owner
@@ -303,10 +272,14 @@ block.
   private — with the figures, names and other detail left to its README.
 - **The versioning steps** above, each on its own yes: the `own-repo` setup, or
   the `.gitignore` line for `untracked`.
-- **Nothing else by default.** A `decisions.md` is created when the project makes
-  its first decision worth preserving, from `kit/templates/project-decisions.md`
-  (or `templates/project-decisions.md` where the repository keeps its own) — if the kickoff itself settled something, offer it then.
-  New person profiles only with the user's yes.
+- **The three vocabulary files**, beside the README: `decisions.md` from
+  `kit/templates/project-decisions.md`, `glossary.md` from `kit/templates/glossary.md`
+  and `terms.md` from `kit/templates/terms.md` (or the repository's own templates
+  of those names where it keeps them). Fill in what the interview settled: a
+  decision the kickoff made, a term of the project's own the person used. Each
+  is otherwise left as its template has it, ready for the first entry. For a
+  sensitive project they stay with it, untracked or in its own repository.
+- **Nothing else by default.** New person profiles only with the user's yes.
 
 If the repository has no `projects/` directory and no conventions file saying
 where projects live, ask rather than inventing a layout; offer `projects/` as the

@@ -56,10 +56,11 @@ empty "12 every command has a row in the README that links its page" "$s12_rows"
 
 # --- Hooks -----------------------------------------------------------------------------------------
 s12_bad="" s12_count=0
-for s12_f in "$KIT"/plugins/*/hooks/*.sh; do
+for s12_f in "$KIT"/plugins/*/hooks/*.sh "$KIT"/plugins/*/hooks/*.tsx; do
+    [[ "$s12_f" == *.test.tsx ]] && continue
     s12_rel="${s12_f#"$KIT"/}"
     s12_p="${s12_rel#plugins/}"; s12_p="${s12_p%%/*}"
-    s12_b="${s12_f##*/}"; s12_b="${s12_b%.sh}"
+    s12_b="${s12_f##*/}"; s12_b="${s12_b%.sh}"; s12_b="${s12_b%.tsx}"
     case "$s12_b" in "$s12_p"-*) s12_name="$s12_b" ;; *) s12_name="$s12_p-$s12_b" ;; esac
     s12_expected+=" docs/hooks/$s12_name.md "
     s12_bad+="$(s12_page "$KIT/docs/hooks/$s12_name.md" "$s12_rel")"$'\n'
@@ -108,3 +109,48 @@ s12_v="$(awk '/^## v[0-9]/ { v = $2; sub(/^v/, "", v); print v; exit }' "$KIT/CH
 s12_f="$(awk '/^\*Kit [0-9]/ { f = $2; sub(/\*$/, "", f) } END { print f }' "$KIT/CLAUDE.kit.md")"
 empty "12 CLAUDE.kit.md ends naming the CHANGELOG's latest version" \
     "$([[ "$s12_f" == "$s12_v" ]] || printf 'footer %s, CHANGELOG %s\n' "${s12_f:-none}" "$s12_v")"
+
+# --- Start here: the README's Quick start, its Part 2 tree and its welcome -------------------------
+# The Quick start reaches an area, the weekly hygiene and Cowork as well as a project and closeout, and
+# the Part 2 tree is drawn from the workspace map: the kit as kit/, areas in ongoing/, no templates/ at
+# the workspace root.
+s12_qs="$(awk '/^## Quick start$/ { f = 1; next } f && /^## / { exit } f' "$KIT/README.md")"
+s12_tree="$(awk '/^## Part 2 /{ p = 1 } p && /^```$/ { if (f) exit; f = 1; next } f' "$KIT/README.md")"
+s12_bad=""
+for s12_w in '/workspace:quick-start' '/projects:new' '/ongoing:new' '/closeout' '/workspace:hygiene' 'kit/setup.sh cowork'; do
+    grep -qF -- "$s12_w" <<<"$s12_qs" || s12_bad+="the Quick start does not reach $s12_w"$'\n'
+done
+for s12_w in '  kit/ ' '  ongoing/' '  projects/' '  skills/ ' '  audits/ ' '    templates/ '; do
+    grep -qF -- "$s12_w" <<<"$s12_tree" || s12_bad+="the Part 2 tree has no '$s12_w'"$'\n'
+done
+grep -qE '^  templates/' <<<"$s12_tree" && s12_bad+="the Part 2 tree puts templates/ at the workspace root"$'\n'
+grep -qF 'read, check and correct' "$KIT/README.md" || s12_bad+="the welcome does not say the files are there to read, check and correct"$'\n'
+empty "12 README: the Quick start reaches an area, hygiene and Cowork; Part 2 is drawn from the workspace map" "$s12_bad"
+
+# --- What the kit is for: the README's two purposes, the principles and the audit ------------------
+s12_bad=""
+s12_wf="$(awk '/^## What the kit is for$/ { f = 1; next } f && /^## / { exit } f' "$KIT/README.md")"
+for s12_w in '**Common ground between you and the assistant.**' '**What the assistant cannot find for itself.**' \
+    'docs/principles.md' 'docs/purpose-audit.md' 'cannot learn what only your team knows'; do
+    grep -qF -- "$s12_w" <<<"$s12_wf" || s12_bad+="What the kit is for: no '$s12_w'"$'\n'
+done
+# Every principle names the file that carries it, and every path it names is in the kit.
+s12_np="$(grep -cE '^\*\*[0-9]+\. ' "$KIT/docs/principles.md")"
+[[ "$s12_np" -ge 8 && "$(grep -c '^\*In the kit:\*' "$KIT/docs/principles.md")" == "$s12_np" ]] \
+    || s12_bad+="principles.md: $s12_np principles, not each with an 'In the kit:' line"$'\n'
+while IFS= read -r s12_p; do
+    [[ -e "$KIT/$s12_p" ]] || s12_bad+="principles.md names $s12_p, which is not in the kit"$'\n'
+done < <(grep -oE '`(plugins|templates|docs|rituals|pilot|scripts)/[A-Za-z0-9_./-]+`' "$KIT/docs/principles.md" | tr -d '`' | sort -u)
+# The audit has a row for every command, hook script and template, and each verdict is one of the five.
+s12_au="$KIT/docs/purpose-audit.md"
+for s12_c in "$KIT"/plugins/*/commands/*.md; do
+    s12_n="$(basename "$(dirname "$(dirname "$s12_c")")"):$(basename "$s12_c" .md)"
+    s12_n="${s12_n/closeout:closeout/closeout}"
+    grep -qF "/$s12_n" "$s12_au" || s12_bad+="purpose-audit.md: no row for /$s12_n"$'\n'
+done
+for s12_t in "$KIT"/templates/*.md; do
+    grep -qF "templates/$(basename "$s12_t")" "$s12_au" || s12_bad+="purpose-audit.md: no row for templates/$(basename "$s12_t")"$'\n'
+done
+s12_v="$(awk -F '|' '/^\| / && $3 !~ /Serves|---/ { v = $3; gsub(/^ +| +$/, "", v); print v }' "$s12_au" | sort -u | grep -vxE 'Both|1|2|Rail|Neither, (fold in|retire)')"
+[[ -z "$s12_v" ]] || s12_bad+="purpose-audit.md: verdicts outside the five: $s12_v"$'\n'
+empty "12 what the kit is for: the README's two purposes, principles that each name a kit file, and an audit row for every command and template" "$s12_bad"

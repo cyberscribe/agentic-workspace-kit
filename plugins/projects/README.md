@@ -1,7 +1,7 @@
 # projects — start a project right for agentic co-working
 
 A Claude Code plugin for the life of a project, kept in the project's own
-README so that people and agents read the same thing. Seven commands, one
+README so that people and agents read the same thing. Eight commands, one
 session-start line:
 
 | Command | What it is for |
@@ -12,6 +12,7 @@ session-start line:
 | **`/projects:board`** | Everything in flight on one page, with one-line flags for what needs attention. |
 | **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear, and the folder archived to `projects/_done/`. |
 | **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it; it offers to resume a paused one. |
+| **`/projects:overnight [what to work on]`** | Before leaving work running overnight: the outcome to wake up to, every call that would otherwise wake you settled in advance, the writes tried while you are still there, and one summary in the morning. |
 | **`/projects:pair [slug]`** | Build with a split: this session is product manager and end-to-end tester, a Claude Code session is the engineer, and they talk through a mailbox, in the project folder or any other. |
 
 Most of it is optional. What it insists on, kindly, is the part that decides
@@ -27,9 +28,10 @@ whether the work ever finishes:
 
 And what it offers, if you want it:
 
-- **People and roles** — five roles: **owns** (answers for the outcome, one person
-  per outcome), **does**, **helps**, **ask first** (consulted before a decision)
-  and **keep told** (hears how it went), linked to people profiles. Two or more
+- **People and roles** — five roles: **accountable** (answers for the
+  outcome, one person per outcome), **responsible**, **supporting**, **consulted**
+  (asked before a decision) and **informed** (hears how it went), linked to people
+  profiles. The older words (owns, does, helps, ask first, keep told) still read. Two or more
   people switches on the closeout plugin's "who needs to know" step.
 - **Success criteria** — how you'll know it was worth doing, as distinct from done.
 - **Precedents** — it searches finished projects and decisions logs for similar
@@ -133,7 +135,8 @@ the metrics:
   `.claude/projects.md` adds names; backtick only heading names in it.
 - **Done when** counts checklist lines (`- [ ]`, `- [x]`) under that heading.
 - **Blocked by** — one line, dated only by the date after `since`.
-- **The owner** — the **owns** line under People; with no People section, the
+- **The owner** — the **accountable** line under People (or **owns**, the older
+  word); with no People section, the
   register row's Owner, else a backticked **Owner:** in `.claude/projects.md`.
 - **The entry point** — the one `.claude/projects.md` names, else `README.md`,
   else a `CLAUDE.md` in the folder; where there are two, the first with a
@@ -149,32 +152,15 @@ the metrics:
 
 ## Ongoing areas
 
-Some work is never done: a practice you keep up, a responsibility you hold, a
-garden. Forcing it into a project gives it a finish line that is never crossed
-and a card that is always stale. An ongoing area is the other kind of thing,
-with the same machinery and a different measure:
-
-| | Project | Ongoing area |
-|---|---|---|
-| Lives in | `projects/<slug>/` | `ongoing/<slug>/` |
-| Register | `projects/INDEX.md` | `ongoing/INDEX.md` (Active / Dormant / Retired) |
-| Template | `templates/project-readme.md` | `templates/area-readme.md` |
-| Measured against | **Done when** — finished when every box is ticked | **Standards to keep** — healthy while they are met |
-| `State:` | ready · doing · blocked · paused · done | active · dormant · retired |
-| Stale when | `Updated:` is older than the team's staleness setting | its own `Check-in:` cadence has passed; never while dormant |
-| In-flight limit | counts | does not count |
-
-The two lines under the title, the Current state labels, People, Resources and
-the rest are the same. The two meet in the area's **Projects** section: when a
-piece of an area has a finish line — a season's repot, an exam — that piece is a
-project, linked from the area, whose What this is names the area. A small one
-may sit inline in the area until it earns a folder.
-
-`/projects:new` offers an area when the interview finds no finish line,
-`/projects:adopt` offers the same for a long-running project whose files say it
-is one, and `/projects:board` lists areas in a section of their own, with the
-ones due for their check-in flagged. The conventions file's **Areas**, **Area
-register** and **Area template** lines move any of it.
+Some work is never done: a practice, a responsibility, a collection. That is an
+**ongoing area**, and it has a plugin of its own, `ongoing` (`/ongoing:new`, `review`,
+`adopt`, `pause`, `drop`), with its own folder (`ongoing/<slug>/`), register and
+template (`templates/area-readme.md`): a Desired state and Standards to keep in place of
+a Desired outcome and Done when, and the states active · dormant · archived. The two
+meet in the area's Projects section, where a piece of an area with a finish line is
+linked as a project. `/projects:new` hands over to `/ongoing:new` when the interview
+finds no finish line, `/projects:adopt` to `/ongoing:adopt`, and `/projects:board`
+lists areas in a section of their own. See `plugins/ongoing/README.md`.
 
 ## Adopting existing projects
 
@@ -223,7 +209,7 @@ through Done when one item at a time and finds the evidence for each: a path, a
 link or a commit. When the team has a verification standard in
 `docs/verification.md`, it holds that evidence to the standard. If an item is not
 met, you choose: keep working, change the criterion (with a dated line saying
-why), or waive it. The people marked *ask first* are named before a waiver, and
+why), or waive it. The people marked *consulted* are named before a waiver, and
 the waiver is recorded in the README next to the item. Then comes a
 three-question retrospective: what worked, what you would change, and what the
 next similar project should know first. It offers to promote that last answer to
@@ -249,8 +235,8 @@ passed, and `/projects:pickup` resumes it.
 ## Pair
 
 **`/projects:pair <slug>`** splits building from directing. The session that runs
-it — Cowork is the natural home — becomes the project's product manager and
-end-to-end tester; one Claude Code session becomes its engineer. They talk
+it becomes the project's product manager and end-to-end tester: Cowork by default,
+with Claude Code as the fallback; one Claude Code session becomes its engineer. They talk
 through a mailbox in the project folder: `to-cc.md` and `to-pm.md`, append only,
 each message with a `Status:` line that only its reader edits. The command reads
 the workspace's own rules and quotes them into the brief, writes the first brief
@@ -264,12 +250,13 @@ On your machine that resumes the engineer's last session if its transcript is
 still there, or starts a new one, in auto permission mode, with the pairing hooks
 loaded for that session only. Between turns a background watch the engineer starts
 wakes it when a message arrives, so one written while it was idle is picked up
-without you relaying it, and the session stays free for you to type into. The PM checks back every 30 minutes, tests what is reported against evidence,
-and accepts it or writes the next brief; `close` ends the pairing.
+without you relaying it, and the session stays free for you to type into. A Cowork PM checks back
+by a scheduled message into its own conversation, re-armed at each check-in; either way the PM tests what
+is reported against evidence, and accepts it or writes the next brief. `close` ends the pairing.
 
-A build pairing can have a Claude Code PM too: `scripts/pair.sh <project folder> --pm` starts (or resumes)
-its session, named `<slug>-pm`, whose watch on `to-pm.md` wakes it when the engineer writes. Cowork suits
-a PM whose work is mostly outward (mail, Slack, documents). The engineer's state is derived from evidence
+Claude Code is the fallback manager, where Cowork is not available or when you ask for it:
+`scripts/pair.sh <project folder> --pm` starts (or resumes) its session, named `<slug>-pm`, whose watch on
+`to-pm.md` wakes it when the engineer writes. The engineer's state is derived from evidence
 (its process, its last activity and its watch) and printed with that evidence, so a PM asks rather than
 guessing; each message's pickup is recorded as a `received` line in the reader's status file.
 
@@ -280,6 +267,12 @@ engineer listening, its check-in says so in one line. Message ids are taken unde
 a lock (`hooks/pair.sh post`), and any small file several sessions share is
 edited with `scripts/registry.sh`, which locks it and keeps its header.
 
+**While the machine sleeps.** The engineer's session and its watch run on your computer, and they pause
+while it sleeps. Check-ins that come due then arrive late, or find nothing new, and the work picks up when
+it wakes. For an overnight pairing, leave the computer on and awake. The scheduler's note on sleep,
+"Your machine has to be on" in §10 of [`docs/getting-started.md`](../../docs/getting-started.md), explains
+what each system does.
+
 ## Pick up
 
 **`/projects:pickup <slug>`** is a cold-start brief for anyone taking a project
@@ -287,7 +280,7 @@ over or coming back to it. It shows the desired outcome and how many Done when
 criteria are ticked, the Current state block and any Planned steps with day
 counts, the last three decisions and the last five commits to the folder,
 anything not yet committed, the open questions, and who to ask (the owner and
-the *ask first* people). It closes with a short "worth knowing" list of gaps and
+the *consulted* people). It closes with a short "worth knowing" list of gaps and
 stale lines. It quotes the README rather than paraphrasing it, fits in under 40
 lines, and reads while it briefs. Where something needs fixing, it says what
 would fix it and leaves the fixing to you. For a paused project, it then offers
@@ -305,7 +298,7 @@ it, when something does:
 ```
 Project: Rollout — outcome: The rollout is live for every team.
 Done when: 2 of 4 ticked
-State: blocked by the signed budget from finance — since 2026-09-14 — owner Sam
+State: blocked by the signed budget from finance — since 2026-09-14 — accountable Sam
 ```
 
 You see them at the top of the session, and the agent reads them as context. It
@@ -361,7 +354,7 @@ Four lines there shape the 3.0 lifecycle:
 It is also where the team's **in-flight limit** lives — how many projects one
 person has in `doing` at once, 3 unless you say otherwise. A person's profile can
 carry their own. A project counts towards someone when its People section names
-them as **owns** or **does** (or, with no People section, the register names
+them as **accountable** or **responsible** (or, with no People section, the register names
 them as owner). `/projects:new` mentions it when starting a project would take
 the owner over; it is advice, never a block.
 

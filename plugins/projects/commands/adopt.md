@@ -105,10 +105,11 @@ Look for each section by what it does, not only by its heading.
   left exactly as it is.
 - **People** is present if the README names who is involved under any heading,
   or in a bold inline label such as `**Contacts.**` — "Team", "Who",
-  "Stakeholders". Leave it as written. If no one there is marked as owning the
-  outcome, propose one `- <name> — owns` line (or `- not yet named — owns` when
-  the files give no grounds) directly after it; an **owns** line, even
-  `not yet named`, means this is done. The board, the session-start line and the
+  "Stakeholders". Leave it as written. If no one there is marked as accountable for
+  the outcome, propose one `- <name> — accountable` line (or `- not yet named —
+  accountable` when the files give no grounds) directly after it; an
+  **accountable** line (or an **owns** line, the older word), even `not yet named`,
+  means this is done. The board, the session-start line and the
   metrics see People only under a `People` heading or a **Section names** alias,
   so under any other heading say so in the summary, and in interactive mode
   offer to record the name in `.claude/projects.md`.
@@ -169,13 +170,9 @@ names):
   or earlier with no confirmation in the files stays unticked. For a long-running
   practice or a goal years off, scope the list to the nearest milestone the files
   name, and say so in the dated line and the summary: it may be an area rather
-  than a project, which is the person's call. If they say it is, it moves to
-  `ongoing/<slug>/` (the conventions' **Areas** setting) — the move is theirs to
-  make — and takes the area template's shape: Standards to keep in place of Done
-  when, `State:` one of `active`, `dormant` or `retired`, the nearest milestone
-  kept inline under Projects, and a row in the area register in place of the
-  project row. The same small insertions apply: nothing already there is
-  rewritten.
+  than a project, which is the person's call. If they say it is, hand over to
+  `/ongoing:adopt <folder>`, which gives it the area's shape (Standards to keep
+  in place of Done when, the milestone kept under Projects) and shows the move.
 - **Current state** —
   - `State:` the first that holds: `done` if the files say it is finished;
     `blocked` if the work cannot move until something outside the team happens
@@ -197,10 +194,10 @@ names):
     has passed, a later audit), the line names both and which one it trusted.
     Later updates rewrite this line and leave the prose alone.
 - **People** — one line per person the README, the folder's files or the commit
-  history names, with one of the five roles (**owns**, **does**, **helps**,
-  **ask first**, **keep told**) and their profile if one exists. Name an owner
+  history names, with one of the five roles (**accountable**, **responsible**,
+  **supporting**, **consulted**, **informed**) and their profile if one exists. Name an owner
   only where the files, or an owner rule in the conventions file, give grounds;
-  otherwise `- not yet named — owns`, which the board and metrics read as missing.
+  otherwise `- not yet named — accountable`, which the board and metrics read as missing.
 
 A proposal the person can confirm in a word is the aim; a confident guess is
 harder to catch than an honest gap.
@@ -255,6 +252,12 @@ once, ahead of the person who will confirm them.
   contains — shown first in interactive mode, marked in draft mode.
 - The project register is left as it is. If the project has no row in it, say so
   in the summary and offer to add one (interactive mode only).
+
+**The vocabulary files.** Where the project has no `decisions.md`, `glossary.md` or
+`terms.md`, offer the missing ones from `kit/templates/` (`project-decisions.md`,
+`glossary.md`, `terms.md`), in one question, after the insertions. A file that does
+the same job under another name (a `DECISIONS.md`, a glossary of the project's own
+terms) is left where it is: say which file serves, and do not add a second.
 
 ## Close
 

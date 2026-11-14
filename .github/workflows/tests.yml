@@ -1,0 +1,52 @@
+name: tests
+# The kit's full test suite on every push and pull request, on Linux and macOS, and the private-word
+# check against the whole tree. The word list is not in the repository: it comes from the repository
+# secret AW_BANNED_WORDS (one word or pattern a line), and without it the word steps are skipped with a
+# notice rather than passing silently.
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  suite:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # A runner has 3 or 4 cores, which the suite's default (half the cores) would turn into one or two
+    # jobs; serial, the macOS runner needed about 28 minutes. Four jobs at once fit both runners.
+    timeout-minutes: 45
+    env:
+      AW_WORDS: ${{ secrets.AW_BANNED_WORDS }}
+      AW_JOBS: 4
+      # A section that hangs is stopped and named after 15 minutes, well inside the job's own limit.
+      AW_SECTION_TIMEOUT: 900
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The migration's checks build a 2.x workspace from an old commit, so the history is needed.
+          fetch-depth: 0
+      - name: The word list, from the repository secret
+        run: |
+          if [ -n "$AW_WORDS" ]; then
+            printf '%s\n' "$AW_WORDS" > "$RUNNER_TEMP/banned-words.txt"
+            echo "AW_BANNED_WORDS_FILE=$RUNNER_TEMP/banned-words.txt" >> "$GITHUB_ENV"
+          else
+            echo "::notice::No AW_BANNED_WORDS secret, so the private-word checks are skipped (section 6, and check-paths' word scan)."
+          fi
+      - name: Tools
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then brew install --quiet shellcheck; fi
+          git --version; jq --version; python3 --version; shellcheck --version | head -n 2
+      - name: The full suite
+        run: bash tests/run.sh
+      - name: The slowest sections
+        if: always()
+        run: |
+          f="${TMPDIR:-/tmp}/aw-test-times.tsv"
+          [ -f "$f" ] && awk -F'\t' '$1 == "S" { t[$2] += $3 } END { for (k in t) printf "%8.1f s  %s\n", t[k] / 1e6, k }' "$f" | sort -rn | head -n 15 || true
+      - name: The private-word check on the whole tree
+        if: env.AW_BANNED_WORDS_FILE != ''
+        run: bash scripts/check-paths.sh --content --all

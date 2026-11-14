@@ -5,34 +5,377 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased
+## v3.6.0 — 2026-11-14
 
-**To update:** run `kit/setup.sh update` and accept the workspace-map change. Nothing moves on its own:
-a long-running project you would rather keep as an area is converted by `/projects:adopt`, and the folder
-move is yours to make.
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints.
+- **What it offers.** The template changes, which enable the new `scheduler` and `ongoing` plugins in
+  `.claude/settings.json` and bring the conventions, the workspace map and the role words up to date.
+  It now checks whether each change fits your copy before it asks. A change you have already made in
+  your own words, or one to a passage you rewrote, is only offered to be recorded. One that needs
+  merging by hand comes with a line to give your assistant.
+- **The vocabulary move.** Where `memory/glossary.md` still holds your team's own terms, it offers to
+  move them to `memory/terms.md`, at a terminal and on a yes, and then adds the plain-words glossary.
+- **The role words.** Templates and commands now write accountable, responsible, supporting, consulted
+  and informed. READMEs and rosters with owns, does, helps, ask first and keep told keep working: every
+  reader takes both.
+- **The new plugins.** Each person runs `kit/setup.sh` once more, or `claude plugin install
+  scheduler@agentic-workspace --scope user` and `claude plugin install ongoing@agentic-workspace`, to
+  have them in every folder. Nothing moves on its own: a long-running project you would rather keep as
+  an area is converted by `/ongoing:adopt`.
+- **CI.** The kit's test suite now runs on GitHub for every push and pull request, on Linux and macOS.
 
-- **Ongoing areas are first-class.** Work with no finish line — a practice, a responsibility, something
-  kept up rather than finished — used to be turned away by `/projects:new` towards general reference,
-  or kept as a project whose finish line was never crossed and whose card was always stale. It now has a
-  home of its own: `ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant / Retired), from
-  a new template, `templates/area-readme.md`. An area keeps the project's machinery — the `Versioned:` and
-  `Sensitivity:` lines, the Current state labels, People, Resources — and changes the measure: **Standards
-  to keep** stand where Done when stands, two to five standards someone else could check; `State:` is
-  `active`, `dormant` or `retired`, never `done`; staleness is the area's own `Check-in:` cadence, and a
-  dormant area is never stale; areas do not count against the in-flight limit. The two kinds meet in the
-  area's **Projects** section: a piece of an area with a finish line is a project, linked from the area,
-  whose What this is names the area.
-- **The commands know about areas.** `/projects:new` offers an area when the interview finds no finish
-  line, with a quick path of its own (what is kept up, the standards, the cadence, versioning, owner),
-  and creates the area register with the first area. `/projects:adopt` converts a long-running project to
-  an area's shape when its owner says it is one. `/projects:board` lists areas in a section of their own,
-  outside the project counts, and flags an active area due for its check-in, one with no standards
-  named, and a project naming an area that does not exist. The conventions file's **Areas**, **Area
-  register** and **Area template** lines move any of it, as the example conventions show. The project
-  template, the plugin README, the getting-started guide and the workspace map say where areas go.
-  Section 17 of the suite checks the template's shape and each instruction.
-- **Not yet:** the session-start line and `pilot/measure.sh` read projects only. Inside an area folder
-  the hook stays silent, and the metrics count no areas.
+- **People's roles get new names.** A project or area README's People section, the team roster's
+  default relationship and closeout's "who needs to know" now name the five roles **accountable**
+  (answers for the outcome; one person), **responsible** (does the work), **supporting**,
+  **consulted** (asked before a decision) and **informed** (hears how it went). They replace owns,
+  does, helps, ask first and keep told, one for one. Every reader takes the older words as aliases,
+  so existing READMEs and rosters keep working unchanged: the session-start line and the board find
+  the owner on an `accountable` or an `owns` line, and the in-flight count (`pilot/measure.sh`, and
+  the rule in `.claude/projects.md`) counts a person named accountable or responsible, or owns or
+  does, which is the same set of people as before. The session-start line names that person as
+  accountable (`State: doing — accountable Sam`; `no one accountable named` when there is none). The
+  templates and commands write only the new words. Section 4b and section 5 test both sets of words;
+  section 17 checks that the writers use only the new ones.
+- **A fourth plugin, scheduler (0.1.0).** `/scheduler:tasks` turns "every weekday at 7:30, do X" into
+  a scheduled Claude Code task that runs on the person's own machine and outlasts the session: one
+  Markdown file per task (front matter for its settings, the body its prompt) in
+  `~/.config/agentic-workspace-kit/scheduler/tasks/`, rendered into the machine's own scheduler — a
+  LaunchAgent on macOS, a systemd user timer on Linux and WSL2, or a line in one marked crontab block
+  elsewhere. Its script, `plugins/scheduler/scripts/schedule.sh`, creates, lists, shows, edits,
+  pauses, resumes, runs now, deletes (to `.trash/`) and reports history and logs, with `--json` on
+  `list` and `show`. Schedules are five-field cron with cron's day-of-month or day-of-week rule, the
+  `@daily`-style aliases, `every <n>m|h|d` and `once YYYY-MM-DD HH:MM`, in local time. Each run is a
+  headless `claude -p` with its tools named in advance (`permission_mode: dontAsk` by default), a lock
+  against overlap, a timeout, retries, a run folder with the session id to resume, and a desktop
+  notification on failure; after three failed runs in a row a task pauses itself and says why. Setup
+  installs it with the other plugins; installed, it schedules nothing until someone creates a task.
+  Section 26 of the suite covers it, every backend against stubs.
+- **What moving from a cloud scheduler needs.** A `CRON_TZ=` prefix or `timezone` field (the machine's
+  own zone is local; another works on systemd and is refused by launchd and cron). `chrome: true`.
+  `requires`, the connectors a task relies on, which `doctor <name>` looks for in `claude mcp list`.
+  `awaits_reply`: a good run ends `waiting`, the person is notified, and `reply <name> <answer>`
+  continues that run's session; unanswered past `reply_window` it expires. `result_to`, a file the
+  final message is also written to. Each scheduled run records its `due` time and is marked `late`
+  past five minutes, and `doctor` gives the macOS wake command. The `notify` command gets the run,
+  its resume command and a result file in its environment. A session-start line, inside a kit
+  workspace, names failed runs, self-paused tasks and runs awaiting a reply. A run that ended well
+  while a tool it reached for was refused is recorded `denied`, a failure, with the refused calls.
+- **Runs are billed to the person's login, never an API key.** A run's environment carries no API
+  credential; a setting that would supply one (an `apiKeyHelper`, or an API key or cloud provider in an
+  `env` block of the user, managed or project settings) refuses the run before `claude` is called; and
+  the call streams its events, so a run whose init event names an API key source is stopped at once.
+  Each is recorded `refused: api billing` and counts as a failure. `auth=` records the source on every
+  run, costs read `est.`, and `doctor` shows the login from `claude auth status`.
+- **A fire missed while the machine was off is caught up.** launchd runs a calendar job missed during
+  sleep when the Mac wakes, but not one missed while it was powered off, and cron runs neither.
+  `schedule.sh catchup` runs each active task's latest due fire that nothing answered, once, as a
+  scheduled run that is `late` and marked `catch_up=1`, inside the task's `catch_up` window (12h by
+  default, `none` to turn it off) and before half the gap to the next fire. A fire it does not run is
+  reported once: a desktop notification, the `notify` command with `SCHEDULER_STATUS=missed`, and the
+  session-start line. On macOS one LaunchAgent with `RunAtLoad` (`agentic-workspace.scheduler-catchup`)
+  runs it at login; on cron an `@reboot` line in the managed block runs it at boot; systemd's
+  `Persistent=true` already does this, so it has no catch-up unit. `report` counts a caught-up run as
+  late, and the README says what each backend does with a fire missed during sleep and while off.
+- **systemd timers fire to the second** (`AccuracySec=1s`). systemd's default lets a timer fire up to a
+  minute late, which a live run in a container showed turning `every 1m` into two minutes.
+- **Live Linux runs in Docker, opt-in** (`AW_TEST_DOCKER=1`, section 26, `tests/docker/`): systemd on
+  Ubuntu and Fedora, cron on Debian without jq, each with a stub `claude`. WSL2 stays untested.
+- **Every run is told what it may use.** For a task with a tool list, the appended prompt names each
+  allowed and refused tool, one a line, and says that one refused call leaves the listed tools working
+  and that a `Bash(...)` pattern matches one command on its own.
+- **`verify`**, a task's own definition of done: a command run after a good run, outside Claude, whose
+  exit status decides `ok` or `failed: verify`. **The sandbox is visible:** `show`, `doctor <name>` and
+  `port check` say whether a task's folder is sandboxed and to which domains, and a network call the
+  sandbox refused counts as a refusal. A `port check` set rule says nothing once the field is set.
+- **`schedule.sh home [<dir> [--move]]`** keeps the task files in a folder of the person's choosing,
+  remembered in a pointer file (after `SCHEDULER_HOME`, before the default), so they can be versioned.
+  In a git repository, `show` and `doctor` mark uncommitted task files, `home` writes a `.gitignore`
+  for `.trash/`, and the scheduler never commits. A task file holding something shaped like a
+  credential warns in `show`, `doctor` and `port check`.
+- **`schedule.sh report`** gives, for a window (the last seven days by default), each task's fires due
+  while it was active, the scheduled runs and how they ended, the late ones and each due fire with no
+  run, every figure out of its whole and with the window.
+- **`schedule.sh port`** moves a set of cloud scheduled tasks one deterministic step at a time:
+  `start` imports an export paused, with folder path maps; `check` audits the schedule, zone, folders,
+  connectors, permission mode and the prompt against a rules table (`port-rules.tsv`) of cloud-only
+  idioms; `ack`, `trial` (plan mode by default), `activate`, `cloud-paused --confirmed`, `rollback`, `skip` and `done`
+  follow, each refusing to run before the one it comes after, with the place kept in a ledger. A cloud
+  task that has moved is paused, never deleted, so `rollback` is one step back.
+  `port trial` is a real run with the task's own permission mode and allowed tools, on a yes, with
+  `result_to` and `notify` held back; `--plan` is a plan-mode look that does not move the task on.
+  A refusal a run carried on from leaves it `ok (N refused)`, named and counted; one it stopped at
+  is `denied`.
+  Only the connectors a prompt names are carried into `requires`: the rest of those a cloud listing
+  attaches are reported and left out, and the cloud scheduler's own connector is never carried. The
+  lint knows a mount placeholder (`<mnt>/…`) and "your system prompt gives the mount path". A path that
+  looks like a sandbox mount but exists on this machine is not a finding.
+- Setup, its messages and the suite name the kit's plugins without counting them where they can, and
+  the suite counts seventeen commands. Section 25's rule that every command works only inside a kit
+  workspace has one exception, `/scheduler:tasks`, which works in any folder.
+
+- **`list` reads at a glance.** Its NAME column is as wide as the longest task name, so every row lines up, and a schedule on a few days of the week reads as their names ("Tue, Thu 07:50", "weekends 09:00") rather than as cron fields.
+
+- **Ongoing areas are first-class, with a plugin of their own.** Work with no finish line — a practice, a
+  responsibility, something kept up rather than finished — used to be turned away by `/projects:new`
+  towards general reference, or kept as a project whose finish line was never crossed and whose card was
+  always stale. It now has a home: `ongoing/<slug>/`, registered in `ongoing/INDEX.md` (Active / Dormant /
+  Archived), from a new template, `templates/area-readme.md`. An area keeps the project's machinery — the
+  `Versioned:` and `Sensitivity:` lines, the Current state labels, People and its five roles, Resources —
+  and changes the measure: a **Desired state** stands where a project has its Desired outcome, a direction
+  kept true rather than a finish line; **Standards to keep** stand where Done when stands, two to five
+  standards someone else could check; `State:` is `active`, `dormant` or `archived`, never `done`;
+  staleness is the area's own `Check-in:` cadence, and a dormant area is never stale; areas do not count
+  against the in-flight limit. The two kinds meet in the area's **Projects** section: a piece of an area
+  with a finish line is a project, linked from the area, whose What this is names the area.
+- **A fifth plugin, ongoing (0.1.0), five commands.** `/ongoing:new` interviews for the desired state,
+  the standards, the check-in cadence, versioning and sensitivity on the quick path, and people and roles,
+  recurring routines, child projects, precedents, constraints, open questions and resources on the full
+  one. `/ongoing:review` is the check-in: each standard met, slipped or not known, with the evidence the
+  repository holds, and a slipped standard whose fix has a finish line turned into a project.
+  `/ongoing:adopt` gives an existing folder, or a long-running project, the area's shape as small proposed
+  insertions, keeping a former Done when list under Projects, and shows the move with the live paths to
+  repoint. `/ongoing:pause` sets an area dormant with a reason and a look-again date; `/ongoing:drop`
+  archives one that is no longer relevant, settling its child projects first. Setup installs and enables
+  it with the others.
+- **The projects plugin hands over.** `/projects:new` offers `/ongoing:new` when the interview finds no
+  finish line, and links a new project to the area it serves; `/projects:adopt` hands a project that is
+  really an area to `/ongoing:adopt`; `/projects:board` lists areas in a section of their own, outside the
+  project counts, and flags an active area due for its check-in, one with no standards named, and a
+  project naming an area that does not exist. The conventions file's **Areas**, **Area register** and
+  **Area template** lines move any of it, as the example conventions show. Sections 9 and 17 of the suite
+  check the seventeen commands, the template's shape and each instruction.
+- **Areas in the session-start line and the metrics.** Inside an area's folder the projects hook gives
+  one line: the desired state, the standards met as last reviewed, the state, and whether the check-in
+  is due against the area's own `Check-in:` cadence (never while dormant or archived). `/ongoing:review`
+  records `- **Standards met:** 3 of 5 — <date>` in the Current state block, in that fixed form; an area
+  without the line reads as not yet reviewed, never as none met. `pilot/measure.sh` gains seven area
+  columns after the project columns — `areas_active`, `areas_dormant`, `areas_archived`,
+  `areas_due_checkin`, `areas_not_reviewed`, `area_standards_met`, `area_standards_reviewed` — so a
+  `metrics.csv` from before is recomputed in the new columns on its next run. The hook reads the
+  conventions' **Areas** line. Sections 4b and 5 cover both.
+- **`kit/setup.sh update` leaves a kit on a side branch where it is.** When `kit/` is checked out on a
+  branch other than the one `.gitmodules` tracks (a trial branch, a kit developer's work), `update` says
+  so and does not advance it: with `update = rebase`, advancing rebased that branch's own commits onto
+  the tracked branch. The template offers, the engine and the rest still run, against the kit as it
+  stands and from the commit the workspace records for `kit/`, and the command it ran is printed.
+  `--advance` moves it as before. Section 15 covers both.
+- **The copy check knows which way a copy ran, at the push.** At the kit's pre-push, a pushed line or
+  file that a workspace file also holds counts as a copy of that file only when the file held it no
+  later than the kit commit that brought it in: its mtime, or for a tracked file the first workspace
+  commit holding it, with a minute's clock skew on the refusing side. A snapshot, transcript or note
+  written after the commit reads as quoting the kit; a file copied in with an old mtime is refused. The
+  pre-commit is unchanged. The rule, and the options it was chosen over, are in the new
+  `docs/design-notes.md`. Section 13 covers it.
+- **Section 22 fits a small disk.** The timing check's 230 MB of transcripts is skipped, with the free
+  space named, when `TMPDIR` has under 300 MB, and the interrupt checks use twenty transcripts of their
+  own, so a Cowork VM's small `/sessions` disk no longer fails three checks.
+- `hooks/lib/boundary.sh` says it is carried by each plugin that has hooks; the `ongoing` plugin has
+  none, and section 25 checks that a plugin without hooks carries no copy.
+- **`kit/setup.sh update` prints the CHANGELOG diff without a pager.** When the old and new kit share a
+  version, the diff went through git's pager at a terminal, which took the answers meant for the
+  template questions after it. Section 15 runs it on a pseudo-terminal.
+- **The macOS Icon line is all visible characters.** `templates/workspace.gitignore` ignores folder-icon
+  files with `Icon[! -~]`, Icon and one character outside printable ASCII, in place of `Icon` and two
+  carriage returns. An editor that dropped those carriage returns left a bare `Icon`, which ignores
+  nothing, and the next update offered the line again. A workspace with the older line is offered the
+  new one once; the older line can then go. Sections 14, 15 and 20 cover it.
+- **Pairing from the chat app.** `/projects:pair`'s manager is Cowork by default, with Claude Code as the
+  fallback where Cowork is not available or the person asks for it; the command, the projects README,
+  the getting-started guide and the README now say so in the same words. A Cowork manager's check-in is
+  a one-shot scheduled message back into its conversation, re-armed at each check-in and timed by what
+  is in flight. `pair.md` says how a manager in a chat app tests (the device shell, a shell on the
+  person's computer, the person's browser, each with what it suits) and that the suite stays with the
+  engineer or the person; why there are two roles; and that a pairing pauses while the machine sleeps,
+  pointing at the scheduler's note. Section 23 checks the one default and the sleep note.
+- **The project page at session start.** A session opened in or about a project or ongoing area reads
+  its `README.md` before acting on it. In Claude Code the projects hook's context ends by asking for
+  that, after its summary lines; Cowork runs no hooks, so the kit's standards (`CLAUDE.kit.md`, Active
+  work) say it for every surface, and the Cowork row of the surface table repeats it. Section 17 and
+  the hook checks cover all three.
+- **Start here.** The README's Quick start goes on past the first project to a first ongoing area
+  (`/ongoing:new`), the weekly `/workspace:hygiene`, and a short Cowork step (`kit/setup.sh cowork`, then
+  upload the `.plugin` files). Its welcome describes the kit as a shared language and set of places, in
+  plain files both the person and the assistant can read, check and correct, and says Cowork can work in
+  the same folder. Part 2's tree is redrawn from the workspace map, with `kit/`, `ongoing/` and the
+  kit's templates inside `kit/`, and §2.4 says where the team's own templates go. Section 12 checks all
+  three.
+- **Cadence, offered.** The workspace plugin ships the weekly hygiene and the monthly register audit
+  as report-only task files for the scheduler (`plugins/workspace/scheduled/`): each runs its command
+  with `report`, may write only under `audits/`, and leaves the judgement pass for a session.
+  `/workspace:quick-start` offers them, each on its own yes, with the folder set to the workspace and a
+  dry run shown first, and gives the Cowork scheduled task to make where that is the surface.
+  `/ongoing:new` offers to put an area's check-in on a schedule at its cadence: a run that gathers the
+  evidence and waits for the owner's answers, made through `/scheduler:tasks`, or a Cowork scheduled
+  task. `/ongoing:review` started by a schedule makes no edit until the owner has answered. Hygiene's
+  promotion candidates now include decisions with no *Generalises as* field that still say something
+  once the decisions log's strip filter has run, each with its stripped form beside it. Section 21
+  checks the task files against the scheduler and the wording. Unverified: neither task file has had a
+  live headless run yet, so whether its tool list lets the report be written is still to be seen.
+- **Consistency.** `docs/memory-layers.md` §1 opens with the test every promotion passes first: keep
+  only what the next session could not find for itself. Closeout applies it before classifying, and its
+  tier table gains a column of what passes at each tier. The table's template destinations now include
+  `skills/`, and in a kit workspace closeout names `memory-layers.md` §3's destinations, with
+  `kit/templates/` and `kit/rituals/` as the kit's. Where a Claude account already has a closeout skill,
+  Cowork keeps it in place of the kit's: the getting-started guide and `docs/setup.md` say the four
+  things it has to keep (the four shelves, a bounded always-loaded tier, candidates checked against the
+  record, no commits), and how to point a session at the kit's procedure where it misses one. Closeout
+  checks the README's claims against the evidence and that its paths and links resolve, correcting
+  through the agent; `/projects:pickup` flags both, read-only. `/projects:new` and `/ongoing:new` take a
+  folder's slug from one script, `plugins/projects/scripts/slug.sh` (lowercase, hyphens, accents
+  written plainly, quotes dropped). Sections 17 and 21 check each.
+- **The kit's checks find the workspace from a worktree.** A worktree of the kit made outside the
+  workspace's `kit/` has no superproject, so its hooks found no workspace and skipped the workspace
+  checks, the private word list among them. `aw_kit_workspace` (`lib/common.sh`) now follows the
+  repository the worktree shares with `kit/` back to the workspace, and the hooks and
+  `scripts/build-template.sh` use it. Section 13 commits a listed word from such a worktree and sees it
+  refused.
+- **What the kit is for.** The README says it plainly, after the welcome: common ground between the
+  person and the assistant (where information lives, the words both use, the working standards and the
+  person's preferences), and what the assistant cannot find for itself. `docs/memory-layers.md` §1 takes
+  the two as its yardstick, and its one test for every promotion is now "is it otherwise discoverable?"
+  (in the code, the files, the docs, `git log` or a tool's own help). `docs/principles.md` sets out
+  thirteen principles of working with and handing work to an AI, each naming the file that carries it
+  out. `docs/purpose-audit.md` reads every plugin, command, hook, template and script against the two
+  purposes and proposes, without removing anything, what serves neither: the scheduler published as a
+  plugin of its own, `/projects:board` folded into `/projects:pickup`, the 2.x migration and most pilot
+  measures retired.
+- **Three vocabulary files.** `templates/glossary.md` (plain words for the terms AI models fall into,
+  plain words first), `templates/terms.md` (the work's own terms) and `templates/project-decisions.md`,
+  each opening with what it is for. A new workspace gets `memory/terms.md` and `memory/glossary.md`
+  beside `logs/decisions.md`; `/projects:new` and `/ongoing:new` put all three in the new folder, and
+  both adopt commands offer the missing ones without adding a second file that does the same job. In a
+  workspace made before this, `memory/glossary.md` holds the team's terms: the engine leaves it alone,
+  creates no `memory/terms.md` beside it, and records that with a `!vocabulary` line in the ledger;
+  `kit/setup.sh update` offers the move to `memory/terms.md`, at a terminal and on a yes, after which
+  the plain-words glossary is added. `CLAUDE.kit.md` names where the vocabulary lives,
+  `/workspace:register-audit` flags a glossary term in prose a person reads with its plain words as the
+  fix, and the kit's own `docs/glossary.md` starts with eight terms seen in its prose. "Ablation" in the
+  kit's prose is now "leave-out test"; paths, CSV columns, variables and the `ablate:` key keep their
+  names. Sections 12, 14, 15 and 21 cover it, the move at a pseudo-terminal with a no and a yes.
+- **Closeout keeps what is not otherwise discoverable.** One test comes first in the command, the
+  ritual, the capture prompt and the review reminder alike: could a later session find this by itself,
+  in the code, the files, the docs, `git log` or a tool's own help? If so it is not promoted, and the
+  draft says where (`check: already-written`, `found:`). Learnings are looked for in an order: the
+  person's interventions and corrections first, then the agent's own mistakes read as missing context
+  (recording that context where it arrived, or proposing to ask for it), and only then, sparingly, a
+  general lesson. Every item carries a `plain:` line, one everyday sentence the person reads first, and
+  terms that are not plain go through the glossary; decisions go to `decisions.md`, terms of the work
+  to `terms.md`, translations of AI-speak to the glossary. An item for the always-loaded tier comes from
+  a correction or a gap in context, never from a general lesson. `check-evidence.sh` refuses an item
+  with no `plain:` line, a working-standards item whose `source:` is `general`, and a `correction`
+  with no evidence line in the person's own words. `docs/DESIGN.md` says why, with a before and after
+  in the person's words. A second fixture transcript covers a correction, missing context that arrives
+  later, a general lesson, a run's prompt, JSON output and something unexplained; which source an item
+  truly has, and whether it was discoverable, remain the model's judgement and the person's.
+  A second question goes with the first, on every surface: where would the obvious next move go
+  wrong? A trap on the path anyone would take first (the command tried first, the file edited first,
+  the assumption made first) is found otherwise only by falling into it again, so it is recorded as
+  the likely move, what goes wrong and what to do instead, cited by the moment it went wrong, with a
+  `plain:` line that reads as a colleague's warning. It is asked as a question about the next
+  person's path, not as a kind of item to collect, for the reason `docs/DESIGN.md` gives. The second
+  fixture gains such a trap, cited by the failed step and the person's words.
+- **The 10 November research's fixes.** The capture hook starts its child without `PAIR_*` and the
+  ending session's own variables, and marked headless, so in a pairing it no longer acts as the
+  engineer. `check-evidence.sh` reads an anchor's quote to the first unescaped quotation mark, with
+  `\"`, `\\`, `\n` and `\t` as escapes and anything after the quote a note, so JSON output and spans
+  across a line break can be cited. A run's prompt, held in a queue record or a `queued_command`
+  attachment, counts as a turn (`(prompt)`); a task notification does not. A capture that saw something
+  it could not explain writes it as `check: observed`, cited and never promoted as fact. Section 4
+  covers each, the clean environment against a stub `claude`.
+- **`/projects:overnight`, an eighteenth command.** Before the person leaves work running overnight, a
+  short pre-flight: the two questions it always asks (what they want to wake up to, and what would make
+  it excellent), then each call they would otherwise be woken for, asked now with a default: spend (an
+  API cap, the key's credit checked with a one-token call, and a subscription cap), what may leave the
+  machine, what may be committed, pushed, published or sent, deletion, the machine (awake, shared
+  resources, a stop time), permissions tried before they go (`git commit --dry-run`, a scratch file,
+  `git push --dry-run`), and wake time. It suggests one agent or a manager–engineer pairing, hands over
+  to `/projects:pair`, writes a bounds block into the brief, lists what keeps a night running (check-ins
+  re-armed, a wake-up on every long job, clean headless children, the suite on the right machine, the
+  private-word check, a stop at a usage warning) and ends with one morning summary. Its safety lines:
+  nothing leaves the agreed lane, and a stop that needs the person is a good outcome. A plugin's
+  commands carry its name, so it is `/projects:overnight` rather than `/overnight`, and
+  `kit-projects-overnight` in Cowork. `docs/getting-started.md` gains *Overnight runs*, and
+  `docs/principles.md` a principle, "decide before you leave what you would be woken for". Sections 9,
+  12 and 17 count and check it.
+- **The tests' kit fixture commits with automatic gc and maintenance off.** Started in the background
+  after the commit, they could pack its loose objects while the first fixture's clone was copying them,
+  and every fixture after it failed.
+- **The test suite says where its time goes, and spends less of it.**
+  - Every run ends with its wall time, the summed section time and the slowest sections, and writes
+    every section, check and failure to `AW_TIMES` (`tests/README.md`, *Where the time goes*). A
+    failure is listed by the part it ran in.
+  - Section 15 runs as three parts (`15a`, `15b`, `15c`), each its own parallel job, so it no longer
+    sets the length of a run alone. A bare `15` still names all three, in `AW_SECTIONS` and the path
+    map.
+  - The kit fixture repository is built once per run and copied to each job. A workspace that several
+    checks start from fresh is built once and copied, with its hooks pointed at the copy; one check
+    shows a copy runs its own hooks.
+  - The scheduler's runner reads `SCHEDULER_SECOND`, how long one second of its own waits lasts. Section
+    26 sets it to a tenth, so its timeout, lock and retry checks wait a tenth as long, and keeps its
+    first timeout check on the real clock.
+  - A GitHub Actions workflow, `.github/workflows/tests.yml`, runs the full suite on Linux and macOS on
+    every push and pull request, and the private-word check when the repository has an
+    `AW_BANNED_WORDS` secret. It does nothing until the branch is pushed.
+  - The checks are the same, plus the one for copies: 1050.
+- **`kit/setup.sh update` checks whether a change fits before it asks.** It used to ask "Apply this
+  change?" and only then say the change did not fit. Each part of a template's change is now checked
+  first, and a part that does not apply is read against the file's own lines: already there in other
+  words (every line it adds is in the file, and none it removes), on a passage the team rewrote (none
+  of the lines it changes is in the file), or a real merge by hand. When some parts fit, the question
+  gives the count and applies those. When none fits and none needs merging, there is no question to
+  apply, only whether to stop offering it (yes by default), and the summary lists the file as "in your
+  own words". When some need merging by hand, they are printed with a line to give the assistant, and
+  the question is whether to stop offering it once merged; answering n no longer stops the offer.
+  Section 15 covers each case, and the three shapes a customised workspace showed on a real update.
+- **The timing checks allow for a busy machine.** Three checks time something, and on a loaded
+  machine they failed for reasons that were not faults. Each now reads the load per core
+  (`aw_load`, `aw_factor` in `tests/run.sh`; `AW_LOAD` stands in for it), names it in its line, and
+  counts a skip as a skip with its reason. The session-start hook's 100 ms (4b) and the transcript
+  reader's 10 s (22) scale by the load, at least twice on CI (`CI=true`), and skip past four and three
+  times. The load average misses the disk and memory traffic of the other sections in a parallel run,
+  so 22 also times a read of twenty transcripts straight after, and passes within fifteen times that:
+  a reader that scales with its input takes about ten, one gone quadratic about a hundred. The registry's twelve concurrent writers (23) become two checks: that every writer that says
+  it landed did, and no other, at any load; and that all twelve land within the lock's own wait of
+  about ten seconds, a product setting, which skips above a load of 1.5 per core.
+- **Three faults the first CI run found, each a fault for people using the kit, not only for the tests.**
+  - **The lock could lose a write.** A writer queued for a lock read its holder, and if that holder let
+    go and exited in the moment before the writer checked it, the writer took the next holder's live
+    lock for an abandoned one and removed it, so two writers were in at once and one change was lost.
+    It touched every registry, claims board and mailbox the pairing writes. A takeover now holds a
+    second lock and reads the holder again under it, and a writer lets go of a lock only while it is
+    still its own. Section 23 widens the race to 50 ms in a copy of the lock, where before the fix every
+    round lost a write.
+  - **`/projects:pair`'s check said nothing on Linux** for an engineer whose activity beat was stale.
+    It read a transcript's time with BSD `stat -f` first, which GNU `stat` accepts with another
+    meaning, and the sum after it failed. It now uses the helper beside it that checks the answer is a
+    number.
+  - **A slug depended on the locale.** In the C locale a CI runner has, `iconv` wrote `?` for an
+    accented letter, so "Café Crème" became `caf-cr-me`. The accented Latin letters are now written
+    plainly from a fixed table first. Section 17 checks them in the C locale.
+- **CI runs four sections at once on each runner** (`AW_JOBS=4`), where the suite's default of half
+  the cores gave the 3-core macOS runner one, and its serial run passed the 30-minute limit. The limit
+  is 45 minutes, and the checkout action is v5.
+- **Three more faults the release's own CI run found.**
+  - **The lock could still lose a write when the clock stepped forward.** A lock held for more than a
+    minute is taken over, and the minute was judged by the clock alone. When the clock steps (a machine
+    waking, a new virtual machine setting its time), every lock looks a minute old at once, and a waiter
+    took a working writer's lock. A waiter now takes a lock over by age only after it has itself watched
+    the same holder, unchanged, for about three seconds; a holder that has died is still taken over at
+    once. Section 23 dates every lock in a copy of the lock back to 2020, where before the fix every
+    round lost a write.
+  - **The PM launcher's token never finished on macOS where SIGPIPE is ignored.** It read
+    `/dev/urandom` through `tr` until `head` had twelve characters, and relied on SIGPIPE to stop `tr`.
+    Claude Code and CI runners start processes with SIGPIPE ignored, and macOS's `tr` then runs for
+    ever: it held the macOS CI jobs until the 45-minute limit. The read is now bounded (`head -c`), and
+    section 23 checks that every read of `/dev/urandom` in the kit is.
+  - **A match at the end of a pipe could read as no match.** `grep -q` stops at the first match, and
+    under `pipefail` the command still writing to it then fails the pipe, by SIGPIPE or, where SIGPIPE
+    is ignored, by a failed write. Six places in setup, the engine, the migration, the template builder
+    and `check-paths.sh` that asked whether a list held a line now give `grep` the list whole. In the
+    suite, `grep_all` (`tests/run.sh`) reads all of its input; sections 4 and 16 failed this way on CI.
+- **A hung section fails in minutes and says where.** `AW_SECTION_TIMEOUT` (seconds; CI sets 900) stops
+  a parallel job that runs past it, its whole process tree, and reports its sections and the last check
+  it finished.
 
 - **A getting-started guide, `docs/getting-started.md`.** It walks from an empty folder through
   installation, the first session, `/workspace:quick-start`, a first project, the daily `/closeout`,
@@ -45,6 +388,30 @@ move is yours to make.
   re-run evidence, the mailbox, and how the engineer is started and checked). §4.1 adds *Levels of
   closeout* (session, project, workspace and method, each with its cadence and destination) and *context
   as an investment*: why grounding improves results, how the gain compounds, and why the same loop prunes.
+
+- **Closeout checks each candidate against the session before it promotes it.** Every candidate, from
+  `/closeout` or a capture draft, is checked against the session's own record, read to its end, and
+  comes out supported (promoted as fact), contradicted (promoted as its correction, or dropped) or
+  unsupported (never promoted as fact). Each carries its evidence as `evidence: L<n> "<quote>"`, a
+  transcript line and a short span from it. The new `plugins/closeout/scripts/check-evidence.sh`
+  resolves those lines and refuses what does not hold. A line for the always-loaded file passes only
+  when supported by the person's words or a tool's output, not the agent's alone. The capture draft
+  starts with a `transcript:` line, the review reminder names the script, and the capture child gains
+  the read-only `Grep` tool. Where no transcript is readable, the check runs against the conversation
+  and the report says so. The ritual carries the same step.
+
+- **Closeout guidance says what memory is for.** The capture prompt, `/closeout` and the ritual
+  replace their lists of kinds worth recording with the purpose: the next session starts without this
+  conversation, so record what would leave it better placed. The capture prompt and the command now
+  agree on scope, and `/projects:pair`'s closing carries what a later session needs from the mailbox
+  into the decisions log. Privacy, the bounded always-loaded tier and commit ownership stay as rules.
+  In the closeout plugin's prose, the offer at promotion is now a "leave-out test"; the
+  `pilot/ablations/` path is unchanged.
+
+### Template changes
+
+- `templates/workspace/settings.json` enables `scheduler@agentic-workspace` beside the other three.
+- `templates/workspace/surface-rows/claude.md` names the scheduler among the plugins from `kit/`.
 
 ---
 

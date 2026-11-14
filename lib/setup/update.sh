@@ -2,15 +2,18 @@
 # lib/setup/update.sh: kit/setup.sh update. Brings a newer kit into the workspace and offers what came
 # with it.
 #
-#   update.sh --target WS [--no-fetch] [--yes]
+#   update.sh --target WS [--no-fetch] [--yes] [--advance]
 #
 #   --yes, -y   answer yes to the template-change and .gitignore offers, attended or not; the diffs are
 #               still printed. The migration question keeps its n default.
+#   --advance   advance kit/ even when it is on a branch other than the one .gitmodules tracks.
 #
 # 1. A workspace still in the 2.x layout goes to the migration instead: its dry run is shown, and an
 #    attended run is asked whether to run it for real.
 # 2. The kit submodule is advanced (git submodule update --remote -- kit). The rest then runs from the
-#    new kit's own copy of this script (--after-advance), so the steps below are the new kit's.
+#    new kit's own copy of this script (--after-advance), so the steps below are the new kit's. A kit
+#    on a branch other than the tracked one is not advanced; the rest runs against it as it stands,
+#    with --old the commit the workspace records for kit/, and the command it ran is printed.
 # 3. The CHANGELOG since the old version is printed.
 # 4. Each template the kit changed since a file of yours was made from it is offered as a diff, one at
 #    a time (an attended run asks; an unattended one lists them and records nothing). The diff is
@@ -35,7 +38,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 # shellcheck disable=SC2034  # read by lib/wizard.sh
 WZ_STATE_SH="$KIT/plugins/workspace/scripts/state.sh"
 
-WS="" NO_FETCH=0 AFTER=0 OLD="" YES=0
+WS="" NO_FETCH=0 AFTER=0 OLD="" YES=0 ADVANCE=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --target|--old)
@@ -45,7 +48,8 @@ while [[ $# -gt 0 ]]; do
         --no-fetch) NO_FETCH=1; shift ;;
         --yes|-y) YES=1; shift ;;
         --after-advance) AFTER=1; shift ;;
-        -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --advance) ADVANCE=1; shift ;;
+        -h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "update.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
@@ -90,6 +94,29 @@ if [[ $AFTER -eq 0 ]]; then
 
     # --- Advance ------------------------------------------------------------------------------------
     name="$(aw_kitname "$WS")"
+    # A kit checked out on a branch other than the one the workspace tracks (a trial branch, a kit
+    # developer's work) is left as it is. submodule update --remote would move it to the tracked branch,
+    # and with update = rebase it rebases the branch's own commits onto it, rewriting their history.
+    # The steps after the advance still run, against the kit as it stands, from the commit the
+    # workspace records for kit/: what the workspace was last committed with is what its files reflect.
+    branch="$("${KG[@]}" symbolic-ref -q --short HEAD 2>/dev/null)"
+    track="$("${WG[@]}" config -f .gitmodules "submodule.$name.branch" 2>/dev/null)"
+    if [[ -z "$track" ]]; then
+        track="$("${KG[@]}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+        track="${track#origin/}"
+    fi
+    track="${track:-main}"
+    if [[ -n "$branch" && "$branch" != "$track" && $ADVANCE -eq 0 ]]; then
+        rec="$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print $2; exit }')"
+        say "kit/ is on the branch $branch, not $track, the branch .gitmodules tracks. It is not advanced:"
+        say "that would move it to $track and rebase or leave behind $branch's own commits."
+        say "The template offers run against the kit as it stands ($(printf '%.7s' "$old")), from the commit this"
+        say "workspace records for kit/ ($(printf '%.7s' "$rec")):"
+        step "kit/lib/setup/update.sh --target $(printf '%q' "$WS") --after-advance --old $rec"
+        note "kit/setup.sh update --advance moves kit/ to $track as before."
+        yes=(); [[ $YES -eq 0 ]] || yes=(--yes)
+        exec "${BASH:-bash}" "$WS/kit/lib/setup/update.sh" --target "$WS" --after-advance --old "$rec" ${yes[@]+"${yes[@]}"}
+    fi
     url="$("${WG[@]}" config "submodule.$name.url" 2>/dev/null)"
     [[ -n "$url" ]] || url="$("${WG[@]}" config -f .gitmodules "submodule.$name.url" 2>/dev/null)"
     pc=(); is_local_url "$url" && pc=(-c protocol.file.allow=always)
@@ -123,7 +150,9 @@ else
     echo
     # From the top down to the old version's heading; the same version, the diff; else the first 60 lines.
     if [[ -n "$old_version" && "$old_version" == "$new_version" ]]; then
-        "${KG[@]}" diff --no-color "$OLD..HEAD" -- CHANGELOG.md
+        # --no-pager: at a terminal git would open the diff in less, which takes the answers meant for the
+        # questions that follow.
+        "${KG[@]}" --no-pager diff --no-color "$OLD..HEAD" -- CHANGELOG.md
     elif [[ -n "$old_version" ]] && excerpt="$(awk -v v="## v$old_version" '
             index($0, v) == 1 && substr($0, length(v) + 1, 1) !~ /[0-9.]/ { found = 1; exit }
             { print }
@@ -143,13 +172,38 @@ else
 fi
 
 # --- Template diffs ---------------------------------------------------------------------------------
+# hunk_kind <hunk> <file>: what a hunk that neither applies nor is there amounts to, from its own lines
+# against the file's, each trimmed. A team that customised a file has often made the kit's change
+# already in its own words, or rewritten the passage the change edits, and then there is nothing to
+# merge. Short lines (a fence, a table rule) are left out, since they match anywhere.
+#   merged  none of the lines it removes is in the file, and every line it adds is
+#   gone    none of the lines it removes is in the file, and not every line it adds is: the passage
+#           it edits reads differently in this copy
+#   left    a line it removes is still in the file, or it only adds lines and they are not all there:
+#           a merge by hand
+hunk_kind() {
+    awk -v f="$2" '
+        function t(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+        BEGIN { while ((getline l < f) > 0) have[t(l)] = 1 }
+        /^@@/ { on = 1; next }
+        !on { next }
+        /^-/ { s = t(substr($0, 2)); if (length(s) >= 12) { r++; if (s in have) rin++ } next }
+        /^\+/ { s = t(substr($0, 2)); if (length(s) >= 12) { a++; if (s in have) ain++ } next }
+        END {
+            if (r > 0 && rin == 0) print (ain == a ? "merged" : "gone")
+            else if (r == 0 && a > 0 && ain == a) print "merged"
+            else print "left"
+        }' "$1"
+}
+
 # by_hunk check|apply <dest> <diff>: each hunk of a one-file diff taken on its own, since one hunk that
 # no longer fits should not hold back the others. A hunk that applies in reverse has its new side in
-# the file already, so it counts as there. In apply mode a hunk that fits is applied, and one that does
-# neither is printed for hand merging. Sets H_THERE, H_FITS and H_LEFT to the counts.
+# the file already, so it counts as there. One that does neither is merged, gone or left (hunk_kind).
+# In apply mode a hunk that fits is applied, and one left is printed for hand merging. Sets H_THERE,
+# H_FITS, H_MERGED, H_GONE and H_LEFT to the counts.
 by_hunk() {
     local mode="$1" dest="$2" dir i h
-    H_THERE=0 H_FITS=0 H_LEFT=0
+    H_THERE=0 H_FITS=0 H_MERGED=0 H_GONE=0 H_LEFT=0
     dir="$(mktemp -d "${TMPDIR:-/tmp}/aw-hunks.XXXXXX")" || return 1
     # The file header (diff --git, index, ---, +++) is repeated at the top of every hunk's own patch.
     awk -v p="$dir/h." '
@@ -164,19 +218,45 @@ by_hunk() {
         elif "${WG[@]}" apply --check "$h" >/dev/null 2>&1 && { [[ $mode == check ]] || "${WG[@]}" apply "$h" >/dev/null 2>&1; }; then
             H_FITS=$((H_FITS + 1))
         else
-            H_LEFT=$((H_LEFT + 1))
-            if [[ $mode == apply ]]; then
-                say "  This change does not fit $dest as it is now; merge it by hand:"
-                sed -n '/^@@/,$p' "$h" | sed 's/^/    /'
-            fi
+            case "$(hunk_kind "$h" "$WS/$dest")" in
+                merged) H_MERGED=$((H_MERGED + 1)) ;;
+                gone) H_GONE=$((H_GONE + 1)) ;;
+                *)
+                    H_LEFT=$((H_LEFT + 1))
+                    if [[ $mode == apply ]]; then
+                        say "  This change does not fit $dest as it is now; merge it by hand:"
+                        sed -n '/^@@/,$p' "$h" | sed 's/^/    /'
+                    fi ;;
+            esac
         fi
         i=$((i + 1))
     done
     rm -rf "$dir"
 }
 
+# own_words: says which of the hunks that do not apply need nothing, from the counts by_hunk set.
+own_words() {
+    [[ $H_MERGED -eq 0 ]] || say "  Already in your copy in your own words: $H_MERGED of the changes."
+    [[ $H_GONE -eq 0 ]] || say "  Edits lines your copy has rewritten, so there is nothing to merge: $H_GONE of the changes."
+}
+
+# why_none: the same counts in one sentence, for the line that names the file.
+why_none() {
+    local w=""
+    [[ $H_MERGED -eq 0 ]] || w="$H_MERGED already in your own words"
+    [[ $H_GONE -eq 0 ]] || w="${w:+$w; }$H_GONE on lines you have rewritten"
+    [[ $H_THERE -eq 0 ]] || w="${w:+$w; }$H_THERE already there"
+    printf '%s.' "$(printf '%s' "$w" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')"
+}
+
+# hand_prompt <dest>: a request the person can give their assistant, short enough to paste.
+hand_prompt() {
+    say "  To have your assistant merge it, keeping your own edits, give it this:"
+    say "    Merge the kit's latest change to $1 into my copy, keeping my own edits. kit/install.sh --template-diff $1 --target . prints the change."
+}
+
 # Files this update changed, for the commit; and the lists the end summary gives.
-ACCEPTED=() APPLIED=() THERE=() HAND=() GITIGNORE_ADDED=0 RECORDED=0
+ACCEPTED=() APPLIED=() THERE=() OWN=() HAND=() GITIGNORE_ADDED=0 RECORDED=0
 if [[ $offer -eq 1 ]]; then
     status_out="$("${BASH:-bash}" "$WS/kit/install.sh" --template-status --target "$WS" 2>/dev/null)"; rc=$?
     if [[ $rc -ne 0 ]]; then
@@ -193,7 +273,7 @@ if [[ $offer -eq 1 ]]; then
                 if [[ $drc -eq 0 ]]; then
                     by_hunk check "$dest" "$diff_file"
                     # Every hunk already in the file: nothing to offer, only the record to bring up to date.
-                    [[ $((H_FITS + H_LEFT)) -gt 0 ]] || { drc=3; THERE+=("$dest"); }
+                    [[ $((H_FITS + H_MERGED + H_GONE + H_LEFT)) -gt 0 ]] || { drc=3; THERE+=("$dest"); }
                 fi
                 if [[ $drc -eq 3 ]]; then
                     # The template changed in a way that renders the same for this workspace, or the
@@ -216,23 +296,61 @@ if [[ $offer -eq 1 ]]; then
                 bold "The kit's template for $dest has changed:"; echo
                 cat "$diff_file"
                 echo
-                if [[ $YES -eq 1 ]] || confirm "Apply this change to $dest?" n; then
-                    by_hunk apply "$dest" "$diff_file"
-                    [[ $H_FITS -eq 0 ]] || ACCEPTED+=("$dest")
-                    if [[ $H_LEFT -eq 0 ]]; then
+                # by_hunk check has already run on this diff, so the question fits what will happen:
+                # nothing is asked to apply that cannot be applied.
+                all=$((H_THERE + H_FITS + H_MERGED + H_GONE + H_LEFT))
+                if [[ $H_FITS -gt 0 ]]; then
+                    q="Apply this change to $dest?"
+                    if [[ $((H_MERGED + H_GONE + H_LEFT)) -gt 0 ]]; then
+                        say "  $H_FITS of the $all changes fit $dest as it is now."
+                        own_words
+                        [[ $H_LEFT -eq 0 ]] || say "  $H_LEFT do not fit, and are shown for merging by hand once the others are in."
+                        q="Apply the $H_FITS that fit?"
+                    fi
+                    if [[ $YES -eq 1 ]] || confirm "$q" n; then
+                        by_hunk apply "$dest" "$diff_file"
+                        [[ $H_FITS -eq 0 ]] || ACCEPTED+=("$dest")
+                        if [[ $H_LEFT -eq 0 ]]; then
+                            "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
+                            RECORDED=1
+                            APPLIED+=("$dest")
+                            check "applied to $dest" true
+                        else
+                            HAND+=("$dest ($H_LEFT of $all changes)")
+                            [[ $H_FITS -eq 0 ]] || APPLIED+=("$dest ($H_FITS of $all changes)")
+                            hand_prompt "$dest"
+                            note "left for hand merging; offered again next time, with the question whether to stop"
+                        fi
+                    else
+                        "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status skipped --target "$WS" >/dev/null 2>&1
+                        RECORDED=1
+                        note "skipped; offered again only if the template changes again"
+                    fi
+                elif [[ $H_LEFT -eq 0 ]]; then
+                    # Nothing applies, and nothing needs to: the file and the count, then the question.
+                    say "  $dest: none of the $all changes needs applying. $(why_none)"
+                    if [[ $YES -eq 1 ]] || confirm "Stop offering this change to $dest?" y; then
                         "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
                         RECORDED=1
-                        APPLIED+=("$dest")
-                        check "applied to $dest" true
+                        OWN+=("$dest")
+                        note "recorded; offered again only if the template changes again"
                     else
-                        HAND+=("$dest ($H_LEFT of $((H_THERE + H_FITS + H_LEFT)) changes)")
-                        [[ $H_FITS -eq 0 ]] || APPLIED+=("$dest ($H_FITS of $((H_THERE + H_FITS + H_LEFT)) changes)")
-                        note "left for hand merging; offered again next time. Once merged by hand, answer n to stop the offer"
+                        note "offered again next time"
                     fi
                 else
-                    "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status skipped --target "$WS" >/dev/null 2>&1
-                    RECORDED=1
-                    note "skipped; offered again only if the template changes again"
+                    # Nothing applies, and some of it is a merge by hand: no question to apply, only the
+                    # hunks, the prompt and a way to stop the offer once the merge is done.
+                    say "  $dest: none of the $all changes fits as it is; $H_LEFT need merging by hand.$( [[ $((H_MERGED + H_GONE)) -eq 0 ]] || printf ' %s' "$(why_none)")"
+                    by_hunk apply "$dest" "$diff_file"
+                    hand_prompt "$dest"
+                    HAND+=("$dest ($H_LEFT of $all changes)")
+                    if [[ $YES -eq 0 ]] && confirm "Stop offering this change to $dest? Answer y once it is merged by hand." n; then
+                        "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
+                        RECORDED=1
+                        note "recorded as merged; offered again only if the template changes again"
+                    else
+                        note "left for hand merging; offered again next time"
+                    fi
                 fi ;;
             changed-no-base)
                 listed=$((listed + 1))
@@ -243,6 +361,38 @@ if [[ $offer -eq 1 ]]; then
 $status_out
 EOF
     rm -f "$diff_file"
+
+    # The vocabulary split (install.sh says what it is): a glossary that still holds the workspace's terms
+    # is offered the move to memory/terms.md. Only at a terminal, and only on a yes: --yes takes template
+    # changes, and this is a move of the person's own file. A no leaves it, and it is offered again.
+    gl="$WS/memory/glossary.md"
+    if [[ -f "$gl" && ! -e "$WS/memory/terms.md" ]] && ! grep -q 'Plain words' "$gl"; then
+        listed=$((listed + 1))
+        bold "memory/glossary.md holds this workspace's terms."; echo
+        say "  The kit now keeps a workspace's own terms in memory/terms.md, and uses memory/glossary.md for the"
+        say "  plain words beside the terms AI models fall into. Moving the file keeps every term, and the new"
+        say "  glossary starts empty. Files that name memory/glossary.md are yours to update afterwards:"
+        say "  grep -rn 'memory/glossary.md' --include='*.md' . lists them."
+        if ! attended; then
+            step "left as it is; kit/setup.sh update, run at a terminal, offers the move"
+        elif confirm "Move memory/glossary.md to memory/terms.md?" n; then
+            moved=0
+            if "${WG[@]}" ls-files --error-unmatch memory/glossary.md >/dev/null 2>&1; then
+                "${WG[@]}" mv memory/glossary.md memory/terms.md && moved=1
+            else
+                mv "$gl" "$WS/memory/terms.md" && moved=1
+            fi
+            if [[ $moved -eq 1 ]]; then
+                ACCEPTED+=(memory/glossary.md memory/terms.md)
+                APPLIED+=("memory/glossary.md -> memory/terms.md")
+                check "moved; the plain-words glossary is created below" true
+            else
+                warn "the move did not happen; memory/glossary.md is as it was"
+            fi
+        else
+            note "left as it is: memory/glossary.md stays the terms file, and the move is offered again next time"
+        fi
+    fi
 
     # .gitignore: the template's lines the file does not have yet, as one diff (the engine exits 3 when
     # none is missing).
@@ -322,11 +472,12 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$hook" ]]; then
 fi
 
 # --- What the offers came to ------------------------------------------------------------------------
-if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#HAND[@]} -gt 0 ]]; then
+if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#OWN[@]} -gt 0 || ${#HAND[@]} -gt 0 ]]; then
     echo
     say "Template changes:"
     for p in ${APPLIED[@]+"${APPLIED[@]}"}; do step "applied                $p"; done
     for p in ${THERE[@]+"${THERE[@]}"}; do step "already there          $p"; done
+    for p in ${OWN[@]+"${OWN[@]}"}; do step "in your own words      $p"; done
     for p in ${HAND[@]+"${HAND[@]}"}; do step "left for hand merging  $p"; done
 fi
 

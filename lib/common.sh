@@ -201,6 +201,27 @@ aw_git_elsewhere() {
     )
 }
 
+# aw_kit_workspace DIR
+# The workspace a kit checkout belongs to, printed as its real path, or nothing for a kit that sits in
+# no workspace. The kit at kit/ names its workspace as its superproject. A worktree of that kit, made
+# anywhere (a scratch folder, a sibling), has no superproject of its own, so the answer comes through
+# the repository the worktree shares: its common git dir is the submodule's, whose core.worktree is the
+# workspace's kit/, and that checkout names the workspace.
+aw_kit_workspace() {
+    local dir="$1" ws common wt
+    ws="$(aw_git_elsewhere "$dir" rev-parse --show-superproject-working-tree 2>/dev/null)"
+    if [[ -z "$ws" ]]; then
+        common="$(aw_git_elsewhere "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+        wt="$(aw_git_elsewhere "$dir" config --file "$common/config" --get core.worktree 2>/dev/null)"
+        if [[ -n "$wt" ]]; then
+            case "$wt" in /*) ;; *) wt="$common/$wt" ;; esac
+            [[ -d "$wt" ]] && ws="$(aw_git_elsewhere "$wt" rev-parse --show-superproject-working-tree 2>/dev/null)"
+        fi
+    fi
+    [[ -n "$ws" && -d "$ws" ]] || return 0
+    (cd "$ws" && pwd -P)
+}
+
 # aw_count
 # Lines on stdin, as a bare number (BSD wc pads its count with spaces). A last line with no newline
 # still counts.

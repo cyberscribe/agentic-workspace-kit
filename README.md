@@ -1,14 +1,38 @@
 # A Workspace That Keeps Its Context
 
-**Welcome.** This kit gives you and your AI assistant a shared workspace that remembers. Each working
-session ends with a short pass that writes down what was decided and learned, in a place the next
-session will find it, so the assistant starts each day from what you have already worked out rather
-than from guesses. It keeps your projects, their finish lines and where each one stands, and it grows
-more useful the longer you use it.
+[![How AI work keeps its judgment: a six-minute introduction to the kit](https://img.youtube.com/vi/6A7e3tZ7N-A/maxresdefault.jpg)](https://youtu.be/6A7e3tZ7N-A)
 
-It runs with [Claude Code](https://code.claude.com/docs/en/overview), on a Mac or a Linux computer. You
-do not need to be a programmer: setting it up is copying a few lines into a terminal and answering
-questions.
+**Start with the six-minute film above.** It follows one small business through the kit: a project with a
+finish line, an area that is only ever kept up, an AI engineer working overnight while an AI manager checks
+its work, and the closeout that keeps what each session learned. Then it shows where to look in the files
+and how to start.
+
+**Welcome.** This kit gives you and your AI assistant a shared language and a shared set of places: what
+a project is and where it stands, which standards an ongoing area keeps, where a decision or a lesson
+goes. Everything it holds is a plain file that both of you can read, check and correct, so what the
+assistant works from is never a record only it can see. Each working session ends with a short pass that
+writes down what was decided and learned, in the place the next session will look, so the assistant
+starts each day from what you have already worked out rather than from guesses, and grows more useful
+the longer you use it.
+
+It runs with [Claude Code](https://code.claude.com/docs/en/overview), on a Mac or a Linux computer, and
+Cowork in the Claude desktop app can work in the same folder. You do not need to be a programmer:
+setting it up is copying a few lines into a terminal and answering questions.
+
+## What the kit is for
+
+Two things, and every part of the kit is measured against them.
+
+1. **Common ground between you and the assistant.** The same names for the same things: where each kind
+   of information lives, the words you both use, how you work together and what you prefer. When the
+   assistant says something in its own idiom, the kit keeps the plain words beside it.
+2. **What the assistant cannot find for itself.** The decision and the reason for it, the correction you
+   made last Tuesday, the term only your team uses. Anything already in the code, the files or their
+   history is left for the assistant to read there.
+
+Both last. A model can learn a codebase by reading it, but it cannot learn what only your team knows, or
+how you talk, unless someone writes it down. [The principles](docs/principles.md) behind the kit, and
+[the audit](docs/purpose-audit.md) of each of its parts against these two, say more.
 
 ## Quick start
 
@@ -65,8 +89,24 @@ about how you work and fills the workspace in. Answer in your own words; anythin
 **6. Start your first project.** Type `/projects:new` and describe something you are working on that
 has a finish line.
 
-**7. At the end of a working session**, type `/closeout`. It records what the session decided and
+**7. Start your first area.** Type `/ongoing:new` and describe something you keep up with no finish
+line, such as a garden, a practice or the books. It asks what good looks like, the standards that
+show it, and how often to check.
+
+**8. At the end of a working session**, type `/closeout`. It records what the session decided and
 learned, and brings the project's status up to date. This is the habit that makes the rest work.
+
+**9. Once a week**, type `/workspace:hygiene`. It writes a dated report to `audits/` on what loads every
+session, files in the wrong place and decisions worth moving up, and deletes nothing.
+
+**10. If you use Cowork**, run this in a terminal inside the workspace, then upload each `.plugin`
+file it names in Claude's plugin settings:
+
+```bash
+kit/setup.sh cowork
+```
+
+Open the workspace folder in Cowork, and the same commands appear as skills in the next session.
 
 That is the whole start. **[The getting-started guide](docs/getting-started.md)** walks through
 everything else in order — the daily routine, pairing two sessions on a build, finishing projects,
@@ -186,20 +226,28 @@ thing lives in version control.
 
 ```
 workspace/
-  CLAUDE.md              ← the always-loaded file; its first line imports the kit's standards
-  docs/                  ← general reference, loaded on demand
-    memory-layers.md     ← the taxonomy above, as it applies to your setup
-    workspace-map.md     ← the canonical-fact table and where new files go
-    <topic>.md           ← one file per subsystem or convention
+  CLAUDE.md                ← the always-loaded file; line 1 imports kit/CLAUDE.kit.md
+  AGENTS.md                ← points other tools at the same two files
+  README.md                ← the entry point for people
+  kit/                     ← the kit, a submodule: read in place, updated with kit/setup.sh update
+    docs/memory-layers.md  ← the taxonomy above, as it applies to this layout
+    templates/             ← the kit's skeletons: project and area READMEs, a decisions log
+    rituals/               ← closeout, weekly hygiene
+  .claude/                 ← settings, and the projects and closeout conventions
+  docs/                    ← general reference, loaded on demand
+    workspace-map.md       ← the canonical-fact table and where new files go
+    <topic>.md             ← one file per subsystem or convention
   projects/
-    INDEX.md             ← the register: active, paused, done
-    <slug>/              ← one folder per project; README, and decisions.md when it earns one
-  templates/             ← reusable skeletons, copied into the project that needs one
+    INDEX.md               ← the register: active, paused, done
+    <slug>/                ← one folder per project: README, and decisions.md when it earns one
+  ongoing/
+    INDEX.md               ← the register of ongoing areas: active, dormant, archived
+    <slug>/                ← one folder per area: its standards and when they were last checked
+  skills/                  ← the team's own skills and templates
   logs/
-    decisions.md         ← cross-project decisions that generalise
-  memory/                ← canonical cross-surface facts: glossary, per-topic context
-  skills/                ← packaged procedures your surface can invoke
-  audits/                ← dated reports from the periodic checks
+    decisions.md           ← cross-project decisions that generalise
+  memory/                  ← canonical cross-surface facts: terms, glossary, people, per-topic context
+  audits/                  ← dated reports from the periodic checks
 ```
 
 ### 2.1 The always-loaded manifest
@@ -254,8 +302,9 @@ decisions worth preserving, it gets a `decisions.md` from the template.
 
 ### 2.4 Templates as a first-class location
 
-`templates/` holds the skeletons: a project decisions log, a project README, an agent role
-definition, whatever recurring document shape your work produces. The test for whether something
+`kit/templates/` holds the kit's skeletons: a project README, an area README, a project decisions
+log. The team's own (an agent role definition, whatever recurring document shape your work produces)
+go in `skills/`, or `.claude/agents/` and `.claude/commands/` where a surface reads them from there. The test for whether something
 belongs here is in §1.2 — does it serve a *category* of work rather than one work unit?
 
 The subtle benefit: a template carries its own governing rules at the point of use. A decisions-log
@@ -392,7 +441,7 @@ that kind of learning appears.
 Inside a session pass, the tier is the size of the investment. A line in project reference is paid for
 only when that project is open; a line in working standards is paid for on every turn of every session,
 which is why it needs a person's yes (§3.1). A line promoted to one of the two most-loaded tiers is
-offered an *ablation*: a realistic task, run with the line and without it and graded by a check
+offered a *leave-out test*: a realistic task, run with the line and without it and graded by a check
 (`pilot/ablate.sh`). A line that changes nothing on the task it was promoted for is a candidate for a
 cheaper tier. That test is what separates investment from accumulation.
 
@@ -418,7 +467,7 @@ material is marked rather than silently kept, and why the always-loaded tier has
 investment is reviewed; a hoard is not.
 
 *This rests on experience in the workspace the kit came from, not on a controlled comparison. The
-ablation runner is how a team tests it for itself, one promoted line at a time.*
+leave-out test runner is how a team tests it for itself, one promoted line at a time.*
 
 ### 4.2 Weekly hygiene — is everything where it belongs?
 
@@ -550,7 +599,8 @@ the code; the road not taken is visible nowhere. This is what stops the same rej
 re-proposed with enthusiasm next quarter.
 
 **Generalises as** is the promotion mechanism made visible. An entry that grows one is a candidate for
-the cross-project log, and a weekly scan can find them.
+the cross-project log, and a weekly scan can find them. The same scan also reads the entries without
+one through the strip filter, and suggests any that still say something once the specifics are gone.
 
 **Status** is what lets you correct by appending. A dated log is corrected by a later entry, never by
 rewriting an earlier one — the record of what you believed in March is itself information.
@@ -699,16 +749,21 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
 - **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
   `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
   diff to apply or skip. Files the team owns are created once and never overwritten.
-- **Three plugins, eleven commands, are wired in** from the directory marketplace at `kit`:
+- **The kit's plugins, and their eighteen commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `kit/docs/memory-layers.md`, so there is one taxonomy.
   - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close`, `pickup` and `pair`, the life of a
     project from its first interview to done, kept in each project's README, with a session-start
     line that says where the folder's project stands. `.claude/projects.md` holds the team's own
     conventions.
+  - **ongoing** — `/ongoing:new`, `review`, `adopt`, `pause` and `drop`, the areas kept up rather than
+    finished: a desired state and standards to keep in place of a finish line, in `ongoing/<slug>/`.
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
     `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check;
     and a session-start summary of what is out of step.
+  - **scheduler** — `/scheduler:tasks`, Claude Code tasks on a schedule that run on the person's own
+    machine from its own scheduler (launchd, systemd user timers or cron) and outlast the session.
+    Installed, it schedules nothing until someone creates a task.
   Setup also installs them for the person, so a session opened in any folder inside the workspace has
   them; their hooks act only inside a kit workspace (`docs/plugin-scope.md`).
 - **Git hooks keep the workspace private and the kit clean.** `kit/setup.sh hooks` sets them in the
@@ -796,9 +851,10 @@ orientation and pointers, not content, in a fixed order (`templates/project-read
   *blocked*, *paused*, *done*), what blocks it and since when, a check-in cadence if it has one, the
   date it was updated, and one dated line saying where it stands, rewritten rather than added to.
 - **Planned** (optional): the steps foreseen from here, reordered as the work teaches.
-- **People** (optional), one line each, with one of five roles: *owns* (one person per outcome),
-  *does*, *helps*, *ask first* (consulted before a decision) and *keep told* (hears how it went). The
-  roles decide who the closeout's "who needs to know" step names.
+- **People** (optional), one line each, with one of five roles: *accountable* (one person
+  per outcome), *responsible*, *supporting*, *consulted* (asked before a decision) and *informed*
+  (hears how it went). The roles decide who the closeout's "who needs to know" step names; the older
+  words (owns, does, helps, ask first, keep told) still read the same.
 
 The commands follow the project through its life. `/projects:new` interviews for all of this, and
 `/projects:adopt` adds only what an existing project lacks, without rewriting what is there. While the
@@ -815,8 +871,8 @@ folder to `projects/_done/<slug>/`.
 `/projects:pair` splits a build between two sessions, so the person directs and decides rather than
 relaying messages between windows.
 
-- **The product manager** — the session where `/projects:pair` was typed, in Cowork or Claude Code —
-  holds the outcome. It writes each brief, re-runs the evidence behind each report, and accepts the
+- **The product manager** — the session where `/projects:pair` was typed: Cowork by default, with
+  Claude Code as the fallback — holds the outcome. It writes each brief, re-runs the evidence behind each report, and accepts the
   work or says what to fix.
 - **The engineer** — always a Claude Code session — owns the doing: the design inside the brief, the
   code, the tests, and the evidence that it works.
@@ -859,16 +915,24 @@ it, common questions, and how to tell it is working.
 | `/projects:hold` | projects | Pausing a project with its reason and a look-again date | [docs/commands/projects-hold.md](docs/commands/projects-hold.md) |
 | `/projects:pickup` | projects | A cold-start brief, and resuming a paused project | [docs/commands/projects-pickup.md](docs/commands/projects-pickup.md) |
 | `/projects:pair` | projects | A PM session and a Claude Code engineer working a project through a mailbox | [docs/commands/projects-pair.md](docs/commands/projects-pair.md) |
+| `/projects:overnight` | projects | Work left running while you sleep: the outcome and every call you would be woken for, settled before you leave | [docs/commands/projects-overnight.md](docs/commands/projects-overnight.md) |
 | `/projects:close` | projects | Finishing: evidence, retrospective, archive | [docs/commands/projects-close.md](docs/commands/projects-close.md) |
+| `/ongoing:new` | ongoing | Starting an ongoing area: a desired state and standards to keep, no finish line | [docs/commands/ongoing-new.md](docs/commands/ongoing-new.md) |
+| `/ongoing:review` | ongoing | The check-in: an area against its standards | [docs/commands/ongoing-review.md](docs/commands/ongoing-review.md) |
+| `/ongoing:adopt` | ongoing | A folder or long-running project that is really an area | [docs/commands/ongoing-adopt.md](docs/commands/ongoing-adopt.md) |
+| `/ongoing:pause` | ongoing | Setting an area dormant with its reason and a look-again date | [docs/commands/ongoing-pause.md](docs/commands/ongoing-pause.md) |
+| `/ongoing:drop` | ongoing | Archiving an area that is no longer relevant | [docs/commands/ongoing-drop.md](docs/commands/ongoing-drop.md) |
 | `/workspace:quick-start` | workspace | The first-time interview, and the check that the kit is reachable | [docs/commands/workspace-quick-start.md](docs/commands/workspace-quick-start.md) |
 | `/workspace:hygiene` | workspace | The weekly pass over where context lives | [docs/commands/workspace-hygiene.md](docs/commands/workspace-hygiene.md) |
 | `/workspace:register-audit` | workspace | The monthly pass over how guidance reads | [docs/commands/workspace-register-audit.md](docs/commands/workspace-register-audit.md) |
+| `/scheduler:tasks` | scheduler | Claude Code tasks on a schedule, on this machine, that outlast the session | [docs/commands/scheduler-tasks.md](docs/commands/scheduler-tasks.md) |
 
 The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.md) and
 [closeout-review](docs/hooks/closeout-review.md); the projects plugin's
 [session-start line](docs/hooks/projects-session-start.md) and [pairing hooks](docs/hooks/projects-pair.md); the workspace plugin's
 [session-start summary](docs/hooks/workspace-session-start.md) and
-[git guard](docs/hooks/workspace-guard-git.md); and the git hooks in `githooks/`,
+[git guard](docs/hooks/workspace-guard-git.md); the scheduler plugin's
+[session-start line](docs/hooks/scheduler-session-start.md); and the git hooks in `githooks/`,
 [pre-commit](docs/hooks/pre-commit.md), [pre-merge-commit](docs/hooks/pre-merge-commit.md),
 [commit-msg](docs/hooks/commit-msg.md) and [pre-push](docs/hooks/pre-push.md).
 
@@ -878,20 +942,25 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 |---|---|
 | `CLAUDE.kit.md` | The kit's working standards — stance, conventions, map, log formats — imported by the first line of a workspace's `CLAUDE.md` |
 | `docs/getting-started.md` | The walkthrough: install, the first session, the quick-start, a first project, the daily closeout, pairing, upkeep and updates, each with how to tell it worked |
+| `docs/principles.md` | The principles of working with and delegating to an AI that the kit carries out, each with the file that carries it |
+| `docs/purpose-audit.md` | Every plugin, command, hook and template against the kit's two purposes, with what serves neither proposed for retirement |
 | `docs/memory-layers.md` | The taxonomy: four types, two axes, precedence, budget, promotion; §3 pre-filled for a team sharing one repository |
 | `docs/documentation-register.md` | The register rule, the translation table, and how to scan for drift |
 | `docs/plugin-scope.md` | Where the kit's plugins load, by the folder a session is opened on and the surface; setup's install for the person, and the workspace boundary their hooks keep to |
 | `rituals/closeout.md` | The end-of-session pass, as a procedure an agent can follow |
 | `rituals/weekly-hygiene.md` | The weekly placement-and-budget pass |
-| `templates/project-decisions.md` | Per-project decisions log skeleton |
+| `templates/project-decisions.md` | The decisions log skeleton, copied into each project and area as `decisions.md` |
+| `templates/glossary.md` | Plain words for the terms AI models fall into, one row each; the workspace's lands at `memory/glossary.md`, a project's or area's in its own folder |
+| `templates/terms.md` | The terms that belong to the work, and what each means; the workspace's lands at `memory/terms.md` |
 | `templates/project-readme.md` | Per-project README skeleton |
 | `templates/person-profile.md` | One file per person: what they own, and when to go to them |
 | `templates/verification-standard.md` | What counts as checked, per kind of work |
 | `templates/catalogue.md` | What the team has built and would reuse |
 | `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
-| `plugins/projects/` | Projects from start to done — seven commands, a session-start line and the pairing hooks |
+| `plugins/projects/` | Projects from start to done — eight commands, a session-start line and the pairing hooks |
 | `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `scripts/state.sh` (the read-only state check), the session-start summary and the git guard |
+| `plugins/scheduler/` | `/scheduler:tasks` and `scripts/schedule.sh`, scheduled Claude Code tasks rendered into launchd, systemd user timers or cron |
 | `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
 | `install.sh` | The engine setup runs: creates the files a workspace owns, once, and records them in `.claude/kit-templates.lock` |
 | `lib/` | The shared shell library and the scripts behind setup's subcommands (`lib/setup/`) |
@@ -902,7 +971,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `docs/commands/`, `docs/hooks/` | One page per command and per hook, in four parts: what it does, when to reach for it, common questions, how to tell it is working |
 | `CONTRIBUTING.md` | Changing the kit: fork it, point the workspace's `kit/` at the fork, commit there, and open a pull request; running the tests and shellcheck |
 | `templates/workspace/` | The files a workspace starts from and then owns — see the table below |
-| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, `reads.sh` for agent reads from Claude Code's transcripts, and `ablate.sh` for context ablations (run from the kit checkout with `--target`; not copied into a team's repository) |
+| `pilot/` | Pilot protocol, build-list ledger, `measure.sh`, `reads.sh` for agent reads from Claude Code's transcripts, and `ablate.sh` for leave-out tests (run from the kit checkout with `--target`; not copied into a team's repository) |
 | `tests/run.sh` | The kit's own checks: installs, hooks, metrics, and the vocabulary and register rules — `bash tests/run.sh` |
 
 The files in `templates/workspace/` are sources for the installer, not files to copy by hand. Each lands
@@ -915,11 +984,12 @@ once in the workspace and is the workspace's from then on:
 | `AGENTS.md` | `AGENTS.md` | A router: the kit's standards, then the team's `CLAUDE.md` |
 | `README.md` | `README.md` | The workspace's own README, opening with how it started |
 | `workspace.md` | `.claude/workspace.md` | Confirmed private remotes, published public ones, the private word list, and the skills the bridge leaves out |
-| `INDEX.md`, `decisions.md`, `glossary.md`, `people-README.md`, `audits-README.md` | `projects/INDEX.md`, `logs/decisions.md`, `memory/glossary.md`, `memory/people/README.md`, `audits/README.md` | The register, the decisions log, the glossary and the starting notes for people and audits |
+| `INDEX.md`, `decisions.md`, `people-README.md`, `audits-README.md` | `projects/INDEX.md`, `logs/decisions.md`, `memory/people/README.md`, `audits/README.md` | The register, the decisions log and the starting notes for people and audits |
+| `glossary.md` | — | The glossary from before the split, which held the team's terms; a workspace made before it keeps comparing against this copy. A new workspace gets `templates/glossary.md` and `templates/terms.md` instead |
 | `stay-private.yml` | `.github/workflows/stay-private.yml` | Fails a push when the workspace repository is public (a repository marked as a template, as the published one is, is skipped) |
 | `closeout.md` | `.claude/closeout.md` | Points the closeout plugin (and the `kit-closeout` skill) at `kit/docs/memory-layers.md`, so there is one taxonomy rather than two |
 | `projects.md` | `.claude/projects.md` | The team's project conventions — where projects live, register sections, naming, in-flight limit, staleness — read first by every projects command |
-| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, projects and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
+| `settings.json` | `.claude/settings.json` | Registers the kit's directory marketplace at `kit` and enables its closeout, ongoing, projects, scheduler and workspace plugins; asks before an agent edits `kit/` or `.claude/workspace.md`; lets the agent delete a promoted draft |
 | `gemini-settings.json` | `.gemini/settings.json` (merged) | With `--surfaces claude,gemini` only: makes Gemini CLI load `AGENTS.md` as its context file |
 | `CODEOWNERS` | `.github/CODEOWNERS` | Routes changes to the always-loaded tier through the standards owner |
 | `pull_request_template.md` | `.github/pull_request_template.md` | Asks a documentation PR which tier it touches, and why an addition to working standards earns its place |
@@ -964,7 +1034,7 @@ workspace teaches something. Issues are read; there is no support commitment.
 
 *Version 3.0 — 2026-09-30: the kit is a submodule of the workspace at `kit/`, read in place; setup,
 the engine and the migration; git hooks for privacy; versioning, sensitivity and resources for
-projects; the skills bridge (see CHANGELOG). Version 2.2 — 2026-09-29: context ablations, the state check, a validation gate, a lighter
+projects; the skills bridge (see CHANGELOG). Version 2.2 — 2026-09-29: leave-out tests, the state check, a validation gate, a lighter
 quick-start and closeout, and a who-needs-to-know setting with a team roster (see CHANGELOG).
 Version 2.1 — 2026-09-29: the Current state block, Planned and five project states; nine commands
 across three plugins (see CHANGELOG). Version 2.0 — 2026-09-29: the tracking axis, skills, and the

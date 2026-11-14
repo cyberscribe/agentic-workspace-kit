@@ -179,7 +179,7 @@ s18_run "$s18_ws"
 s18_t1="$(st_tree "$s18_ws")"
 s18_bad=""
 [[ "$s18_t0" == "$s18_t1" ]] || s18_bad+="$(diff <(printf '%s\n' "$s18_t0") <(printf '%s\n' "$s18_t1") | head -n 10)"$'\n'
-printf '%s\n' "$s18_out" | grep -q '^granted' && s18_bad+="a second granted line"$'\n'
+printf '%s\n' "$s18_out" | grep_all '^granted' && s18_bad+="a second granted line"$'\n'
 empty "18 a second run writes nothing (.git included) and grants nothing again" "$s18_bad"
 
 # ---- A real folder where a link would go, and a re-pointed mapping ------------------------------------
@@ -226,7 +226,7 @@ if s18_fixture "$s18_wo"; then
     [[ $s18_rc -eq 0 ]] || s18_bad+="rc $s18_rc"$'\n'
     [[ "$(s18_target "$s18_wo/projects/vendor-review/.resources/contracts")" == "$s18_ext/contracts" ]] || s18_bad+="vendor-review not linked"$'\n'
     [[ ! -e "$s18_wo/projects/field-study/.resources" ]] || s18_bad+="field-study touched"$'\n'
-    printf '%s\n' "$s18_out" | grep -q 'field-study\|old-study' && s18_bad+="other projects reported: $s18_out"$'\n'
+    printf '%s\n' "$s18_out" | grep_all 'field-study\|old-study' && s18_bad+="other projects reported: $s18_out"$'\n'
     empty "18 link SLUG maps that project only" "$s18_bad"
 
     s18_bad=""
@@ -243,7 +243,7 @@ if s18_fixture "$s18_wo"; then
     s18_broken="$(cat "$s18_wo/.claude/settings.local.json")"
     s18_run "$s18_wo" field-study
     [[ $s18_rc -eq 1 && "$(cat "$s18_wo/.claude/settings.local.json")" == "$s18_broken" ]] \
-        && printf '%s\n' "$s18_out" | grep -q 'by hand' \
+        && printf '%s\n' "$s18_out" | grep_all 'by hand' \
         && ok "18 a settings.local.json that is not valid JSON is left as it is; link says so and exits 1" \
         || ko "18 a settings.local.json that is not valid JSON is left as it is; link says so and exits 1" "rc $s18_rc"$'\n'"$s18_out"
 else
@@ -297,17 +297,17 @@ sys.stdout.write(out.decode("utf-8", "replace").replace("\r", ""))
 print("S18-RC", os.WEXITSTATUS(st) if os.WIFEXITED(st) else 128)
 S18PY
 )"
-    if printf '%s\n' "$s18_pty" | grep -q '^S18-NO-PTY'; then
+    if printf '%s\n' "$s18_pty" | grep_all '^S18-NO-PTY'; then
         skp "18 attended: an answer is recorded in resources.local.md, with its header, and linked — no pseudo-terminal here ($(printf '%s\n' "$s18_pty" | sed -n 's/^S18-NO-PTY //p' | head -n 1))"
     else
         s18_bad=""
-        printf '%s\n' "$s18_pty" | grep -q '^S18-RC 0$' || s18_bad+="exit: $(printf '%s\n' "$s18_pty" | grep '^S18-RC')"$'\n'
+        printf '%s\n' "$s18_pty" | grep_all '^S18-RC 0$' || s18_bad+="exit: $(printf '%s\n' "$s18_pty" | grep '^S18-RC')"$'\n'
         [[ "$(head -n 1 "$s18_wn/.claude/resources.local.md" 2>/dev/null)" == "# Resources on this machine" ]] || s18_bad+="no header"$'\n'
         grep -qxF "field-study/notes  $s18_ext/notes-dir" "$s18_wn/.claude/resources.local.md" 2>/dev/null || s18_bad+="no mapping line"$'\n'
         [[ "$(grep -c '/' "$s18_wn/.claude/resources.local.md" 2>/dev/null)" -eq 2 ]] || s18_bad+="lines other than the header and the answer: $(cat "$s18_wn/.claude/resources.local.md")"$'\n'
         [[ "$(s18_target "$s18_wn/projects/field-study/.resources/notes")" == "$s18_ext/notes-dir" ]] || s18_bad+="not linked"$'\n'
-        printf '%s\n' "$s18_pty" | grep -qx "linked   field-study/notes -> $s18_ext/notes-dir" || s18_bad+="no linked line"$'\n'
-        printf '%s\n' "$s18_pty" | grep -qx "unmapped field-study/media" || s18_bad+="Enter did not leave media unmapped"$'\n'
+        printf '%s\n' "$s18_pty" | grep_all -x "linked   field-study/notes -> $s18_ext/notes-dir" || s18_bad+="no linked line"$'\n'
+        printf '%s\n' "$s18_pty" | grep_all -x "unmapped field-study/media" || s18_bad+="Enter did not leave media unmapped"$'\n'
         [[ -z "$s18_bad" ]] || s18_bad+="transcript:"$'\n'"$s18_pty"
         empty "18 attended: an answer is recorded in resources.local.md, with its header, and linked; Enter leaves a name unmapped" "$s18_bad"
     fi

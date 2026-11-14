@@ -44,6 +44,11 @@ about how the work is done, rather than as warnings about the consequences of no
 §7 format"* is precise without affect. *"Do not write to the persona file"* becomes *"the persona file
 is owned by the other surface"* — the same boundary, no desperation.
 
+**Plain words for the person.** What a person reads is written in the words they use. A term a model
+falls into ("ablate", "load-bearing", "surface area") goes through the glossary: the plain words go in
+the prose, and a new term gets a row there once a person has had to ask what it meant. The monthly
+audit flags glossary terms in prose a person reads.
+
 ## The diagnostic
 
 When adding or editing guidance:

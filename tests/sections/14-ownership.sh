@@ -58,6 +58,7 @@ docs/workspace-map.md
 logs/decisions.md
 memory/glossary.md
 memory/people/README.md
+memory/terms.md
 projects/INDEX.md"
 s14_set="$(printf '%s\n' "$s14_set" | LC_ALL=C sort)"
 
@@ -130,10 +131,10 @@ empty "14 each ledger hash is the blob hash of the file the engine wrote" "$s14_
 s14_bad=""
 jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "directory", "path": "kit"}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="marketplace path"$'\n'
 jq -e '.attribution == {"commit": "", "pr": ""}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="attribution"$'\n'
-# The kit's three on, and since 3.0.4 the standalone closeout off beside them.
-jq -e '.enabledPlugins == {"closeout@agentic-workspace": true, "projects@agentic-workspace": true, "workspace@agentic-workspace": true, "closeout@closeout-marketplace": false}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="plugins"$'\n'
+# The kit's four on, and since 3.0.4 the standalone closeout off beside them.
+jq -e '.enabledPlugins == {"closeout@agentic-workspace": true, "ongoing@agentic-workspace": true, "projects@agentic-workspace": true, "scheduler@agentic-workspace": true, "workspace@agentic-workspace": true, "closeout@closeout-marketplace": false}' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="plugins"$'\n'
 jq -e '.permissions.ask | index("Edit(./kit/**)") != null' "$s14_F/.claude/settings.json" >/dev/null || s14_bad+="ask rule for kit/"$'\n'
-empty "14 .claude/settings.json: the marketplace at kit, the three plugins, empty attribution, and ask on kit/" "$s14_bad"
+empty "14 .claude/settings.json: the marketplace at kit, the kit's five plugins, empty attribution, and ask on kit/" "$s14_bad"
 
 s14_tree="$(st_tree "$s14_F")"
 s14_out="$(s14_run "$s14_F" 2>&1)"; s14_rc=$?
@@ -168,7 +169,7 @@ else ko "14 --pilot creates pilot/build-list.md only; the metrics script is run 
 s14_kb="$(wc -c < "$KIT/CLAUDE.kit.md" | tr -d ' ')"
 [[ "$s14_kb" -le 9000 ]] && ok "14 CLAUDE.kit.md is at most 9,000 bytes ($s14_kb)" || ko "14 CLAUDE.kit.md is at most 9,000 bytes ($s14_kb)"
 empty "14 CLAUDE.kit.md's headings are unnumbered, so the workspace's §1–§4 stay its own" "$(grep -nE '^#+ +§?[0-9]' "$KIT/CLAUDE.kit.md")"
-awk 'NF { l = $0 } END { print l }' "$KIT/CLAUDE.kit.md" | grep -qE '^\*Kit [0-9]+\.[0-9]+\.[0-9]+\*$' \
+awk 'NF { l = $0 } END { print l }' "$KIT/CLAUDE.kit.md" | grep_all -E '^\*Kit [0-9]+\.[0-9]+\.[0-9]+\*$' \
     && ok "14 CLAUDE.kit.md ends with the kit version it shipped with" \
     || ko "14 CLAUDE.kit.md ends with the kit version it shipped with" "$(tail -n 1 "$KIT/CLAUDE.kit.md")"
 s14_bad=""
@@ -187,7 +188,7 @@ printf '# Our rules\n\nHouse rules of our own.\n' > "$s14_K/CLAUDE.md"
 s14_out="$(s14_run "$s14_K" 2>&1)"
 if [[ "$(cat "$s14_K/README.md")" == '# Our own readme' && "$(s14_field "$s14_K" README.md 5)" == kept \
       && "$(s14_field "$s14_K" CLAUDE.md 5)" == kept && "$(head -n 1 "$s14_K/CLAUDE.md")" == '# Our rules' ]] \
-    && grep -A3 -xF 'Kept as it was (yours, from before the kit):' <<<"$s14_out" | grep -qxF '  README.md' \
+    && grep -A3 -xF 'Kept as it was (yours, from before the kit):' <<<"$s14_out" | grep_all -xF '  README.md' \
     && grep -qF 'Your own CLAUDE.md was kept' <<<"$s14_out"; then
     ok "14 a differing file already there is kept as it was, recorded kept, and reported"
 else ko "14 a differing file already there is kept as it was, recorded kept, and reported" "$s14_out"; fi
@@ -208,7 +209,7 @@ printf '\nOur own line.\n' >> "$s14_S/README.md"
 s14_out="$(s14_run "$s14_S" 2>&1)"
 if grep -qxF '# Test Team — working standards' "$s14_S/CLAUDE.md" && [[ "$(s14_field "$s14_S" CLAUDE.md 5)" == created ]] \
     && [[ "$(s14_field "$s14_S" README.md 5)" == kept ]] && grep -qF 'Our own line.' "$s14_S/README.md" \
-    && grep -A20 -xF 'Created (yours from here on):' <<<"$s14_out" | grep -qxF '  CLAUDE.md'; then
+    && grep -A20 -xF 'Created (yours from here on):' <<<"$s14_out" | grep_all -xF '  CLAUDE.md'; then
     ok "14 a stand-in render is replaced with the real one and recorded created; an edited one is kept"
 else ko "14 a stand-in render is replaced with the real one and recorded created; an edited one is kept" "$s14_out"; fi
 
@@ -249,7 +250,7 @@ s14_ws "$s14_C2"
 s14_run "$s14_C2" >/dev/null 2>&1
 s14_out="$(s14_run "$s14_C2" --cowork 2>&1)"
 if grep -q '^| Cowork |' "$s14_C2/CLAUDE.md" && [[ "$(s14_status "$s14_C2" CLAUDE.md)" == current ]] \
-    && grep -A3 -xF 'Created (yours from here on):' <<<"$s14_out" | grep -qxF '  CLAUDE.md'; then
+    && grep -A3 -xF 'Created (yours from here on):' <<<"$s14_out" | grep_all -xF '  CLAUDE.md'; then
     ok "14 a later --cowork rewrites an untouched CLAUDE.md with the Cowork row, which then reads current"
 else ko "14 a later --cowork rewrites an untouched CLAUDE.md with the Cowork row, which then reads current" "$s14_out"; fi
 
@@ -274,14 +275,14 @@ s14_T="$s14_root/template-change"
 s14_ws "$s14_T" "$s14_KR"
 s14_run "$s14_T" >/dev/null 2>&1
 printf '\nOne more house rule, added upstream.\n' >> "$s14_KR/templates/workspace/closeout.md"
-printf '| Example | An entry the template now carries |\n' >> "$s14_KR/templates/workspace/glossary.md"
+printf '| Example | An entry the template now carries | |\n' >> "$s14_KR/templates/glossary.md"
 git -C "$s14_KR" -c commit.gpgsign=false commit -qam "A template change" 2>/dev/null
 git -C "$s14_T/kit" fetch -q origin 2>/dev/null && git -C "$s14_T/kit" checkout -q --detach origin/main 2>/dev/null
 s14_newkit="$(git -C "$s14_T/kit" rev-parse HEAD)"
 s14_out="$(s14_run "$s14_T" 2>&1)"
 if [[ "$(s14_status "$s14_T" .claude/closeout.md)" == changed && "$(s14_status "$s14_T" memory/glossary.md)" == changed \
       && "$(s14_status "$s14_T" CLAUDE.md)" == current ]] \
-    && grep -A3 -F 'Template changed since your copy was made' <<<"$s14_out" | grep -qxF '  .claude/closeout.md' \
+    && grep -A3 -F 'Template changed since your copy was made' <<<"$s14_out" | grep_all -xF '  .claude/closeout.md' \
     && ! grep -qF 'One more house rule' "$s14_T/.claude/closeout.md"; then
     ok "14 after a template change in the kit, --template-status says changed and a plain run reports it and writes nothing"
 else ko "14 after a template change in the kit, --template-status says changed and a plain run reports it and writes nothing" \
@@ -360,6 +361,40 @@ if [[ ! -e "$s14_R/CLAUDE.md" && ! -e "$s14_R/.gitignore" && "$(s14_status "$s14
     ok "14 a recorded file that is gone is not recreated (removed), and a template the kit no longer has reads dropped"
 else ko "14 a recorded file that is gone is not recreated (removed), and a template the kit no longer has reads dropped" "$s14_out"; fi
 
+# ---- The vocabulary split: a glossary from before it is the workspace's terms file ----------------------
+# A workspace made before the split has memory/glossary.md from templates/workspace/glossary.md, holding
+# its terms. The engine leaves it alone, creates no memory/terms.md beside it, and says so in the ledger;
+# once the person moves it to memory/terms.md, the next run adds the plain-words glossary.
+s14_V="$s14_root/vocab-legacy"
+s14_ws "$s14_V" && s14_run "$s14_V" >/dev/null 2>&1
+s14_bad=""
+grep -q 'Plain words' "$s14_V/memory/glossary.md" || s14_bad+="a new workspace's glossary has no Plain words column"$'\n'
+grep -q '| Term | Meaning |' "$s14_V/memory/terms.md" 2>/dev/null || s14_bad+="a new workspace has no memory/terms.md"$'\n'
+printf '# Glossary\n\nThe team'"'"'s vocabulary, acronyms and internal names. One line each.\n\n| Term | Meaning |\n|---|---|\n| QBR | quarterly business review |\n' > "$s14_V/memory/glossary.md"
+rm -f "$s14_V/memory/terms.md"
+s14_oh="$(git hash-object --no-filters --stdin < "$KIT/templates/workspace/glossary.md")"
+awk -F '\t' -v h="$s14_oh" 'BEGIN { OFS = "\t" } $1 == "memory/terms.md" { next } $1 == "memory/glossary.md" { $2 = "templates/workspace/glossary.md"; $4 = h } { print }' \
+    "$s14_V/.claude/kit-templates.lock" > "$s14_root/vocab.lock" && cat "$s14_root/vocab.lock" > "$s14_V/.claude/kit-templates.lock"
+cp "$s14_V/memory/glossary.md" "$s14_root/vocab-before.md"
+s14_out="$(s14_run "$s14_V" 2>&1)"
+cmp -s "$s14_V/memory/glossary.md" "$s14_root/vocab-before.md" || s14_bad+="the old glossary was changed"$'\n'
+[[ ! -e "$s14_V/memory/terms.md" ]] || s14_bad+="memory/terms.md was created beside the old glossary"$'\n'
+grep -q $'^!vocabulary\tmemory/glossary.md\t' "$s14_V/.claude/kit-templates.lock" || s14_bad+="the ledger does not say the glossary holds the terms"$'\n'
+grep -qF "memory/glossary.md holds this workspace's terms" <<<"$s14_out" || s14_bad+="the run does not say so: $s14_out"$'\n'
+[[ "$(s14_status "$s14_V" memory/glossary.md)" == current ]] || s14_bad+="the old glossary is offered a change: $(s14_status "$s14_V" memory/glossary.md)"$'\n'
+s14_out="$(s14_run "$s14_V" 2>&1)"
+cmp -s "$s14_V/memory/glossary.md" "$s14_root/vocab-before.md" || s14_bad+="a second run changed the old glossary"$'\n'
+empty "14 vocabulary split: a glossary from before it is left alone as the terms file, with no terms.md beside it, and the ledger says so" "$s14_bad"
+s14_bad=""
+mv "$s14_V/memory/glossary.md" "$s14_V/memory/terms.md"
+s14_out="$(s14_run "$s14_V" 2>&1)"
+cmp -s "$s14_V/memory/terms.md" "$s14_root/vocab-before.md" || s14_bad+="the moved terms file was changed"$'\n'
+grep -q 'Plain words' "$s14_V/memory/glossary.md" 2>/dev/null || s14_bad+="no plain-words glossary after the move"$'\n'
+grep -q '^!vocabulary' "$s14_V/.claude/kit-templates.lock" && s14_bad+="the !vocabulary line is still in the ledger"$'\n'
+[[ "$(s14_field "$s14_V" memory/glossary.md 2)" == templates/glossary.md ]] || s14_bad+="the glossary's ledger line is not the new template's"$'\n'
+[[ "$(s14_field "$s14_V" memory/terms.md 5)" == kept ]] || s14_bad+="memory/terms.md is not recorded as kept: $(s14_field "$s14_V" memory/terms.md 5)"$'\n'
+empty "14 vocabulary split: after the move to memory/terms.md, the next run adds the plain-words glossary and keeps the terms" "$s14_bad"
+
 # ---- .gitignore in its three modes ------------------------------------------------------------------
 s14_tpl_lines="$(grep -vE '^(#|[[:space:]]*$)' "$KIT/templates/workspace.gitignore")"
 s14_G="$s14_root/gi-merge"
@@ -372,12 +407,12 @@ s14_bad=""
 [[ "$(grep -cxF '.DS_Store' "$s14_G/.gitignore")" == 1 ]] || s14_bad+=".DS_Store duplicated"$'\n'
 while IFS= read -r s14_p; do grep -qxF -- "$s14_p" "$s14_G/.gitignore" || s14_bad+="missing: $s14_p"$'\n'; done <<<"$s14_tpl_lines"
 grep -qxF '*.pptx' "$s14_G/.gitignore" && s14_bad+="the optional *.pptx line was added"$'\n'
-grep -A3 -xF 'Added to .gitignore:' <<<"$s14_out" | grep -qxF '  .secrets/' || s14_bad+="the report does not list the added lines"$'\n'
+grep -A3 -xF 'Added to .gitignore:' <<<"$s14_out" | grep_all -xF '  .secrets/' || s14_bad+="the report does not list the added lines"$'\n'
 empty "14 --gitignore merge appends the missing template lines once, under one header, keeping the person's lines" "$s14_bad"
-[[ "$(grep -c "^Icon$(printf '\r\r')\$" "$s14_G/.gitignore")" == 1 ]] && git -C "$s14_G" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
-    && ! git -C "$s14_G" check-ignore -q --no-index -- Icons \
-    && ok "14 --gitignore merge writes the macOS Icon line with both carriage returns, and it ignores Icon<CR> and not Icons" \
-    || ko "14 --gitignore merge writes the macOS Icon line with both carriage returns, and it ignores Icon<CR> and not Icons" "$(grep -n Icon "$s14_G/.gitignore" | od -c | head -n 3)"
+[[ "$(grep -cxF 'Icon[! -~]' "$s14_G/.gitignore")" == 1 ]] && git -C "$s14_G" check-ignore -q --no-index -- "$(printf 'Icon\r')" \
+    && ! git -C "$s14_G" check-ignore -q --no-index -- Icons && ! git -C "$s14_G" check-ignore -q --no-index -- Icon \
+    && ok "14 --gitignore merge writes the macOS Icon line, and it ignores Icon<CR> and not Icon or Icons" \
+    || ko "14 --gitignore merge writes the macOS Icon line, and it ignores Icon<CR> and not Icon or Icons" "$(grep -n Icon "$s14_G/.gitignore" | od -c | head -n 3)"
 s14_tree="$(st_tree "$s14_G")"
 s14_run "$s14_G" --gitignore merge >/dev/null 2>&1
 [[ "$s14_tree" == "$(st_tree "$s14_G")" ]] && ok "14 a second merge adds nothing" || ko "14 a second merge adds nothing"
@@ -395,7 +430,7 @@ printf 'node_modules/\n' > "$s14_GR/.gitignore"
 printf '# Our rules\n' > "$s14_GR/CLAUDE.md"
 s14_out="$(s14_run "$s14_GR" 2>&1)"
 if [[ "$(cat "$s14_GR/.gitignore")" == node_modules/ ]] && grep -qF '.gitignore lacks' <<<"$s14_out" \
-    && grep -F '.gitignore lacks' <<<"$s14_out" | grep -qF 'kit/setup.sh update offers them'; then
+    && grep -F '.gitignore lacks' <<<"$s14_out" | grep_all -F 'kit/setup.sh update offers them'; then
     ok "14 report (the default on a workspace that has its CLAUDE.md) lists the missing lines and writes nothing"
 else ko "14 report (the default on a workspace that has its CLAUDE.md) lists the missing lines and writes nothing" "$s14_out"; fi
 s14_tree="$(st_tree "$s14_GR")"
@@ -429,7 +464,7 @@ s14_bad=""
 jq -e '.extraKnownMarketplaces["agentic-workspace"].source == {"source": "directory", "path": "kit"}' "$s14_J/.claude/settings.json" >/dev/null || s14_bad+="marketplace path not set"$'\n'
 jq -e '.permissions.allow == ["Zed(x)", "Alpha(y)"]' "$s14_J/.claude/settings.json" >/dev/null || s14_bad+="allow list changed"$'\n'
 jq -e '.enabledPlugins["workspace@agentic-workspace"] == false' "$s14_J/.claude/settings.json" >/dev/null || s14_bad+="the person's false was changed"$'\n'
-grep -A2 -xF 'Merged (settings marketplace path):' <<<"$s14_out" | grep -qxF '  .claude/settings.json' || s14_bad+="not reported as merged"$'\n'
+grep -A2 -xF 'Merged (settings marketplace path):' <<<"$s14_out" | grep_all -xF '  .claude/settings.json' || s14_bad+="not reported as merged"$'\n'
 empty "14 an existing settings.json gets the marketplace path at kit; its list order and a plugin switched off are kept" "$s14_bad"
 s14_cmd="$(grep -F "settings key the kit's template has and yours lacks" <<<"$s14_out" | grep -F 'Edit(./kit/**)' | head -n 1 | sed 's/^.*yours lacks: //')"
 if [[ -n "$s14_cmd" ]] && (cd "$s14_J" && bash -c "$s14_cmd") 2>/dev/null \
