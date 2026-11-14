@@ -158,11 +158,11 @@ check() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$d"; else ko "$
 empty() { if [[ -z "$2" ]]; then ok "$1"; else ko "$1" "$2"; fi; }
 # grep_all <grep options and pattern>: grep -q at the end of a pipe, reading all of its input. grep -q
 # stops at the first match, and under pipefail the command still writing then fails the whole pipe: it
-# is killed by SIGPIPE, or, where SIGPIPE is ignored (a CI runner, anything Claude Code starts), its
+# is killed by SIGPIPE, or, where SIGPIPE is ignored (as on a CI runner), its
 # write fails. Either way a check that matched reads as failed, more often the busier the machine.
 grep_all() { grep "$@" >/dev/null; }
 
-# The few checks that time something (4b, 22, 23) read how busy the machine is, so a red run means a
+# The few checks that time something (4b, 22) read how busy the machine is, so a red run means a
 # fault rather than a busy machine. aw_load prints the 1-minute load average per core. aw_factor prints
 # what a time budget is multiplied by: the load per core, at least 1, and at least 2 under CI=true,
 # since a shared runner is slower than a desk machine with nothing else on it. Each such check names

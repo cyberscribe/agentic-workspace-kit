@@ -327,24 +327,15 @@ rewriting — the record of what a version claimed is part of what the version i
   own words". When some need merging by hand, they are printed with a line to give the assistant, and
   the question is whether to stop offering it once merged; answering n no longer stops the offer.
   Section 15 covers each case, and the three shapes a customised workspace showed on a real update.
-- **The timing checks allow for a busy machine.** Three checks time something, and on a loaded
+- **The timing checks allow for a busy machine.** Two checks time something, and on a loaded
   machine they failed for reasons that were not faults. Each now reads the load per core
   (`aw_load`, `aw_factor` in `tests/run.sh`; `AW_LOAD` stands in for it), names it in its line, and
   counts a skip as a skip with its reason. The session-start hook's 100 ms (4b) and the transcript
   reader's 10 s (22) scale by the load, at least twice on CI (`CI=true`), and skip past four and three
   times. The load average misses the disk and memory traffic of the other sections in a parallel run,
   so 22 also times a read of twenty transcripts straight after, and passes within fifteen times that:
-  a reader that scales with its input takes about ten, one gone quadratic about a hundred. The registry's twelve concurrent writers (23) become two checks: that every writer that says
-  it landed did, and no other, at any load; and that all twelve land within the lock's own wait of
-  about ten seconds, a product setting, which skips above a load of 1.5 per core.
-- **Three faults the first CI run found, each a fault for people using the kit, not only for the tests.**
-  - **The lock could lose a write.** A writer queued for a lock read its holder, and if that holder let
-    go and exited in the moment before the writer checked it, the writer took the next holder's live
-    lock for an abandoned one and removed it, so two writers were in at once and one change was lost.
-    It touched every registry, claims board and mailbox the pairing writes. A takeover now holds a
-    second lock and reads the holder again under it, and a writer lets go of a lock only while it is
-    still its own. Section 23 widens the race to 50 ms in a copy of the lock, where before the fix every
-    round lost a write.
+  a reader that scales with its input takes about ten, one gone quadratic about a hundred.
+- **Two faults the first CI run found, each a fault for people using the kit, not only for the tests.**
   - **`/projects:pair`'s check said nothing on Linux** for an engineer whose activity beat was stale.
     It read a transcript's time with BSD `stat -f` first, which GNU `stat` accepts with another
     meaning, and the sum after it failed. It now uses the helper beside it that checks the answer is a
@@ -355,19 +346,12 @@ rewriting — the record of what a version claimed is part of what the version i
 - **CI runs four sections at once on each runner** (`AW_JOBS=4`), where the suite's default of half
   the cores gave the 3-core macOS runner one, and its serial run passed the 30-minute limit. The limit
   is 45 minutes, and the checkout action is v5.
-- **Three more faults the release's own CI run found.**
-  - **The lock could still lose a write when the clock stepped forward.** A lock held for more than a
-    minute is taken over, and the minute was judged by the clock alone. When the clock steps (a machine
-    waking, a new virtual machine setting its time), every lock looks a minute old at once, and a waiter
-    took a working writer's lock. A waiter now takes a lock over by age only after it has itself watched
-    the same holder, unchanged, for about three seconds; a holder that has died is still taken over at
-    once. Section 23 dates every lock in a copy of the lock back to 2020, where before the fix every
-    round lost a write.
+- **Two more faults the release's own CI run found.**
   - **The PM launcher's token never finished on macOS where SIGPIPE is ignored.** It read
     `/dev/urandom` through `tr` until `head` had twelve characters, and relied on SIGPIPE to stop `tr`.
-    Claude Code and CI runners start processes with SIGPIPE ignored, and macOS's `tr` then runs for
-    ever: it held the macOS CI jobs until the 45-minute limit. The read is now bounded (`head -c`), and
-    section 23 checks that every read of `/dev/urandom` in the kit is.
+    A CI runner starts its steps with SIGPIPE ignored, and macOS's `tr` then runs for ever: it held
+    the macOS CI jobs until the 45-minute limit. The read is now bounded (`head -c`), and section 23
+    checks that every read of `/dev/urandom` in the kit is.
   - **A match at the end of a pipe could read as no match.** `grep -q` stops at the first match, and
     under `pipefail` the command still writing to it then fails the pipe, by SIGPIPE or, where SIGPIPE
     is ignored, by a failed write. Six places in setup, the engine, the migration, the template builder

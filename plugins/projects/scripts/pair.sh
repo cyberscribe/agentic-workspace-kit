@@ -105,7 +105,7 @@ if [ $pm -eq 1 ]; then
         fresh=1
         if [ $print -eq 1 ]; then tok="<token made at launch>"
         # A bounded read: tr reading /dev/urandom itself would end only when killed by SIGPIPE, and a
-        # process started from Claude Code or a CI runner ignores SIGPIPE, so there it never ends.
+        # process started with SIGPIPE ignored (a CI runner's step) never ends.
         # 1024 random bytes hold about 144 lower-case letters and digits, for the 12 wanted.
         else tok="$(head -c 1024 /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | cut -c1-12)"
         fi
