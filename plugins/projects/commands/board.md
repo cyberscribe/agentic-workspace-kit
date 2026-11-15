@@ -221,8 +221,8 @@ that one is about what the repository holds.
     Say both, as "says workspace, is untracked".
 11. **Submodule out of step** — a project that is its own repository and whose
     path is in `submodules_attention`: from its `submodule.<path>` line, say
-    which of changed files, commits not pushed, a pointer changed and not
-    committed, commits behind its remote, or a detached checkout. Without the
+    which of changed files, commits not pushed, a new commit the workspace
+    has not recorded, commits behind its remote, or a detached checkout. Without the
     state check, `git -C <folder> status --porcelain` and
     `git submodule status -- <folder>` give the first and the pointer.
 12. **Resource not reachable here** — a `resource.<slug>/<name>` whose value

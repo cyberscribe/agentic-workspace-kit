@@ -630,7 +630,7 @@ else
             say "Claude Code keeps one path per marketplace, so every kit workspace on this machine uses that"
             say "checkout's plugins. Pointing it here moves the other workspace onto this kit too."
             if attended; then confirm "Point it at this workspace's kit instead?" n || go=0
-            else go=0; note "Unattended, it is left pointing there; stage 9 names the commands that move it."; fi
+            else go=0; note "Not at a terminal, so it is left pointing there; stage 9 names the commands that move it."; fi
         else
             note "Your own settings name the kit at $other, which is no longer there; it is pointed here."
         fi
@@ -656,7 +656,7 @@ if ! attended; then
     if key_is plugins_scope user && key_is plugins_user_kit this; then
         outcome "done" "installed for you; trusting the folder is each person's, in Claude Code"
     else
-        outcome skipped "unattended run; each person does this once, in Claude Code"
+        outcome skipped "not run at a terminal; each person does this once, in Claude Code"
     fi
 else
     step "1. Close any Claude Code session already open in this workspace."
@@ -810,7 +810,7 @@ fi
 check "every outside folder reachable here" key_is external_paths_missing "" || fix "kit/setup.sh link"
 check "no sensitive project tracked by the workspace" key_is sensitive_tracked "" \
     || fix "/projects:adopt <slug> untracked, for each of: $(state_key sensitive_tracked)"
-check "every gitlink registered in .gitmodules" key_is orphan_gitlinks "" || fix "kit/setup.sh migrate --dry-run names the two fixes"
+check "every submodule folder registered in .gitmodules" key_is orphan_gitlinks "" || fix "kit/setup.sh migrate --dry-run names the two fixes"
 check "no 2.x traces" key_is legacy "" || fix "kit/setup.sh migrate --dry-run"
 if [[ $PILOT -eq 1 ]]; then
     check "the pilot build list, pilot/build-list.md" key_is build_list present || fix "kit/setup.sh --pilot --reinstall"
@@ -830,7 +830,7 @@ case "$(state_key plugins_scope)/$(state_key plugins_user_kit)" in
     */elsewhere)
         note "Your own settings take the kit's marketplace from another checkout (plugins_user_kit=elsewhere)."
         step "Claude Code keeps one path per marketplace, so every kit workspace on this machine that installs"
-        step "the plugins for the person runs that checkout's. To take them from this workspace's kit instead,"
+        step "the plugins for you runs that checkout's. To take them from this workspace's kit instead,"
         step "which moves the other workspace onto it too:"
         user_steps ;;
     workspace/*)
@@ -851,14 +851,16 @@ finish
 echo
 say "From here, open Claude Code in $T and run /workspace:quick-start."
 case "$(state_key mode)" in
-    fresh) say "It interviews the team for what a script cannot ask; $(state_key standins_remaining) answers in CLAUDE.md are still stand-ins." ;;
+    fresh) n="$(state_key standins_remaining)"
+           if [[ "$n" == 1 ]]; then say "It interviews the team for what a script cannot ask; 1 answer in CLAUDE.md is still a stand-in."
+           else say "It interviews the team for what a script cannot ask; $n answers in CLAUDE.md are still stand-ins."; fi ;;
     joining) say "The team part is done, so it asks only the personal part: your profile and how you work." ;;
     existing-system) say "It maps the system that was here first onto the kit, and changes nothing without a yes." ;;
     nothing-left) say "Everything is set up, and it will say so. /projects:new starts a project." ;;
 esac
 if [[ $PILOT -eq 1 ]]; then
     say "Pilot: put the team's build list into pilot/build-list.md, commit, then run bash kit/pilot/measure.sh."
-    say "Pilot: each person raises cleanupPeriodDays in their own Claude Code settings to the pilot's length in days (30 is the default), so the agent-read counts keep their transcripts. The kit does not write there."
+    say "Pilot: each person raises cleanupPeriodDays in their own Claude Code settings to the pilot's length in days (30 is the default), so their transcripts last the whole pilot for the agent-read counts. The kit does not write there."
 fi
 echo
 say "Nothing is committed."

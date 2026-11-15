@@ -584,8 +584,8 @@ git -C "$s16_Z" remote add origin "https://github.com/example-org/field-notes.gi
 s16_want="Workspace: git hooks are not active — kit/setup.sh hooks turns them on.
 Workspace: CLAUDE.md does not import the kit's standards — its first line is @kit/CLAUDE.kit.md.
 Workspace: kit/ is detached from main (developer mode) — kit/setup.sh --developer puts it back.
-Workspace: kit: 1 changed file; site: 2 commits not pushed, pointer changed, not committed, 1 commit behind its remote.
-Workspace: 1 gitlink has no .gitmodules entry (projects/archive-tool) — kit/setup.sh migrate --dry-run names the two fixes.
+Workspace: kit: 1 changed file; site: 2 commits not pushed, at a new commit the workspace has not recorded, 1 commit behind its remote.
+Workspace: 1 submodule folder has no .gitmodules entry (projects/archive-tool) — kit/setup.sh migrate --dry-run names the two fixes.
 Workspace: 2 resources not reachable on this machine (field-study/media, field-study/survey-data) — kit/setup.sh link.
 Workspace: 1 sensitive project has files tracked by the workspace (field-study) — /projects:adopt field-study untracked.
 Workspace: origin is not confirmed private — kit/setup.sh records it once confirmed.

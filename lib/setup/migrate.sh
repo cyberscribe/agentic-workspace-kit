@@ -419,7 +419,7 @@ mg_plan() { MG_PLAN+=("$1"); }
 # mg_retire STEP PATH: out of the index when tracked, then moved under _delete/.
 mg_retire() {
     local step="$1" p="$2" dest="_delete/$2"
-    if mg_touches_opaque "$p"; then mg_act skip "$step $p (opaque here: left as it is)"; return 0; fi
+    if mg_touches_opaque "$p"; then mg_act skip "$step $p (listed in AW_OPAQUE_PATHS: left as it is)"; return 0; fi
     if ! mg_vexists "$p"; then mg_act skip "$step $p (not present here)"; return 0; fi
     if mg_vexists "$dest"; then mg_act skip "$step $p (destination exists: $dest)"; return 0; fi
     mg_ensure_delete_ignored
@@ -1338,7 +1338,7 @@ if [[ -f "$MG_KIT/templates/workspace/CLAUDE.md" && "$(head -n 1 "$MG_KIT/templa
     [[ -n "$mg_l2" ]] || mg_l2="$MG_FALLBACK"
 fi
 if mg_is_opaque CLAUDE.md; then
-    mg_act skip "M13 CLAUDE.md import (CLAUDE.md is opaque here)"
+    mg_act skip "M13 CLAUDE.md import (CLAUDE.md is listed in AW_OPAQUE_PATHS)"
 elif ! mg_vexists CLAUDE.md; then
     mg_act skip "M13 CLAUDE.md import (no CLAUDE.md; the engine creates one at M15)"
 else

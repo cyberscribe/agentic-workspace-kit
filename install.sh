@@ -444,7 +444,7 @@ if [[ $MODE == diff ]]; then
     [[ -n "$line" ]] || die "$ARG_DEST has no entry in $AW_LEDGER_REL"
     IFS="$AW_TAB" read -r dest src c h st rest <<<"$line"
     [[ "$st" != lines ]] || die ".gitignore is offered line by line: install.sh --gitignore offer"
-    ! aw_tpl_opaque "$WS" "$dest" || die "$dest is opaque here (AW_OPAQUE_PATHS); no diff is offered for it"
+    ! aw_tpl_opaque "$WS" "$dest" || die "$dest is listed in AW_OPAQUE_PATHS, so no diff is offered for it"
     [[ -f "$KIT/$src" ]] || die "the kit no longer has $src"
     if [[ "$c" == "-" ]] || ! aw_git_elsewhere "$KIT" cat-file -e "$c:$src" 2>/dev/null; then
         printf 'install.sh: the template %s as it was at %s is not in this kit checkout (a shallow clone?); compare %s with kit/%s by hand\n' \
@@ -478,7 +478,7 @@ if [[ $MODE == record ]]; then
     [[ -n "$line" ]] || die "$ARG_DEST has no entry in $AW_LEDGER_REL"
     IFS="$AW_TAB" read -r dest src _c _h st _rest <<<"$line"
     [[ "$st" != lines ]] || die ".gitignore lines are declined one at a time: install.sh --gitignore-decline LINE"
-    ! aw_tpl_opaque "$WS" "$dest" || die "$dest is opaque here (AW_OPAQUE_PATHS); its entry stays kept"
+    ! aw_tpl_opaque "$WS" "$dest" || die "$dest is listed in AW_OPAQUE_PATHS, so its entry stays kept"
     [[ -f "$KIT/$src" ]] || die "the kit no longer has $src"
     render_to "" "$src" "$work/new"
     aw_ledger_put "$LEDGER" "$dest" "$dest$AW_TAB$src$AW_TAB$KIT_COMMIT$AW_TAB$(aw_tpl_hash < "$work/new")$AW_TAB$REC_STATUS" \
@@ -533,7 +533,7 @@ if [[ $MODE == standins ]]; then
     aw_tpl_standins
     while IFS='|' read -r dest src; do
         [[ -f "$KIT/$src" ]] || die "the kit at $REL/ has no $src"
-        if aw_tpl_opaque "$WS" "$dest"; then r_notes+=("$dest is opaque here and was left unread"); continue; fi
+        if aw_tpl_opaque "$WS" "$dest"; then r_notes+=("$dest is listed in AW_OPAQUE_PATHS and was left unread"); continue; fi
         render_to "" "$src" "$work/new"
         if cmp -s "$work/new" "$WS/$dest"; then r_same+=("$dest"); continue; fi
         r_created+=("$dest")
@@ -712,7 +712,7 @@ while IFS='|' read -r dest src; do
     process_file "$dest" "$src"
 done < <(owned_files)
 for f in ${opaque_kept[@]+"${opaque_kept[@]}"}; do
-    r_notes+=("$f is opaque here (AW_OPAQUE_PATHS): recorded as kept without being opened")
+    r_notes+=("$f is listed in AW_OPAQUE_PATHS, so it is recorded as kept without being opened")
 done
 
 # ---- .claude/settings.json: the one key the engine maintains ----------------------------------------
@@ -743,7 +743,7 @@ if [[ $settings_created -eq 0 && -f "$settings" ]]; then
         while IFS= read -r expr; do
             [[ -n "$expr" ]] || continue
             q="${expr//\'/\'\\\'\'}"
-            r_notes+=("settings key the kit's template has and yours lacks: jq '$q' .claude/settings.json > .claude/settings.json.new && mv .claude/settings.json.new .claude/settings.json")
+            r_notes+=(".claude/settings.json lacks a setting the kit's template has; this adds it: jq '$q' .claude/settings.json > .claude/settings.json.new && mv .claude/settings.json.new .claude/settings.json")
         done < <(jq -r --slurpfile t "$KIT/templates/workspace/settings.json" '
             def pexpr: (reduce .[] as $k (""; . + (if ($k | type) == "string" and ($k | test("^[A-Za-z_][A-Za-z0-9_]*$"))
                 then "." + $k else "[" + ($k | tojson) + "]" end))) | if startswith("[") then "." + . else . end;

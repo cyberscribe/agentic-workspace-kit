@@ -16,8 +16,8 @@ network call and takes no lock, and prints a line only for what is off:
 Workspace: git hooks are not active — kit/setup.sh hooks turns them on.
 Workspace: CLAUDE.md does not import the kit's standards — its first line is @kit/CLAUDE.kit.md.
 Workspace: kit/ is detached from main (developer mode) — kit/setup.sh --developer puts it back.
-Workspace: kit: pointer changed, not committed.
-Workspace: 1 gitlink has no .gitmodules entry (<path>) — kit/setup.sh migrate --dry-run names the two fixes.
+Workspace: kit: at a new commit the workspace has not recorded.
+Workspace: 1 submodule folder has no .gitmodules entry (<path>) — kit/setup.sh migrate --dry-run names the two fixes.
 Workspace: 2 resources not reachable on this machine (<slug>/<name>, …) — kit/setup.sh link.
 Workspace: 1 sensitive project has files tracked by the workspace (<slug>) — /projects:adopt <slug> untracked.
 Workspace: origin is not confirmed private — kit/setup.sh records it once confirmed.
@@ -43,7 +43,7 @@ session's folder or a folder above it (by its real path, so a symbolic link coun
 exits 0 with nothing said. The rule is `hooks/lib/boundary.sh`: `docs/plugin-scope.md`.
 
 **A submodule line lists several things.** They come in a fixed order: changed files, commits not
-pushed, pointer changed and not committed, commits behind its remote, detached. Commit and push
+pushed, at a new commit the workspace has not recorded, commits behind its remote, detached. Commit and push
 inside the submodule first, then commit its pointer in the workspace.
 
 **How is it turned off?** `WORKSPACE_HOOK_DISABLED=1`. It is also silent in a headless run
