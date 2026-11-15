@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased — v3.6.4
+## v3.6.4 — 2026-11-15
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
 changes; the plugins take effect in the next session.
