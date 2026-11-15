@@ -5,6 +5,30 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.6.3 — 2026-11-15
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
+changes; the plugins take effect in the next session.
+
+**Plugins.** workspace 2.3.2, projects 3.6.3, scheduler 0.1.2 and closeout 1.6.1: the broken-pipe fix,
+with the same output. ongoing 0.1.0 is unchanged.
+
+- **The broken pipe, and its kind, fixed.** v3.6.2's Ubuntu job failed on `state.sh: line 989: printf:
+  write error: Broken pipe`. The line printed a list into `awk`, which stops at its first match. bash
+  writes a list a line at a time, so when `awk` had already stopped, the next line met a closed pipe;
+  where SIGPIPE is ignored, as on CI, bash says so on stderr, and under `pipefail` the pipe fails. It
+  happens only when `awk` wins the race. The same shape, a writer piped into a reader that can stop
+  early (`awk` with `exit`, `head`, `grep -q` or `-m`), was in 79 places across 26 scripts: the git
+  hooks, the installer and `setup.sh`, the setup libraries, the pilot, `scripts/`, and the hooks and
+  scripts of four plugins. Each now reads from a here-string where the writer was a variable, or reads
+  to the end where it was a command (`sed -n 1p` for `head -n 1`, a flag in place of awk's `exit`,
+  `grep … >/dev/null` for `grep -q`). The output is unchanged. `CONTRIBUTING.md` says which forms the
+  kit uses.
+- **A check for the shape.** Section 11 looks for it in every shell script the kit ships, and first
+  tests itself on a probe with six lines that have it and eight safe forms. Since a run that passes
+  proves little about a race, the shape is what it looks for. Section 16 also runs `state.sh` fifty
+  times with SIGPIPE ignored and wants silence on stderr each time.
+
 ## v3.6.2 — 2026-11-15
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
@@ -48,6 +72,14 @@ changes; the plugins take effect in the next session.
   name, the engineer's evidence and the PM's pass, the count where each side reads it, and the startup
   routine and "how the user meets it" in the kickoff, the resume prompt, the command and the overnight
   pre-flight.
+
+**Shipped red (appended with 3.6.3).** v3.6.2 was merged and tagged while its Ubuntu CI job was red:
+1065 checks passed and one failed, section 16's "state.sh: silent on stderr in every run above", with
+`state.sh: line 989: printf: write error: Broken pipe`. The line has been in `state.sh` since 3.0.1; the
+fault shows only when a race goes one way, and had not on a run before. Nothing read the pull
+request's checks between the CI run and the merge and tag. 3.6.3 fixes the line and its kind across
+the kit; the maintainer's release script, which is not part of the kit, now tags a release only when
+every check on its pull request has passed.
 
 ## v3.6.1 — 2026-11-15
 

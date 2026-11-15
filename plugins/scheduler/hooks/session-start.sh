@@ -26,7 +26,7 @@ input=""
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
 [[ -n "$(aw_workspace_root "$input")" ]] || exit 0
 # The session starting now: a waiting run that is this session needs no line, since the person is in it.
-own_sid="$(printf '%s' "$input" | sed -n 's/.*"session_id" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
+own_sid="$(sed -n 's/.*"session_id" *: *"\([^"]*\)".*/\1/p' <<<"$input" | sed -n 1p)"
 
 # The tasks folder as schedule.sh resolves it: SCHEDULER_HOME's tasks/, else the pointer file, else the
 # default.

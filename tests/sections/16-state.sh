@@ -652,6 +652,16 @@ printf '{"enabledPlugins":{"closeout@agentic-workspace":false,"ongoing@agentic-w
 [[ -z "$(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")" ]] || s16_bad+="plugins set false got a line: $(s16_hb CLAUDE_PLUGIN_ROOT="$s16_PL/kit/plugins/workspace")"$'\n'
 empty "16 hook: a kit plugin not loaded while bridge skills exist gets one line with the fix; none without the bridge, or for a plugin set false" "$s16_bad"
 empty "16 hook: exit 0 and nothing on stderr in every run above" "$s16_hook_err"
+# The broken pipe 3.6.2 shipped with came from a race (pipe_early_exits in tests/run.sh says how), so
+# one quiet run proves little. Fifty runs with SIGPIPE ignored, as on CI, on the fixture whose settings
+# name every kit plugin: the path that failed. Section 11 looks for the shape itself.
+s16_pipe=""
+for s16_i in $(seq 50); do
+    s16_e="$(CLAUDE_CONFIG_DIR="$s16_cfg" python3 -c 'import os, signal, sys; signal.signal(signal.SIGPIPE, signal.SIG_IGN); os.execvp(sys.argv[1], sys.argv[1:])' \
+        "$st_bash" "$STATE" "$s16_PL" 2>&1 >/dev/null)"
+    [[ -z "$s16_e" ]] || { s16_pipe="run $s16_i of 50: $s16_e"; break; }
+done
+empty "16 state.sh: silent on stderr in fifty runs with SIGPIPE ignored" "$s16_pipe"
 empty "16 state.sh: silent on stderr in every run above" "$st_err"
 
 fi

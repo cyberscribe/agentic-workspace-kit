@@ -220,7 +220,7 @@ mg_vwrite() {
 mg_vtracked() {
     mg_vorig "$1" || return 1
     [[ $MG_UNTR -eq 0 ]] || return 1
-    [[ -n "$(mg_g ls-files -- "$MG_ORIG" 2>/dev/null | head -n 1)" ]]
+    [[ -n "$(mg_g ls-files -- "$MG_ORIG" 2>/dev/null | sed -n 1p)" ]]
 }
 mg_vgitlink() {
     mg_vorig "$1" || return 1
@@ -406,7 +406,7 @@ mg_ensure_delete_ignored() {
     mg_ignore_add "_delete/" kit
 }
 # mg_ignored_by PATH: the .gitignore line that ignores PATH, as source:line:pattern, or nothing.
-mg_ignored_by() { mg_g check-ignore -v --no-index -- "$1" 2>/dev/null | awk -F '\t' '{ print $1; exit }'; }
+mg_ignored_by() { mg_g check-ignore -v --no-index -- "$1" 2>/dev/null | awk -F '\t' 'NR == 1 { print $1 }'; }
 
 # ---- Actions -------------------------------------------------------------------------------------
 MG_PLAN=()        # paths to name in the git add line
@@ -675,7 +675,7 @@ if [[ -n "$KIT_FROM" && -n "$OLD" && $DRY -eq 1 ]]; then
     # refs come from ls-remote, which writes nothing. Offline, the fetch and checkout are named anyway.
     mg_proto "$KIT_FROM"
     mg_refs="$(git --no-optional-locks ${MG_PC:+-c "$MG_PC"} ls-remote -- "$KIT_FROM" 2>/dev/null)"
-    mg_ref_sha() { printf '%s\n' "$mg_refs" | awk -v r="$1" '$2 == r { print $1; exit }'; }
+    mg_ref_sha() { awk -v r="$1" '$2 == r { print $1; exit }' <<<"$mg_refs"; }
     mg_want="$(mg_ref_sha "refs/heads/$KIT_REF")"
     [[ -n "$mg_want" ]] || mg_want="$(mg_ref_sha "refs/tags/$KIT_REF^{}")"
     [[ -n "$mg_want" ]] || mg_want="$(mg_ref_sha "refs/tags/$KIT_REF")"
@@ -1113,7 +1113,7 @@ mg_state() {
     MG_STATE="$(bash "$MG_KIT/plugins/workspace/scripts/state.sh" --target "$WS" 2>/dev/null)" || MG_STATE=""
     [[ -n "$MG_STATE" ]] || MG_STATE="state_version=unknown"
 }
-mg_key() { printf '%s\n' "$MG_STATE" | awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); f = 1; exit } END { if (!f) print "\001" }'; }
+mg_key() { awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); f = 1; exit } END { if (!f) print "\001" }' <<<"$MG_STATE"; }
 
 # M8: the git hooks. gitconfig.sh keeps any hooks path already in effect as aw.chainHooksPath, so a
 # hook of the person's own still runs after the kit's.
@@ -1342,7 +1342,7 @@ if mg_is_opaque CLAUDE.md; then
 elif ! mg_vexists CLAUDE.md; then
     mg_act skip "M13 CLAUDE.md import (no CLAUDE.md; the engine creates one at M15)"
 else
-    mg_first="$(mg_vread CLAUDE.md | awk 'NF { sub(/^[ \t]+/, ""); sub(/[ \t\r]+$/, ""); print; exit }')"
+    mg_first="$(mg_vread CLAUDE.md | awk 'NF && !f { sub(/^[ \t]+/, ""); sub(/[ \t\r]+$/, ""); print; f = 1 }')"
     if [[ "$mg_first" == "$MG_IMPORT" ]]; then
         mg_act skip "M13 CLAUDE.md import (line 1 imports the kit)"
     else
@@ -1400,7 +1400,7 @@ fi
 # already here as kept (an opaque one without opening it).
 mg_team=""
 if mg_vexists .claude/projects.md; then
-    mg_team="$(mg_vread .claude/projects.md | awk 'NR == 1 && /^# / { s = $0; if (sub(/^# [^—]*— /, "", s)) print s; exit }')"
+    mg_team="$(mg_vread .claude/projects.md | awk 'NR == 1 && /^# / { s = $0; if (sub(/^# [^—]*— /, "", s)) print s }')"
     # A stand-in (<team name>) or an unrendered placeholder (__TEAM__) is no answer.
     case "$mg_team" in *'<'*|*__*) mg_team="" ;; esac
 fi

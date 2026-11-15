@@ -81,7 +81,7 @@ closeout_config() {
     for f in "$CONVENTIONS_FILE" "$USER_CONVENTIONS_FILE"; do
         [[ -n "$f" && -f "$f" ]] || continue
         # shellcheck disable=SC2016 # the backquotes are literal: a value may be written as `ask`
-        WHO_NEEDS_TO_KNOW="$(sed -nE 's/^[[:space:]]*([-*][[:space:]]+)?(\*\*)?[Ww]ho needs to know:(\*\*)?[[:space:]]*`?(auto|ask|off)`?([^[:alnum:]].*)?$/\4/p' "$f" | head -n 1)"
+        WHO_NEEDS_TO_KNOW="$(sed -nE 's/^[[:space:]]*([-*][[:space:]]+)?(\*\*)?[Ww]ho needs to know:(\*\*)?[[:space:]]*`?(auto|ask|off)`?([^[:alnum:]].*)?$/\4/p' "$f" | sed -n 1p)"
         [[ -n "$WHO_NEEDS_TO_KNOW" ]] && break
     done
     WHO_NEEDS_TO_KNOW="${WHO_NEEDS_TO_KNOW:-auto}"

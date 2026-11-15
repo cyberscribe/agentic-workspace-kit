@@ -115,6 +115,15 @@ shellcheck -x setup.sh install.sh lib/*.sh lib/setup/*.sh scripts/*.sh githooks/
     tests/run.sh tests/sections/*.sh tests/sections/lib/*.sh
 ```
 
+A pipe whose reader can stop before its writer is done (`awk` with `exit`, `head`, `grep -q` or `-m`,
+`sed`'s `q`, a lone `read`) is the one shape shellcheck does not flag that the kit keeps out. bash writes
+a line at a time, so the writer's next line can meet a closed pipe: the pipe then fails under
+`pipefail`, and where SIGPIPE is ignored, as on CI, bash prints `write error: Broken pipe`. It happens
+only when the reader wins the race, which is why a passing run proves little. The kit's forms are a
+here-string for a variable (`awk '…' <<<"$var"`, not `printf '%s\n' "$var" | awk '…'`), and a reader
+that reads to the end for a command (`sed -n 1p` for `head -n 1`, a flag in place of awk's `exit`,
+`grep … >/dev/null` for `grep -q`). Section 11 looks for the shape in every script the kit ships.
+
 ## Along with the change
 
 - A changed command or hook updates its page in `docs/commands/` or `docs/hooks/`; section 12 checks

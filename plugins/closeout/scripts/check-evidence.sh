@@ -154,8 +154,8 @@ while [[ $i -lt $total ]]; do
     i=$((i + 1))
     rows="$(printf '%s\n' "$items" | awk -F'\t' -v i="$i" '$1 == i')"
     get() { printf '%s\n' "$rows" | awk -F'\t' -v k="$1" '$2 == k { sub(/^[^\t]*\t[^\t]*\t/, ""); print }'; }
-    claim="$(get claim)" check="$(get check | head -n 1 | tr -d '`' | tr '[:upper:]' '[:lower:]' | squash)"
-    tier="$(get tier | head -n 1)" dest="$(get destination | head -n 1 | tr -d '`')"
+    claim="$(get claim)" check="$(get check | sed -n 1p | tr -d '`' | tr '[:upper:]' '[:lower:]' | squash)"
+    tier="$(get tier | sed -n 1p)" dest="$(get destination | sed -n 1p | tr -d '`')"
     count=$((count + 1))
 
     strict=""
@@ -194,7 +194,7 @@ while [[ $i -lt $total ]]; do
     done < <(printf '%s\n' "$rows" | awk -F'\t' '$2 == "evidence" || $2 == "was" { print $2 "\t" $3 }')
 
     [[ $bad_anchor -eq 1 ]] && refuse "$claim: an anchor does not resolve"
-    plain="$(get plain | head -n 1)" source="$(get source | head -n 1 | tr -d '`' | tr '[:upper:]' '[:lower:]' | squash)"
+    plain="$(get plain | sed -n 1p)" source="$(get source | sed -n 1p | tr -d '`' | tr '[:upper:]' '[:lower:]' | squash)"
     [[ -n "$plain" ]] || refuse "$claim: no plain: line (the claim in one everyday sentence, as the person reads it)"
     case "${source:-general}" in
         correction)
@@ -217,8 +217,8 @@ while [[ $i -lt $total ]]; do
             fi ;;
         contradicted)
             contradicted=$((contradicted + 1))
-            if [[ -n "$(get correction)" ]]; then echo "    → corrected: $(get correction | head -n 1)"
-            elif [[ -n "$(get dropped)" ]]; then echo "    → dropped: $(get dropped | head -n 1)"
+            if [[ -n "$(get correction)" ]]; then echo "    → corrected: $(get correction | sed -n 1p)"
+            elif [[ -n "$(get dropped)" ]]; then echo "    → dropped: $(get dropped | sed -n 1p)"
             else refuse "$claim: contradicted, with neither correction: nor dropped:"; fi
             [[ $n_ev -gt 0 ]] || refuse "$claim: contradicted, with no evidence line"
             [[ $was_max -gt 0 && $ev_max -le $was_max ]] && refuse "$claim: the contradicting evidence (L$ev_max) is not later than what it reverses (L$was_max)"
@@ -226,13 +226,13 @@ while [[ $i -lt $total ]]; do
             ;;
         unsupported)
             unsupported=$((unsupported + 1))
-            if [[ -n "$(get missing)" ]]; then echo "    → unverified: missing $(get missing | head -n 1)"
+            if [[ -n "$(get missing)" ]]; then echo "    → unverified: missing $(get missing | sed -n 1p)"
             else refuse "$claim: unsupported, with no missing: line"; fi
             [[ -n "$strict" ]] && refuse "$claim: unsupported, and bound for the always-loaded tier"
             ;;
         already-written)
             already=$((already + 1))
-            if [[ -n "$(get found)" ]]; then echo "    → already written: $(get found | head -n 1)"
+            if [[ -n "$(get found)" ]]; then echo "    → already written: $(get found | sed -n 1p)"
             else refuse "$claim: already-written, with no found: line saying where"; fi ;;
         observed)
             observed=$((observed + 1))

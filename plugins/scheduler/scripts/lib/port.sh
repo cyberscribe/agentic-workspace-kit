@@ -87,7 +87,7 @@ port_start() {
         local sid sname nm
         sid="$(jq -r '.id // empty | tostring' <<<"$t")"
         sname="$(jq -r '.name // .title // .description // empty' <<<"$t")"
-        local have; have="$(lj -r --arg id "$sid" --arg sn "$sname" '.tasks | to_entries[] | select((($id != "") and (.value.source_id == $id)) or (($id == "") and (.value.source_name == $sn))) | .key' | head -n 1)"
+        local have; have="$(lj -r --arg id "$sid" --arg sn "$sname" '.tasks | to_entries[] | select((($id != "") and (.value.source_id == $id)) or (($id == "") and (.value.source_name == $sn))) | .key' | sed -n 1p)"
         if [[ -n "$have" ]]; then
             echo "  $have: already in this port, at $(stage_of "$have"); left as it is"
             names+=("$have"); continue
@@ -236,7 +236,7 @@ findings_for() {
                 read -r -a words <<<"${hit#*:}"
                 for w in ${words[@]+"${words[@]}"}; do
                     w="${w%[.,;:)\'\"\`]}"; w="${w#[(\'\"\`]}"
-                    printf '%s\n' "$w" | grep -qiE -- "$pat" || continue
+                    grep -qiE -- "$pat" <<<"$w" || continue
                     matched=1; wp="$w"
                     [[ "$wp" == \~/* ]] && wp="$HOME/${wp#\~/}"
                     [[ "$wp" == \$HOME/* ]] && wp="$HOME/${wp#\$HOME/}"
@@ -275,7 +275,7 @@ findings_for() {
             fmn=$((fmn + 1))
             (( fmn == 1 )) && continue
             [[ "$fmline" == "---" ]] && break
-            printf '%s\n' "$fmline" | grep -qiE -- "$cpat" && add "credential:front-matter-$fmn" credential warn "" "${fmline%%:*}: (value not shown)" \
+            grep -qiE -- "$cpat" <<<"$fmline" && add "credential:front-matter-$fmn" credential warn "" "${fmline%%:*}: (value not shown)" \
                 "Something shaped like a credential is written into the task file's settings." "Keep the credential in a file, and point to it."
         done <"$file"
     fi
@@ -318,7 +318,7 @@ port_ack() {
     local n="$1" id="$2" note=""; shift 2
     [[ "${1:-}" == --note ]] && note="${2:-}"
     in_ledger "$n"
-    local sev; sev="$(lj -r --arg n "$n" --arg id "$id" '.tasks[$n].findings[] | select(.id == $id) | .severity' | head -n 1)"
+    local sev; sev="$(lj -r --arg n "$n" --arg id "$id" '.tasks[$n].findings[] | select(.id == $id) | .severity' | sed -n 1p)"
     [[ -n "$sev" ]] || die "$n has no finding $id; 'schedule.sh port check $n' lists them"
     [[ "$sev" == warn ]] || die "$id is a $sev finding; a block is fixed in the task file, then checked again"
     lw --arg n "$n" --arg id "$id" --arg note "$note" --arg t "$(port_now)" '.tasks[$n].acks[$id] = {note: $note, at: $t}'

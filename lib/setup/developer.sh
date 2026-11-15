@@ -40,7 +40,7 @@ done
 
 WG=(git --no-optional-locks -C "$WS")
 KG=(git --no-optional-locks -C "$WS/kit")
-if [[ "$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print "y"; exit }')" != y ]] \
+if [[ "$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" && !f { print "y"; f = 1 }')" != y ]] \
     || ! "${KG[@]}" rev-parse --git-dir >/dev/null 2>&1; then
     say "kit/ in $WS is not a checked-out submodule; developer mode works on the workspace's kit/."
     exit 1

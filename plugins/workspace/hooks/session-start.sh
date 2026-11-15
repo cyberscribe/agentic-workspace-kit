@@ -48,9 +48,9 @@ root="$(aw_workspace_root "$input")"
 rep="$(bash "$here/../scripts/state.sh" --quick --target "$root" 2>/dev/null)" || exit 0
 [[ -n "$rep" ]] || exit 0
 # key <name>: one value from the report; per-item keys carry slashes and dots, so an index() match.
-key() { printf '%s\n' "$rep" | awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }'; }
+key() { awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }' <<<"$rep"; }
 # field <value> <name>: one name=value part of a submodule.<path> value.
-field() { printf '%s\n' "$1" | tr ' ' '\n' | awk -v k="$2=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }'; }
+field() { tr ' ' '\n' <<<"$1" | awk -v k="$2=" 'index($0, k) == 1 && !f { print substr($0, length(k) + 1); f = 1 }'; }
 # names <comma list>: the first three, joined by ", ", with … when there are more.
 names() {
     printf '%s\n' "$1" | tr ',' '\n' | sed '/^$/d' \
@@ -105,7 +105,7 @@ esac
 kit_path="$(key kit_path)"
 kit_dev_detached=no
 if [[ -n "$kit_path" && "$kit_path" != none && "$(key kit_branch)" == detached ]] \
-   && printf '%s\n' "$rebase_paths" | grep -qxF "$kit_path"; then
+   && grep -qxF "$kit_path" <<<"$rebase_paths"; then
     kit_dev_detached=yes
     lines+=("Workspace: kit/ is detached from main (developer mode) — kit/setup.sh --developer puts it back.")
 fi
@@ -125,7 +125,7 @@ while IFS= read -r p; do
     case "$(field "$v" pointer)" in staged|uncommitted) parts+=("at a new commit the workspace has not recorded") ;; esac
     n="$(field "$v" behind)"
     [[ "$role" != kit ]] && isnum "$n" && [[ "$n" -gt 0 ]] && parts+=("$(plural "$n" "commit behind its remote" "commits behind its remote")")
-    if [[ "$(field "$v" branch)" == detached ]] && printf '%s\n' "$rebase_paths" | grep -qxF "$p"; then
+    if [[ "$(field "$v" branch)" == detached ]] && grep -qxF "$p" <<<"$rebase_paths"; then
         [[ "$role" == kit && $kit_dev_detached == yes ]] || parts+=("detached")
     fi
     [[ ${#parts[@]} -gt 0 ]] || continue

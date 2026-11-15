@@ -156,7 +156,7 @@ lock_value() {
         "$T/.claude/kit-templates.lock" 2>/dev/null
 }
 # kit_gitlink: success when the workspace's index holds kit/ as a submodule (mode 160000).
-kit_gitlink() { [[ "$("${TG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print "y"; exit }')" == y ]]; }
+kit_gitlink() { [[ "$("${TG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" && !f { print "y"; f = 1 }')" == y ]]; }
 # The kit's plugins, as .claude/settings.json names them: <name>@agentic-workspace.
 # In the order the state check reports them (sorted), so the list compares with plugins_registered.
 KIT_PLUGINS="closeout ongoing projects scheduler workspace"
@@ -222,7 +222,7 @@ add_kit() {
 }
 # section <report> <heading>: the indented items under one heading of the engine's report.
 section() {
-    printf '%s\n' "$1" | awk -v h="$2" 'index($0, h) == 1 { on = 1; next } on && /^  / { print; next } on { exit }'
+    awk -v h="$2" 'index($0, h) == 1 { on = 1; next } on && /^  / { print; next } on { exit }' <<<"$1"
 }
 # run_child <label> <script> <args...>: a kit script, its output indented; its status is returned.
 run_child() {
@@ -257,7 +257,7 @@ origin_github() {
     return 0
 }
 # listed_private <normalised url>: the via and date of a Private remote entry for it, or nothing.
-listed_private() { aw_private_remotes "$T" | awk -F '\t' -v u="$1" '$1 == u { print $2 " " $3; exit }'; }
+listed_private() { aw_private_remotes "$T" | awk -F '\t' -v u="$1" '$1 == u && !f { print $2 " " $3; f = 1 }'; }
 # record_private <normalised url> <gh|person>: a Private remote bullet in .claude/workspace.md, directly
 # after the comment line under "## Private remotes" (at the end of that section when it has none).
 record_private() {
@@ -349,8 +349,8 @@ esac
 # What an earlier run answered: the ledger's @values first, then CLAUDE.md §1 and CODEOWNERS. AGENTS.md
 # is never read here; some workspaces keep it closed to tools.
 team_now="$(lock_value team)" owner_now="$(lock_value owner)" handle_now="$(lock_value handle)"
-known "$team_now" || team_now="$( [[ -f "$T/CLAUDE.md" ]] && sed -n 's/^| \*\*Team\*\* | \(.*\) |$/\1/p' "$T/CLAUDE.md" | head -n 1)"
-known "$owner_now" || owner_now="$( [[ -f "$T/CLAUDE.md" ]] && sed -n 's/^| \*\*Standards owner\*\* | \(.*\) — reviews.*/\1/p' "$T/CLAUDE.md" | head -n 1)"
+known "$team_now" || team_now="$( [[ -f "$T/CLAUDE.md" ]] && sed -n 's/^| \*\*Team\*\* | \(.*\) |$/\1/p' "$T/CLAUDE.md" | sed -n 1p)"
+known "$owner_now" || owner_now="$( [[ -f "$T/CLAUDE.md" ]] && sed -n 's/^| \*\*Standards owner\*\* | \(.*\) — reviews.*/\1/p' "$T/CLAUDE.md" | sed -n 1p)"
 known "$handle_now" || handle_now="$(awk '$1 == "/CLAUDE.md" || $1 == "/AGENTS.md" { print $2; exit }' "$T/.github/CODEOWNERS" 2>/dev/null)"
 known "$team_now" || team_now=""
 known "$owner_now" || owner_now=""

@@ -20,7 +20,7 @@ aw_mb_config() { printf '%s' "${PAIR_CONFIG_DIR:-$HOME/.config/agentic-workspace
 # aw_mb_root: the default root on this machine, or nothing.
 aw_mb_root() {
     local r="${PAIR_MAILBOX_ROOT:-}"
-    [ -n "$r" ] || r="$(sed -n '/^[[:space:]]*#/d; /^[[:space:]]*$/d; p' "$(aw_mb_config)" 2>/dev/null | head -n 1)"
+    [ -n "$r" ] || r="$(sed -n '/^[[:space:]]*#/d; /^[[:space:]]*$/d; p' "$(aw_mb_config)" 2>/dev/null | sed -n 1p)"
     r="$(printf '%s' "$r" | sed 's/[[:space:]]*$//')"
     case "$r" in \~/*) r="$HOME/${r#\~/}" ;; esac
     printf '%s' "${r%/}"

@@ -984,7 +984,7 @@ build_worktree() {
     while IFS= read -r s; do
         [[ -n "$s" ]] || continue
         name="$(git config -f "$wt/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null \
-            | awk -v p="$s" '$2 == p { sub(/^submodule\./, "", $1); sub(/\.path$/, "", $1); print $1; exit }')"
+            | awk -v p="$s" '$2 == p { sub(/^submodule\./, "", $1); sub(/\.path$/, "", $1); if (!f) print $1; f = 1 }')"
         name="${name:-$s}"
         git -C "$wt" -c protocol.file.allow=always -c "submodule.$name.url=$target/$s" \
             submodule update -q --init -- "$s" >/dev/null 2>&1 || return 1

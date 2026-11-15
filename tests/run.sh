@@ -161,6 +161,19 @@ empty() { if [[ -z "$2" ]]; then ok "$1"; else ko "$1" "$2"; fi; }
 # is killed by SIGPIPE, or, where SIGPIPE is ignored (as on a CI runner), its
 # write fails. Either way a check that matched reads as failed, more often the busier the machine.
 grep_all() { grep "$@" >/dev/null; }
+# pipe_early_exits <file...>: the lines of shell where a writer is piped into a reader that can stop
+# before the writer is done: awk's exit, head, grep -q or -m, sed's q, a lone read. bash writes a line
+# at a time, so the writer's next line then meets a closed pipe: under pipefail the pipe fails, and
+# where SIGPIPE is ignored, as on CI, bash prints "write error: Broken pipe" (3.6.2's Ubuntu job). It
+# happens only when the reader wins the race, so a run that passes proves little; the shape is what is
+# looked for. What has no race: a here-string (<<<"$var") in place of printf, or a reader that reads
+# to the end (sed -n 1p for head -n 1, awk with a flag in place of exit, grep >/dev/null for grep -q).
+# An exit in awk's END block comes after the last line, so it is not early. Comment lines are skipped.
+pipe_re='(^|[^|])\|[[:space:]]*(head([[:space:]]|$)|read[[:space:]]|grep[[:space:]]([^|]*[[:space:]])?(-[a-zA-Z]*[qm][a-zA-Z]*|--max-count|--quiet|--silent)([[:space:]=]|$)|sed[[:space:]][^|]*[^a-zA-Z\\]q([;}'"'"'"[:space:]]|$)|awk[[:space:]][^|]*[^a-z_]exit([^a-z_]|$))'
+pipe_early_exits() {
+    grep -HnE "$pipe_re" "$@" 2>/dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' \
+        | sed 's/END { exit ![a-z_]* }//g' | grep -E "$pipe_re"
+}
 
 # The few checks that time something (4b, 22, 23) read how busy the machine is, so a red run means a
 # fault rather than a busy machine. aw_load prints the 1-minute load average per core. aw_factor prints
@@ -3311,6 +3324,33 @@ if command -v shellcheck >/dev/null 2>&1; then
 else
     skp "11 shellcheck not on PATH; the kit's scripts not linted"
 fi
+# The broken-pipe shape (pipe_early_exits, above), first on a probe that has six lines with it and
+# eight without, then on every shell script the kit ships.
+pp="$SCRATCH/pipe-probe.sh"
+cat > "$pp" <<'EOF'
+printf '%s\n' "$x" | awk '$1 == p { print $2; exit }'
+git log | head -n 1
+printf '%s\n' "$x" | grep -q y
+cmd | grep -o -m 1 y
+cmd | sed -n '/y/{p;q;}'
+cmd | read -r first
+awk '$1 == p { print $2; exit }' <<<"$x"
+git log | sed -n 1p
+grep -q y <<<"$x"
+cmd | awk '$1 == p { f = 1 } END { exit !f }'
+a || head -n 1 file
+cmd | grep y >/dev/null
+# x | head -n 1
+cmd | while IFS= read -r l; do :; done
+EOF
+pp_got="$(pipe_early_exits "$pp" | cut -d: -f2 | paste -sd' ' -)"
+[[ "$pp_got" == "1 2 3 4 5 6" ]] && ok "11 the broken-pipe check finds the shape on a probe (lines 1-6) and passes the safe forms (7-14)" \
+    || ko "11 the broken-pipe check finds the shape on a probe (lines 1-6) and passes the safe forms (7-14)" "flagged lines: ${pp_got:-none}"
+pp_files=()
+while IFS= read -r f; do pp_files+=("$f"); done < <(find "$KIT" \( -path "$KIT/tests" -o -path "$KIT/.git" \) -prune -o -type f \
+    \( -name '*.sh' -o -path "$KIT/githooks/*" \) -print | sort)
+empty "11 no shell script in the kit pipes a writer into a reader that can stop early (awk exit, head, grep -q or -m, sed q, read; ${#pp_files[@]} files)" \
+    "$(pipe_early_exits "${pp_files[@]}" | sed "s#^$KIT/##")"
 empty "11 every git call in the wizard carries --no-optional-locks" \
     "$(grep -nE '(^|[;&|({]|\$\()[[:space:]]*git[[:space:]]' "$SETUP" "$WZLIB" | grep -vE ':[0-9]+:[[:space:]]*#' | grep -v -- '--no-optional-locks')"
 

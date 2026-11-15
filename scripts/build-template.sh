@@ -216,7 +216,7 @@ fi
 while IFS= read -r f; do
     [[ "$f" == kit ]] && continue
     if [[ -n "$words" ]]; then
-        printf '%s\n' "$f" | grep -q -i -w -F -f "$words" && { printf 'refused\t%s\tprivate word (path)\n' "$f"; refused=1; }
+        grep -q -i -w -F -f "$words" <<<"$f" && { printf 'refused\t%s\tprivate word (path)\n' "$f"; refused=1; }
         while IFS=: read -r n _; do
             [[ -n "$n" ]] && { printf 'refused\t%s\tprivate word (line %s)\n' "$f" "$n"; refused=1; }
         done <<EOF
@@ -225,7 +225,7 @@ EOF
     fi
     while IFS=$'\t' read -r kind value; do
         [[ -n "$value" ]] || continue
-        printf '%s\n' "$f" | grep -q -i -w -F -e "$value" && { printf 'refused\t%s\tnames %s of the workspace (path)\n' "$f" "$kind"; refused=1; }
+        grep -q -i -w -F -e "$value" <<<"$f" && { printf 'refused\t%s\tnames %s of the workspace (path)\n' "$f" "$kind"; refused=1; }
         while IFS=: read -r n _; do
             [[ -n "$n" ]] && { printf 'refused\t%s\tnames %s of the workspace (line %s)\n' "$f" "$kind" "$n"; refused=1; }
         done <<EOF

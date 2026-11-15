@@ -469,7 +469,7 @@ if [[ $content -eq 1 ]]; then
         local -a cs
         IFS=/ read -r -a cs <<< "$3"
         for c in ${cs[@]+"${cs[@]}"}; do
-            if printf '%s\n' "$c" | grep -q "$2" -f "$1" 2>/dev/null; then c="…"; fi
+            if grep -q "$2" -f "$1" <<<"$c" 2>/dev/null; then c="…"; fi
             out="${out:+$out/}$c"
         done
         printf '%s' "$out"
@@ -660,7 +660,7 @@ EOF
             if [[ ${#CP_HIST_ARGS[@]} -gt 0 ]] && [[ -n "$(g log --format=%H -1 --find-object="$ns" "${CP_HIST_ARGS[@]}" 2>/dev/null)" ]]; then
                 continue
             fi
-            wf="$(aw_git_elsewhere "$ws" ls-files -s 2>/dev/null | awk -v s="$ns" '$2 == s { sub(/^[^\t]*\t/, ""); print; exit }')"
+            wf="$(aw_git_elsewhere "$ws" ls-files -s 2>/dev/null | awk -v s="$ns" '$2 == s && !f { sub(/^[^\t]*\t/, ""); print; f = 1 }')"
             if [[ $dir_rule -eq 1 && -n "$wf" ]]; then
                 tk="$(awk -v s="$ns" '$1 == s { print $2; exit }' "$tmp/blobct")"
                 cp_held_before "$tk" "$wf" --find-object="$ns" || continue
