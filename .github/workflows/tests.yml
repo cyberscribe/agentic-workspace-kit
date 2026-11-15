@@ -6,6 +6,11 @@ name: tests
 on:
   pull_request:
   push:
+    branches: [main]
+# A newer push to the same pull request makes the run in progress moot; on main every run completes.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
