@@ -101,6 +101,10 @@ workspace, use it, with the mailbox folder as `--mailbox`:
 - `pair.sh watch --role pm --mailbox <dir>` is the PM's watch, run as a background
   command. It ends with one line naming a new open CC message, and the PM starts it
   again.
+- `pair.sh gates --mailbox <dir>` prints the phase's gate list (`gates.json`) and
+  how many pass; `--from pm --id <gate> pass|fail <what you saw>` sets one, and
+  `--from pm --seal` seals the list again after you change it on purpose. The
+  mailbox README's *Gates* section has the format.
 - `pair.sh init --mailbox <dir> --name "<project name>"` makes a mailbox in any
   folder.
 
@@ -157,7 +161,17 @@ appended to your own status file (the mailbox README shows it).
    - who the engineer is on this project, in two or three sentences of stance,
      not rules;
    - the outcome, and what done means for this phase, as checks someone else can
-     run;
+     run: write them as the gate list, `gates.json` in the mailbox, before you post
+     the brief (each gate an `id`, a plain `what`, a `check`, `by`, `passes: false`,
+     `evidence: ""`), and name it in the brief. Posting the brief seals the gates,
+     so they cannot drift easier along the way;
+   - **How the user meets it:** the real surfaces the work will be met through — CI
+     on GitHub, a real terminal (`script`), the browser for a web page, the app on
+     the device — and at least one gate whose check runs through that surface,
+     not a stand-in for it;
+   - `baseline:` on a line of its own, with the command the engineer runs at every
+     start and resume before new work (a suite subset, a smoke run), so a fault
+     left by the last session is found first;
    - the order of work, with each gate where it stops for the person (spending
      money, publishing, anything judged by ear or eye, anything irreversible);
    - what it owns and what it leaves alone (folders, shared resources);
@@ -248,6 +262,11 @@ appended to your own status file (the mailbox README shows it).
   it or pass it on: the commit is in `git log`; the tests pass when you run
   them; the page, the file or the output does what the brief said, seen the way
   its user would see it. A report is a pointer to evidence, not the evidence.
+- **Primary sources.** A gate that runs through a real surface is checked there,
+  by you: `gh pr checks <n>` for CI, the page itself, the file. The engineer's
+  status line is not one: `waiting` says what the engineer last wrote, not that
+  its watch is still running, so read `pair.sh check` for that. Then set the gate
+  with `pair.sh gates`, and give its count (`gates 4 of 6`) when you report.
 - **Testing from a chat.** A manager in a chat app tests through what it can
   reach, and its report says which:
   - **The device shell**, a Linux machine on the person's computer with their

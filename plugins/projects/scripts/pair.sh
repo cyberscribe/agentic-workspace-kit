@@ -123,7 +123,7 @@ if [ $resume -eq 1 ]; then
         prompt="Resuming the pairing as its PM. Your token is $tok: post every PM message with --pm $tok. Read $mb/to-pm.md for CC messages with Status: open, then start the PM watch if none is running: $watch_cmd"
         how="Resuming PM session $sid"
     else
-        prompt="Resuming the pairing. Read $mb/to-cc.md for anything with Status: open, and carry on from your last message in $mb/to-pm.md. Start the mailbox watch from your opening context as a background command if none is running."
+        prompt="Resuming the pairing. First the startup routine: read $mb/to-cc.md for anything with Status: open, the gate list if there is one ($pairsh gates --mailbox $mb) and git log; run the brief's baseline check (its baseline: line) and report the result in your next CC message, a red baseline before anything new. Then carry on from your last message in $mb/to-pm.md. Start the mailbox watch from your opening context as a background command if none is running."
         how="Resuming session $sid"
     fi
 else

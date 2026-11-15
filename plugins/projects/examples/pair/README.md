@@ -15,9 +15,10 @@ machines: a file two machines change between copies would come back as two versi
 | `to-pm.md` | the engineer | messages to the PM, ids `CC-001`, `CC-002`, … |
 | `status-cc.md` | the engineer | the status it has set on each PM message |
 | `status-pm.md` | the PM | the status it has set on each CC message |
+| `gates.json` | the PM | the phase's gates: what done means, each with its check (below) |
 | `KICKOFF.md` | the PM | the engineer's opening prompt; the launcher puts this machine's path for `{mailbox}` |
 | `.cc-*` | the engineer's session | its id, its state (`working`, `waiting` with a watch running, or `stopped`, since when), its lock |
-| `.pm-*`, `.closed` | the PM | its session and lock; `.closed` once the pairing is closed |
+| `.pm-*`, `.closed` | the PM | its session and lock, the sealed copy of the gates (`.pm-gates`); `.closed` once the pairing is closed |
 
 Anything else here is a stray, such as a copy left by two machines writing one file: `pair.sh check`
 names it.
@@ -65,6 +66,32 @@ id holds. A status:
 - `done <time> <commit or note>` — finished.
 - `declined <why>` — not doing it.
 - `waiting <on what>` — blocked; the PM or the person has the next move.
+
+## Gates
+
+What done means for a phase is a list of gates in `gates.json`, written by the PM with the brief, so
+"done" is a set of checks rather than a sentence in a report:
+
+```json
+{ "gates": [
+  { "id": "G1", "what": "CI is green on the pull request", "check": "gh pr checks <n>",
+    "by": "pm", "passes": false, "evidence": "" } ] }
+```
+
+`id`, `what`, `check` and `by` are fixed once the brief is posted: the PM's first post with the file in
+place seals them, and `pair.sh gates` refuses a list whose fixed part has changed since, naming what
+changed. A gate is not made easier or dropped along the way; when the PM changes the list on purpose, it
+seals it again with `pair.sh gates --mailbox <this folder> --from pm --seal`. `by` says who sets
+`passes`: `pm` (the default), `cc`, or `person`, which the PM records on the person's word.
+
+- `pair.sh gates --mailbox <this folder>` prints each gate and how many pass. The engineer's opening
+  context and the PM's `pair.sh check` carry the count (`Gates: 4 of 6 pass`).
+- **The engineer** never edits `gates.json`. It records evidence, which proposes a pass, as a line in
+  its own status file: `pair.sh gates --mailbox <this folder> --from cc --id G1 <evidence>` writes
+  `gate G1 · <time> · <evidence>` to `status-cc.md`. For a `cc` gate that line is the pass.
+- **The PM** checks the evidence against its primary source (the CI run itself, the page, the file),
+  not against the report, and sets the gate: `pair.sh gates --mailbox <this folder> --from pm --id G1
+  pass <what it saw>`, or `fail`.
 
 ## How each side keeps up
 

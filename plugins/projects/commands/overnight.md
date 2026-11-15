@@ -41,6 +41,13 @@ Two questions, always, and in the person's own words:
 
 Read their answers back in one sentence each.
 
+Then write those answers as gates: the few checks that would show, in the morning, that the thing is
+there and excellent, each with how to check it and who decides it passes. Read them back too. For a
+pairing they become the mailbox's gate list, `gates.json` (the format is in the mailbox README's
+*Gates* section), written before the brief is posted, which seals it; for one agent, the same list goes
+in the brief. At least one gate is checked the way the person will meet the result: on CI, in a real
+terminal, in the browser.
+
 ## 2. The calls they would be woken for, asked now
 
 Offer each with a recommended default, take a "use the default" as an answer, and record every answer
@@ -95,6 +102,7 @@ Commit / push / publish / send: <answer>. Deletion: <answer; where things are mo
 Machine: stays awake; <shared-resource rules>; everything stops by <stop time>.
 Permissions tried: <each, and its result>; <the route round any refusal>.
 Wake time: <time>. Results as: <files surfaced, one script, decisions as questions>.
+Gates: <n>, in <gates.json, or listed here>; the one checked as the person meets it: <gate>.
 
 Inside these bounds, take the reversible reading, note it under Assumptions, and carry on.
 These wait for the morning: anything that cannot be undone, anything public, spend past a cap,
@@ -115,6 +123,12 @@ Put the mechanisms the night needs into the brief, so they are not left to memor
   engineer.
 - **The suite runs on the machine it is meant for.** The manager does not run the suite in a VM, and
   no shell that runs git exports `GIT_DIR` or `GIT_WORK_TREE`.
+- **Checked where the person will meet it.** Before handing off, confirm the brief has a "How the user
+  meets it" section and a gate whose check runs through that surface, and that the manager checks it
+  there itself: `gh pr checks <n>`, the page, the file. An engineer's status line is not a primary
+  source; `waiting` there does not mean its watch is still running.
+- **A baseline at every start.** The brief names a `baseline:` check, which the engineer runs before new
+  work each time its session starts or resumes, so a fault left earlier in the night is found first.
 - **The private-word check before anything leaves.** Where the work could reach a public place, the
   repository's own check runs first (the kit's: `scripts/check-paths.sh --all --content`).
 - **A usage warning is a stop.** At the first warning that the allowance is running low, the work
@@ -125,7 +139,8 @@ Put the mechanisms the night needs into the brief, so they are not left to memor
 One summary at wake time, written where the person will look first (the pairing's mailbox, or the
 conversation), in this order:
 
-1. **What was done**, each item with the evidence it was checked against.
+1. **What was done**, each item with the evidence it was checked against, and the gates' count from
+   `pair.sh gates` ("gates 4 of 6"), or the brief's list ticked for one agent.
 2. **What is open**, and why.
 3. **The decisions**, one short question each, with the recommended answer, for whoever the project's
    People section marks accountable. A decision someone is marked consulted on names them, so they are

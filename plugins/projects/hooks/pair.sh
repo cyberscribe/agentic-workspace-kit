@@ -43,6 +43,13 @@
 #   pair.sh status --mailbox DIR --from pm|cc --id ID TEXT...
 #                   Sets the status of a message the other side wrote (done, declined, or waiting
 #                   and why): one line appended to the reader's own status file, under its lock.
+#   pair.sh gates --mailbox DIR [--from cc --id GATE EVIDENCE... | --from pm --id GATE pass|fail [EVIDENCE...] |
+#                 --from pm --seal]
+#                   The gate list, gates.json (lib/gates.sh): with no --from it prints every gate and how many
+#                   pass, and refuses a list whose fixed part changed since the PM sealed it (exit 1). The
+#                   engineer records evidence for a gate, which proposes a pass, as a line in its own status
+#                   file; the PM sets passes and evidence in gates.json, or seals the list again after
+#                   changing it on purpose. A PM post seals a list that is not sealed yet.
 #   pair.sh init --mailbox DIR --name NAME
 #                   Makes a mailbox in DIR, any folder: the protocol README and the four files below.
 #                   A folder that already holds a mailbox is left as it is.
@@ -116,7 +123,7 @@ mode="${1:-}"
 if [ "$mode" = beat ] || [ "$mode" = end ]; then
     [ -n "${PAIR_ROLE:-}" ] || [ -f "${PAIR_REGISTRY:-$HOME/.config/agentic-workspace-kit/pairings}" ] || exit 0
 fi
-opt_mb="" opt_cwd="" opt_from="" opt_title="" opt_pm="" opt_id="" opt_name="" opt_clear=0 opt_role="" opt_prompt=0 rest=""
+opt_mb="" opt_cwd="" opt_from="" opt_title="" opt_pm="" opt_id="" opt_name="" opt_clear=0 opt_role="" opt_prompt=0 opt_seal=0 rest=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --mailbox) opt_mb="${2:-}"; shift 2 2>/dev/null || shift ;;
@@ -129,6 +136,7 @@ while [ $# -gt 0 ]; do
         --role) opt_role="${2:-}"; shift 2 2>/dev/null || shift ;;
         --prompt) opt_prompt=1; shift ;;
         --clear) opt_clear=1; shift ;;
+        --seal) opt_seal=1; shift ;;
         *) rest="${rest:+$rest }$1"; shift ;;
     esac
 done
@@ -185,6 +193,8 @@ claude_pid() {
 # lib/lock.sh, so two sessions joining or leaving at once cannot lose each other's line.
 # shellcheck source=lib/lock.sh
 . "$here/lib/lock.sh"
+# shellcheck source=lib/gates.sh
+. "$here/lib/gates.sh"
 # reg_mailbox <session id>: the mailbox this session is bound to, or nothing.
 reg_mailbox() { [ -n "$1" ] && [ -f "$registry" ] && awk -F'\t' -v s="$1" '$2 == s { print $1; exit }' "$registry"; }
 # reg_bind <mailbox> <session id or ->: one line per mailbox, and a session bound to one mailbox only.
@@ -290,7 +300,7 @@ case "$mode" in
         [ -n "$mb" ] || [ -z "${CLAUDE_CODE_SESSION_ID:-}" ] || mb="$(reg_mailbox "$CLAUDE_CODE_SESSION_ID")"
         [ -n "$mb" ] || { say "name the mailbox: pair.sh $mode --mailbox <folder>"; exit 2; }
         ;;
-    join|check|post|status)
+    join|check|post|status|gates)
         mb="$opt_mb"
         [ -n "$mb" ] || { say "name the mailbox: pair.sh $mode --mailbox <folder>"; exit 2; }
         ;;
@@ -521,6 +531,12 @@ case "$mode" in
         printf 'This session is the engineer in a /projects:pair pairing. Mailbox: %s (protocol in its README.md). ' "$mb"
         if [ -n "$ids" ]; then printf 'Open for you in to-cc.md: %s. ' "$ids"; else printf 'Nothing is open for you in to-cc.md. ' ; fi
         dup_line "$cc_file" | tr '\n' ' '
+        gates_line "$mb" | tr '\n' ' '
+        # The startup routine, on a start or a resume (after a compaction the session is mid-work, and has run it).
+        case "$(printf '%s' "$input" | tr '\n' ' ' | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')" in
+            compact) ;;
+            *) printf 'Before new work, the startup routine: read the open messages, the gate list (pair.sh gates) and git log; run the baseline check the brief names on its baseline: line; report the baseline in your first CC message. A red baseline comes first: fix it, or report it, before anything new. ' ;;
+        esac
         if [ "${PAIR_ROLE:-}" = "cc" ]; then
             printf 'To hear of a new message between turns, run this as a background command and start it again each time it ends: PAIR_ROLE=cc PAIR_MAILBOX=%q bash %q watch\n' \
                 "$mb" "$here/pair.sh"
@@ -668,6 +684,7 @@ case "$mode" in
         [ -z "$cached" ] || printf 'Cached state (.cc-state, written at the last hook event): %s since %s\n' "$cached" "${cached_since:-?}"
         printf 'Open for the engineer: %s\n' "${to_cc:-none}"
         printf 'Open for the PM: %s\n' "${to_pm:-none}"
+        gates_line "$mb"
         pick="$(last_received "$mb/status-cc.md")"
         [ -z "$pick" ] || printf 'Last picked up: %s\n' "$pick"
         pick="$(last_received "$mb/status-pm.md")"
@@ -684,7 +701,7 @@ case "$mode" in
             [ -e "$f" ] || continue
             n="${f##*/}"
             case "$n" in
-                README.md|KICKOFF.md|PM-KICKOFF.md|to-cc.md|to-pm.md|status-cc.md|status-pm.md|.closed|.post-lock) continue ;;
+                README.md|KICKOFF.md|PM-KICKOFF.md|to-cc.md|to-pm.md|status-cc.md|status-pm.md|gates.json|gates.json.lock|.closed|.post-lock) continue ;;
                 *[Cc]onflict*) ;;
                 .cc-*|.pm-*|*.tmp.[0-9]*) continue ;;
                 *) [ -n "$(find "$f" -prune -mmin +5 2>/dev/null)" ] || continue ;;
@@ -729,6 +746,13 @@ case "$mode" in
         id="$(printf '%s-%03d' "$prefix" $(( ${last:-0} + 1 )))"
         printf '\n## %s · %s · %s\n%s\nStatus: open\n' "$id" "$(stamp)" "$opt_title" "$body" >> "$file"
         aw_unlock "$mb/.$opt_from-lock"
+        # The brief and its gate list go together: the PM's first post with gates.json in place seals it.
+        if [ "$opt_from" = pm ] && [ ! -f "$mb/.pm-gates" ]; then
+            gates_state "$mb"
+            if [ "$g_state" = unsealed ]; then gates_seal "$mb" && say "gates.json is sealed: its ids, whats, checks and bys are fixed from now on"
+            elif [ "$g_state" = invalid ]; then say "warning: gates.json is not sealed, since it is not a gate list: $(printf '%s' "$g_why" | head -n 1)"
+            fi >&2
+        fi
         printf '%s\n' "$id"
         exit 0
         ;;
@@ -744,6 +768,71 @@ case "$mode" in
         printf '%s · %s · %s\n' "$opt_id" "$(stamp)" "$(printf '%s' "$rest" | tr '\n' ' ')" >> "$sf"
         aw_unlock "$mb/.$opt_from-lock"
         printf '%s %s\n' "$opt_id" "$rest"
+        exit 0
+        ;;
+    gates)
+        gf="$mb/gates.json"
+        gates_state "$mb"
+        case "$g_state" in
+            none) say "no gate list in this mailbox ($gf); the PM writes it with the brief"; exit 2 ;;
+            nojq) say "jq is needed to read $gf; install it (brew install jq, or apt install jq)"; exit 2 ;;
+            invalid) say "$gf is not a gate list:"; printf '%s\n' "$g_why" | sed 's/^/  /'; exit 1 ;;
+        esac
+        if [ "$opt_from" = pm ] && [ $opt_seal -eq 1 ]; then
+            gates_seal "$mb" || { say "cannot write $mb/.pm-gates"; exit 2; }
+            if [ "$g_state" = changed ]; then say "sealed again, taking these changes:"; printf '%s\n' "$g_why" | sed 's/^/  /'
+            else say "sealed: the ids, whats, checks and bys in $gf are fixed from now on"; fi
+            exit 0
+        fi
+        if [ "$g_state" = changed ]; then
+            say "refused: $gf has changed since the PM sealed it ($(sed -n 's/^sealed: //p' "$mb/.pm-gates")):"
+            printf '%s\n' "$g_why" | sed 's/^/  /'
+            say "only passes and evidence change after the brief. If the PM changed the list on purpose, it seals it again: pair.sh gates --mailbox <dir> --from pm --seal"
+            exit 1
+        fi
+        if [ -n "$opt_from" ]; then
+            [ -n "$opt_id" ] || { say "name the gate: --id <gate id>"; exit 2; }
+            gby="$(jq -r --arg i "$opt_id" '.gates[] | select(.id == $i) | (.by // "pm")' "$gf")"
+            [ -n "$gby" ] || { say "no gate $opt_id in $gf"; exit 2; }
+        fi
+        case "$opt_from" in
+            cc)
+                [ -n "$rest" ] || { say "say what the evidence is: the command and its result, a commit, where to see it"; exit 2; }
+                aw_lock "$mb/.cc-lock" || { say "the mailbox is locked ($mb/.cc-lock)"; exit 2; }
+                [ -f "$mb/status-cc.md" ] || printf '# Statuses set by the cc side: id · time · status. The last line for an id holds.\n' > "$mb/status-cc.md"
+                printf 'gate %s · %s · %s\n' "$opt_id" "$(stamp)" "$(printf '%s' "$rest" | tr '\n' ' ')" >> "$mb/status-cc.md"
+                aw_unlock "$mb/.cc-lock"
+                if [ "$gby" = cc ]; then say "$opt_id passes on this evidence (the brief leaves this gate to the engineer)"
+                else say "evidence recorded for $opt_id; the PM checks it and sets the pass"; fi
+                exit 0
+                ;;
+            pm)
+                verdict="${rest%% *}"; ev=""; [ "$verdict" = "$rest" ] || ev="${rest#* }"
+                case "$verdict" in pass) v=true ;; fail) v=false ;; *) say "the PM sets a gate with pass or fail, then the evidence"; exit 2 ;; esac
+                # One writer: gates.json is the PM's, rewritten under its lock, and only passes and evidence change.
+                # The jq program is single-quoted on purpose: $i, $v and $e are jq's.
+                # shellcheck disable=SC2016
+                aw_rewrite "$gf" jq --arg i "$opt_id" --argjson v "$v" --arg e "$ev" \
+                    '.gates |= map(if .id == $i then .passes = $v | (if $e != "" then .evidence = $e else . end) else . end)' \
+                    || { say "cannot rewrite $gf"; exit 2; }
+                say "$opt_id: passes is $v"
+                exit 0
+                ;;
+            '') ;;
+            *) say "--from is cc or pm"; exit 2 ;;
+        esac
+        rows="$(gates_rows "$mb")"
+        if [ "$g_state" = unsealed ]; then sealed="not sealed yet: the PM's next post seals it"
+        else sealed="sealed $(sed -n 's/^sealed: //p' "$mb/.pm-gates")"; fi
+        printf 'Gates in %s: %s of %s pass; %s.\n' "$gf" \
+            "$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "true"' | grep -c .)" "$(printf '%s\n' "$rows" | grep -c .)" "$sealed"
+        printf '%s\n' "$rows" | awk -F'\t' '
+            { who = ($2 == "cc") ? " (the engineer'"'"'s to pass)" : ($2 == "person") ? " (the person'"'"'s call)" : ""
+              ev = ($7 != "") ? $7 : ($8 != "") ? $8 : "none written"
+              if ($3 == "true") printf "  pass      %s  %s%s\n            evidence: %s\n", $1, $5, who, ev
+              else if ($4 != "") printf "  evidence  %s  %s%s\n            from the engineer, %s: %s\n            for the PM to check: %s\n", $1, $5, who, $4, $8, $6
+              else printf "  open      %s  %s%s\n            check: %s\n", $1, $5, who, $6
+              if ($3 != "true" && $7 != "") printf "            the PM: %s\n", $7 }'
         exit 0
         ;;
 esac
