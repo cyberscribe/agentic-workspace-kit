@@ -38,8 +38,8 @@ A join unclaimed after 180 seconds (`PAIR_JOIN_GRACE`) ends it with the launcher
 (activity within two minutes), `watching`, `idle` or `ended`. It also prints what is open each way, when each side
 last picked a message up, any header dated later than its file was written, and once per spell that the engineer
 is not watching. `.cc-state` is a cache, labelled as one. `pair.sh post` appends a message under the next id, taken
-under a lock (`hooks/lib/lock.sh`); `pair.sh gates` reads and sets the gate list (`hooks/lib/gates.sh`). It runs
-under bash 3.2. Only the gate list needs jq; without it the gate line is left out.
+under a lock (`hooks/lib/lock.sh`), which a shell unable to remove files there is refused before it takes; in Cowork's
+shell it runs nothing. `pair.sh gates` reads and sets the gate list (`hooks/lib/gates.sh`). Only the gate list needs jq.
 
 ## When to reach for it
 

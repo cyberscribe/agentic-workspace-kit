@@ -81,8 +81,21 @@ the folder holds `to-cc.md` and that its `README.md` heading names the project.
 ## The pair script
 
 The pairing's state lives in the mailbox, and `kit/plugins/projects/hooks/pair.sh` reads and
-writes it the same way for both sides. Where this session can run a shell in the
-workspace, use it, with the mailbox folder as `--mailbox`:
+writes it the same way for both sides. It runs in a terminal on the computer that
+holds the mailbox, with the mailbox folder as `--mailbox`. A manager in Cowork does
+not run it: Cowork's Linux shell may not remove files in a connected folder, so a
+lock it took could stand for good, and `pair.sh` stops there at once. The manager
+gives the person each command to paste instead, in full, with the computer's
+absolute paths, kept to the paste rule below; the mailbox README's *From Cowork*
+section has the forms. For example:
+
+```
+bash <kit>/plugins/projects/hooks/pair.sh gates \
+  --mailbox <mailbox> \
+  --from pm --id G1 pass "<what you saw>"
+```
+
+The commands:
 
 - `pair.sh post --mailbox <dir> --from pm --pm <token> --title "<title>"`, the message on
   stdin, appends it to `to-cc.md` under the next id, taken under a lock, with
@@ -275,6 +288,8 @@ appended to your own status file (the mailbox README shows it).
     with nothing exported that redirects it (`GIT_DIR`, `GIT_WORK_TREE`), so the
     host's repositories keep their own settings. A worktree made on the host is
     out of reach from here, because its `.git` file names a host path.
+    `pair.sh` is not run here either: the person runs it, as *The pair script*
+    above says.
   - **A shell on the person's computer itself**, where a connector gives one. It
     is good for read-only git, with `--no-optional-locks`.
   - **The person's own browser**, where a browser connector is set up. It tests

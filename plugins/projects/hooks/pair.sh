@@ -195,6 +195,21 @@ claude_pid() {
 . "$here/lib/lock.sh"
 # shellcheck source=lib/gates.sh
 . "$here/lib/gates.sh"
+# can_write_or_stop: a command that writes to the mailbox asks first whether this shell can remove
+# files there (lib/lock.sh's probe). A shell that can make files but not remove them would leave a
+# lock for good, so it is turned away with nothing changed. This covers such a shell that the Cowork
+# check below does not recognise.
+can_write_or_stop() {
+    local rc=0
+    aw_can_remove "$mb" || rc=$?
+    [ $rc -eq 0 ] && return 0
+    if [ $rc -eq 2 ]; then
+        say "nothing was changed: this shell can make files in $mb but not remove them, so it cannot take the mailbox's lock. Run pair.sh in a terminal on the computer that holds the folder; a manager in Cowork gives the person the command to paste (the mailbox README's 'From Cowork' section)."
+    else
+        say "nothing was changed: this shell cannot write in $mb"
+    fi
+    exit 2
+}
 # reg_mailbox <session id>: the mailbox this session is bound to, or nothing.
 reg_mailbox() { [ -n "$1" ] && [ -f "$registry" ] && awk -F'\t' -v s="$1" '$2 == s { print $1; exit }' "$registry"; }
 # reg_bind <mailbox> <session id or ->: one line per mailbox, and a session bound to one mailbox only.
@@ -210,6 +225,28 @@ reg_bind() {
 # The awk program is single-quoted on purpose (aw_rewrite runs it).
 # shellcheck disable=SC2016
 reg_drop() { [ -f "$registry" ] && aw_rewrite "$registry" awk -F'\t' -v m="$1" '/^#/ || $1 != m'; return 0; }
+
+# ---- A manager in Cowork does not run pair.sh ----------------------------------------------------------
+# Cowork's Linux shell sees the person's folders as a mount (under ~/mnt, its home being in /sessions)
+# where it may make files but not remove them, and its host is one the computer cannot check, so a
+# lock taken there could stand for good. The manager gives the person each command to paste in a
+# terminal on their computer instead. The shell is told apart by being Linux with the mailbox, the
+# folder named or the current folder on such a mount; the probe in can_write_or_stop catches the rest.
+in_cowork_shell() {
+    local p
+    [ "$(uname -s 2>/dev/null)" = Linux ] || return 1
+    for p in "$opt_mb" "$rest" "$PWD"; do
+        case "$p" in "$HOME"/mnt/*|/sessions/*) return 0 ;; esac
+    done
+    return 1
+}
+case "$mode" in
+    post|status|gates|check|init|where|watch|default|join|leave)
+        if in_cowork_shell; then
+            say "nothing was run: this is Cowork's Linux shell, where the manager does not run pair.sh. Give the person the command to paste in a terminal on their computer, with the paths there; the mailbox README's 'From Cowork' section has the forms."
+            exit 2
+        fi ;;
+esac
 
 # ---- Commands that need no mailbox yet --------------------------------------------------------------
 # shellcheck source=lib/mailbox.sh
@@ -703,7 +740,7 @@ case "$mode" in
             case "$n" in
                 README.md|KICKOFF.md|PM-KICKOFF.md|to-cc.md|to-pm.md|status-cc.md|status-pm.md|gates.json|gates.json.lock|.closed|.post-lock) continue ;;
                 *[Cc]onflict*) ;;
-                .cc-*|.pm-*|*.tmp.[0-9]*) continue ;;
+                .cc-*|.pm-*|*.tmp.[0-9]*|.aw-probe) continue ;;
                 *) [ -n "$(find "$f" -prune -mmin +5 2>/dev/null)" ] || continue ;;
             esac
             strays="${strays:+$strays, }$n"
@@ -734,9 +771,10 @@ case "$mode" in
         [ -n "$opt_title" ] || { say "post needs --title"; exit 2; }
         body="$(cat)"
         [ -n "$body" ] || { say "post reads the message from stdin, and it was empty"; exit 2; }
+        can_write_or_stop
         # The id is read and the message appended under one lock (lib/lock.sh), so two writers cannot
         # take the same id.
-        aw_lock "$mb/.$opt_from-lock" || { say "the mailbox is locked ($mb/.$opt_from-lock)"; exit 2; }
+        aw_lock "$mb/.$opt_from-lock" || { say "nothing was changed: the lock $mb/.$opt_from-lock was not taken (the line above says why)"; exit 2; }
         if [ "$opt_from" = pm ] && [ -f "$mb/.pm-session" ]; then
             holder="$(field "$mb/.pm-session" token)"
             [ "$holder" = "$opt_pm" ] || printf 'pair: warning: another PM session holds this mailbox (since %s); two PMs writing one to-cc.md give the engineer two briefs. Posted anyway.\n' \
@@ -762,8 +800,9 @@ case "$mode" in
             *) say "status needs --from pm or --from cc"; exit 2 ;; esac
         [ -n "$opt_id" ] && [ -n "$rest" ] || { say "status needs --id <message id> and the status (done, declined or waiting <on what>)"; exit 2; }
         grep -q "^## $opt_id " "$file" 2>/dev/null || { say "no $opt_id in $file"; exit 2; }
+        can_write_or_stop
         sf="$(status_file "$file")"
-        aw_lock "$mb/.$opt_from-lock" || { say "the mailbox is locked ($mb/.$opt_from-lock)"; exit 2; }
+        aw_lock "$mb/.$opt_from-lock" || { say "nothing was changed: the lock $mb/.$opt_from-lock was not taken (the line above says why)"; exit 2; }
         [ -f "$sf" ] || printf '# Statuses set by the %s side: id · time · status. The last line for an id holds.\n' "$opt_from" > "$sf"
         printf '%s · %s · %s\n' "$opt_id" "$(stamp)" "$(printf '%s' "$rest" | tr '\n' ' ')" >> "$sf"
         aw_unlock "$mb/.$opt_from-lock"
@@ -778,6 +817,7 @@ case "$mode" in
             nojq) say "jq is needed to read $gf; install it (brew install jq, or apt install jq)"; exit 2 ;;
             invalid) say "$gf is not a gate list:"; printf '%s\n' "$g_why" | sed 's/^/  /'; exit 1 ;;
         esac
+        [ -z "$opt_from" ] || can_write_or_stop
         if [ "$opt_from" = pm ] && [ $opt_seal -eq 1 ]; then
             gates_seal "$mb" || { say "cannot write $mb/.pm-gates"; exit 2; }
             if [ "$g_state" = changed ]; then say "sealed again, taking these changes:"; printf '%s\n' "$g_why" | sed 's/^/  /'
@@ -798,7 +838,7 @@ case "$mode" in
         case "$opt_from" in
             cc)
                 [ -n "$rest" ] || { say "say what the evidence is: the command and its result, a commit, where to see it"; exit 2; }
-                aw_lock "$mb/.cc-lock" || { say "the mailbox is locked ($mb/.cc-lock)"; exit 2; }
+                aw_lock "$mb/.cc-lock" || { say "nothing was changed: the lock $mb/.cc-lock was not taken (the line above says why)"; exit 2; }
                 [ -f "$mb/status-cc.md" ] || printf '# Statuses set by the cc side: id · time · status. The last line for an id holds.\n' > "$mb/status-cc.md"
                 printf 'gate %s · %s · %s\n' "$opt_id" "$(stamp)" "$(printf '%s' "$rest" | tr '\n' ' ')" >> "$mb/status-cc.md"
                 aw_unlock "$mb/.cc-lock"

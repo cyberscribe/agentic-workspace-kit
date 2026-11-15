@@ -123,6 +123,11 @@ Put the mechanisms the night needs into the brief, so they are not left to memor
   engineer.
 - **The suite runs on the machine it is meant for.** The manager does not run the suite in a VM, and
   no shell that runs git exports `GIT_DIR` or `GIT_WORK_TREE`.
+- **Who runs the manager's `pair.sh` overnight.** A Cowork manager does not run `pair.sh`; it gives the
+  person each command to paste (the mailbox README's *From Cowork* section), such as
+  `bash <kit>/plugins/projects/hooks/pair.sh gates --mailbox <mailbox> --from pm --id G1 pass "…"`.
+  Nobody pastes while the person sleeps, so a night that needs the manager to post or pass gates runs
+  a Claude Code manager (`pair.sh <folder> --pm`), whose shell is on the computer.
 - **Checked where the person will meet it.** Before handing off, confirm the brief has a "How the user
   meets it" section and a gate whose check runs through that surface, and that the manager checks it
   there itself: `gh pr checks <n>`, the page, the file. An engineer's status line is not a primary
