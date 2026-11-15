@@ -93,7 +93,7 @@ awh_checkpaths() {
     grep -v '^check-paths: ' "$AWH_TMP/cp.err" >&2
     if [[ $st -eq 0 ]]; then return 0; fi
     if [[ $st -ne 1 || -z "$out" ]]; then
-        awh_item "could-not-run: scripts/check-paths.sh stopped (exit $st): $(grep -v '^note: ' "$AWH_TMP/cp.err" | head -n 1)"
+        awh_item "could-not-run: scripts/check-paths.sh stopped (exit $st): $(grep -v '^note: ' "$AWH_TMP/cp.err" | sed -n 1p)"
         return 1
     fi
     while IFS=$'\t' read -r kind what why; do
@@ -151,7 +151,7 @@ awh_chain() {
 # awh_sensitivity <readme file>: prints "sensitive" when readme.awk field 17 says so.
 awh_sensitivity() {
     awk -v alias_outcome="" -v alias_done="" -v alias_people="" \
-        -f "$AWH_KIT_ROOT/plugins/projects/hooks/lib/readme.awk" "$1" 2>/dev/null | awk -F '\037' '{ print $17; exit }'
+        -f "$AWH_KIT_ROOT/plugins/projects/hooks/lib/readme.awk" "$1" 2>/dev/null | awk -F '\037' 'NR == 1 { print $17 }'
 }
 
 # awh_project_sensitive <repo dir> <folder, relative to the repo> <entry point>: 0 when the project is
