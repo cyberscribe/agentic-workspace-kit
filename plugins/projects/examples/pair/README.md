@@ -115,6 +115,42 @@ characters at most, a long command broken with a trailing `\`, variables set on 
 anything longer in a script they run with one short line, and the output to expect shown beside it.
 A terminal returns a wrapped line as several, and each runs as a command of its own.
 
+## From Cowork
+
+A manager in Cowork does not run `pair.sh`. It gives the person each command to paste in a terminal
+on their computer, written out in full with the paths there, and the person runs it. Cowork's Linux
+shell sees this folder as a mount where it may make files but not remove them, and a lock it took
+could stand for good; `pair.sh` run there stops at once and takes nothing. Reading the files from
+Cowork is fine.
+
+The forms, as the manager writes them, with the computer's absolute paths in place of `<kit>` and
+`<mailbox>` (`pair.sh where <project folder>`, run on the computer, prints the mailbox's):
+
+```
+bash <kit>/plugins/projects/hooks/pair.sh gates \
+  --mailbox <mailbox> \
+  --from pm --id G1 pass "<what you saw>"
+```
+
+```
+bash <kit>/plugins/projects/hooks/pair.sh status \
+  --mailbox <mailbox> \
+  --from pm --id CC-NNN done
+```
+
+A post reads its message from a file the manager writes first, `<mailbox>/.pm-draft.md`, which the
+protocol leaves alone:
+
+```
+bash <kit>/plugins/projects/hooks/pair.sh post \
+  --mailbox <mailbox> \
+  --from pm --title "<title>" \
+  < <mailbox>/.pm-draft.md
+```
+
+The person pastes it as it stands; the manager reads the output they report, or the mailbox, to see
+that it landed.
+
 ## Shared files
 
 A file several sessions edit (a claims board, a locks file) is changed with

@@ -31,6 +31,15 @@
 # The change itself is written as before: to a temporary file, then renamed into place, so a reader
 # sees the old file or the new one and never a part. The lock only orders the writers.
 #
+# A lock needs a shell that can remove files where it is taken. Some mounts let a shell make files and
+# not remove or rename them: Cowork's Linux shell on a connected folder, until the folder is given
+# delete permission. A lock taken there could never be let go, and its holder names a machine nobody
+# else can check, so it would stand until removed by hand. aw_lock therefore makes and removes a probe
+# file beside the lock first, and where that fails it takes nothing and says why (status 2). The probe
+# comes first, rather than a check on letting go, because undoing a lock needs the very removal that
+# failed. The probe has one name, .aw-probe, so a failed one leaves one empty file, which the next
+# shell able to remove files there clears with its own probe.
+#
 # Written for bash 3.2 and POSIX tools.
 
 # aw_proc_start <pid>: the process's start time, for telling it from a later process given the same
@@ -81,14 +90,36 @@ aw_lock_place() {
     fi
 }
 
+# aw_can_remove <dir>: 0 when this shell can make a file in <dir> and remove it; 1 when it cannot make
+# one, 2 when it cannot remove it. Asked once per folder per process. rm -f's own status decides, so
+# two shells probing at once do not mistake each other's probe for a failure.
+aw_can_remove() {
+    [ "${_aw_removes_in:-}" = "$1" ] && return 0
+    { : > "$1/.aw-probe"; } 2>/dev/null || return 1
+    rm -f "$1/.aw-probe" 2>/dev/null || return 2
+    _aw_removes_in="$1"
+}
+
 # aw_lock <lock dir>: 0 once the lock is held; 1, with the holder named on stderr, after AW_LOCK_WAIT
-# seconds of a holder that is alive.
+# seconds of a holder that is alive; 2, with the reason on stderr and nothing taken, where this shell
+# cannot make and remove files beside the lock.
 aw_lock() {
-    local l="$1" n=0 tries id f pid host since start stage hstart
+    local l="$1" n=0 tries id f pid host since start stage hstart d
+    d="$(dirname "$l")"
+    n=0; aw_can_remove "$d" || n=$?
+    if [ $n -ne 0 ]; then
+        if [ $n -eq 2 ]; then
+            printf 'lock: not taken: this shell can make files in %s but not remove them, so a lock taken there could never be let go. Run this on the computer that holds the folder, or where files there can be removed.\n' "$d" >&2
+        else
+            printf 'lock: not taken: this shell cannot write in %s.\n' "$d" >&2
+        fi
+        return 2
+    fi
+    n=0
     tries=$(( ${AW_LOCK_WAIT:-10} * 10 ))
     id="$$.$RANDOM$RANDOM"
     stage="$l.$id"
-    mkdir "$stage" || return 1
+    mkdir "$stage" 2>/dev/null || { printf 'lock: not taken: this shell cannot make a folder in %s.\n' "$d" >&2; return 2; }
     start="$(aw_proc_start "$$")"
     printf '%s\n%s\n%s\n%s\n' "$$" "$HOSTNAME" "$(date +%s)" "$start" > "$stage/h.$id"
     # shellcheck disable=SC2064
@@ -111,8 +142,14 @@ aw_lock() {
         if [ "$n" -ge "$tries" ]; then
             if [ -n "$pid" ]; then
                 case "$since" in ''|*[!0-9]*) since="" ;; *) since=", since $(( $(date +%s) - since )) seconds ago" ;; esac
-                printf 'lock: gave up on %s: process %s on %s holds it%s and is still running\n' \
-                    "$l" "$pid" "${host:-this host}" "$since" >&2
+                if [ -n "$host" ] && [ "$host" != "$HOSTNAME" ]; then
+                    # Another machine's process cannot be checked from here, so it counts as running.
+                    printf 'lock: gave up on %s: process %s on %s holds it%s. A process on another machine cannot be checked from here, so it counts as running. If nothing on %s is using the lock (a virtual machine that has stopped, say), remove it by hand: rm -r %s\n' \
+                        "$l" "$pid" "$host" "$since" "$host" "$(printf '%q' "$l")" >&2
+                else
+                    printf 'lock: gave up on %s: process %s on %s holds it%s and is still running\n' \
+                        "$l" "$pid" "${host:-this host}" "$since" >&2
+                fi
             else
                 printf 'lock: gave up on %s: it names no holder; if nothing is using it, remove it\n' "$l" >&2
             fi
@@ -129,8 +166,14 @@ aw_lock() {
     trap "rm -f '$l/h.$id'; rmdir '$l' 2>/dev/null" EXIT
 }
 
-# aw_unlock <lock dir>
-aw_unlock() { rm -f "$1/h.${_aw_lock_id:-}"; rmdir "$1" 2>/dev/null; trap - EXIT; }
+# aw_unlock <lock dir>: lets go; where the holder's file cannot be removed after all, says so and how
+# to clear it, with status 1.
+aw_unlock() {
+    rm -f "$1/h.${_aw_lock_id:-}" 2>/dev/null; rmdir "$1" 2>/dev/null; trap - EXIT
+    [ -e "$1/h.${_aw_lock_id:-}" ] || return 0
+    printf 'lock: could not let go of %s; once nothing is using it, remove it by hand: rm -r %s\n' "$1" "$(printf '%q' "$1")" >&2
+    return 1
+}
 
 # aw_rewrite <file> <command...>: runs the command with the file's current lines on stdin (none when
 # it does not exist yet) and makes its stdout the new file, under the lock <file>.lock. The result
@@ -147,6 +190,6 @@ aw_rewrite() {
     if [ $rc -ne 0 ] || { case "$head" in '#'*) true ;; *) false ;; esac && [ "$(head -n 1 "$tmp")" != "$head" ]; }; then
         rm -f "$tmp"; aw_unlock "$f.lock"; return 1
     fi
-    mv "$tmp" "$f"
+    mv "$tmp" "$f" 2>/dev/null || { rm -f "$tmp" 2>/dev/null; aw_unlock "$f.lock"; printf 'lock: could not replace %s; it is as it was\n' "$f" >&2; return 1; }
     aw_unlock "$f.lock"
 }

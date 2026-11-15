@@ -463,8 +463,8 @@ s23_out="$(bash "$s23_rs" add "$s23_b" "after a reused id" 2>&1 >/dev/null)"
     || s23_bad+="a process id reused by a later process: not taken over quietly: $s23_out"$'\n'
 mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' "$s23_live" "elsewhere.example" "$(date +%s)" "" > "$s23_b.lock/h.1.1"
 s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past another host" 2>&1 >/dev/null)"
-[[ "$s23_out" == *"process $s23_live on elsewhere.example holds it"* ]] && ! grep -q 'past another host' "$s23_b" \
-    || s23_bad+="a holder on another host: not kept, or not named: $s23_out"$'\n'
+[[ "$s23_out" == *"process $s23_live on elsewhere.example holds it"*"rm -r "*"$s23_b.lock"* ]] && ! grep -q 'past another host' "$s23_b" \
+    || s23_bad+="a holder on another host: not kept, or not named with the command that clears it: $s23_out"$'\n'
 rm -rf "$s23_b.lock"
 kill "$s23_live" 2>/dev/null; wait "$s23_live" 2>/dev/null
 mkdir "$s23_b.lock" && printf '999999\n' > "$s23_b.lock/pid"
@@ -483,7 +483,75 @@ rm -rf "$s23_b.lock"
 [[ "$s23_out" == *"names no holder"* ]] || s23_bad+="a lock naming no holder: not reported: $s23_out"$'\n'
 s23_left="$(cd "$SCRATCH/s23" && ls -d board.md.lock* 2>/dev/null)"
 [[ -z "$s23_left" ]] || s23_bad+="folders left beside the board: $s23_left"$'\n'
-empty "23 lock: a dead holder's lock is taken over at once and quietly (killed, its id reused, the old form, an empty folder); a running one is kept however old, and a waiter gives up naming it (and one on another host), leaving nothing behind" "$s23_bad"
+empty "23 lock: a dead holder's lock is taken over at once and quietly (killed, its id reused, the old form, an empty folder); a running one is kept however old, and a waiter gives up naming it (and one on another host, with the command that clears it), leaving nothing behind" "$s23_bad"
+
+# A shell that can make files beside a lock but not remove or rename them, as Cowork's Linux shell on a
+# connected folder, would leave a lock nobody could let go. Stand-ins for rm, rmdir and mv refuse
+# anything in one folder, as that mount does. The probe turns a writer away at once with nothing taken
+# (only its one probe file left), pair.sh points at the form that runs on the computer, a shell that
+# can remove files clears the probe, and a lock that cannot be let go after all says how to clear it.
+s23_nr="$SCRATCH/s23/noremove" s23_stub="$SCRATCH/s23/noremove-bin"
+mkdir -p "$s23_nr" "$s23_stub"
+for s23_c in rm rmdir mv; do
+    printf '#!/bin/sh\nfor a in "$@"; do case "$a" in %s/*) echo "%s: $a: Operation not permitted" >&2; exit 1 ;; esac; done\nexec %s "$@"\n' \
+        "$s23_nr" "$s23_c" "$(command -v "$s23_c")" > "$s23_stub/$s23_c"
+    chmod +x "$s23_stub/$s23_c"
+done
+# s23_ls <dir>: the names in a folder, dotfiles last, on one line.
+s23_ls() { local f o=""; for f in "$1"/* "$1"/.[!.]*; do [ -e "$f" ] && o+="${o:+ }${f##*/}"; done; printf '%s' "$o"; }
+s23_bad=""
+printf '# Claims board\n' > "$s23_nr/board.md"
+s23_t0=$(date +%s)
+s23_out="$(PATH="$s23_stub:$PATH" bash "$s23_rs" add "$s23_nr/board.md" "past a shell that cannot remove" 2>&1)"; s23_rc=$?
+[[ $s23_rc -ne 0 && "$s23_out" == *"not taken"*"not remove them"* && $(( $(date +%s) - s23_t0 )) -lt 3 ]] \
+    || s23_bad+="registry.sh where files cannot be removed: not turned away at once ($s23_rc): $s23_out"$'\n'
+[[ "$(cat "$s23_nr/board.md")" == "# Claims board" && "$(s23_ls "$s23_nr")" == "board.md .aw-probe" ]] \
+    || s23_bad+="registry.sh where files cannot be removed: the board changed, or more than the probe was left: $(s23_ls "$s23_nr")"$'\n'
+bash "$KIT/plugins/projects/hooks/pair.sh" init --mailbox "$s23_nr/mb" --name "No remove" >/dev/null 2>&1
+s23_before="$(cat "$s23_nr/mb/to-cc.md")"
+s23_out="$(printf 'a brief\n' | PATH="$s23_stub:$PATH" bash "$KIT/plugins/projects/hooks/pair.sh" post --mailbox "$s23_nr/mb" --from pm --title "From the VM" 2>&1)"; s23_rc=$?
+[[ $s23_rc -eq 2 && "$s23_out" == *"nothing was changed"*"From Cowork"* && "$(cat "$s23_nr/mb/to-cc.md")" == "$s23_before" ]] \
+    || s23_bad+="pair.sh post where files cannot be removed: not refused, pointing at the README ($s23_rc): $s23_out"$'\n'
+s23_left="$(s23_ls "$s23_nr/mb" | tr ' ' '\n' | grep -E 'lock|\.tmp\.')"
+[[ -z "$s23_left" ]] || s23_bad+="pair.sh post where files cannot be removed: left $s23_left"$'\n'
+s23_out="$(bash "$s23_rs" add "$s23_nr/board.md" "once files can be removed" 2>&1)"
+grep -q 'once files can be removed' "$s23_nr/board.md" && [[ ! -e "$s23_nr/.aw-probe" ]] \
+    || s23_bad+="a shell that can remove files: did not land, or did not clear the probe: $s23_out"$'\n'
+s23_out="$(bash -c '. "$1"; aw_lock "$2" || exit 9; PATH="$3:$PATH"; aw_unlock "$2"; echo "rc=$?"' _ "$s23_lk" "$s23_nr/held.lock" "$s23_stub" 2>&1)"
+[[ "$s23_out" == *"could not let go of $s23_nr/held.lock"*"rm -r "*"rc=1" ]] \
+    || s23_bad+="a lock that cannot be let go: not reported with the command that clears it: $s23_out"$'\n'
+rm -rf "$s23_nr/held.lock"
+empty "23 lock: where files can be made but not removed, a writer is turned away at once with no lock left, pair.sh says to run it on the computer, and the next shell able to remove clears the probe" "$s23_bad"
+# Cowork's Linux shell: Linux, with the mailbox on its mount under ~/mnt. A stand-in uname says Linux;
+# pair.sh runs nothing there, before any probe or lock, and says to hand the person the command. The
+# same stand-in with the mailbox elsewhere posts as usual, so the mount is what decides.
+s23_vm="$SCRATCH/s23/vm" s23_vbin="$SCRATCH/s23/vm-bin"
+mkdir -p "$s23_vm/vm-h/mnt/ws" "$s23_vbin"
+printf '#!/bin/sh\necho Linux\n' > "$s23_vbin/uname"; chmod +x "$s23_vbin/uname"
+bash "$KIT/plugins/projects/hooks/pair.sh" init --mailbox "$s23_vm/vm-h/mnt/ws/mb" --name "In the VM" >/dev/null 2>&1
+bash "$KIT/plugins/projects/hooks/pair.sh" init --mailbox "$s23_vm/elsewhere" --name "Not mounted" >/dev/null 2>&1
+s23_before="$(cat "$s23_vm/vm-h/mnt/ws/mb/to-cc.md")"
+s23_bad=""
+for s23_c in "post --from pm --title Brief" "gates --from pm --id G1 pass seen" "status --from pm --id CC-001 done" "check"; do
+    # The words are split on purpose: each string is a command and its options.
+    # shellcheck disable=SC2086
+    s23_out="$(printf 'a brief\n' | HOME="$s23_vm/vm-h" PATH="$s23_vbin:$PATH" bash "$KIT/plugins/projects/hooks/pair.sh" $s23_c --mailbox "$s23_vm/vm-h/mnt/ws/mb" 2>&1)"; s23_rc=$?
+    [[ $s23_rc -eq 2 && "$s23_out" == *"nothing was run"*"Cowork's Linux shell"*"Give the person the command"* ]] \
+        || s23_bad+="${s23_c%% *} in Cowork's shell: not stopped with the advice ($s23_rc): $s23_out"$'\n'
+done
+[[ "$(cat "$s23_vm/vm-h/mnt/ws/mb/to-cc.md")" == "$s23_before" && "$(s23_ls "$s23_vm/vm-h/mnt/ws/mb")" == "README.md status-cc.md status-pm.md to-cc.md to-pm.md" ]] \
+    || s23_bad+="in Cowork's shell, the mailbox changed: $(s23_ls "$s23_vm/vm-h/mnt/ws/mb")"$'\n'
+s23_out="$(printf 'a brief\n' | HOME="$s23_vm/vm-h" PATH="$s23_vbin:$PATH" bash "$KIT/plugins/projects/hooks/pair.sh" post --mailbox "$s23_vm/elsewhere" --from pm --title Brief 2>&1)"
+[[ "$s23_out" == PM-001 ]] || s23_bad+="Linux with the mailbox off the mount: not posted: $s23_out"$'\n'
+empty "23 in Cowork's Linux shell pair.sh runs nothing (post, gates, status, check) and says to give the person the command; on Linux off the mount it posts as usual" "$s23_bad"
+s23_bad=""
+for s23_f in "$KIT/plugins/projects/examples/pair/README.md" "$KIT/plugins/projects/commands/pair.md" "$KIT/plugins/projects/commands/overnight.md"; do
+    grep -q 'bash <kit>/plugins/projects/hooks/pair.sh gates' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: no pasteable pair.sh gates line"$'\n'
+    ! grep -qi 'osascript' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: still names osascript"$'\n'
+done
+grep -q '^## From Cowork$' "$KIT/plugins/projects/examples/pair/README.md" && grep -q '< <mailbox>/.pm-draft.md' "$KIT/plugins/projects/examples/pair/README.md" \
+    || s23_bad+="the mailbox README has no From Cowork section with the post form"$'\n'
+empty "23 a Cowork manager gives the person the pair.sh command to paste: the forms in the mailbox README, the pair command and the overnight checklist" "$s23_bad"
 
 # The guidance the model follows: these are instruction-presence checks, since the model applies them.
 s23_ex="$KIT/plugins/projects/examples/pair"
