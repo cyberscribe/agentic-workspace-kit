@@ -5,6 +5,50 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased — v3.6.2
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
+changes; the plugins take effect in the next session.
+
+**Plugins.** projects 3.6.2: the gate list, the startup routine, and "how the user meets it" in
+`/projects:pair` and `/projects:overnight`. closeout 1.6.0, workspace 2.3.1, scheduler 0.1.1 and ongoing
+0.1.0 are unchanged.
+
+- **A pairing's done is a list of gates.** What done means for a phase used to live in prose: the Done
+  when boxes and the engineer's reports. The PM now writes `gates.json` in the mailbox with the brief,
+  each gate a plain `what`, a `check` (a command, or steps a person follows), `by` (who sets the pass:
+  `pm` by default, `cc`, or `person`), `passes` and `evidence`. The PM's post of the brief seals the
+  ids, whats, checks and bys; `pair.sh gates` prints the list and its count, and refuses a list whose
+  fixed part has changed since, naming each change, until the PM seals it again on purpose
+  (`--from pm --seal`). The engineer never edits the file: its evidence, which proposes a pass, is a
+  line in its own status file (`pair.sh gates --from cc --id G1 <evidence>`), so every mailbox file
+  keeps one writer. The PM checks the evidence at its source and sets the pass (`--from pm --id G1
+  pass <what it saw>`). The count is in the engineer's opening context and the PM's `pair.sh check`
+  (`Gates: 4 of 6 pass`), and in the overnight morning summary. Only the gate list needs `jq`; without
+  it the hooks leave the gate line out.
+- **The engineer starts each session with a routine.** On every start and resume, before new work, it
+  reads the open messages, the gates and `git log`, runs the baseline check the brief names on its
+  `baseline:` line, and reports the result in its first message; a red baseline comes first. The
+  kickoff prompt, the launcher's resume prompt and the session-start line carry it (not after a
+  compaction, when the session is mid-work). The kickoff also asks for one change at a time, each left
+  so the baseline still passes.
+- **The work is checked the way its user meets it.** A brief gains "How the user meets it": the real
+  surfaces (CI on GitHub, a real terminal, the browser), with at least one gate checked through one of
+  them. The PM checks those at the source, `gh pr checks <n>` or the page itself, and not from the
+  engineer's status line, whose `waiting` does not mean its watch is still running. `/projects:overnight`
+  writes the gates from what the person wants to wake up to, and checks for this section and the
+  baseline before it hands off.
+- **The word-list secret is set without its comment lines.** GitHub hides each line of a secret
+  wherever that text appears in a run's logs, and a lone `#` line in `AW_BANNED_WORDS` hid every `#` in
+  CI's output. The workflow's comment and `CONTRIBUTING.md` now say to set it with
+  `grep -v '^#' <your word list> | gh secret set AW_BANNED_WORDS`, and CI warns when the secret holds a
+  comment line. CI does not strip them itself: the hiding works from the secret as it was set, so a
+  stripped copy would hide just as much.
+- **Tests.** Section 23 checks the gate list's schema, its sealing, a changed fixed field refused by
+  name, the engineer's evidence and the PM's pass, the count where each side reads it, and the startup
+  routine and "how the user meets it" in the kickoff, the resume prompt, the command and the overnight
+  pre-flight.
+
 ## v3.6.1 — 2026-11-15
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
