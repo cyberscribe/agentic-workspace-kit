@@ -430,7 +430,7 @@ sessions elsewhere keep the old version. In Cowork, run `kit/setup.sh cowork` ag
 | A session opens with `Workspace:` lines | Each names something out of step and the command that fixes it |
 | A scheduled run did not happen | `schedule.sh report` says whether it was missed (the machine was off) or failed; `schedule.sh run <name>` runs it now |
 | A scheduled run is waiting | It wants your answer: `schedule.sh list` shows which, and `schedule.sh reply <name> '<answer>'` gives it |
-| An update says a change does not fit a file | Your file has its own wording there; merge that change by hand, then answer n next time to stop the offer |
+| An update says a change does not fit a file | Your file has its own wording there; merge that change by hand, then answer y when the update asks "Stop offering?" |
 
 ---
 

@@ -34,6 +34,54 @@ Both last. A model can learn a codebase by reading it, but it cannot learn what 
 how you talk, unless someone writes it down. [The principles](docs/principles.md) behind the kit, and
 [the audit](docs/purpose-audit.md) of each of its parts against these two, say more.
 
+## Already using the kit?
+
+Run these from inside your workspace folder (`cd ~/my-workspace`, or wherever yours is).
+
+**1. Update the kit:**
+
+```bash
+kit/setup.sh update
+```
+
+It moves the kit to the newest release and shows what changed since your version. Then it goes through
+the kit's files that also live in your workspace, one at a time. It checks each change against your copy
+before it asks you anything, so what you see depends on what you have changed yourself:
+
+| What it says | What it means | What to answer |
+|---|---|---|
+| "Apply this change to *file*?" | The change fits your copy as it is | y, unless you would rather not |
+| "Nothing to apply…", then "Stop offering this change…?" | You have it already in your own words, or you rewrote that passage | y |
+| The change "needs merging by hand" | Your wording and the kit's overlap | Copy the ready-made line it prints to Claude in your workspace; answer y once Claude has merged it |
+| "Move memory/glossary.md to memory/terms.md?" | Your own team's terms now live in `terms.md`, and `glossary.md` holds plain words for AI jargon | y |
+
+It ends with a `git add` line and a `git commit` line. Run them to save the update.
+
+**2. Bring your installed commands up to date,** once per person. Add the two plugins that are new in
+3.6 (`ongoing`, for areas you keep up rather than finish, and `scheduler`, for tasks that run on a
+schedule on your own computer), then update the three you have:
+
+```bash
+claude plugin install --scope user ongoing@agentic-workspace
+claude plugin install --scope user scheduler@agentic-workspace
+claude plugin update --scope user closeout@agentic-workspace
+claude plugin update --scope user projects@agentic-workspace
+claude plugin update --scope user workspace@agentic-workspace
+```
+
+`--scope user` makes them load in every folder on your machine. If you use Cowork, run
+`kit/setup.sh cowork` as well and upload the `.plugin` files it names.
+
+**3. Start a new Claude session** in the workspace, so it loads the new commands.
+
+**Working with someone else?** One of you updates (steps 1–3) and pushes the commit. The other runs
+`git pull --recurse-submodules`, then steps 2 and 3.
+
+**Nothing you have written needs changing.** A README that says *owns*, *does*, *helps*, *ask first* or
+*keep told* still works; new ones say accountable, responsible, supporting, consulted and informed. A
+long-running project you would rather keep as an area moves with `/ongoing:adopt`. The
+[CHANGELOG](CHANGELOG.md) lists everything each release changed.
+
 ## Quick start
 
 About twenty minutes. Each step says what you should see.
@@ -72,10 +120,27 @@ cd ~ && git clone https://github.com/cyberscribe/agentic-workspace-kit.git agent
 bash agentic-workspace-kit/setup.sh new my-workspace
 ```
 
-Setup asks a few questions (your team's name, which can just be your own, and who owns its standards,
-which can be you), then works through ten stages. When it finishes, it prints a `git add` line and a
-`git commit` line under "Commit to make": copy and run them, from inside the workspace folder
-(`cd ~/my-workspace` first). That saves your starting point.
+Setup works through ten stages and asks as it goes. Pressing Return takes the answer in brackets.
+
+| It asks | A safe first answer |
+|---|---|
+| Team name | your own name, if it is just you |
+| Standards owner | you |
+| Their GitHub or GitLab handle | leave it empty |
+| Run it as a measured pilot? | n |
+| Add it now? / Run it now? | y |
+| Enable them in `.claude/settings.json` now? | y |
+| Install them for you now? | y |
+
+Partway through, setup asks you to start Claude in the new folder in a second terminal window, check
+that the commands are listed, and come back to answer "Were they all listed?". A stage that ends
+"left open" needs one more step from you, and setup says which; the rest still runs.
+
+When it finishes, it prints a `git add` line and a `git commit` line under "The commit to make, when
+you are ready:". Copy and run them from inside the workspace folder (`cd ~/my-workspace` first). That
+saves your starting point. If git asks who you are, run the two `git config --global` lines it shows,
+with your name and email, then the commit again. If a check refuses the commit, it says why; fix
+that, or ask Claude in the workspace, rather than skipping the check.
 
 **5. Start Claude in your workspace:**
 
@@ -84,10 +149,14 @@ cd ~/my-workspace && claude
 ```
 
 Trust the folder when asked. Then type `/workspace:quick-start` and press Return. It interviews you
-about how you work and fills the workspace in. Answer in your own words; anything can be skipped.
+about how you work and fills the workspace in. Answer in your own words; anything can be skipped. If
+the command is not listed when you type `/`, leave Claude (type `/exit`) and start it again in the same
+folder: the first session after a folder is trusted can come up without the kit's commands.
 
 **6. Start your first project.** Type `/projects:new` and describe something you are working on that
-has a finish line.
+has a finish line. It asks what "done" looks like, who is involved, and two things about where the
+project lives: whether it is kept in the workspace's git or elsewhere, and whether it is sensitive. For
+a first project, in the workspace and not sensitive are the usual answers.
 
 **7. Start your first area.** Type `/ongoing:new` and describe something you keep up with no finish
 line, such as a garden, a practice or the books. It asks what good looks like, the standards that
@@ -108,7 +177,23 @@ kit/setup.sh cowork
 
 Open the workspace folder in Cowork, and the same commands appear as skills in the next session.
 
-That is the whole start. **[The getting-started guide](docs/getting-started.md)** walks through
+**11. Two of you?** Make an empty private repository on GitHub (or wherever your team keeps code),
+then, inside the workspace:
+
+```bash
+git remote add origin <your private repository URL> && git push -u origin main
+```
+
+Run `kit/setup.sh` once more to confirm the remote is private. Your partner then runs:
+
+```bash
+git clone --recurse-submodules <your private repository URL> my-workspace
+```
+
+and then `cd my-workspace && kit/setup.sh`, and `/workspace:quick-start` in Claude, which finds them
+joining an existing workspace.
+
+That is the whole start; everything below is reference. **[The getting-started guide](docs/getting-started.md)** walks through
 everything else in order — the daily routine, pairing two sessions on a build, finishing projects,
 keeping the workspace tidy, and updating the kit — with a check at each step. A team setting it up
 together, or anyone who wants the workspace on GitHub from the start, should begin there.

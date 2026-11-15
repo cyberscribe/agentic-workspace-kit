@@ -96,7 +96,7 @@ line each, with the command that fixes it — and nothing when all is in step:
 
 ```
 Workspace: git hooks are not active — kit/setup.sh hooks turns them on.
-Workspace: site: 2 commits not pushed; kit: pointer changed, not committed.
+Workspace: site: 2 commits not pushed; kit: at a new commit the workspace has not recorded.
 Workspace: 2 resources not reachable on this machine (field-study/media, field-study/survey-data) — kit/setup.sh link.
 Workspace: origin is not confirmed private — kit/setup.sh records it once confirmed.
 ```

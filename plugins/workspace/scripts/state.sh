@@ -142,10 +142,13 @@ emit() {
             *) return 0 ;;
         esac
     fi
-    out+="$1=$(printf '%s' "$2" | tr '\n' ' ')"$'\n'
+    # Each newline in the value becomes a space, as tr would, without starting a process: emit runs for
+    # every key, and a process each was most of this script's cost.
+    out+="$1=${2//$'\n'/ }"$'\n'
 }
-# join: stdin lines as one comma-separated list.
-join() { sed '/^$/d' | tr -d ',' | paste -sd, - ; }
+# join: stdin lines as one comma-separated list: empty lines dropped, commas inside a line removed. One
+# awk, where sed, tr and paste were three processes a call.
+join() { awk '$0 != "" { gsub(/,/, ""); printf "%s%s", (n++ ? "," : ""), $0 } END { if (n) print "" }'; }
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 # count: a trimmed line count of stdin (BSD wc pads its count).
 count() { awk 'END { print NR }'; }
@@ -158,7 +161,8 @@ table_rows() {
 # one habit that file keeps, which the projects hook reads the same way.
 conv() {
     [[ -f "$T/.claude/projects.md" ]] || return 0
-    awk -v want="$(lower "$1")" '
+    awk -v want="$1" '
+        BEGIN { want = tolower(want) }
         /^[ \t]*[-*] \*\*[^*]+:\*\*/ {
             l = $0; sub(/^[ \t]*[-*] \*\*/, "", l); lab = l; sub(/:\*\*.*/, "", lab)
             if (tolower(lab) == want) { if (match(l, /`[^`]*`/)) print substr(l, RSTART + 1, RLENGTH - 2); exit }
@@ -398,17 +402,33 @@ AW_HOOK_NAMES="pre-commit pre-merge-commit commit-msg pre-push"
 # hook of that name — the repository is the kit itself, or an ancestor (the top included) holds kit/.
 hook_target() {
     local top="$1" n="$2" d
-    if grep -q '"agentic-workspace"' "$top/.claude-plugin/marketplace.json" 2>/dev/null && [[ -x "$top/githooks/$n" ]]; then
+    if is_kit "$top" && [[ -x "$top/githooks/$n" ]]; then
         return 0
     fi
     d="$top"
     while :; do
-        if grep -q '"agentic-workspace"' "$d/kit/.claude-plugin/marketplace.json" 2>/dev/null && [[ -x "$d/kit/githooks/$n" ]]; then
+        if is_kit "$d/kit" && [[ -x "$d/kit/githooks/$n" ]]; then
             return 0
         fi
         [[ "$d" == / || -z "$d" ]] && return 1
-        d="$(dirname "$d")"
+        d="${d%/*}"; [[ -n "$d" ]] || d=/
     done
+}
+# line2_is <file> <text>: the file's second line is the text, read by bash rather than by a sed for
+# each of the eight stubs a run checks.
+line2_is() {
+    local b=""
+    { IFS= read -r _; IFS= read -r b; } < "$1" 2>/dev/null
+    [[ "$b" == "$2" ]]
+}
+# is_kit <dir>: the folder is a checkout of the kit, its marketplace naming agentic-workspace. Each
+# answer is kept for the run: hook_target asks of the same folders for every hook name.
+KIT_YES="|" KIT_NO="|"
+is_kit() {
+    case "$KIT_YES" in *"|$1|"*) return 0 ;; esac
+    case "$KIT_NO" in *"|$1|"*) return 1 ;; esac
+    if grep -q '"agentic-workspace"' "$1/.claude-plugin/marketplace.json" 2>/dev/null; then KIT_YES+="$1|"; return 0; fi
+    KIT_NO+="$1|"; return 1
 }
 # hooks_of <repository top>: active | missing | other | none. Active is the local core.hooksPath set to
 # this repository's own <git dir>/aw-hooks, each of the four stubs there executable and carrying the
@@ -431,7 +451,7 @@ hooks_of() {
     r="$(cd "$r" && pwd -P)"
     for n in $AW_HOOK_NAMES; do
         s="$gd/aw-hooks/$n"
-        if [[ ! -f "$s" || ! -x "$s" || "$(sed -n 2p "$s" 2>/dev/null)" != "$AW_STUB_MARKER" ]] || ! hook_target "$r" "$n"; then
+        if [[ ! -f "$s" || ! -x "$s" ]] || ! line2_is "$s" "$AW_STUB_MARKER" || ! hook_target "$r" "$n"; then
             echo missing; return 0
         fi
     done

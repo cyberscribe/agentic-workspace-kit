@@ -122,7 +122,7 @@ while IFS= read -r p; do
     parts=()
     n="$(field "$v" dirty)"; isnum "$n" && [[ "$n" -gt 0 ]] && parts+=("$(plural "$n" "changed file" "changed files")")
     n="$(field "$v" unpushed)"; isnum "$n" && [[ "$n" -gt 0 ]] && parts+=("$(plural "$n" "commit not pushed" "commits not pushed")")
-    case "$(field "$v" pointer)" in staged|uncommitted) parts+=("pointer changed, not committed") ;; esac
+    case "$(field "$v" pointer)" in staged|uncommitted) parts+=("at a new commit the workspace has not recorded") ;; esac
     n="$(field "$v" behind)"
     [[ "$role" != kit ]] && isnum "$n" && [[ "$n" -gt 0 ]] && parts+=("$(plural "$n" "commit behind its remote" "commits behind its remote")")
     if [[ "$(field "$v" branch)" == detached ]] && printf '%s\n' "$rebase_paths" | grep -qxF "$p"; then
@@ -148,7 +148,7 @@ fi
 v="$(key orphan_gitlinks)"
 if [[ -n "$v" ]]; then
     n="$(ncount "$v")"
-    if [[ "$n" == 1 ]]; then w="1 gitlink has"; else w="$n gitlinks have"; fi
+    if [[ "$n" == 1 ]]; then w="1 submodule folder has"; else w="$n submodule folders have"; fi
     lines+=("Workspace: $w no .gitmodules entry ($(names "$v")) — kit/setup.sh migrate --dry-run names the two fixes.")
 fi
 

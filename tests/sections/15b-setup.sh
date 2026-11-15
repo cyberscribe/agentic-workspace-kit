@@ -221,12 +221,12 @@ if [[ -n "${s15_engine:-}" && ${s15_engine:-0} -eq 1 ]]; then
     cmp -s "$s15_c/.claude/closeout.md" "$SCRATCH/s15-co-before" || s15_bad+=".claude/closeout.md changed"$'\n'
     [[ "$(awk -F '\t' '$1 == ".claude/closeout.md"' "$s15_c/.claude/kit-templates.lock")" == "$s15_lock_before" ]] \
         || s15_bad+="the ledger entry for .claude/closeout.md changed (an apply question was asked and answered?)"$'\n'
-    grep -qxF '  .claude/closeout.md: none of the 1 changes fits as it is; 1 need merging by hand.' "$s15_c.log" || s15_bad+="the file and the count do not come first"$'\n'
+    grep -qxF '  .claude/closeout.md: the change does not fit as it is and needs merging by hand.' "$s15_c.log" || s15_bad+="the file and the count do not come first"$'\n'
     grep -q 'This change does not fit \.claude/closeout\.md as it is now; merge it by hand:' "$s15_c.log" || s15_bad+="the left-over hunk is not named"$'\n'
     grep -q '^    +A line the second kit commit adds\.$' "$s15_c.log" || s15_bad+="the lines it wanted are not printed"$'\n'
     grep -qF "    Merge the kit's latest change to .claude/closeout.md into my copy, keeping my own edits. kit/install.sh --template-diff .claude/closeout.md --target . prints the change." "$s15_c.log" \
         || s15_bad+="no ready-made prompt for the assistant"$'\n'
-    grep -q '^  left for hand merging  \.claude/closeout\.md (1 of 1 changes)$' "$s15_c.log" || s15_bad+="the summary does not list it for hand merging"$'\n'
+    grep -q '^  left for hand merging  \.claude/closeout\.md (1 change)$' "$s15_c.log" || s15_bad+="the summary does not list it for hand merging"$'\n'
     empty "15 update, hunk by hunk: nothing fits, so no apply question; the hunk and a prompt for the assistant are printed, and n leaves the ledger" "$s15_bad"
     # The prompt's own command prints the change from the workspace's root.
     (cd "$s15_c" && "$st_bash" kit/install.sh --template-diff .claude/closeout.md --target . 2>&1) | grep_all '^+A line the second kit commit adds\.$' \
@@ -259,7 +259,7 @@ PYSUB
     s15_sub "$s15_c/kit/templates/workspace/closeout.md" 'names the file rather than restating' 'names the file instead of restating'
     (cd "$SCRATCH" && printf 'y\nn\n' | AW_WIZARD_NONINTERACTIVE=0 "$st_bash" "$s15_c/kit/setup.sh" update --no-fetch >"$s15_c.log" 2>&1)
     s15_bad=""
-    grep -q '^  1 of the 2 changes fit \.claude/closeout\.md as it is now\.$' "$s15_c.log" || s15_bad+="the count of changes that fit is not given"$'\n'
+    grep -q '^  1 of the 2 changes fits \.claude/closeout\.md as it is now\.$' "$s15_c.log" || s15_bad+="the count of changes that fit is not given"$'\n'
     grep -q 'names the file instead of restating' "$s15_c/.claude/closeout.md" || s15_bad+="the change that fits did not land"$'\n'
     grep -q '^A line the second kit commit adds\.$' "$s15_c/.claude/closeout.md" && s15_bad+="the change that does not fit was forced in"$'\n'
     grep -q "^    Merge the kit's latest change to \.claude/closeout\.md" "$s15_c.log" || s15_bad+="no ready-made prompt"$'\n'
@@ -295,13 +295,13 @@ PYSUB
     for s15_f in .claude/closeout.md .claude/projects.md docs/workspace-map.md; do
         cmp -s "$s15_c/$s15_f" "$SCRATCH/s15-own-$(basename "$s15_f")" || s15_bad+="$s15_f changed"$'\n'
         [[ "$(awk -F '\t' -v f="$s15_f" '$1 == f { print $5 }' "$s15_c/.claude/kit-templates.lock")" == accepted ]] || s15_bad+="$s15_f not recorded accepted (an apply question took the answer?)"$'\n'
-        grep -q "^  in your own words      ${s15_f//./\\.}\$" "$s15_c.log" || s15_bad+="$s15_f not listed as in your own words"$'\n'
+        grep -q "^  nothing to apply       ${s15_f//./\\.}\$" "$s15_c.log" || s15_bad+="$s15_f not listed as nothing to apply"$'\n'
         grep -q "changed   ${s15_f//./\\.}" "$s15_c-2.log" && s15_bad+="$s15_f offered again on the next update"$'\n'
     done
     grep -q 'does not fit' "$s15_c.log" && s15_bad+="a hunk was put up for hand merging"$'\n'
-    for s15_l in '  .claude/closeout.md: none of the 2 changes needs applying. 1 on lines you have rewritten; 1 already there.' \
-        '  .claude/projects.md: none of the 1 changes needs applying. 1 on lines you have rewritten.' \
-        '  docs/workspace-map.md: none of the 2 changes needs applying. 1 already in your own words; 1 on lines you have rewritten.'; do
+    for s15_l in '  .claude/closeout.md: nothing to apply. 1 is on lines you have rewritten; 1 is already there.' \
+        '  .claude/projects.md: nothing to apply. The change is on lines you have rewritten.' \
+        '  docs/workspace-map.md: nothing to apply. 1 is already in your own words; 1 is on lines you have rewritten.'; do
         grep -qxF -- "$s15_l" "$s15_c.log" || s15_bad+="no line: $s15_l"$'\n'
     done
     empty "15 update: changes already made in the team's own words, or to passages it rewrote, get no apply question; Enter stops the offer" "$s15_bad"

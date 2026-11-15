@@ -466,7 +466,7 @@ jq -e '.permissions.allow == ["Zed(x)", "Alpha(y)"]' "$s14_J/.claude/settings.js
 jq -e '.enabledPlugins["workspace@agentic-workspace"] == false' "$s14_J/.claude/settings.json" >/dev/null || s14_bad+="the person's false was changed"$'\n'
 grep -A2 -xF 'Merged (settings marketplace path):' <<<"$s14_out" | grep_all -xF '  .claude/settings.json' || s14_bad+="not reported as merged"$'\n'
 empty "14 an existing settings.json gets the marketplace path at kit; its list order and a plugin switched off are kept" "$s14_bad"
-s14_cmd="$(grep -F "settings key the kit's template has and yours lacks" <<<"$s14_out" | grep -F 'Edit(./kit/**)' | head -n 1 | sed 's/^.*yours lacks: //')"
+s14_cmd="$(grep -F "lacks a setting the kit's template has" <<<"$s14_out" | grep -F 'Edit(./kit/**)' | head -n 1 | sed 's/^.*this adds it: //')"
 if [[ -n "$s14_cmd" ]] && (cd "$s14_J" && bash -c "$s14_cmd") 2>/dev/null \
     && jq -e '.permissions.ask | index("Edit(./kit/**)") != null' "$s14_J/.claude/settings.json" >/dev/null \
     && jq -e '.permissions.allow == ["Zed(x)", "Alpha(y)"]' "$s14_J/.claude/settings.json" >/dev/null; then

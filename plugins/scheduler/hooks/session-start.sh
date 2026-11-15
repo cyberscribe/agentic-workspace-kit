@@ -108,7 +108,10 @@ if [[ -n "$failed" ]]; then
     if (( n == 1 )); then parts+=("$(first "$failed") failed since the last session (schedule.sh log $(first "$failed"))")
     else parts+=("$n tasks had failed runs since the last session: $(list "$failed") (schedule.sh log <name>)"); fi
 fi
-[[ -n "$paused" ]] && parts+=("$(list "$paused") paused itself after failing (schedule.sh show $(first "$paused"))")
+if [[ -n "$paused" ]]; then
+    if [[ "$paused" == "$(first "$paused") " ]]; then w=itself; else w=themselves; fi
+    parts+=("$(list "$paused") paused $w after failing (schedule.sh show $(first "$paused"))")
+fi
 [[ -n "$waiting" ]] && parts+=("$(list "$waiting") awaiting an answer (open it: ${open_cmd:-schedule.sh show $(first "$waiting")}; or schedule.sh reply $(first "$waiting") '<your reply>')")
 if [[ -n "$missed" ]]; then
     n=0; for x in $missed; do n=$((n + 1)); done

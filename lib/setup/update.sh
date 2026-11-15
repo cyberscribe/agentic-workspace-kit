@@ -234,18 +234,29 @@ by_hunk() {
     rm -rf "$dir"
 }
 
+# pl <n> <one> <many>: the word that agrees with n.
+pl() { if [[ $1 -eq 1 ]]; then printf '%s' "$2"; else printf '%s' "$3"; fi; }
+
 # own_words: says which of the hunks that do not apply need nothing, from the counts by_hunk set.
 own_words() {
-    [[ $H_MERGED -eq 0 ]] || say "  Already in your copy in your own words: $H_MERGED of the changes."
-    [[ $H_GONE -eq 0 ]] || say "  Edits lines your copy has rewritten, so there is nothing to merge: $H_GONE of the changes."
+    [[ $H_MERGED -eq 0 ]] || say "  $H_MERGED $(pl "$H_MERGED" 'change is' 'changes are') already in your copy, in your own words."
+    [[ $H_GONE -eq 0 ]] || say "  $H_GONE $(pl "$H_GONE" 'change is' 'changes are') on lines your copy has rewritten, so there is nothing to merge."
 }
 
-# why_none: the same counts in one sentence, for the line that names the file.
+# why_none: the same counts in one sentence, for the line that names the file. A count that is every
+# change of the file's ($all) reads "the change", "both changes" or "all 3 changes".
 why_none() {
-    local w=""
-    [[ $H_MERGED -eq 0 ]] || w="$H_MERGED already in your own words"
-    [[ $H_GONE -eq 0 ]] || w="${w:+$w; }$H_GONE on lines you have rewritten"
-    [[ $H_THERE -eq 0 ]] || w="${w:+$w; }$H_THERE already there"
+    local w="" n s np
+    for np in "$H_MERGED|already in your own words" "$H_GONE|on lines you have rewritten" "$H_THERE|already there"; do
+        n="${np%%|*}"
+        [[ $n -eq 0 ]] && continue
+        if [[ $n -eq $all ]]; then
+            case $all in 1) s="the change is" ;; 2) s="both changes are" ;; *) s="all $all changes are" ;; esac
+        else
+            s="$n $(pl "$n" is are)"
+        fi
+        w="${w:+$w; }$s ${np#*|}"
+    done
     printf '%s.' "$(printf '%s' "$w" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')"
 }
 
@@ -260,7 +271,7 @@ ACCEPTED=() APPLIED=() THERE=() OWN=() HAND=() GITIGNORE_ADDED=0 RECORDED=0
 if [[ $offer -eq 1 ]]; then
     status_out="$("${BASH:-bash}" "$WS/kit/install.sh" --template-status --target "$WS" 2>/dev/null)"; rc=$?
     if [[ $rc -ne 0 ]]; then
-        warn "the engine could not report on your files' templates (kit/install.sh --template-status, status $rc)"
+        warn "the kit could not report on your files' templates (kit/install.sh --template-status, status $rc)"
         status_out=""
     fi
     listed=0
@@ -302,10 +313,10 @@ if [[ $offer -eq 1 ]]; then
                 if [[ $H_FITS -gt 0 ]]; then
                     q="Apply this change to $dest?"
                     if [[ $((H_MERGED + H_GONE + H_LEFT)) -gt 0 ]]; then
-                        say "  $H_FITS of the $all changes fit $dest as it is now."
+                        say "  $H_FITS of the $all changes $(pl "$H_FITS" fits fit) $dest as it is now."
                         own_words
-                        [[ $H_LEFT -eq 0 ]] || say "  $H_LEFT do not fit, and are shown for merging by hand once the others are in."
-                        q="Apply the $H_FITS that fit?"
+                        [[ $H_LEFT -eq 0 ]] || say "  $H_LEFT $(pl "$H_LEFT" 'does not fit, and is' 'do not fit, and are') shown for merging by hand once the others are in."
+                        q="$(pl "$H_FITS" 'Apply the one that fits?' "Apply the $H_FITS that fit?")"
                     fi
                     if [[ $YES -eq 1 ]] || confirm "$q" n; then
                         by_hunk apply "$dest" "$diff_file"
@@ -328,7 +339,7 @@ if [[ $offer -eq 1 ]]; then
                     fi
                 elif [[ $H_LEFT -eq 0 ]]; then
                     # Nothing applies, and nothing needs to: the file and the count, then the question.
-                    say "  $dest: none of the $all changes needs applying. $(why_none)"
+                    say "  $dest: nothing to apply. $(why_none)"
                     if [[ $YES -eq 1 ]] || confirm "Stop offering this change to $dest?" y; then
                         "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
                         RECORDED=1
@@ -340,10 +351,14 @@ if [[ $offer -eq 1 ]]; then
                 else
                     # Nothing applies, and some of it is a merge by hand: no question to apply, only the
                     # hunks, the prompt and a way to stop the offer once the merge is done.
-                    say "  $dest: none of the $all changes fits as it is; $H_LEFT need merging by hand.$( [[ $((H_MERGED + H_GONE)) -eq 0 ]] || printf ' %s' "$(why_none)")"
+                    if [[ $all -eq 1 ]]; then
+                        say "  $dest: the change does not fit as it is and needs merging by hand."
+                    else
+                        say "  $dest: none of the $all changes fits as it is; $( [[ $H_LEFT -eq $all ]] && printf all || printf '%s' "$H_LEFT") $(pl "$H_LEFT" needs need) merging by hand.$( [[ $((H_MERGED + H_GONE)) -eq 0 ]] || printf ' %s' "$(why_none)")"
+                    fi
                     by_hunk apply "$dest" "$diff_file"
                     hand_prompt "$dest"
-                    HAND+=("$dest ($H_LEFT of $all changes)")
+                    if [[ $H_LEFT -eq $all ]]; then HAND+=("$dest ($all $(pl "$all" change changes))"); else HAND+=("$dest ($H_LEFT of $all changes)"); fi
                     if [[ $YES -eq 0 ]] && confirm "Stop offering this change to $dest? Answer y once it is merged by hand." n; then
                         "${BASH:-bash}" "$WS/kit/install.sh" --template-record "$dest" --status accepted --target "$WS" >/dev/null 2>&1
                         RECORDED=1
@@ -406,7 +421,7 @@ EOF
             cat "$gi_diff"
             echo
             if ! attended && [[ $YES -eq 0 ]]; then
-                note "unattended: nothing added; kit/setup.sh update, run at a terminal or with --yes, offers them"
+                note "not at a terminal, so nothing added; kit/setup.sh update, run at a terminal or with --yes, offers them"
             elif [[ $YES -eq 1 ]] || confirm "Add them to .gitignore?" y; then
                 if "${WG[@]}" apply --check "$gi_diff" >/dev/null 2>&1 && "${WG[@]}" apply "$gi_diff"; then
                     GITIGNORE_ADDED=1; check "added to .gitignore" true
@@ -449,7 +464,7 @@ $merged
 EOF
     [[ -z "$(section "Added to .gitignore:")" ]] || ENGINE_PATHS+=(.gitignore)
     [[ -z "$created" ]] || { say "Created for you, new with this kit:"; printf '%s\n' "$created"; }
-    [[ -z "$merged" ]] || { say "Settings: the kit's marketplace path added:"; printf '%s\n' "$merged"; }
+    [[ -z "$merged" ]] || { say "The kit's plugin marketplace was added to:"; printf '%s\n' "$merged"; }
     worth="$(section "Worth knowing:")"
     [[ -z "$worth" ]] || { say "Worth knowing:"; printf '%s\n' "$worth"; }
 fi
@@ -477,7 +492,7 @@ if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#OWN[@]} -gt 0 || ${#HAND[
     say "Template changes:"
     for p in ${APPLIED[@]+"${APPLIED[@]}"}; do step "applied                $p"; done
     for p in ${THERE[@]+"${THERE[@]}"}; do step "already there          $p"; done
-    for p in ${OWN[@]+"${OWN[@]}"}; do step "in your own words      $p"; done
+    for p in ${OWN[@]+"${OWN[@]}"}; do step "nothing to apply       $p"; done
     for p in ${HAND[@]+"${HAND[@]}"}; do step "left for hand merging  $p"; done
 fi
 
