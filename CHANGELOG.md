@@ -5,6 +5,40 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased — v3.6.4
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
+changes; the plugins take effect in the next session.
+
+**Plugins.** projects 3.6.4: the lock, and `pair.sh` with a manager in Cowork. closeout 1.6.1, workspace
+2.3.2, scheduler 0.1.2 and ongoing 0.1.0 are unchanged.
+
+- **A lock is never left where it cannot be let go.** Cowork's Linux shell sees a connected folder as a
+  mount where it can make files but not remove or rename them, until the folder is given delete
+  permission. A manager posting from there took the mailbox's lock and could not let it go, and left
+  its staging folder too. Since 3.6.1 a lock is taken over only when its holder is known to have
+  stopped, and a holder on another machine cannot be checked, so the lock stood until it was removed
+  by hand. Before 3.6.1 it would have been taken over after a minute. Now the lock first makes and
+  removes a probe file beside itself; where that fails it takes nothing, says why at once and returns
+  2. The probe comes first because undoing a lock needs the very removal that failed. It has one name,
+  `.aw-probe`, so a failed one leaves one empty file, which the next shell able to remove files there
+  clears. A lock that cannot be let go after all, and a waiter giving up on a holder on another
+  machine, now both print the exact command that clears it. The rule stays: a holder on another
+  machine counts as running.
+- **A Cowork manager gives the person the command.** It no longer runs `pair.sh` itself: it writes
+  each command out in full, with the computer's absolute paths and kept to the paste rule, and the
+  person runs it in a terminal. A post reads its message from `<mailbox>/.pm-draft.md`, which the
+  manager writes first. The mailbox README's new *From Cowork* section has the forms; the pair command
+  says the same, and the overnight checklist adds that a night needing the manager to post or pass
+  gates runs a Claude Code manager, since nobody pastes while the person sleeps. Run in Cowork's Linux
+  shell (Linux, with the folder on its mount), `pair.sh` stops at once with that advice and takes
+  nothing. In any other shell that cannot remove files in the mailbox, `post`, `status` and `gates`
+  stop with nothing changed.
+- **Tests.** Section 23 runs the lock and `pair.sh post` with stand-ins for `rm`, `rmdir` and `mv` that
+  refuse one folder, as the mount does, and `pair.sh` with a stand-in `uname` and the mailbox on a
+  mount, as Cowork's shell sees it; and checks the docs carry the forms. Without the probe, the first
+  check fails with the lock and a temporary file left behind.
+
 ## v3.6.3 — 2026-11-15
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
