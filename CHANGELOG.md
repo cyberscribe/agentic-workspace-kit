@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased — v3.6.1
+## v3.6.1 — 2026-11-15
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
 changes; the plugins take effect in the next session.
@@ -14,6 +14,7 @@ changes; the plugins take effect in the next session.
 session-start line's wording, and `state.sh` in fewer processes with the same output. scheduler 0.1.1:
 its session-start line's wording. closeout 1.6.0 and ongoing 0.1.0 are unchanged.
 
+- **The README helps people already using the kit.** A section, "Already using the kit?", walks through `kit/setup.sh update` and what each of its questions means, the plugin lines, and how a second person catches up. The quick start lists what setup asks with a safe first answer, says what to do when the commands are not listed, and has a step for two people sharing a workspace.
 - **A lock is taken over only from a holder that has ended.** The lock under `pair.sh post`, `status`
   and `registry.sh` used to take over a lock held for more than a minute, judged by the clock, and a
   clock that stepped forward (a new machine setting its time, a laptop waking) made every lock look old
