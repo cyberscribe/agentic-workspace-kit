@@ -162,7 +162,7 @@ empty() { if [[ -z "$2" ]]; then ok "$1"; else ko "$1" "$2"; fi; }
 # write fails. Either way a check that matched reads as failed, more often the busier the machine.
 grep_all() { grep "$@" >/dev/null; }
 
-# The few checks that time something (4b, 22) read how busy the machine is, so a red run means a
+# The few checks that time something (4b, 22, 23) read how busy the machine is, so a red run means a
 # fault rather than a busy machine. aw_load prints the 1-minute load average per core. aw_factor prints
 # what a time budget is multiplied by: the load per core, at least 1, and at least 2 under CI=true,
 # since a shared runner is slower than a desk machine with nothing else on it. Each such check names

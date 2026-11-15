@@ -350,11 +350,84 @@ s23_ctx="$(printf '{"session_id":"sess-123","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc
 s23_rs="$KIT/plugins/projects/scripts/registry.sh"
 s23_b="$SCRATCH/s23/board.md"
 printf '# Claims board\n' > "$s23_b"
-for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do bash "$s23_rs" add "$s23_b" "claim $s23_i" >/dev/null 2>&1 & done
+# Two checks. What the lock guarantees holds at any load: a writer that says it landed did, and none
+# that gave up did. That all twelve land is a matter of time, since a writer gives up after the lock's
+# own wait of about ten seconds (lock.sh), a product setting a test cannot scale; above a load of 1.5
+# per core a writer giving up is the machine, and that check skips.
+s23_rc="$SCRATCH/s23/writers"
+: > "$s23_rc"
+for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    { bash "$s23_rs" add "$s23_b" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rc"; } &
+done
 wait
-[[ "$(head -n 1 "$s23_b")" == "# Claims board" && "$(grep -c '^claim ' "$s23_b")" == 12 && ! -d "$s23_b.lock" ]] \
-    && ok "23 registry.sh: twelve writers at once all land, the header stays and no lock is left" \
-    || ko "23 registry.sh: twelve writers at once all land, the header stays and no lock is left" "$(cat "$s23_b")"
+s23_said="$(awk '$2 == 0 { print "claim " $1 }' "$s23_rc" | LC_ALL=C sort)"
+s23_have="$(grep '^claim ' "$s23_b" | LC_ALL=C sort)"
+[[ "$(head -n 1 "$s23_b")" == "# Claims board" && "$(wc -l < "$s23_rc" | tr -d ' ')" == 12 && "$s23_said" == "$s23_have" && ! -d "$s23_b.lock" ]] \
+    && ok "23 registry.sh: twelve writers at once — each that says it landed did, no other line appears, the header stays, no lock is left" \
+    || ko "23 registry.sh: twelve writers at once — each that says it landed did, no other line appears, the header stays, no lock is left" "exits: $(sort -n "$s23_rc" | paste -sd, -)"$'\n'"$(cat "$s23_b")"
+s23_load="$(aw_load)"
+s23_gave="$(awk '$2 != 0' "$s23_rc" | wc -l | tr -d ' ')"
+if [[ "$s23_gave" == 0 ]]; then
+    ok "23 registry.sh: all twelve writers land within the lock's wait"
+elif aw_over "$s23_load" 1.5; then
+    skp "23 registry.sh: all twelve writers land within the lock's wait — $s23_gave gave up, at a load of $s23_load per core (over 1.5)"
+else
+    ko "23 registry.sh: all twelve writers land within the lock's wait" "$s23_gave gave up, at a load of $s23_load per core"
+fi
+# The takeover race, made certain. A waiter reads the holder, the holder lets go and exits, another
+# writer takes the lock, and the waiter, finding the holder gone, must not remove the new writer's
+# lock. A copy of lock.sh waits 50 ms between reading the holder and asking whether it lives, which a
+# busy machine does now and then by chance. The lock passes by design: a takeover removes the dead
+# holder's own file, and the new writer's lock holds a different one.
+s23_race="$SCRATCH/s23/race"
+mkdir -p "$s23_race/scripts" "$s23_race/hooks/lib"
+cp "$s23_rs" "$s23_race/scripts/registry.sh"
+s23_bad=""
+python3 - "$KIT/plugins/projects/hooks/lib/lock.sh" "$s23_race/hooks/lib/lock.sh" <<'PYRACE' || s23_bad+="the line that reads the holder is not in lock.sh as the check expects"$'\n'
+import sys
+s = open(sys.argv[1]).read()
+line = '            { read -r pid; read -r host; read -r since; read -r hstart; } 2>/dev/null < "$f"\n'
+if s.count(line) != 1: sys.exit(1)
+open(sys.argv[2], "w").write(s.replace(line, line + '            sleep 0.05\n'))
+PYRACE
+for s23_r in 1 2 3; do
+    s23_rb="$s23_race/board.$s23_r"; printf '# Claims board\n' > "$s23_rb"; : > "$s23_rb.rc"
+    for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        { bash "$s23_race/scripts/registry.sh" add "$s23_rb" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rb.rc"; } &
+    done
+    wait
+    [[ "$(awk '$2 == 0 { print "claim " $1 }' "$s23_rb.rc" | LC_ALL=C sort)" == "$(grep '^claim ' "$s23_rb" | LC_ALL=C sort)" ]] \
+        || s23_bad+="round $s23_r: a writer that said it landed is missing: $(grep -c '^claim ' "$s23_rb") lines, exits $(sort -n "$s23_rb.rc" | awk '{ printf "%s ", $2 }')"$'\n'
+done
+empty "23 lock: a holder that lets go while a waiter is reading it does not cost the next writer its lock (three rounds, the race widened to 50 ms)" "$s23_bad"
+# A clock that steps forward. Every lock then looks years old at once; a lock that took over by age
+# would take a working writer's lock. A copy of lock.sh dates each lock back to 2020 as it is taken,
+# and holds 50 ms between reading the file and replacing it. The lock passes by design: a holder that
+# is running keeps its lock, whatever its age.
+s23_step="$SCRATCH/s23/step"
+mkdir -p "$s23_step/scripts" "$s23_step/hooks/lib"
+cp "$s23_rs" "$s23_step/scripts/registry.sh"
+s23_bad=""
+python3 - "$KIT/plugins/projects/hooks/lib/lock.sh" "$s23_step/hooks/lib/lock.sh" <<'PYSTEP' || s23_bad+="the lines the check changes are not in lock.sh as it expects"$'\n'
+import sys
+s = open(sys.argv[1]).read()
+taken, read = '    since="$(date +%s)"\n', '    rc=$?\n'
+if s.count(taken) != 1 or s.count(read) != 1: sys.exit(1)
+s = s.replace(taken, taken + '    since=1577836800\n    touch -t 202001010000 "$l"\n').replace(read, read + '    sleep 0.05\n')
+open(sys.argv[2], "w").write(s)
+PYSTEP
+for s23_r in 1 2 3; do
+    s23_rb="$s23_step/board.$s23_r"; printf '# Claims board\n' > "$s23_rb"; : > "$s23_rb.rc"
+    for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        { bash "$s23_step/scripts/registry.sh" add "$s23_rb" "claim $s23_i" >/dev/null 2>&1; printf '%s %s\n' "$s23_i" "$?" >> "$s23_rb.rc"; } &
+    done
+    wait
+    [[ "$(awk '$2 == 0 { print "claim " $1 }' "$s23_rb.rc" | LC_ALL=C sort)" == "$(grep '^claim ' "$s23_rb" | LC_ALL=C sort)" ]] \
+        || s23_bad+="round $s23_r: a writer that said it landed is missing: $(grep -c '^claim ' "$s23_rb") lines, exits $(sort -n "$s23_rb.rc" | awk '{ printf "%s ", $2 }')"$'\n'
+done
+empty "23 lock: a clock that steps forward does not cost a working writer its lock (three rounds, every lock dated 2020)" "$s23_bad"
+# The checks below start from a known board, whatever the writers managed.
+{ printf '# Claims board\n'; for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12; do printf 'claim %s\n' "$s23_i"; done; } > "$s23_b"
 bash "$s23_rs" replace "$s23_b" "claim 12" "claim 12 done" >/dev/null && bash "$s23_rs" remove "$s23_b" "claim 3" >/dev/null
 [[ "$(grep -c '^claim ' "$s23_b")" == 11 && "$(grep -c '^claim 12 done$' "$s23_b")" == 1 && "$(head -n 1 "$s23_b")" == "# Claims board" ]] \
     && ok "23 registry.sh: replace and remove change only the lines holding the text" \
@@ -365,22 +438,52 @@ s23_out="$(bash -c '. "$1"; aw_rewrite "$2" tail -n +2' _ "$KIT/plugins/projects
 [[ "$s23_out" == "rc=1" && "$(cat "$s23_b")" == "$s23_before" && ! -d "$s23_b.lock" ]] \
     && ok "23 lock: a rewrite that drops the header line is refused and the file left as it was" \
     || ko "23 lock: a rewrite that drops the header line is refused and the file left as it was" "$s23_out"
-# A lock whose holder has died is taken over at once, quietly; one a live holder has kept for over a
-# minute is taken over with a warning that names the holder.
-mkdir "$s23_b.lock" && printf '999999\n' > "$s23_b.lock/pid"
+# Who holds the lock decides a takeover, never how long it has been held. A holder that has died is
+# taken over at once, quietly: one in the file's own form, one with its process id reused by a later
+# process, and one left by a kit before 3.6.1. A running holder keeps it, however old the lock looks,
+# and a waiter gives up after AW_LOCK_WAIT seconds naming it; so does one on another host, which
+# cannot be checked.
+s23_lk="$KIT/plugins/projects/hooks/lib/lock.sh"
+s23_bad=""
+bash -c '. "$1"; aw_lock "$2"; exec sleep 30' _ "$s23_lk" "$s23_b.lock" & s23_live=$!
+for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [[ -f "$(echo "$s23_b.lock"/h.*)" ]] && break; sleep 0.25; done
+touch -t 202001010000 "$s23_b.lock"
+s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past a live holder" 2>&1 >/dev/null)"
+[[ "$s23_out" == *"gave up on"*"process $s23_live on $HOSTNAME holds it"*"still running"* ]] && ! grep -q 'past a live holder' "$s23_b" \
+    || s23_bad+="a running holder, the lock dated 2020: not kept, or not named: $s23_out"$'\n'
+kill "$s23_live" 2>/dev/null; wait "$s23_live" 2>/dev/null
 s23_t0=$(date +%s)
 s23_out="$(bash "$s23_rs" add "$s23_b" "after a dead holder" 2>&1 >/dev/null)"
-[[ -z "$s23_out" && $(( $(date +%s) - s23_t0 )) -lt 3 ]] && grep -q 'after a dead holder' "$s23_b" \
-    && ok "23 lock: a dead holder's lock is taken over at once, with nothing said" \
-    || ko "23 lock: a dead holder's lock is taken over at once, with nothing said" "$s23_out"
-sleep 300 & s23_live=$!
-mkdir "$s23_b.lock" && printf '%s\n' "$s23_live" > "$s23_b.lock/pid" && printf '%s\n' "$(( $(date +%s) - 95 ))" > "$s23_b.lock/since"
-python3 -c 'import os,sys,time; t = time.time() - 95; os.utime(sys.argv[1], (t, t))' "$s23_b.lock"
-s23_out="$(bash "$s23_rs" add "$s23_b" "after a live holder" 2>&1 >/dev/null)"
+[[ -z "$s23_out" && $(( $(date +%s) - s23_t0 )) -lt 3 && ! -d "$s23_b.lock" ]] && grep -q 'after a dead holder' "$s23_b" \
+    || s23_bad+="the holder killed: not taken over at once and quietly: $s23_out"$'\n'
+sleep 30 & s23_live=$!
+mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' "$s23_live" "$HOSTNAME" 1577836800 "an earlier process" > "$s23_b.lock/h.1.1"
+s23_out="$(bash "$s23_rs" add "$s23_b" "after a reused id" 2>&1 >/dev/null)"
+[[ -z "$s23_out" && ! -d "$s23_b.lock" ]] && grep -q 'after a reused id' "$s23_b" \
+    || s23_bad+="a process id reused by a later process: not taken over quietly: $s23_out"$'\n'
+mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' "$s23_live" "elsewhere.example" "$(date +%s)" "" > "$s23_b.lock/h.1.1"
+s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past another host" 2>&1 >/dev/null)"
+[[ "$s23_out" == *"process $s23_live on elsewhere.example holds it"* ]] && ! grep -q 'past another host' "$s23_b" \
+    || s23_bad+="a holder on another host: not kept, or not named: $s23_out"$'\n'
+rm -rf "$s23_b.lock"
 kill "$s23_live" 2>/dev/null; wait "$s23_live" 2>/dev/null
-[[ "$s23_out" == *"taking over"*"from process $s23_live"*"9"[0-9]" seconds"* ]] && grep -q 'after a live holder' "$s23_b" \
-    && ok "23 lock: a live holder's lock older than a minute is taken over with a warning naming the process and the time" \
-    || ko "23 lock: a live holder's lock older than a minute is taken over with a warning naming the process and the time" "$s23_out"
+mkdir "$s23_b.lock" && printf '999999\n' > "$s23_b.lock/pid"
+s23_out="$(bash "$s23_rs" add "$s23_b" "after an old dead holder" 2>&1 >/dev/null)"
+[[ -z "$s23_out" && ! -d "$s23_b.lock" ]] && grep -q 'after an old dead holder' "$s23_b" \
+    || s23_bad+="a dead holder's lock in the form before 3.6.1: not taken over quietly: $s23_out"$'\n'
+# An empty lock folder, as a process stopped half way through letting go leaves, is taken at once.
+mkdir "$s23_b.lock"
+s23_t0=$(date +%s)
+s23_out="$(bash "$s23_rs" add "$s23_b" "after an empty lock" 2>&1 >/dev/null)"
+[[ -z "$s23_out" && $(( $(date +%s) - s23_t0 )) -lt 3 && ! -d "$s23_b.lock" ]] && grep -q 'after an empty lock' "$s23_b" \
+    || s23_bad+="an empty lock folder: not taken at once and quietly: $s23_out"$'\n'
+mkdir "$s23_b.lock" && : > "$s23_b.lock/unknown"
+s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past an unreadable lock" 2>&1 >/dev/null)"
+rm -rf "$s23_b.lock"
+[[ "$s23_out" == *"names no holder"* ]] || s23_bad+="a lock naming no holder: not reported: $s23_out"$'\n'
+s23_left="$(cd "$SCRATCH/s23" && ls -d board.md.lock* 2>/dev/null)"
+[[ -z "$s23_left" ]] || s23_bad+="folders left beside the board: $s23_left"$'\n'
+empty "23 lock: a dead holder's lock is taken over at once and quietly (killed, its id reused, the old form, an empty folder); a running one is kept however old, and a waiter gives up naming it (and one on another host), leaving nothing behind" "$s23_bad"
 
 # The guidance the model follows: these are instruction-presence checks, since the model applies them.
 s23_ex="$KIT/plugins/projects/examples/pair"
