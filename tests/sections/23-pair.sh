@@ -973,6 +973,113 @@ s23_spp="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23
     || ko "23 launcher --pm --print: a mailbox path with a space is quoted in the PM's watch command" "$s23_spp"
 s23_reset
 
+# ---- The gate list (gates.json, hooks/lib/gates.sh) ------------------------------------------------
+# The PM writes it, a PM post seals its fixed part, the engineer's evidence goes to its own status file,
+# the PM sets passes, and a change to a fixed field is refused, by name, until the PM seals it again.
+s23_reset
+rm -f "$s23_mb/gates.json" "$s23_mb/status-cc.md" "$s23_mb/status-pm.md"
+s23_g() { s23_bare bash "$s23_hook" gates --mailbox "$s23_mb" "$@" 2>&1; }
+s23_gw() { printf '%s\n' "$1" > "$s23_mb/gates.json"; }
+s23_gl='{ "gates": [
+  { "id": "G1", "what": "The suite is green", "check": "bash tests/run.sh", "passes": false, "evidence": "" },
+  { "id": "G2", "what": "CI is green · on GitHub", "check": "gh pr checks 9", "by": "pm", "passes": false, "evidence": "" },
+  { "id": "G3", "what": "The notes are written", "check": "read notes.md", "by": "cc", "passes": false, "evidence": "" } ] }'
+s23_out="$(s23_g; echo "rc=$?")"
+[[ "$s23_out" == *"no gate list"*"rc=2" ]] && ok "23 gates: no gates.json is said, exit 2" || ko "23 gates: no gates.json is said, exit 2" "$s23_out"
+s23_bad=""
+for s23_case in \
+    'not json|{ "gates": [ |not valid JSON' \
+    'no list|{ "gate": [] }|not an object with a list called gates' \
+    'empty|{ "gates": [] }|gates list is empty' \
+    'no check|{ "gates": [ { "id": "G1", "what": "w", "passes": false } ] }|G1 has no check' \
+    'no what|{ "gates": [ { "id": "G1", "check": "c", "passes": false } ] }|G1 has no what' \
+    'no id|{ "gates": [ { "what": "w", "check": "c", "passes": false } ] }|gate 1 has no id' \
+    'bad by|{ "gates": [ { "id": "G1", "what": "w", "check": "c", "by": "anyone", "passes": false } ] }|by is pm, cc or person' \
+    'passes text|{ "gates": [ { "id": "G1", "what": "w", "check": "c", "passes": "no" } ] }|passes is true or false' \
+    'twice|{ "gates": [ { "id": "G1", "what": "w", "check": "c", "passes": false }, { "id": "G1", "what": "x", "check": "c", "passes": false } ] }|G1 is used by two gates'; do
+    IFS='|' read -r s23_n s23_j s23_want <<<"$s23_case"
+    s23_gw "$s23_j"; s23_out="$(s23_g; echo "rc=$?")"
+    [[ "$s23_out" == *"not a gate list"*"$s23_want"*"rc=1" ]] || s23_bad+="$s23_n: $s23_out"$'\n'
+done
+empty "23 gates: the schema: not JSON, no list, an empty list, a gate with no id, what or check, a by other than pm, cc or person, passes not true or false, an id used twice: each refused by name, exit 1" "$s23_bad"
+
+s23_gw "$s23_gl"
+s23_out="$(s23_g; echo "rc=$?")"
+[[ "$s23_out" == *"0 of 3 pass; not sealed yet"*"open      G1"*"check: bash tests/run.sh"*"rc=0" && ! -f "$s23_mb/.pm-gates" ]] \
+    && ok "23 gates: an unsealed list is printed with its count and each gate's check" \
+    || ko "23 gates: an unsealed list is printed with its count and each gate's check" "$s23_out"
+s23_out="$(printf 'The brief.\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_mb" --from pm --title Brief 2>&1)"
+[[ -f "$s23_mb/.pm-gates" && "$s23_out" == *"gates.json is sealed"* && "$s23_out" == *PM-* ]] \
+    && ok "23 gates: the PM's post seals the list and says so" || ko "23 gates: the PM's post seals the list and says so" "$s23_out"
+s23_sum="$(cksum < "$s23_mb/gates.json")"
+s23_out="$(s23_g --from cc --id G1 '1057 passed · 0 failed, abc1234'; s23_g --from cc --id G3 'notes.md written'; s23_g --from cc --id G9 x; echo "rc=$?")"
+[[ "$(cksum < "$s23_mb/gates.json")" == "$s23_sum" ]] && grep -qx 'gate G1 · [0-9-]* [0-9:]* [+-][0-9]* · 1057 passed · 0 failed, abc1234' "$s23_mb/status-cc.md" \
+    && [[ "$s23_out" == *"evidence recorded for G1"*"G3 passes on this evidence"*"no gate G9"*"rc=2" ]] \
+    && ok "23 gates: the engineer's evidence is a line in status-cc.md, gates.json untouched; a cc gate passes on it; an unknown gate is refused" \
+    || ko "23 gates: the engineer's evidence is a line in status-cc.md, gates.json untouched; a cc gate passes on it; an unknown gate is refused" "$s23_out"
+s23_out="$(s23_g)"
+[[ "$s23_out" == *"1 of 3 pass; sealed"*"evidence  G1"*"1057 passed · 0 failed, abc1234"*"pass      G3"*"notes.md written"* ]] \
+    && ok "23 gates: the list shows evidence for the PM to check, and a passed gate with its evidence" \
+    || ko "23 gates: the list shows evidence for the PM to check, and a passed gate with its evidence" "$s23_out"
+s23_out="$(s23_g --from pm --id G1 pass 'ran it: 1057 passed'; s23_g --from pm --id G2 maybe; echo "rc=$?")"
+[[ "$(jq -r '.gates[0].passes, .gates[0].evidence, .gates[1].passes' "$s23_mb/gates.json")" == $'true\nran it: 1057 passed\nfalse' \
+    && "$s23_out" == *"G1: passes is true"*"pass or fail"*"rc=2" && "$(s23_g; echo "rc=$?")" == *"2 of 3 pass"*"rc=0" ]] \
+    && ok "23 gates: the PM sets passes and evidence in gates.json and the list still holds; a verdict other than pass or fail is refused" \
+    || ko "23 gates: the PM sets passes and evidence in gates.json and the list still holds; a verdict other than pass or fail is refused" "$s23_out"
+
+# A fixed field changed, a gate dropped, a gate added: each refused by name, for the listing and for evidence.
+s23_bad=""
+cp "$s23_mb/gates.json" "$SCRATCH/s23/gates-ok.json"
+jq '.gates[1].check = "true"' "$SCRATCH/s23/gates-ok.json" > "$s23_mb/gates.json"
+s23_out="$(s23_g; echo "rc=$?")"; [[ "$s23_out" == *"refused"*"G2's check changed"*"--seal"*"rc=1" ]] || s23_bad+="check: $s23_out"$'\n'
+s23_out="$(s23_g --from cc --id G2 x; echo "rc=$?")"; [[ "$s23_out" == *"refused"*"rc=1" ]] && ! grep -q '^gate G2' "$s23_mb/status-cc.md" || s23_bad+="evidence on a changed list: $s23_out"$'\n'
+s23_out="$(s23_g --from pm --id G2 pass x; echo "rc=$?")"; [[ "$s23_out" == *"refused"*"rc=1" ]] || s23_bad+="a pass on a changed list: $s23_out"$'\n'
+jq 'del(.gates[1])' "$SCRATCH/s23/gates-ok.json" > "$s23_mb/gates.json"
+s23_out="$(s23_g; echo "rc=$?")"; [[ "$s23_out" == *"G2 was removed"*"rc=1" ]] || s23_bad+="removed: $s23_out"$'\n'
+jq '.gates += [{"id": "G4", "what": "w", "check": "c", "passes": false, "evidence": ""}]' "$SCRATCH/s23/gates-ok.json" > "$s23_mb/gates.json"
+s23_out="$(s23_g; echo "rc=$?")"; [[ "$s23_out" == *"G4 was added"*"rc=1" ]] || s23_bad+="added: $s23_out"$'\n'
+jq '.gates[0].by = "cc"' "$SCRATCH/s23/gates-ok.json" > "$s23_mb/gates.json"
+s23_out="$(s23_g; echo "rc=$?")"; [[ "$s23_out" == *"G1's by changed"*"rc=1" ]] || s23_bad+="by: $s23_out"$'\n'
+s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"; [[ "$s23_out" == *"Gates: gates.json has changed since the PM sealed it (G1's by changed)"* ]] || s23_bad+="the check line: $s23_out"$'\n'
+s23_out="$(s23_g --from pm --seal; s23_g; echo "rc=$?")"; [[ "$s23_out" == *"sealed again"*"G1's by changed"*"rc=0" ]] || s23_bad+="sealed again: $s23_out"$'\n'
+empty "23 gates: a changed check, a removed gate, an added gate and a changed by are refused by name, evidence and passes too, and check says so; the PM's --seal takes the change" "$s23_bad"
+
+# The count, where each side meets it: the engineer's opening context (with the startup routine on a start
+# or resume, not after a compaction) and the PM's check.
+cp "$SCRATCH/s23/gates-ok.json" "$s23_mb/gates.json"; s23_g --from pm --seal >/dev/null
+s23_c1="$(printf '{"session_id":"sess-123","source":"startup","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start)"
+s23_c2="$(printf '{"session_id":"sess-123","source":"compact","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start)"
+s23_c3="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_c1" == *"Gates: 2 of 3 pass (pair.sh gates)"*"startup routine"*"git log"*"baseline:"* \
+    && "$s23_c2" == *"Gates: 2 of 3 pass"* && "$s23_c2" != *"startup routine"* && "$s23_c3" == *"Gates: 2 of 3 pass"* ]] \
+    && ok "23 gates: the count is in the engineer's opening context and the PM's check; the startup routine on a start, not after a compaction" \
+    || ko "23 gates: the count is in the engineer's opening context and the PM's check; the startup routine on a start, not after a compaction" "$s23_c1"$'\n'"$s23_c2"$'\n'"$s23_c3"
+rm -f "$s23_mb/gates.json" "$s23_mb/.pm-gates"
+s23_c1="$(printf '{"session_id":"sess-123","source":"startup","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start)"
+s23_c3="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"
+[[ "$s23_c1" != *"Gates:"* && "$s23_c3" != *"Gates:"* && "$s23_c3" != *"gates.json"* ]] \
+    && ok "23 gates: no gate list, no gate line, and gates.json is not named a stray" \
+    || ko "23 gates: no gate list, no gate line, and gates.json is not named a stray" "$s23_c1"$'\n'"$s23_c3"
+
+# The startup routine and "how the user meets it" are where each side reads them.
+s23_bad=""
+s23_kick="$KIT/plugins/projects/examples/pair/KICKOFF.md"
+grep -q 'startup routine' "$s23_kick" && grep -q 'baseline:' "$s23_kick" && grep -q 'git log' "$s23_kick" && grep -q 'pair.sh gates' "$s23_kick" \
+    || s23_bad+="KICKOFF.md: the startup routine (messages, gates, git log, baseline)"$'\n'
+grep -q 'How the user meets it' "$s23_cmd" && grep -q '`baseline:`' "$s23_cmd" && grep -q 'gates.json' "$s23_cmd" && grep -q 'gh pr checks' "$s23_cmd" \
+    && grep -q 'Primary sources' "$s23_cmd" || s23_bad+="command: the gate list, baseline, how the user meets it, primary sources"$'\n'
+s23_on="$KIT/plugins/projects/commands/overnight.md"
+grep -q 'How the user' "$s23_on" && grep -q 'gates.json' "$s23_on" && grep -q 'pair.sh gates' "$s23_on" && grep -q 'baseline:' "$s23_on" \
+    || s23_bad+="overnight: gates from the outcome, the surface check, the baseline, the count in the morning"$'\n'
+grep -q '^## Gates' "$s23_ex/README.md" && grep -q 'gates.json' "$s23_ex/README.md" || s23_bad+="README: the Gates section"$'\n'
+printf 'sess-123\n' > "$s23_mb/.cc-session"
+mkdir -p "$s23_cfg/projects/x" && : > "$s23_cfg/projects/x/sess-123.jsonl"
+s23_out="$(CLAUDE_CONFIG_DIR="$s23_cfg" bash "$s23_launch" "$s23_p" --print 2>&1)"
+# --print shows the prompt as %q, so its spaces are escaped.
+[[ "$s23_out" == *"Resuming session sess-123"*'startup\ routine'*'gates\ --mailbox'*'baseline'* ]] || s23_bad+="the resume prompt: $s23_out"$'\n'
+empty "23 the startup routine and how the user meets it: in KICKOFF.md, the resume prompt, the command, the overnight pre-flight and the mailbox README" "$s23_bad"
+s23_reset
+
 # The last stand-in watch and the claude stand-in are ended here, not left for the next section.
 [ -f "$s23_mb/.cc-watch" ] && pkill -P "$(cat "$s23_mb/.cc-watch")" 2>/dev/null
 [ -f "$s23_mb/.cc-watch" ] && kill "$(cat "$s23_mb/.cc-watch")" 2>/dev/null

@@ -84,6 +84,11 @@ record. Every run ends with where its time went: the wall time, the slowest sect
 (`AW_TIMES`) with every section, check and failure timed; `tests/README.md` (*Where the time goes*) says
 how to read it. A failure is listed there by the part it ran in, such as `15b`.
 
+CI reads the word list from the repository secret `AW_BANNED_WORDS`. Set it from your list without its
+comment lines, `grep -v '^#' <your word list> | gh secret set AW_BANNED_WORDS`: GitHub hides each line of
+a secret wherever that text appears in the run's logs, so a comment line, a lone `#` above all, hides its
+text in every log. CI warns when the secret holds one.
+
 The suite needs `git`, `jq` and `python3` (3.11 or later), and builds everything under one temporary
 folder that it removes on exit (`AW_KEEP=1` keeps it). It runs child scripts under `/bin/bash` where
 there is one, since the kit's scripts are written for bash 3.2; `AW_BASH32=0` leaves `PATH` alone.
