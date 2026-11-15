@@ -102,11 +102,21 @@ state_check() {
     [[ -d "$1" ]] || return 0
     WZ_STATE="$("${BASH:-bash}" "$WZ_STATE_SH" --target "$1" 2>/dev/null)"
 }
-# state_key <key>: the value of one key. An index() match rather than a pattern, since per-item keys
-# (submodule.<path>, resource.<slug>/<name>) carry slashes and dots.
-state_key() { printf '%s\n' "$WZ_STATE" | awk -v k="$1=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }'; }
-key_is()  { [[ "$(state_key "$1")" == "$2" ]]; }
-key_not() { [[ "$(state_key "$1")" != "$2" ]]; }
+# state_val <key>: sets WZ_VAL to the value of one key, in bash alone: the wizard reads dozens of keys
+# a run, and an awk for each was much of its cost. The quoted key matches as plain text, since per-item
+# keys (submodule.<path>, resource.<slug>/<name>) carry slashes and dots. Fails when the key is absent.
+state_val() {
+    local l
+    WZ_VAL=""
+    while IFS= read -r l; do
+        case "$l" in "$1="*) WZ_VAL="${l#"$1="}"; return 0 ;; esac
+    done <<<"$WZ_STATE"
+    return 1
+}
+# state_key <key>: the value of one key, printed.
+state_key() { state_val "$1" && printf '%s\n' "$WZ_VAL"; return 0; }
+key_is()  { state_val "$1"; [[ "$WZ_VAL" == "$2" ]]; }
+key_not() { state_val "$1"; [[ "$WZ_VAL" != "$2" ]]; }
 
 # layout_2x <dir>: success when the last state check (or the files themselves) show the 2.x layout:
 # vendored plugins, or the kit registered at a path other than kit/. Such a workspace goes through the

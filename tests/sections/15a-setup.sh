@@ -29,9 +29,9 @@ done
 empty "15 the setup entry points are executable" "$s15_bad"
 empty "15 the setup scripts use no capitals for emphasis (MUST, NEVER, CRITICAL, IMPORTANT)" \
     "$(cd "$KIT" && grep -nwE 'MUST|NEVER|CRITICAL|IMPORTANT' "${s15_files[@]}")"
-grep -q "awk -v k=\"\$1=\" 'index(\$0, k) == 1" "$KIT/lib/wizard.sh" \
-    && ok "15 lib/wizard.sh state_key looks keys up with awk index(), so per-item keys with / and . read right" \
-    || ko "15 lib/wizard.sh state_key looks keys up with awk index(), so per-item keys with / and . read right"
+grep -qF 'case "$l" in "$1="*) WZ_VAL="${l#"$1="}"' "$KIT/lib/wizard.sh" \
+    && ok "15 lib/wizard.sh state_val matches the key as quoted plain text, so per-item keys with / and . read right" \
+    || ko "15 lib/wizard.sh state_val matches the key as quoted plain text, so per-item keys with / and . read right"
 # state_key on a report holding per-item keys: the one asked for, and not a longer key sharing its start.
 s15_out="$("$st_bash" -c '. "$1/lib/wizard.sh" 2>/dev/null; WZ_STATE=$(printf "%s\n" "resource.field-study/media=resolves granted" "resource.field-study/media.raw=missing absent" "submodule.projects/vendor-review=role=project dirty=0"); printf "%s|%s|%s" "$(state_key resource.field-study/media)" "$(state_key submodule.projects/vendor-review)" "$(state_key resource.field)"' _ "$KIT")"
 [[ "$s15_out" == "resolves granted|role=project dirty=0|" ]] \

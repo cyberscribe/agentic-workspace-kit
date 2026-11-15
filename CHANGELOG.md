@@ -5,6 +5,22 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased
+
+- **Fewer processes in the scripts a session and a setup run.** Most of the time these scripts take is
+  spent starting small programs (tr, awk, sed, dirname) for one line of work each; bash does much of
+  that itself. `state.sh`, which the session-start summary runs, no longer starts a process for each
+  key it reports, joins its lists with one awk, reads hook stubs and folder checks without starting
+  anything, and lowercases inside the awk that already reads the file. The wizard reads the state
+  report's keys in bash. The engine takes paths apart by parameter expansion and makes a folder only
+  where there is none. The migration's M10 finds the missing `.gitignore` lines in one pass and writes
+  them once, and its dry run keeps its moves newest first as it records them. Counted with strace on
+  Linux: `state.sh --quick` from 147 processes to 86, the full report from 289 to 143, `setup.sh new`
+  from 1842 to 1099, and section 20's migration checks from 34,078 to 27,032. On a Mac, where a
+  process costs more: `--quick` from 586 ms to 469 ms, the full report from 938 ms to 636 ms,
+  `setup.sh new` from 6.7 s to 5.0 s, and a full parallel run of the suite from 395 s to 308 s. Every
+  output is the same as before, byte for byte where it was compared.
+
 ## v3.6.0 — 2026-11-14
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints.

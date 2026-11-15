@@ -100,6 +100,7 @@ done
 MG_TMP="$(mktemp -d "${TMPDIR:-/tmp}/aw-migrate.XXXXXX")" || { echo "migrate: cannot create a temporary folder" >&2; exit 1; }
 if [[ "${AW_KEEP:-}" != "1" ]]; then trap 'rm -rf "$MG_TMP"' EXIT; fi
 SHADOW="$MG_TMP/shadow" OPS="$MG_TMP/ops"
+MG_OPS_REV=""
 mkdir -p "$SHADOW" && : > "$OPS"
 
 # ---- Git helpers ---------------------------------------------------------------------------------
@@ -182,7 +183,7 @@ MG_ORIG="" MG_UNTR=0
 mg_vorig() {
     local p="$1" t a b
     MG_UNTR=0
-    if [[ $DRY -eq 1 && -s "$OPS" ]]; then
+    if [[ $DRY -eq 1 && -n "$MG_OPS_REV" ]]; then
         while IFS=$'\t' read -r t a b; do
             case "$t" in
                 M) if [[ "$p" == "$b" || "$p" == "$b/"* ]]; then p="$a${p#"$b"}"; continue; fi
@@ -190,7 +191,7 @@ mg_vorig() {
                 G) if [[ "$p" == "$a" || "$p" == "$a/"* ]]; then return 1; fi ;;
                 U) if [[ "$p" == "$a" || "$p" == "$a/"* ]]; then MG_UNTR=1; fi ;;
             esac
-        done < <(awk '{ l[NR] = $0 } END { for (i = NR; i >= 1; i--) print l[i] }' "$OPS")
+        done <<<"$MG_OPS_REV"
     fi
     MG_ORIG="$p"
     return 0
@@ -210,12 +211,9 @@ mg_vread() { local f; f="$(mg_vphys "$1")" || return 1; [[ -f "$f" ]] || return 
 # mg_vwrite PATH: stdin becomes PATH (in the shadow, in a dry run). The file keeps its mode.
 mg_vwrite() {
     local dest="$WS/$1"
-    if [[ $DRY -eq 1 ]]; then
-        dest="$SHADOW/$1"
-        if [[ ! -e "$dest" ]]; then mkdir -p "$(dirname "$dest")"; fi
-    else
-        mkdir -p "$(dirname "$dest")"
-    fi
+    if [[ $DRY -eq 1 ]]; then dest="$SHADOW/$1"; fi
+    # The folder made only where it is not there yet: no dirname or mkdir for each write.
+    [[ -d "${dest%/*}" ]] || mkdir -p "${dest%/*}"
     cat > "$dest"
 }
 # mg_vtracked PATH: 0 when anything at or under PATH is tracked (a gitlink included).
@@ -229,7 +227,10 @@ mg_vgitlink() {
     [[ $MG_UNTR -eq 0 ]] || return 1
     mg_g ls-files -s -- "$MG_ORIG" 2>/dev/null | awk -v p="$MG_ORIG" '$1 == "160000" && substr($0, index($0, "\t") + 1) == p { f = 1 } END { exit !f }'
 }
-mg_op() { [[ $DRY -eq 1 ]] && printf '%s\n' "$*" >> "$OPS"; return 0; }
+# MG_OPS_REV holds the same lines newest first, for mg_vorig, which reads them on every look through
+# the overlay: kept as they are written, where an awk reversed the file each time. mg_op runs only in
+# the main shell (no caller is in a pipeline), so the two stay in step. It starts empty with the file.
+mg_op() { [[ $DRY -eq 1 ]] && { printf '%s\n' "$*" >> "$OPS"; MG_OPS_REV="$*"$'\n'"$MG_OPS_REV"; }; return 0; }
 # A dry-run move carries the shadow copies with it.
 mg_shadow_move() {
     [[ $DRY -eq 1 && -e "$SHADOW/$1" ]] || return 0
@@ -1172,18 +1173,31 @@ else
     mg_declined="$MG_TMP/declined"
     mg_vread .claude/kit-templates.lock 2>/dev/null | awk -F '\t' '$1 == "!declined" && $2 == ".gitignore" { print $3 }' > "$mg_declined"
     mg_added=0
+    # The missing lines, in the template's order, from one awk: a template line counts as there when the
+    # .gitignore has it once trailing spaces and tabs are trimmed, or the ledger records it declined.
     # Only spaces and tabs are trimmed: a carriage return can be part of a pattern (an older kit's macOS
-    # Icon line ended in two).
-    mg_blank=$' \t'
-    while IFS= read -r mg_l || [[ -n "$mg_l" ]]; do
-        mg_l="${mg_l%"${mg_l##*[!"$mg_blank"]}"}"
-        [[ -z "$mg_l" || "$mg_l" == \#* ]] && continue
-        mg_ignore_has "$mg_l" && continue
-        grep -qxF -- "$mg_l" "$mg_declined" && continue
-        mg_act edit ".gitignore: + ${mg_l//$'\r'/\\r}"
-        mg_ignore_add "$mg_l" kit
+    # Icon line ended in two). They are then written in one go, which leaves the file as adding them one
+    # at a time under the kit's header did, for a process or two where each line took several.
+    mg_gi="$MG_TMP/gi.cur"
+    mg_vread .gitignore > "$mg_gi" 2>/dev/null || : > "$mg_gi"
+    mg_missing="$(awk -v dec="$mg_declined" '
+        BEGIN { while ((getline l < dec) > 0) declined[l] = 1 }
+        FNR == NR { sub(/[ \t]+$/, ""); have[$0] = 1; next }
+        { sub(/[ \t]+$/, "") }
+        $0 == "" || /^#/ || ($0 in have) || ($0 in declined) { next }
+        { have[$0] = 1; print }' "$mg_gi" "$mg_tpl")"
+    if [[ -n "$mg_missing" ]]; then
+        while IFS= read -r mg_l; do mg_act edit ".gitignore: + ${mg_l//$'\r'/\\r}"; done <<<"$mg_missing"
+        if [[ -s "$mg_gi" && -n "$(tail -c 1 "$mg_gi")" ]]; then printf '\n' >> "$mg_gi"; fi
+        if ! grep -qxF "$MG_KIT_HEADER" "$mg_gi"; then
+            [[ -s "$mg_gi" ]] && printf '\n' >> "$mg_gi"
+            printf '%s\n' "$MG_KIT_HEADER" >> "$mg_gi"
+        fi
+        printf '%s\n' "$mg_missing" >> "$mg_gi"
+        mg_vwrite .gitignore < "$mg_gi"
+        MG_EDITED_GITIGNORE=1
         mg_added=1
-    done < "$mg_tpl"
+    fi
     [[ $mg_added -eq 1 ]] || mg_act skip "M10 .gitignore (every template line is there)"
 fi
 
