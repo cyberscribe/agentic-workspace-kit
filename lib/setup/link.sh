@@ -272,7 +272,7 @@ for folder in ${FOLDERS[@]+"${FOLDERS[@]}"}; do
     for f in "$ENTRY_POINT" README.md; do
         [[ -f "$folder/$f" ]] || continue
         rec="$(awk -v alias_outcome="$ALIAS_OUTCOME" -v alias_done="$ALIAS_DONE" -v alias_people="$ALIAS_PEOPLE" \
-            -f "$README_AWK" "$folder/$f" 2>/dev/null | awk -F '\037' '{ print $18 "\037" $19 "\037" $20; exit }')"
+            -f "$README_AWK" "$folder/$f" 2>/dev/null | awk -F '\037' 'NR == 1 { print $18 "\037" $19 "\037" $20 }')"
         [[ "$rec" == "$US$US" ]] && rec=""
         [[ -n "$rec" ]] && break
     done

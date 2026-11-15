@@ -311,7 +311,7 @@ projects_row() {
                 /^\|/ && ocol == "" { for (i = 2; i < NF; i++) { c = tolower($i); gsub(/[ *]/, "", c); if (c == "owner") ocol = i } next }
                 !/^\|/ { ocol = "" ; next }
                 /^\|[ :|-]+$/ { next }
-                { if (match($0, "(^|[^A-Za-z0-9_-])" slug "([^A-Za-z0-9_-]|$)")) { o = tolower($ocol); gsub(/^[ \t]+|[ \t]+$/, "", o); if (o != "" && o !~ /^(<|not yet named|none found|-)/) print o; exit } }' || true)"
+                !f { if (match($0, "(^|[^A-Za-z0-9_-])" slug "([^A-Za-z0-9_-]|$)")) { o = tolower($ocol); gsub(/^[ \t]+|[ \t]+$/, "", o); if (o != "" && o !~ /^(<|not yet named|none found|-)/) print o; f = 1 } }' || true)"
             owners="${owners:-$default_owner}"
             rec="$(awk -F'\t' -v OFS='\t' -v o="${owners:--}" '{ $5 = o; print }' <<< "$rec")"
         fi
@@ -390,7 +390,7 @@ END {
 
 areas_row() {
     local rev="$1" day="$2" loc dir records=""
-    loc="$(conventions "$rev" | awk "$settings_awk" | awk '$1 == "areas" { print $2; exit }')"
+    loc="$(conventions "$rev" | awk "$settings_awk" | awk '$1 == "areas" && !f { print $2; f = 1 }')"
     loc="${loc:-^ongoing/[^/_.][^/]*\$}"
     while IFS= read -r dir; do
         [[ -n "$dir" ]] || continue
@@ -475,7 +475,7 @@ blob_at() {
     sub="$path"
     while [[ "$sub" == */* ]]; do
         sub="${sub%/*}"
-        sha="$(git ls-tree "$rev" -- "$sub" 2>/dev/null | awk '$1 == "160000" { print $3; exit }')"
+        sha="$(git ls-tree "$rev" -- "$sub" 2>/dev/null | awk '$1 == "160000" && !f { print $3; f = 1 }')"
         [[ -n "$sha" ]] || continue
         [[ -e "$sub/.git" ]] || return 1
         # The submodule is another repository: git's own variables, if a hook set them, point elsewhere.

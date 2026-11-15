@@ -21,9 +21,9 @@ input=""
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
 [[ -n "$(aw_workspace_root "$input")" ]] || exit 0
 
-sid="$(printf '%s' "$input" | sed -n 's/.*"session_id" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
+sid="$(sed -n 's/.*"session_id" *: *"\([^"]*\)".*/\1/p' <<<"$input" | sed -n 1p)"
 [[ -n "$sid" ]] || exit 0
-tr="$(printf '%s' "$input" | sed -n 's/.*"transcript_path" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
+tr="$(sed -n 's/.*"transcript_path" *: *"\([^"]*\)".*/\1/p' <<<"$input" | sed -n 1p)"
 
 # The state folder as schedule.sh resolves it.
 data="${SCHEDULER_DATA:-${XDG_STATE_HOME:-$HOME/.local/state}/agentic-workspace-kit/scheduler}"

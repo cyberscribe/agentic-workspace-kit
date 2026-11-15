@@ -102,7 +102,7 @@ aw_tpl_render() {
             cowork) [[ "$AW_V_cowork" == 1 ]] || continue ;;
             gemini) [[ ",$AW_V_surfaces," == *",gemini,"* ]] || continue ;;
         esac
-        r="$(aw_tpl_read "$kit" "$commit" "templates/workspace/surface-rows/$f.md" 2>/dev/null | awk 'NF { print; exit }')"
+        r="$(aw_tpl_read "$kit" "$commit" "templates/workspace/surface-rows/$f.md" 2>/dev/null | awk 'NF && !f { print; f = 1 }')"
         [[ -n "$r" ]] || continue
         if [[ -n "$rows" ]]; then rows="$rows"$'\n'"$r"; else rows="$r"; fi
     done

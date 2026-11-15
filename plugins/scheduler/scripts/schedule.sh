@@ -872,7 +872,7 @@ unit_remove() {
                 "$SYSTEMCTL" --user daemon-reload >/dev/null 2>&1
             fi ;;
         cron)
-            cron_current | grep -qF " exec $name >>" && cron_apply_except "$name" ;;
+            cron_current | grep -F " exec $name >>" >/dev/null && cron_apply_except "$name" ;;
         none) rm -f "$S_DATA/units/$name.cron" ;;
     esac
     rm -f "$S_DATA/state/$name.loaded"
@@ -885,7 +885,7 @@ cron_apply_except() {   # the block rebuilt without one task, whatever its file 
     block="$(printf '%s\n' "$cur" | awk -v b="$CRON_BEGIN" -v e="$CRON_END" '$0 == b { on = 1; next } $0 == e { on = 0; next } on' \
         | grep -vF " exec $1 >>")"
     # The @reboot catch-up line stays only beside a task line.
-    printf '%s\n' "$block" | grep -qF ' exec ' || block=""
+    grep -qF ' exec ' <<<"$block" || block=""
     {
         [[ -n "$rest" ]] && printf '%s\n' "$rest"
         if [[ -n "$block" ]]; then printf '%s\n%s\n%s\n' "$CRON_BEGIN" "$block" "$CRON_END"; fi
@@ -1154,7 +1154,7 @@ result_text() {   # attempt json -> the result text
     local f="$1"
     [[ -s "$f" ]] || return 0
     if have jq; then jq -r 'if type == "object" then (.result // "") else "" end' "$f" 2>/dev/null
-    else sed -nE 's/.*"result":"(([^"\\]|\\.)*)".*/\1/p' "$f" | head -n 1 | sed 's/\\n/\
+    else sed -nE 's/.*"result":"(([^"\\]|\\.)*)".*/\1/p' "$f" | sed -n 1p | sed 's/\\n/\
 /g; s/\\"/"/g'; fi
 }
 # denials_of <attempt json>: the tool calls Claude Code refused in a run, as "Tool: input; Tool: input",
@@ -1191,7 +1191,7 @@ json_field() {   # file key -> a scalar from Claude's JSON
     local f="$1" k="$2"
     [[ -s "$f" ]] || return 0
     if have jq; then jq -r --arg k "$k" 'if type == "object" then (.[$k] // empty | tostring) else empty end' "$f" 2>/dev/null
-    else sed -nE "s/.*\"$k\":(\"[^\"]*\"|[^,}]*).*/\1/p" "$f" | head -n 1 | tr -d '"'; fi
+    else sed -nE "s/.*\"$k\":(\"[^\"]*\"|[^,}]*).*/\1/p" "$f" | sed -n 1p | tr -d '"'; fi
 }
 new_uuid() {
     if have uuidgen; then uuidgen | tr '[:upper:]' '[:lower:]'
@@ -1362,7 +1362,7 @@ reach_remote() {
     if [[ -z "${CLAUDE_BIN:-}" || ! -x "$CLAUDE_BIN" ]]; then runner_log "$name: reach remote not started: no claude binary recorded"; return 0; fi
     out="$(cd "$t_cwd" && "$CLAUDE_BIN" --bg --resume "$sid" --remote-control "$name" </dev/null 2>&1)"
     printf '%s\n' "$out" >"$dir/reach.out"
-    id="$(printf '%s\n' "$out" | awk '/^backgrounded/ { print $3; exit }')"
+    id="$(awk '/^backgrounded/ { print $3; exit }' <<<"$out")"
     if [[ -z "$id" ]]; then runner_log "$name: reach remote did not start, see reach.out"; return 0; fi
     printf 'reach=remote\nreach_id=%s\nreach_start=%s\n' "$id" "$(now_epoch)" >"$dir/reach"
     ( s_sleep "$window"; reach_stop "$dir" ) </dev/null >/dev/null 2>&1 &
@@ -1541,7 +1541,7 @@ cmd_exec() {
             local rid rsev rpat rmsg rfix rhit
             while IFS='	' read -r rid rsev rpat rmsg rfix; do
                 [[ "$rsev" == refusal ]] || continue
-                rhit="$(grep -o -i -E -- "$rpat" "$dir/attempt-$a.stream" 2>/dev/null | head -n 1)"
+                rhit="$(grep -o -i -E -- "$rpat" "$dir/attempt-$a.stream" 2>/dev/null | sed -n 1p)"
                 [[ -n "$rhit" ]] && netref+="${netref:+; }$rid: $rhit ($(grep -c -i -E -- "$rpat" "$dir/attempt-$a.stream") line(s))"
             done <"$(rules_file)"
         fi
@@ -1870,7 +1870,7 @@ prune_runs() {   # name: keep the newest keep_runs run folders
     keep="$(tv keep_runs)"; [[ "$keep" =~ ^[0-9]+$ ]] || keep=$D_keep_runs
     total="$(runs_of "$1" | wc -l | tr -d ' ')"
     (( total > keep )) || return 0
-    runs_of "$1" | head -n $((total - keep)) | while IFS= read -r d; do rm -rf "$d"; done
+    runs_of "$1" | awk -v n=$((total - keep)) 'NR <= n' | while IFS= read -r d; do rm -rf "$d"; done
 }
 
 # --- Commands ------------------------------------------------------------------------------------------
@@ -2302,7 +2302,7 @@ cmd_runs() {
     # newest first, by start time
     local sorted
     sorted="$(for d in ${dirs[@]+"${dirs[@]}"}; do printf '%s\t%s\n' "$(meta_get "$d" start)" "$d"; done | sort -r | \
-        awk -F'\t' -v s="$since" 's == "" || $1 >= s' | head -n "$limit" | cut -f2)"
+        awk -F'\t' -v s="$since" 's == "" || $1 >= s' | awk -v n="$limit" 'NR <= n' | cut -f2)"
     local first=1
     if (( json )); then printf '['; else printf '%-24s %-19s %-9s %-24s %-8s %-8s %s\n' TASK RUN TRIGGER STATUS ATTEMPTS DURATION EST-COST; fi
     while IFS= read -r d; do
@@ -2654,7 +2654,7 @@ git_dirty() {
     local d f; d="$(dirname "$1")"; f="$(basename "$1")"
     in_git "$d" || return 1
     git --no-optional-locks -C "$d" status --porcelain --untracked-files=all -- . 2>/dev/null \
-        | sed 's/^.. //; s#^"##; s#"$##' | while IFS= read -r p; do [[ "${p##*/}" == "$f" ]] && { echo y; break; }; done | grep -q y
+        | sed 's/^.. //; s#^"##; s#"$##' | awk -v f="$f" '{ sub(/.*\//, "") } $0 == f { y = 1 } END { exit !y }'
 }
 GIT_MARK="the file is not committed to git (new or changed)"
 # rules_file: port-rules.tsv, beside the plugin's scripts/ folder, or beside the runner's copy (sync puts
@@ -2798,7 +2798,7 @@ cmd_doctor() {
         problems=$((problems + 1))
     else
         local cb; cb="$(. "$S_DATA/env"; printf '%s' "${CLAUDE_BIN:-}")"
-        if [[ -n "$cb" && -x "$cb" ]]; then echo "claude for runs: $cb ($("$cb" --version 2>/dev/null | head -n 1))"
+        if [[ -n "$cb" && -x "$cb" ]]; then echo "claude for runs: $cb ($("$cb" --version 2>/dev/null | sed -n 1p))"
         else echo "claude for runs: '$cb' is not executable; 'schedule.sh sync' where claude is on PATH"; problems=$((problems + 1)); fi
     fi
     have jq && echo "jq: yes" || echo "jq: no (the sed fallback reads Claude's output)"
@@ -2809,7 +2809,7 @@ cmd_doctor() {
         if have jq && [[ -n "$as" ]]; then
             echo "Login (claude auth status): $(jq -r '"\(.authMethod // "?"), \(.apiProvider // "?")\(if .subscriptionType then ", " + .subscriptionType + " subscription" else "" end)\(if .loggedIn == false then ", not logged in" else "" end)"' <<<"$as")"
         else
-            echo "Login: $(env -u CLAUDECODE "$cbin" auth status --text </dev/null 2>/dev/null | head -n 1)"
+            echo "Login: $(env -u CLAUDECODE "$cbin" auth status --text </dev/null 2>/dev/null | sed -n 1p)"
         fi
     fi
     echo "Billing: each run's settings are checked for an API key first (${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json, the managed settings, and the task folder's .claude/settings*.json); a run whose init event names an API key source is stopped"

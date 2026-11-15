@@ -167,7 +167,7 @@ mtime_of() {
     printf '%s' "$m"
 }
 # The value of one "key: value" line in a small state file.
-field() { sed -n "s/^$2: //p" "$1" 2>/dev/null | head -n 1; }
+field() { sed -n "s/^$2: //p" "$1" 2>/dev/null | sed -n 1p; }
 
 # claude_pid: the claude process this hook runs under. A hook runs in a child of the claude process, and
 # not always directly, so the parent chain is walked (six levels) to the first process whose executable,
@@ -750,7 +750,7 @@ case "$mode" in
         if [ "$opt_from" = pm ] && [ ! -f "$mb/.pm-gates" ]; then
             gates_state "$mb"
             if [ "$g_state" = unsealed ]; then gates_seal "$mb" && say "gates.json is sealed: its ids, whats, checks and bys are fixed from now on"
-            elif [ "$g_state" = invalid ]; then say "warning: gates.json is not sealed, since it is not a gate list: $(printf '%s' "$g_why" | head -n 1)"
+            elif [ "$g_state" = invalid ]; then say "warning: gates.json is not sealed, since it is not a gate list: ${g_why%%$'\n'*}"
             fi >&2
         fi
         printf '%s\n' "$id"

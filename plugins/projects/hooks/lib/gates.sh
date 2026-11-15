@@ -102,7 +102,7 @@ gates_line() {
     case "$g_state" in
         none) return 0 ;;
         nojq) printf 'Gates: gates.json is here, and jq, which reads it, is not installed.\n'; return 0 ;;
-        invalid) printf 'Gates: gates.json is not a gate list (%s); pair.sh gates says more.\n' "$(printf '%s' "$g_why" | head -n 1)"; return 0 ;;
+        invalid) printf 'Gates: gates.json is not a gate list (%s); pair.sh gates says more.\n' "${g_why%%$'\n'*}"; return 0 ;;
         changed) printf 'Gates: gates.json has changed since the PM sealed it (%s); pair.sh gates refuses it until the PM seals it again.\n' \
             "$(printf '%s' "$g_why" | paste -sd ';' - | sed 's/;/; /g')"; return 0 ;;
     esac

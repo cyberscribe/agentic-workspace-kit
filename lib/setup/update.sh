@@ -84,7 +84,7 @@ if [[ $AFTER -eq 0 ]]; then
         fi
         exit $rc
     fi
-    if [[ "$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print "y"; exit }')" != y ]]; then
+    if [[ "$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" && !f { print "y"; f = 1 }')" != y ]]; then
         say "kit/ is not a submodule of $WS, so there is nothing to advance."
         say "kit/setup.sh new starts a workspace with it; kit/setup.sh --target DIR adds it to a repository."
         exit 1
@@ -107,7 +107,7 @@ if [[ $AFTER -eq 0 ]]; then
     fi
     track="${track:-main}"
     if [[ -n "$branch" && "$branch" != "$track" && $ADVANCE -eq 0 ]]; then
-        rec="$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" { print $2; exit }')"
+        rec="$("${WG[@]}" ls-files -s -- kit 2>/dev/null | awk '$1 == "160000" && !f { print $2; f = 1 }')"
         say "kit/ is on the branch $branch, not $track, the branch .gitmodules tracks. It is not advanced:"
         say "that would move it to $track and rebase or leave behind $branch's own commits."
         say "The template offers run against the kit as it stands ($(printf '%.7s' "$old")), from the commit this"
@@ -456,7 +456,7 @@ if [[ $rc -ne 0 ]]; then
     printf '%s\n' "$out" | tail -n 6 | sed 's/^/    /'
 else
     # section <heading>: the indented items under one heading of the engine's report.
-    section() { printf '%s\n' "$out" | awk -v h="$1" 'index($0, h) == 1 { on = 1; next } on && /^  / { print; next } on { exit }'; }
+    section() { awk -v h="$1" 'index($0, h) == 1 { on = 1; next } on && /^  / { print; next } on { exit }' <<<"$out"; }
     created="$(section "Created (")" merged="$(section "Merged (")"
     while read -r p _; do [[ -z "$p" ]] || ENGINE_PATHS+=("$p"); done <<EOF
 $created

@@ -77,7 +77,7 @@ pairsh="$plugin/hooks/pair.sh"
 if [ $pm -eq 1 ]; then
     rec="$mb/.pm-session"
     sid="$want"
-    [ -z "$sid" ] && sid="$(sed -n 's/^session: //p' "$rec" 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+    [ -z "$sid" ] && sid="$(sed -n 's/^session: //p' "$rec" 2>/dev/null | sed -n 1p | tr -d '[:space:]')"
 else
     rec="$mb/.cc-session"
     sid="$want"
@@ -89,7 +89,7 @@ if [ $new -eq 0 ] && [ -n "$sid" ]; then
         [ -f "$f" ] || break
         resume=1
         # The first "cwd" in the transcript is the folder the session started in.
-        d="$(grep -o -m 1 '"cwd":"[^"]*"' "$f" | head -n 1 | sed -e 's/^"cwd":"//' -e 's/"$//' -e 's/\\\\/\\/g')"
+        d="$(grep -o -m 1 '"cwd":"[^"]*"' "$f" | sed -n 1p | sed -e 's/^"cwd":"//' -e 's/"$//' -e 's/\\\\/\\/g')"
         [ -n "$d" ] && [ -d "$d" ] && where="$d"
         break
     done
@@ -100,7 +100,7 @@ fi
 # placeholder, since nothing is written by a print.
 fresh=0 tok=""
 if [ $pm -eq 1 ]; then
-    tok="$(sed -n 's/^token: //p' "$rec" 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+    tok="$(sed -n 's/^token: //p' "$rec" 2>/dev/null | sed -n 1p | tr -d '[:space:]')"
     if [ $resume -eq 0 ] || [ -z "$tok" ]; then
         fresh=1
         if [ $print -eq 1 ]; then tok="<token made at launch>"

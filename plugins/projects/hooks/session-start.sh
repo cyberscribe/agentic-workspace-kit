@@ -334,7 +334,7 @@ blocked="$(parse "${files[@]}" | awk -F '\037' -v today="$today" '
 [[ -n "$blocked" ]] || exit 0
 
 count="$(printf '%s\n' "$blocked" | grep -c .)"
-names="$(printf '%s\n' "$blocked" | head -3 | paste -sd, - | sed 's/,/, /g')"
+names="$(sed -n 1,3p <<<"$blocked" | paste -sd, - | sed 's/,/, /g')"
 [[ "$count" -gt 3 ]] && names="$names, …"
 if [[ "$count" == "1" ]]; then
     line="Projects: 1 active project blocked for more than 14 days ($names). /projects:board shows it."
