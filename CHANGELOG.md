@@ -5,8 +5,40 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased
+## Unreleased — v3.6.1
 
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
+changes; the plugins take effect in the next session.
+
+**Plugins.** projects 3.6.1: the lock, and the board's submodule wording. workspace 2.3.1: the
+session-start line's wording, and `state.sh` in fewer processes with the same output. scheduler 0.1.1:
+its session-start line's wording. closeout 1.6.0 and ongoing 0.1.0 are unchanged.
+
+- **A lock is taken over only from a holder that has ended.** The lock under `pair.sh post`, `status`
+  and `registry.sh` used to take over a lock held for more than a minute, judged by the clock, and a
+  clock that stepped forward (a new machine setting its time, a laptop waking) made every lock look old
+  at once. Now age plays no part. The holder records its process id, its host and its process's start
+  time, and a waiter takes the lock over only when no process with that id is running on that host, or
+  the one running started at a different time, so a reused id does not count as alive. A holder that
+  is running keeps the lock however long it takes; a waiter gives up after `AW_LOCK_WAIT` seconds (10
+  by default) and names the process, its host and how long it has held the lock. A holder on another
+  host cannot be checked, so it counts as running. The holder writes its file into a folder of its own
+  and renames that folder into place, so a lock never exists without its holder's file, and an empty
+  lock folder, which a process stopped half way through letting go can leave, is simply taken.
+  Taking over removes the dead holder's own file before the folder, so of two waiters only one takes
+  over, and a waiter that read a holder which has since let go cannot remove the next holder's lock. A
+  lock left by an earlier kit is still taken over when its holder has ended. Section 23 makes the
+  takeover race and the clock step certain with copies of the lock, and checks a killed holder, a
+  reused id, the earlier form, an empty folder, a running holder dated 2020, another host and a lock
+  naming no holder.
+- **CI runs once per change.** A push runs the tests only on `main`; a pull request runs them on each
+  push, and a newer push cancels the run in progress for the same pull request.
+- **What setup and update print reads more plainly.** Counts agree with their nouns ("1 change fits",
+  "the one that fits"), a lone change is described rather than counted ("nothing to apply. The change
+  is on lines you have rewritten."), and "unattended" becomes "not at a terminal". The session-start
+  line says "at a new commit the workspace has not recorded" for a kit pointer that changed and
+  "submodule folder" for a gitlink; the opaque-path lines name `AW_OPAQUE_PATHS` as a list a file is
+  on.
 - **Fewer processes in the scripts a session and a setup run.** Most of the time these scripts take is
   spent starting small programs (tr, awk, sed, dirname) for one line of work each; bash does much of
   that itself. `state.sh`, which the session-start summary runs, no longer starts a process for each
@@ -20,6 +52,8 @@ rewriting — the record of what a version claimed is part of what the version i
   process costs more: `--quick` from 586 ms to 469 ms, the full report from 938 ms to 636 ms,
   `setup.sh new` from 6.7 s to 5.0 s, and a full parallel run of the suite from 395 s to 308 s. Every
   output is the same as before, byte for byte where it was compared.
+
+---
 
 ## v3.6.0 — 2026-11-14
 
