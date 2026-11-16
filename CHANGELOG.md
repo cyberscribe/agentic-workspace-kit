@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## v3.7.0 — unreleased
+## v3.7.0 — 2026-11-16
 
 **To update:** run `kit/setup.sh update` in the workspace, then `kit/setup.sh skills` so Cowork has the
 new `kit-projects-rename` skill, and make the commit it prints. No template changes.
