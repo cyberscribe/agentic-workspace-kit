@@ -834,7 +834,7 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
 - **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
   `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
   diff to apply or skip. Files the team owns are created once and never overwritten.
-- **The kit's plugins, and their eighteen commands, are wired in** from the directory marketplace at `kit`:
+- **The kit's plugins, and their nineteen commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `kit/docs/memory-layers.md`, so there is one taxonomy.
   - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close`, `pickup` and `pair`, the life of a
@@ -946,7 +946,8 @@ The commands follow the project through its life. `/projects:new` interviews for
 work runs, the session-start line and `/projects:board` read the Current state blocks; the board flags
 what needs a look, including anyone over their in-flight limit. `/projects:hold` pauses a project with
 its reason and a date to look at it again; the folder stays where it is, because the reason something
-is paused is itself context. `/projects:pickup` briefs whoever takes it on, from the README, the last
+is paused is itself context. `/projects:rename` gives a project a new name everywhere it is pointed
+at, and leaves the history under the old one. `/projects:pickup` briefs whoever takes it on, from the README, the last
 decisions and commits, and who to ask. `/projects:close` checks each Done-when box against evidence,
 asks three retrospective questions, promotes what the next similar project should know, and moves the
 folder to `projects/_done/<slug>/`.
@@ -998,6 +999,7 @@ it, common questions, and how to tell it is working.
 | `/projects:adopt` | projects | A project that already exists, or a change to how one is versioned | [docs/commands/projects-adopt.md](docs/commands/projects-adopt.md) |
 | `/projects:board` | projects | Every project in flight on one page, with flags | [docs/commands/projects-board.md](docs/commands/projects-board.md) |
 | `/projects:hold` | projects | Pausing a project with its reason and a look-again date | [docs/commands/projects-hold.md](docs/commands/projects-hold.md) |
+| `/projects:rename` | projects | A new name for a project: folder, register, resources and links together | [docs/commands/projects-rename.md](docs/commands/projects-rename.md) |
 | `/projects:pickup` | projects | A cold-start brief, and resuming a paused project | [docs/commands/projects-pickup.md](docs/commands/projects-pickup.md) |
 | `/projects:pair` | projects | A PM session and a Claude Code engineer working a project through a mailbox | [docs/commands/projects-pair.md](docs/commands/projects-pair.md) |
 | `/projects:overnight` | projects | Work left running while you sleep: the outcome and every call you would be woken for, settled before you leave | [docs/commands/projects-overnight.md](docs/commands/projects-overnight.md) |
@@ -1043,7 +1045,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `templates/catalogue.md` | What the team has built and would reuse |
 | `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
-| `plugins/projects/` | Projects from start to done — eight commands, a session-start line and the pairing hooks |
+| `plugins/projects/` | Projects from start to done — nine commands, a session-start line and the pairing hooks |
 | `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `scripts/state.sh` (the read-only state check), the session-start summary and the git guard |
 | `plugins/scheduler/` | `/scheduler:tasks` and `scripts/schedule.sh`, scheduled Claude Code tasks rendered into launchd, systemd user timers or cron |
 | `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
