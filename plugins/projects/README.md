@@ -1,7 +1,7 @@
 # projects — start a project right for agentic co-working
 
 A Claude Code plugin for the life of a project, kept in the project's own
-README so that people and agents read the same thing. Eight commands, one
+README so that people and agents read the same thing. Nine commands, one
 session-start line:
 
 | Command | What it is for |
@@ -9,6 +9,7 @@ session-start line:
 | **`/projects:new`** | Open a project the way a good kickoff does: a short interview, then its entry point. |
 | **`/projects:adopt <folder>`** | For a project that already exists: add only what is missing (Done when, Current state, People, the versioning lines) as small insertions; or change how a project is versioned. |
 | **`/projects:hold <slug>`** | Set a project aside on purpose: paused, with a reason and a date to look again; the folder stays where it is, still versioned. |
+| **`/projects:rename <slug> <new name>`** | Give a project a new name: folder, README title, register row and resource map together, with every path that named the old folder updated on a yes; history keeps the old name. |
 | **`/projects:board`** | Everything in flight on one page, with one-line flags for what needs attention. |
 | **`/projects:close <slug>`** | The finish line, done properly: evidence, a short retrospective, who needs to hear, and the folder archived to `projects/_done/`. |
 | **`/projects:pickup <slug>`** | A cold-start brief for anyone taking a project over or coming back to it; it offers to resume a paused one. |
@@ -231,6 +232,16 @@ date, and moves the register row to the paused section, whatever your register
 calls it. The folder stays where it is and stays versioned, so resting never
 means losing history. The board flags the project once its look-again date has
 passed, and `/projects:pickup` resumes it.
+
+## Rename
+
+**`/projects:rename <slug> <new name>`** gives a project a new name in one pass.
+It moves the folder the way the project is versioned (keeping any priority
+prefix), sets the README title and a dated `Renamed from` line, updates the
+register row and this machine's `.claude/resources.local.md`, and re-links its
+resources. Paths elsewhere that named the old folder are rewritten on a yes;
+logs, changelogs and dated lines keep the old name, because they record what was
+true when they were written. It stops while a pairing is open on the project.
 
 ## Pair
 

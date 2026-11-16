@@ -275,13 +275,13 @@ empty "17 hook: a folder with no Current state block that is not listed stays si
 empty "17 hook: every run exits quietly (nothing on stderr)" \
     "$(jq -nc --arg c "$s17_ws/projects/field-study" '{cwd: $c}' | PROJECTS_HOOK_STATE_DIR="$s17_stamps" "$st_bash" "$s17_hook" 2>&1 >/dev/null)"
 
-# ---- The eighteen commands --------------------------------------------------------------------------
+# ---- The nineteen commands --------------------------------------------------------------------------
 
-s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the eighteen commands, /projects:hold among them" \
-    || ko "17 the kit has exactly the eighteen commands, /projects:hold among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the nineteen commands, /projects:hold and /projects:rename among them" \
+    || ko "17 the kit has exactly the nineteen commands, /projects:hold and /projects:rename among them" "has: $s17_got"
 
 # ---- What each projects command says -------------------------------------------------------------
 
@@ -295,6 +295,16 @@ s17_bad="$(s17_has "$s17_h" \
     'stays versioned' 'this convention predates' 'Folder moves' '`/projects:close` owns' 'change only those two' \
     'frees' '/projects:pickup' 'Leave the commit to them')"
 empty "17 hold: paused with a reason and a look-again date, the conventions' paused section, the folder link, the folder stays" "$s17_bad"
+
+s17_r="$s17_cmd/rename.md"
+s17_bad="$(s17_has "$s17_r" \
+    'offer-unprompted: Offer it when someone says a project'"'"'s name no longer fits, or asks to call a project something else.' \
+    'argument-hint: [folder or slug] [new name]' \
+    'scripts/slug.sh' '`00-pilot-study` becomes `00-field-trial`' 'The new folder exists' 'A pairing is open' \
+    'git mv <old folder> <new folder>' '`kit/setup.sh hooks`' 'rewrite its `.gitignore`' 'Folder moves' \
+    '<today> — Renamed from <old slug> to <new slug>.' 'resources.local.md' 'kit/setup.sh link <new slug>' \
+    'History keeps its names' 'listed and left as they are' 'leave the commit to them')"
+empty "17 rename: slug and prefix, stops on a clash or an open pairing, moves by versioning, README, register, resources, history kept" "$s17_bad"
 
 s17_c="$s17_cmd/close.md"
 s17_bad="$(s17_has "$s17_c" 'projects/_done/<slug>/' 'mkdir -p projects/_done' 'git mv projects/<slug> projects/_done/<slug>' \
@@ -353,7 +363,7 @@ s17_bad+="$(s17_has "$s17_c" "Done section, whatever it is called there")"
 s17_bad+="$(s17_has "$s17_p" "both as the conventions file names them")"
 empty "17 hold, close and pickup move register rows to the sections the conventions name" "$s17_bad"
 
-s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Eight commands' '/projects:hold' 'projects/_done/<slug>/' \
+s17_bad="$(s17_has "$KIT/plugins/projects/README.md" 'Nine commands' '/projects:hold' '/projects:rename' 'projects/_done/<slug>/' \
     '## How a project is kept' '## Resources' 'Folder moves' 'Not adopted')"
 s17_bad+="$(s17_has "$KIT/plugins/projects/examples/projects-conventions.md" 'Folder moves' 'Versioned default' \
     'Not adopted' 'projects/_done/<slug>/' 'kit/templates/project-readme.md')"

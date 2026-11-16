@@ -5,6 +5,25 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.7.0 — 2026-11-16
+
+**To update:** run `kit/setup.sh update` in the workspace, then `kit/setup.sh skills` so Cowork has the
+new `kit-projects-rename` skill, and make the commit it prints. No template changes.
+
+**Plugins.** projects 3.7.0: `/projects:rename`. closeout 1.6.1, workspace 2.3.2, scheduler 0.1.2 and
+ongoing 0.1.0 are unchanged.
+
+- **`/projects:rename`, a nineteenth command.** A project whose name has drifted from the work can now
+  be renamed in one pass. The folder moves the way the project is versioned (`git mv` for a tracked
+  folder or a submodule, the `.gitignore` line first for an untracked one), keeping a priority prefix;
+  the README takes the new title and a dated `Renamed from` line; the register row, this machine's
+  resource map and the `.resources/` links follow. Paths in other current files are rewritten on a
+  yes, a Drive folder named for the slug is moved on its own yes, and logs, changelogs, retrospectives
+  and dated lines keep the old name, since they record what was true at the time. It stops while a
+  pairing is open on the project, because the mailbox holds absolute paths.
+
+---
+
 ## v3.6.4 — 2026-11-15
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
