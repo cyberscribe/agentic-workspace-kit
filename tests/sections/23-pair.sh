@@ -444,12 +444,14 @@ s23_out="$(bash -c '. "$1"; aw_rewrite "$2" tail -n +2' _ "$KIT/plugins/projects
 # and a waiter gives up after AW_LOCK_WAIT seconds naming it; so does one on another host, which
 # cannot be checked.
 s23_lk="$KIT/plugins/projects/hooks/lib/lock.sh"
+# The host a lock records: on Linux the host name with its boot and process-id namespace (lock.sh's aw_host).
+s23_host="$(bash -c '. "$1"; aw_host' _ "$s23_lk")"
 s23_bad=""
 bash -c '. "$1"; aw_lock "$2"; exec sleep 30' _ "$s23_lk" "$s23_b.lock" & s23_live=$!
 for s23_i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [[ -f "$(echo "$s23_b.lock"/h.*)" ]] && break; sleep 0.25; done
 touch -t 202001010000 "$s23_b.lock"
 s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past a live holder" 2>&1 >/dev/null)"
-[[ "$s23_out" == *"gave up on"*"process $s23_live on $HOSTNAME holds it"*"still running"* ]] && ! grep -q 'past a live holder' "$s23_b" \
+[[ "$s23_out" == *"gave up on"*"process $s23_live on $s23_host holds it"*"still running"* ]] && ! grep -q 'past a live holder' "$s23_b" \
     || s23_bad+="a running holder, the lock dated 2020: not kept, or not named: $s23_out"$'\n'
 kill "$s23_live" 2>/dev/null; wait "$s23_live" 2>/dev/null
 s23_t0=$(date +%s)
@@ -457,15 +459,10 @@ s23_out="$(bash "$s23_rs" add "$s23_b" "after a dead holder" 2>&1 >/dev/null)"
 [[ -z "$s23_out" && $(( $(date +%s) - s23_t0 )) -lt 3 && ! -d "$s23_b.lock" ]] && grep -q 'after a dead holder' "$s23_b" \
     || s23_bad+="the holder killed: not taken over at once and quietly: $s23_out"$'\n'
 sleep 30 & s23_live=$!
-mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' "$s23_live" "$HOSTNAME" 1577836800 "an earlier process" > "$s23_b.lock/h.1.1"
+mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' "$s23_live" "$s23_host" 1577836800 "an earlier process" > "$s23_b.lock/h.1.1"
 s23_out="$(bash "$s23_rs" add "$s23_b" "after a reused id" 2>&1 >/dev/null)"
 [[ -z "$s23_out" && ! -d "$s23_b.lock" ]] && grep -q 'after a reused id' "$s23_b" \
     || s23_bad+="a process id reused by a later process: not taken over quietly: $s23_out"$'\n'
-mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' "$s23_live" "elsewhere.example" "$(date +%s)" "" > "$s23_b.lock/h.1.1"
-s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past another host" 2>&1 >/dev/null)"
-[[ "$s23_out" == *"process $s23_live on elsewhere.example holds it"*"rm -r "*"$s23_b.lock"* ]] && ! grep -q 'past another host' "$s23_b" \
-    || s23_bad+="a holder on another host: not kept, or not named with the command that clears it: $s23_out"$'\n'
-rm -rf "$s23_b.lock"
 kill "$s23_live" 2>/dev/null; wait "$s23_live" 2>/dev/null
 mkdir "$s23_b.lock" && printf '999999\n' > "$s23_b.lock/pid"
 s23_out="$(bash "$s23_rs" add "$s23_b" "after an old dead holder" 2>&1 >/dev/null)"
@@ -483,75 +480,145 @@ rm -rf "$s23_b.lock"
 [[ "$s23_out" == *"names no holder"* ]] || s23_bad+="a lock naming no holder: not reported: $s23_out"$'\n'
 s23_left="$(cd "$SCRATCH/s23" && ls -d board.md.lock* 2>/dev/null)"
 [[ -z "$s23_left" ]] || s23_bad+="folders left beside the board: $s23_left"$'\n'
-empty "23 lock: a dead holder's lock is taken over at once and quietly (killed, its id reused, the old form, an empty folder); a running one is kept however old, and a waiter gives up naming it (and one on another host, with the command that clears it), leaving nothing behind" "$s23_bad"
+empty "23 lock: a dead holder's lock is taken over at once and quietly (killed, its id reused, the old form, an empty folder); a running one is kept however old, and a waiter gives up naming it, leaving nothing behind" "$s23_bad"
 
-# A shell that can make files beside a lock but not remove or rename them, as Cowork's Linux shell on a
-# connected folder, would leave a lock nobody could let go. Stand-ins for rm, rmdir and mv refuse
-# anything in one folder, as that mount does. The probe turns a writer away at once with nothing taken
-# (only its one probe file left), pair.sh points at the form that runs on the computer, a shell that
-# can remove files clears the probe, and a lock that cannot be let go after all says how to clear it.
-s23_nr="$SCRATCH/s23/noremove" s23_stub="$SCRATCH/s23/noremove-bin"
-mkdir -p "$s23_nr" "$s23_stub"
-for s23_c in rm rmdir mv; do
+# Cowork's Linux shell on a connected folder may make files and rename them (onto a file, and a folder
+# onto an empty folder) but not remove them, until the folder is given delete permission. Stand-ins for
+# rm, rmdir and unlink refuse anything in one folder, as that mount does, and mv works. The lock lets go
+# there by renaming its holder's file into .aw-gone/ beside the lock, so the next writer takes the empty
+# lock folder: writers land, two sides writing at once take distinct ids, a holder that died there is
+# taken over, and a shell that can remove files sweeps .aw-gone/ on its next lock. A shell that can do
+# neither (mv refused too) is turned away before it takes anything.
+s23_nr="$SCRATCH/s23/noremove" s23_stub="$SCRATCH/s23/noremove-bin" s23_stub2="$SCRATCH/s23/norename-bin"
+mkdir -p "$s23_nr" "$s23_stub" "$s23_stub2"
+for s23_c in rm rmdir unlink; do
     printf '#!/bin/sh\nfor a in "$@"; do case "$a" in %s/*) echo "%s: $a: Operation not permitted" >&2; exit 1 ;; esac; done\nexec %s "$@"\n' \
         "$s23_nr" "$s23_c" "$(command -v "$s23_c")" > "$s23_stub/$s23_c"
     chmod +x "$s23_stub/$s23_c"
 done
+cp "$s23_stub"/* "$s23_stub2/"
+printf '#!/bin/sh\nfor a in "$@"; do case "$a" in %s/*) echo "mv: $a: Operation not permitted" >&2; exit 1 ;; esac; done\nexec %s "$@"\n' \
+    "$s23_nr" "$(command -v mv)" > "$s23_stub2/mv"
+# perl and python3 make the lock's folder rename themselves; on the mount that rename is allowed, so they
+# are left as they are, and the no-rename shell has neither, so its mv stand-in is what it meets.
+printf '#!/bin/sh\nexit 127\n' > "$s23_stub2/perl"; cp "$s23_stub2/perl" "$s23_stub2/python3"; chmod +x "$s23_stub2"/*
 # s23_ls <dir>: the names in a folder, dotfiles last, on one line.
 s23_ls() { local f o=""; for f in "$1"/* "$1"/.[!.]*; do [ -e "$f" ] && o+="${o:+ }${f##*/}"; done; printf '%s' "$o"; }
 s23_bad=""
 printf '# Claims board\n' > "$s23_nr/board.md"
-s23_t0=$(date +%s)
-s23_out="$(PATH="$s23_stub:$PATH" bash "$s23_rs" add "$s23_nr/board.md" "past a shell that cannot remove" 2>&1)"; s23_rc=$?
-[[ $s23_rc -ne 0 && "$s23_out" == *"not taken"*"not remove them"* && $(( $(date +%s) - s23_t0 )) -lt 3 ]] \
-    || s23_bad+="registry.sh where files cannot be removed: not turned away at once ($s23_rc): $s23_out"$'\n'
-[[ "$(cat "$s23_nr/board.md")" == "# Claims board" && "$(s23_ls "$s23_nr")" == "board.md .aw-probe" ]] \
-    || s23_bad+="registry.sh where files cannot be removed: the board changed, or more than the probe was left: $(s23_ls "$s23_nr")"$'\n'
+for s23_i in 1 2 3; do
+    PATH="$s23_stub:$PATH" bash "$s23_rs" add "$s23_nr/board.md" "line $s23_i from a shell that cannot remove" >/dev/null 2>&1 \
+        || s23_bad+="registry.sh add $s23_i where files cannot be removed: refused"$'\n'
+done
+[[ "$(head -n 1 "$s23_nr/board.md")" == "# Claims board" && "$(grep -c 'cannot remove' "$s23_nr/board.md")" == 3 ]] \
+    || s23_bad+="where files cannot be removed: the three lines did not all land: $(cat "$s23_nr/board.md")"$'\n'
+[[ -d "$s23_nr/board.md.lock" && -z "$(s23_ls "$s23_nr/board.md.lock")" && -d "$s23_nr/.aw-gone" ]] \
+    || s23_bad+="where files cannot be removed: the lock is not left empty, set aside in .aw-gone: $(s23_ls "$s23_nr") / $(s23_ls "$s23_nr/board.md.lock")"$'\n'
+# Twelve writers at once in a mailbox there, six on each side, each side under its own lock.
 bash "$KIT/plugins/projects/hooks/pair.sh" init --mailbox "$s23_nr/mb" --name "No remove" >/dev/null 2>&1
-s23_before="$(cat "$s23_nr/mb/to-cc.md")"
-s23_out="$(printf 'a brief\n' | PATH="$s23_stub:$PATH" bash "$KIT/plugins/projects/hooks/pair.sh" post --mailbox "$s23_nr/mb" --from pm --title "From the VM" 2>&1)"; s23_rc=$?
-[[ $s23_rc -eq 2 && "$s23_out" == *"nothing was changed"*"From Cowork"* && "$(cat "$s23_nr/mb/to-cc.md")" == "$s23_before" ]] \
-    || s23_bad+="pair.sh post where files cannot be removed: not refused, pointing at the README ($s23_rc): $s23_out"$'\n'
-s23_left="$(s23_ls "$s23_nr/mb" | tr ' ' '\n' | grep -E 'lock|\.tmp\.')"
-[[ -z "$s23_left" ]] || s23_bad+="pair.sh post where files cannot be removed: left $s23_left"$'\n'
-s23_out="$(bash "$s23_rs" add "$s23_nr/board.md" "once files can be removed" 2>&1)"
-grep -q 'once files can be removed' "$s23_nr/board.md" && [[ ! -e "$s23_nr/.aw-probe" ]] \
-    || s23_bad+="a shell that can remove files: did not land, or did not clear the probe: $s23_out"$'\n'
-s23_out="$(bash -c '. "$1"; aw_lock "$2" || exit 9; PATH="$3:$PATH"; aw_unlock "$2"; echo "rc=$?"' _ "$s23_lk" "$s23_nr/held.lock" "$s23_stub" 2>&1)"
-[[ "$s23_out" == *"could not let go of $s23_nr/held.lock"*"rm -r "*"rc=1" ]] \
-    || s23_bad+="a lock that cannot be let go: not reported with the command that clears it: $s23_out"$'\n'
-rm -rf "$s23_nr/held.lock"
-empty "23 lock: where files can be made but not removed, a writer is turned away at once with no lock left, pair.sh says to run it on the computer, and the next shell able to remove clears the probe" "$s23_bad"
-# Cowork's Linux shell: Linux, with the mailbox on its mount under ~/mnt. A stand-in uname says Linux;
-# pair.sh runs nothing there, before any probe or lock, and says to hand the person the command. The
-# same stand-in with the mailbox elsewhere posts as usual, so the mount is what decides.
+for s23_i in 1 2 3 4 5 6; do
+    printf 'pm %s\n' "$s23_i" | PATH="$s23_stub:$PATH" s23_bare bash "$s23_hook" post --mailbox "$s23_nr/mb" --from pm --title "pm $s23_i" >/dev/null 2>&1 &
+    printf 'cc %s\n' "$s23_i" | PATH="$s23_stub:$PATH" s23_bare bash "$s23_hook" post --mailbox "$s23_nr/mb" --from cc --title "cc $s23_i" >/dev/null 2>&1 &
+done
+wait
+for s23_f in to-cc.md:PM to-pm.md:CC; do
+    s23_n="$(grep -c "^## ${s23_f#*:}-" "$s23_nr/mb/${s23_f%%:*}")"
+    s23_u="$(grep -oE "^## ${s23_f#*:}-[0-9]+" "$s23_nr/mb/${s23_f%%:*}" | sort -u | grep -c .)"
+    [[ "$s23_n" == 6 && "$s23_u" == 6 ]] || s23_bad+="${s23_f%%:*} where files cannot be removed: $s23_n messages, $s23_u ids"$'\n'
+done
+[[ -z "$(s23_ls "$s23_nr/mb/.pm-lock" 2>/dev/null)" && -z "$(s23_ls "$s23_nr/mb/.cc-lock" 2>/dev/null)" ]] \
+    || s23_bad+="where files cannot be removed: a mailbox lock still holds a file"$'\n'
+# A holder that died there (its process gone, this host) is taken over, by renaming its file away.
+sleep 30 & s23_dead=$!; kill "$s23_dead"; wait "$s23_dead" 2>/dev/null
+printf '%s\n%s\n%s\n%s\n' "$s23_dead" "$s23_host" "$(date +%s)" "" > "$s23_nr/mb/.pm-lock/h.$s23_dead.1"
+s23_t0=$(date +%s)
+s23_out="$(printf 'after a dead holder\n' | PATH="$s23_stub:$PATH" s23_bare bash "$s23_hook" post --mailbox "$s23_nr/mb" --from pm --title "after" 2>&1)"
+[[ "$s23_out" == PM-007 && $(( $(date +%s) - s23_t0 )) -lt 3 && ! -e "$s23_nr/mb/.pm-lock/h.$s23_dead.1" ]] \
+    || s23_bad+="where files cannot be removed: a dead holder was not taken over at once: $s23_out"$'\n'
+# The next shell that can remove files sweeps what was set aside.
+bash "$s23_rs" add "$s23_nr/board.md" "from a shell that can remove" >/dev/null 2>&1
+[[ -z "$(s23_ls "$s23_nr/.aw-gone")" && ! -e "$s23_nr/board.md.lock" ]] \
+    || s23_bad+="a shell that can remove did not sweep .aw-gone or clear the lock: $(s23_ls "$s23_nr") / $(s23_ls "$s23_nr/.aw-gone")"$'\n'
+# A shell that can neither remove nor rename: turned away at once, the board unchanged, one probe file left.
+s23_before="$(cat "$s23_nr/board.md")"; rm -rf "$s23_nr/.aw-gone"
+s23_t0=$(date +%s)
+s23_out="$(PATH="$s23_stub2:$PATH" bash "$s23_rs" add "$s23_nr/board.md" "past a shell that can do neither" 2>&1)"; s23_rc=$?
+[[ $s23_rc -ne 0 && "$s23_out" == *"not taken"*"neither remove nor rename"* && $(( $(date +%s) - s23_t0 )) -lt 3 ]] \
+    || s23_bad+="where files can be neither removed nor renamed: not turned away at once ($s23_rc): $s23_out"$'\n'
+[[ "$(cat "$s23_nr/board.md")" == "$s23_before" && "$(s23_ls "$s23_nr" | tr ' ' '\n' | grep -v -e '^board.md$' -e '^mb$' -e '^.aw-gone$' | sed 's/\.[0-9]*$//')" == ".aw-probe" ]] \
+    || s23_bad+="where files can be neither removed nor renamed: the board changed, or more than one probe was left: $(s23_ls "$s23_nr")"$'\n'
+s23_out="$(printf 'a brief\n' | PATH="$s23_stub2:$PATH" s23_bare bash "$s23_hook" post --mailbox "$s23_nr/mb" --from pm --title "Refused" 2>&1)"; s23_rc=$?
+[[ $s23_rc -eq 2 && "$s23_out" == *"nothing was changed"*"neither remove nor rename"* ]] && ! grep -q Refused "$s23_nr/mb/to-cc.md" \
+    || s23_bad+="pair.sh post where files can be neither removed nor renamed: not refused ($s23_rc): $s23_out"$'\n'
+empty "23 lock: where files can be made and renamed but not removed (Cowork's mount), writers land, twelve at once on two sides take distinct ids, a dead holder is taken over and the lock is left empty; a shell that can remove sweeps what was set aside; one that can do neither is turned away with nothing taken" "$s23_bad"
+
+# A lock held on another host goes by age, since that host's processes cannot be checked: a young one is
+# kept and named with when it may be taken; one older than AW_LOCK_STALE is taken over quietly, by the
+# later of the time it records and its file's own time.
+s23_bad=""
+printf '# Claims board\n' > "$s23_b"
+mkdir "$s23_b.lock" && printf '%s\n%s\n%s\n%s\n' 4242 "elsewhere.example" "$(date +%s)" "" > "$s23_b.lock/h.1.1"
+s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past a young lock on another host" 2>&1 >/dev/null)"
+[[ "$s23_out" == *"process 4242 on elsewhere.example holds it"*"taken over once it is 120 seconds old"* ]] && ! grep -q 'past a young' "$s23_b" \
+    || s23_bad+="a young lock on another host: not kept, or not named with when it may be taken: $s23_out"$'\n'
+printf '%s\n%s\n%s\n%s\n' 4242 "elsewhere.example" "$(( $(date +%s) - 300 ))" "" > "$s23_b.lock/h.1.1"
+s23_out="$(AW_LOCK_WAIT=1 bash "$s23_rs" add "$s23_b" "past a lock that records an old time, written just now" 2>&1 >/dev/null)"
+! grep -q 'written just now' "$s23_b" || s23_bad+="a lock whose file was written just now was taken by its recorded time alone"$'\n'
+touch -t 202001010000 "$s23_b.lock/h.1.1"
+s23_out="$(bash "$s23_rs" add "$s23_b" "after a stale lock on another host" 2>&1 >/dev/null)"
+[[ -z "$s23_out" && ! -d "$s23_b.lock" ]] && grep -q 'after a stale lock' "$s23_b" \
+    || s23_bad+="a stale lock on another host: not taken over quietly: $s23_out"$'\n'
+# Cowork's sessions share one host name; the boot and process-id namespace tell them apart.
+s23_out="$(bash -c '. "$1"; aw_host' _ "$s23_lk")"
+if [ -r /proc/sys/kernel/random/boot_id ]; then
+    [[ "$s23_out" == "$HOSTNAME/"*/* ]] || s23_bad+="aw_host on Linux does not carry the boot and namespace: $s23_out"$'\n'
+else
+    [[ "$s23_out" == "$HOSTNAME" ]] || s23_bad+="aw_host off Linux is not the host name: $s23_out"$'\n'
+fi
+empty "23 lock: a lock on another host is kept while young, named with when it may be taken, and taken over quietly once older than AW_LOCK_STALE by both its recorded time and its file's; a host on Linux names its boot and process-id namespace" "$s23_bad"
+
+# Cowork's Linux shell: Linux, with the mailbox on its mount under ~/mnt. A stand-in uname says Linux.
+# The mailbox commands run there and land; the commands that act on the person's computer stop with the
+# advice to hand them over. check there reads an engineer recorded on another host from its beat, and
+# says its process cannot be checked rather than calling it ended.
 s23_vm="$SCRATCH/s23/vm" s23_vbin="$SCRATCH/s23/vm-bin"
+s23_vmb="$s23_vm/vm-h/mnt/ws/mb"
 mkdir -p "$s23_vm/vm-h/mnt/ws" "$s23_vbin"
 printf '#!/bin/sh\necho Linux\n' > "$s23_vbin/uname"; chmod +x "$s23_vbin/uname"
-bash "$KIT/plugins/projects/hooks/pair.sh" init --mailbox "$s23_vm/vm-h/mnt/ws/mb" --name "In the VM" >/dev/null 2>&1
-bash "$KIT/plugins/projects/hooks/pair.sh" init --mailbox "$s23_vm/elsewhere" --name "Not mounted" >/dev/null 2>&1
-s23_before="$(cat "$s23_vm/vm-h/mnt/ws/mb/to-cc.md")"
+s23_cw() { HOME="$s23_vm/vm-h" PATH="$s23_vbin:$PATH" s23_bare bash "$s23_hook" "$@" 2>&1; }
 s23_bad=""
-for s23_c in "post --from pm --title Brief" "gates --from pm --id G1 pass seen" "status --from pm --id CC-001 done" "check"; do
+s23_out="$(s23_cw init --mailbox "$s23_vmb" --name "In the VM")"; [[ -f "$s23_vmb/to-cc.md" ]] || s23_bad+="init: $s23_out"$'\n'
+printf '{"gates":[{"id":"G1","what":"w","check":"c","passes":false,"evidence":""}]}\n' > "$s23_vmb/gates.json"
+s23_out="$(printf 'a brief\n' | s23_cw post --mailbox "$s23_vmb" --from pm --pm tokVM --title Brief)"
+[[ "$s23_out" == *PM-001* ]] || s23_bad+="post: $s23_out"$'\n'
+printf 'a report\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_vmb" --from cc --title Report >/dev/null 2>&1
+s23_out="$(s23_cw status --mailbox "$s23_vmb" --from pm --pm tokVM --id CC-001 "done")"; grep -q '^CC-001 · .* · done' "$s23_vmb/status-pm.md" || s23_bad+="status: $s23_out"$'\n'
+s23_out="$(s23_cw gates --mailbox "$s23_vmb" --from pm --pm tokVM --id G1 pass seen)"; [[ "$(jq -r '.gates[0].passes' "$s23_vmb/gates.json")" == true ]] || s23_bad+="gates pass: $s23_out"$'\n'
+jq '.gates[0].check = "c2"' "$s23_vmb/gates.json" > "$s23_vmb/g.tmp" && mv "$s23_vmb/g.tmp" "$s23_vmb/gates.json"
+s23_out="$(s23_cw gates --mailbox "$s23_vmb" --from pm --pm tokVM --seal)"; [[ "$s23_out" == *"sealed again"*"G1's check changed"* ]] || s23_bad+="gates --seal: $s23_out"$'\n'
+printf '4242\nthe-computer\n' > "$s23_vmb/.cc-pid"; printf 's\n' > "$s23_vmb/.cc-session"; date +%s > "$s23_vmb/.cc-beat"
+s23_out="$(s23_cw check --mailbox "$s23_vmb")"
+[[ "$s23_out" == *"Engineer: working"*"process 4242 on the-computer, which cannot be checked from here"* && "$s23_out" == *"Re-sealed"*"PM token tokVM"*"G1's check changed"* ]] \
+    || s23_bad+="check: $s23_out"$'\n'
+echo 0 > "$s23_vmb/.cc-beat"
+s23_out="$(s23_cw check --mailbox "$s23_vmb")"; [[ "$s23_out" == *"Engineer: idle"*"cannot be checked from here"* ]] || s23_bad+="check, no recent beat: $s23_out"$'\n'
+for s23_c in "watch" "join" "leave" "where $s23_vm/vm-h/mnt/ws"; do
     # The words are split on purpose: each string is a command and its options.
     # shellcheck disable=SC2086
-    s23_out="$(printf 'a brief\n' | HOME="$s23_vm/vm-h" PATH="$s23_vbin:$PATH" bash "$KIT/plugins/projects/hooks/pair.sh" $s23_c --mailbox "$s23_vm/vm-h/mnt/ws/mb" 2>&1)"; s23_rc=$?
-    [[ $s23_rc -eq 2 && "$s23_out" == *"nothing was run"*"Cowork's Linux shell"*"Give the person the command"* ]] \
-        || s23_bad+="${s23_c%% *} in Cowork's shell: not stopped with the advice ($s23_rc): $s23_out"$'\n'
+    s23_out="$(s23_cw $s23_c --mailbox "$s23_vmb")"; s23_rc=$?
+    [[ $s23_rc -eq 2 && "$s23_out" == *"nothing was run"*"acts on the person's computer"*"Give the person the command"* ]] \
+        || s23_bad+="${s23_c%% *} in Cowork's shell: not handed over ($s23_rc): $s23_out"$'\n'
 done
-[[ "$(cat "$s23_vm/vm-h/mnt/ws/mb/to-cc.md")" == "$s23_before" && "$(s23_ls "$s23_vm/vm-h/mnt/ws/mb")" == "README.md status-cc.md status-pm.md to-cc.md to-pm.md" ]] \
-    || s23_bad+="in Cowork's shell, the mailbox changed: $(s23_ls "$s23_vm/vm-h/mnt/ws/mb")"$'\n'
-s23_out="$(printf 'a brief\n' | HOME="$s23_vm/vm-h" PATH="$s23_vbin:$PATH" bash "$KIT/plugins/projects/hooks/pair.sh" post --mailbox "$s23_vm/elsewhere" --from pm --title Brief 2>&1)"
-[[ "$s23_out" == PM-001 ]] || s23_bad+="Linux with the mailbox off the mount: not posted: $s23_out"$'\n'
-empty "23 in Cowork's Linux shell pair.sh runs nothing (post, gates, status, check) and says to give the person the command; on Linux off the mount it posts as usual" "$s23_bad"
+empty "23 in Cowork's Linux shell the PM runs post, status, gates (pass and seal), check and init itself; check reads an engineer on another host from its beat; watch, join, leave and where are handed to the person" "$s23_bad"
 s23_bad=""
-for s23_f in "$KIT/plugins/projects/examples/pair/README.md" "$KIT/plugins/projects/commands/pair.md" "$KIT/plugins/projects/commands/overnight.md"; do
-    grep -q 'bash <kit>/plugins/projects/hooks/pair.sh gates' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: no pasteable pair.sh gates line"$'\n'
+s23_rd="$KIT/plugins/projects/examples/pair/README.md"
+grep -q '^## From Cowork$' "$s23_rd" && grep -q 'What still goes to the person' "$s23_rd" && grep -q -- '--pm <token> --seal' "$s23_rd" \
+    || s23_bad+="the mailbox README's From Cowork section: the manager's own commands, the seal and what goes to the person"$'\n'
+for s23_f in "$s23_rd" "$KIT/plugins/projects/commands/pair.md" "$KIT/plugins/projects/commands/overnight.md"; do
+    ! grep -q 'does not run `pair.sh`' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: still says a Cowork manager does not run pair.sh"$'\n'
     ! grep -qi 'osascript' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: still names osascript"$'\n'
 done
-grep -q '^## From Cowork$' "$KIT/plugins/projects/examples/pair/README.md" && grep -q '< <mailbox>/.pm-draft.md' "$KIT/plugins/projects/examples/pair/README.md" \
-    || s23_bad+="the mailbox README has no From Cowork section with the post form"$'\n'
-empty "23 a Cowork manager gives the person the pair.sh command to paste: the forms in the mailbox README, the pair command and the overnight checklist" "$s23_bad"
+empty "23 the docs: a Cowork manager runs the mailbox commands and hands over the rest" "$s23_bad"
 
 # The guidance the model follows: these are instruction-presence checks, since the model applies them.
 s23_ex="$KIT/plugins/projects/examples/pair"
@@ -745,9 +812,9 @@ PAIR_ROLE=cc PAIR_MAILBOX="$1" bash "$2" start < "$3" >/dev/null 2>&1
 EOF
 s23_reset
 s23_stub="$(exec -a claude bash "$s23_cs/claude" "$s23_mb" "$s23_hook" "$s23_cs/start-in.json")"
-s23_rec="$(cat "$s23_mb/.cc-pid" 2>/dev/null)"
-[[ "$s23_stub" =~ ^[0-9]+$ && "$s23_rec" == "$s23_stub" ]] \
-    && ok "23 liveness: with a claude above it, the start hook records that process (pid $s23_rec), found by the walk" \
+s23_rec="$(sed -n 1p "$s23_mb/.cc-pid" 2>/dev/null)"
+[[ "$s23_stub" =~ ^[0-9]+$ && "$s23_rec" == "$s23_stub" && "$(sed -n 2p "$s23_mb/.cc-pid")" == "$s23_host" ]] \
+    && ok "23 liveness: with a claude above it, the start hook records that process (pid $s23_rec) and its host, found by the walk" \
     || ko "23 liveness: with a claude above it, the start hook records that process, found by the walk" "stub $s23_stub; recorded $s23_rec"
 # B2: no claude above the hook. The walk's ps is shimmed for this one run, since the suite may itself sit under a
 # claude process: every process reports the comm zsh and the parent 1, so the walk finds nothing. B1 uses the real ps.
@@ -1111,6 +1178,26 @@ s23_out="$(s23_g; echo "rc=$?")"; [[ "$s23_out" == *"G1's by changed"*"rc=1" ]] 
 s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"; [[ "$s23_out" == *"Gates: gates.json has changed since the PM sealed it (G1's by changed)"* ]] || s23_bad+="the check line: $s23_out"$'\n'
 s23_out="$(s23_g --from pm --seal; s23_g; echo "rc=$?")"; [[ "$s23_out" == *"sealed again"*"G1's by changed"*"rc=0" ]] || s23_bad+="sealed again: $s23_out"$'\n'
 empty "23 gates: a changed check, a removed gate, an added gate and a changed by are refused by name, evidence and passes too, and check says so; the PM's --seal takes the change" "$s23_bad"
+# A re-seal waits on no one and is never silent: .pm-gates records it with when, by which PM session and
+# what changed, and pair.sh check, pair.sh gates and the engineer's session start each list it. A --seal
+# with nothing changed records nothing, and two PM posts at once seal a fresh list once between them.
+s23_bad=""
+s23_out="$(s23_g --from pm --pm tokR --seal)"; [[ "$s23_out" == *"already sealed"*"nothing to record"* ]] || s23_bad+="an unchanged --seal: $s23_out"$'\n'
+[[ "$(grep -c '^re-seal: ' "$s23_mb/.pm-gates")" == 1 ]] || s23_bad+="re-seal lines after one change and one no-op: $(sed -n '3,$p' "$s23_mb/.pm-gates")"$'\n'
+jq '.gates[1].check = "gh pr checks 10"' "$s23_mb/gates.json" > "$s23_mb/gates.tmp" && mv "$s23_mb/gates.tmp" "$s23_mb/gates.json"
+s23_out="$(s23_g --from pm --pm tokR --seal)"; [[ "$s23_out" == *"sealed again"*"G2's check changed"* ]] || s23_bad+="--seal --pm: $s23_out"$'\n'
+s23_want="by PM token tokR: G2's check changed."
+s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_mb")"; [[ "$s23_out" == *"Re-sealed "*"by a PM on"*"G1's by changed."*"Re-sealed "*"$s23_want"* ]] || s23_bad+="check: $s23_out"$'\n'
+s23_out="$(s23_g)"; [[ "$s23_out" == *"Re-sealed "*"$s23_want"* ]] || s23_bad+="gates: $s23_out"$'\n'
+s23_out="$(printf '{"session_id":"sess-123","source":"startup","cwd":"%s"}' "$s23_p" | PAIR_ROLE=cc PAIR_MAILBOX="$s23_mb" bash "$s23_hook" start)"
+[[ "$s23_out" == *"Re-sealed "*"$s23_want"* ]] || s23_bad+="the engineer's session start: $s23_out"$'\n'
+s23_gb="$SCRATCH/s23/sealrace"; bash "$s23_hook" init --mailbox "$s23_gb" --name race >/dev/null
+cp "$SCRATCH/s23/gates-ok.json" "$s23_gb/gates.json"
+for s23_i in 1 2 3 4; do printf 'b\n' | s23_bare bash "$s23_hook" post --mailbox "$s23_gb" --from pm --title "p$s23_i" >/dev/null 2>&1 & done; wait
+[[ "$(grep -c '^first seal: ' "$s23_gb/.pm-gates")" == 1 && "$(grep -c '^re-seal: ' "$s23_gb/.pm-gates")" == 0 ]] \
+    || s23_bad+="four PM posts at once on a fresh list: $(sed -n '3,$p' "$s23_gb/.pm-gates")"$'\n'
+empty "23 gates: a re-seal is recorded with when, by which PM session and what changed, and listed by check, gates and the engineer's session start; an unchanged --seal records nothing; four posts at once seal a fresh list once" "$s23_bad"
+cp "$SCRATCH/s23/gates-ok.json" "$s23_mb/gates.json"; s23_g --from pm --seal >/dev/null
 
 # The count, where each side meets it: the engineer's opening context (with the startup routine on a start
 # or resume, not after a compaction) and the PM's check.

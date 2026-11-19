@@ -18,7 +18,8 @@ machines: a file two machines change between copies would come back as two versi
 | `gates.json` | the PM | the phase's gates: what done means, each with its check (below) |
 | `KICKOFF.md` | the PM | the engineer's opening prompt; the launcher puts this machine's path for `{mailbox}` |
 | `.cc-*` | the engineer's session | its id, its state (`working`, `waiting` with a watch running, or `stopped`, since when), its lock |
-| `.pm-*`, `.closed` | the PM | its session and lock, the sealed copy of the gates (`.pm-gates`); `.closed` once the pairing is closed |
+| `.pm-*`, `.closed` | the PM | its session and lock, the sealed copy of the gates and its seal record (`.pm-gates`); `.closed` once the pairing is closed |
+| `.aw-gone/` | either side's lock | what a shell that cannot remove files set aside on letting go; the next shell that can remove files here clears it |
 
 Anything else here is a stray, such as a copy left by two machines writing one file: `pair.sh check`
 names it.
@@ -117,39 +118,38 @@ A terminal returns a wrapped line as several, and each runs as a command of its 
 
 ## From Cowork
 
-A manager in Cowork does not run `pair.sh`. It gives the person each command to paste in a terminal
-on their computer, written out in full with the paths there, and the person runs it. Cowork's Linux
-shell sees this folder as a mount where it may make files but not remove them, and a lock it took
-could stand for good; `pair.sh` run there stops at once and takes nothing. Reading the files from
-Cowork is fine.
-
-The forms, as the manager writes them, with the computer's absolute paths in place of `<kit>` and
-`<mailbox>` (`pair.sh where <project folder>`, run on the computer, prints the mailbox's):
-
-```
-bash <kit>/plugins/projects/hooks/pair.sh gates \
-  --mailbox <mailbox> \
-  --from pm --id G1 pass "<what you saw>"
-```
-
-```
-bash <kit>/plugins/projects/hooks/pair.sh status \
-  --mailbox <mailbox> \
-  --from pm --id CC-NNN done
-```
-
-A post reads its message from a file the manager writes first, `<mailbox>/.pm-draft.md`, which the
-protocol leaves alone:
+A manager in Cowork runs the mailbox commands itself, in Cowork's Linux shell, with this folder's path
+as that shell sees it (under `~/mnt/`): `post`, `status`, `gates` (passes, fails and seals) and `check`.
+It passes its token from `.pm-session` as `--pm` on each write, so a seal records the session that made it:
 
 ```
 bash <kit>/plugins/projects/hooks/pair.sh post \
-  --mailbox <mailbox> \
-  --from pm --title "<title>" \
-  < <mailbox>/.pm-draft.md
+  --mailbox <mailbox> --from pm --pm <token> \
+  --title "<title>" <<'EOF'
+<the message>
+EOF
 ```
 
-The person pastes it as it stands; the manager reads the output they report, or the mailbox, to see
-that it landed.
+That shell may make and rename files in a connected folder but not remove them. The lock lets go there
+by renaming its file into `.aw-gone/` in this folder, and the next shell that can remove files clears
+it; a shell that can do neither is turned away before it takes anything. A lock whose holder stopped on
+another machine (a Cowork session that ended mid-write, say) is taken over once it is two minutes old,
+since that machine's processes cannot be checked from here. No lock waits on anyone's hands.
+
+`check` in Cowork reads the engineer's state from the activity beat and the end mark: the engineer's
+process is on the person's computer, which Cowork cannot see, and the line says so.
+
+**Re-sealing the gate list.** When the PM changes `gates.json` on purpose, it seals it again itself
+(`pair.sh gates --mailbox <mailbox> --from pm --pm <token> --seal`). Nothing waits on the person, and
+nothing is silent: `.pm-gates` records each re-seal with when, by which PM session and what changed;
+`pair.sh check`, `pair.sh gates` and the engineer's session-start line list every one; and the PM names
+it, with what changed, in its next message to the engineer and its next report to the person.
+
+**What still goes to the person.** Commands that act on their computer rather than on this folder:
+launching or resuming the engineer (`kit/plugins/projects/scripts/pair.sh <project folder>`), `watch`,
+`join`, `leave`, `where` and `default`, and anything else that runs there, such as the project's tests.
+`pair.sh` run in Cowork's shell for one of these stops at once and says to hand it over. The manager
+writes each out in full, with the computer's absolute paths, kept to the paste rule above.
 
 ## Shared files
 

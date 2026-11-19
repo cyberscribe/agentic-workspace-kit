@@ -81,17 +81,20 @@ the folder holds `to-cc.md` and that its `README.md` heading names the project.
 ## The pair script
 
 The pairing's state lives in the mailbox, and `kit/plugins/projects/hooks/pair.sh` reads and
-writes it the same way for both sides. It runs in a terminal on the computer that
-holds the mailbox, with the mailbox folder as `--mailbox`. A manager in Cowork does
-not run it: Cowork's Linux shell may not remove files in a connected folder, so a
-lock it took could stand for good, and `pair.sh` stops there at once. The manager
-gives the person each command to paste instead, in full, with the computer's
-absolute paths, kept to the paste rule below; the mailbox README's *From Cowork*
-section has the forms. For example:
+writes it the same way for both sides, with the mailbox folder as `--mailbox`. A
+manager in Cowork runs `post`, `status`, `gates` and `check` itself in Cowork's Linux
+shell, with the paths as that shell sees them (under `~/mnt/`), and passes its token
+as `--pm` on each write. That shell may not remove files in a connected folder, and
+the lock lets go there by renaming instead. What acts on the person's computer
+rather than on the mailbox (launching the engineer, `watch`, `join`, `leave`,
+`where`, `default`, the project's tests) is handed to the person as a command to
+paste, in full, with the computer's absolute paths, kept to the paste rule below;
+`pair.sh` run in Cowork for one of these stops and says so. The mailbox README's
+*From Cowork* section has the forms. For example:
 
 ```
 bash <kit>/plugins/projects/hooks/pair.sh gates \
-  --mailbox <mailbox> \
+  --mailbox <mailbox> --pm <token> \
   --from pm --id G1 pass "<what you saw>"
 ```
 
@@ -116,8 +119,11 @@ The commands:
   again.
 - `pair.sh gates --mailbox <dir>` prints the phase's gate list (`gates.json`) and
   how many pass; `--from pm --id <gate> pass|fail <what you saw>` sets one, and
-  `--from pm --seal` seals the list again after you change it on purpose. The
-  mailbox README's *Gates* section has the format.
+  `--from pm --pm <token> --seal` seals the list again after you change it on
+  purpose. A re-seal waits on no one: it is recorded with when, by which session
+  and what changed, `check` and the engineer's session start list it, and you name
+  it with what changed in your next message to the engineer and your next report to
+  the person. The mailbox README's *Gates* section has the format.
 - `pair.sh init --mailbox <dir> --name "<project name>"` makes a mailbox in any
   folder.
 

@@ -9,10 +9,10 @@ It acts for one session only: the one `scripts/pair.sh` launched (`PAIR_ROLE=cc`
 for the engineer, one that joined with `/projects:pair join`, found by id in the registry (`PAIR_REGISTRY`, by default
 `~/.config/agentic-workspace-kit/pairings`). Every other session passes through.
 
-**At session start** it records the session id (`.cc-session`) and the claude process id (`.cc-pid`), clears any
-ended mark, and tells the agent which PM messages are open, the gates' count (`gates.json`), the command that
-starts the watch, and any id two messages share. On a start or resume, not after a compaction, it also gives the
-startup routine: the messages, the gates and `git log`, then the brief's `baseline:` check, before new work.
+**At session start** it records the session id (`.cc-session`) and the claude process and its host (`.cc-pid`),
+clears any ended mark, and names the open PM messages, the gates' count and re-seals, the watch command, and any id
+two messages share. On a start or resume, not after a compaction, it also gives the startup routine: the messages,
+the gates and `git log`, then the brief's `baseline:` check, before new work.
 
 **Activity.** `beat` (UserPromptSubmit and PostToolUse) rewrites `.cc-beat` at most every 30 seconds and is silent.
 The prompt beat also clears the no-watch counter. `end` (SessionEnd) writes `.cc-ended`. About 11 ms per call
@@ -34,12 +34,12 @@ outside a pairing and 33 ms inside, measured on the author's machine.
 A join unclaimed after 180 seconds (`PAIR_JOIN_GRACE`) ends it with the launcher command that resumes the session.
 `watch --role pm` does the same for the PM, on `to-pm.md`, and writes no engineer state.
 
-**For either side,** `pair.sh check` derives the engineer's state from evidence and prints the evidence: `working`
-(activity within two minutes), `watching`, `idle` or `ended`. It also prints what is open each way, when each side
-last picked a message up, any header dated later than its file was written, and once per spell that the engineer
-is not watching. `.cc-state` is a cache, labelled as one. `pair.sh post` appends a message under the next id, taken
-under a lock (`hooks/lib/lock.sh`), which a shell unable to remove files there is refused before it takes; in Cowork's
-shell it runs nothing. `pair.sh gates` reads and sets the gate list (`hooks/lib/gates.sh`). Only the gate list needs jq.
+**For either side,** `pair.sh check` prints the engineer's state with its evidence (`working`, `watching`, `idle` or
+`ended`; `.cc-state` is only a cache), what is open each way, the last pickups, headers dated after their file, each
+re-seal of the gates, and once per spell that the engineer is not watching. `post` takes the next id under a lock
+(`hooks/lib/lock.sh`) that lets go by renaming where files cannot be removed, as on Cowork's mount, and goes by age
+when held on another host: a Cowork manager runs `post`, `status`, `gates` and `check` itself, and hands `watch`,
+`join`, `leave`, `where` and `default` to the person. `gates` (`hooks/lib/gates.sh`) is the only part needing jq.
 
 ## When to reach for it
 
@@ -58,10 +58,10 @@ it to type. The hooks check once; the watch waits.
 **My session was started without the launcher.** Type `/projects:pair join` in it: no exit, nothing lost. It needs
 projects 3.3.0 or later loaded in that session.
 
-**Why is a pickup recorded?** The first time the watch or a hook points the reader at a message, its status file
-gets a `received <time>` line. It settles nothing; it lets the PM see how long a message waited.
+**Why is a pickup recorded?** The first time the reader is pointed at a message, its status file gets a `received
+<time>` line: it settles nothing, but shows how long the message waited.
 
-**Why at most two nudges per message?** One the agent cannot finish would loop; it marks it `waiting <on what>`.
+**Why at most two nudges?** One the agent cannot finish would loop; it marks it `waiting <on what>`.
 
 ## It's working if
 
