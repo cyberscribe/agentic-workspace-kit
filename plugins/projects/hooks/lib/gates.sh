@@ -12,8 +12,14 @@
 # afterwards. The fixed part is sealed when the PM posts its next message with gates.json in place, or
 # by `pair.sh gates --from pm --seal` after a deliberate change: a copy goes to .pm-gates, and from then
 # on a list whose fixed part differs from the copy is refused, with what changed. That keeps "done" from
-# drifting: a check cannot be made easier, or a gate dropped, without the PM sealing it again, which the
-# PM's check-in shows.
+# drifting: a check cannot be made easier, or a gate dropped, without the PM sealing it again.
+#
+# A re-seal never waits on anyone, and it is never silent. .pm-gates keeps a line for each seal after its
+# first two lines (the time of the latest seal, then the sealed fixed part):
+#   first seal: 2026-11-15 11:00 +0000 · PM token 3f9a
+#   re-seal: 2026-11-16 09:12 +0000 · PM token 3f9a · G2's check changed; G4 was added
+# and pair.sh check, pair.sh gates and the engineer's session-start line each list every re-seal, with
+# when, by which PM session, and what changed.
 #
 # Each file keeps one writer. gates.json and .pm-gates are the PM's; the engineer never edits them. Its
 # evidence, which proposes a pass, is a line in its own status file, status-cc.md:
@@ -74,8 +80,26 @@ gates_state() {
     g_state=changed
 }
 
-# gates_seal <mailbox>: the PM's copy of the fixed part, and when it was taken.
-gates_seal() { { printf 'sealed: %s\n' "$(date '+%Y-%m-%d %H:%M %z')"; gates_fixed "$1/gates.json"; } > "$1/.pm-gates"; }
+# gates_seal <mailbox> <who> [<what changed>]: the PM's copy of the fixed part and when it was taken,
+# with the seal history carried over and one line added: a first seal, or a re-seal naming what changed.
+# Written beside the file and renamed into place, so a reader sees the old copy or the new one.
+gates_seal() {
+    local s="$1/.pm-gates" t="$1/.pm-gates.tmp.$$" now
+    now="$(date '+%Y-%m-%d %H:%M %z')"
+    {
+        printf 'sealed: %s\n' "$now"
+        gates_fixed "$1/gates.json"
+        [ -f "$s" ] && sed -n '3,$p' "$s"
+        if [ ! -f "$s" ]; then printf 'first seal: %s · %s\n' "$now" "$2"
+        else printf 're-seal: %s · %s · %s\n' "$now" "$2" "$3"; fi
+    } > "$t" && mv "$t" "$s"
+}
+
+# gates_reseals <mailbox>: one line per re-seal, oldest first, or nothing.
+gates_reseals() {
+    [ -f "$1/.pm-gates" ] || return 0
+    awk -F' · ' '/^re-seal: / { sub(/^re-seal: /, "", $1); printf "Re-sealed %s by %s: %s.\n", $1, $2, $3 }' "$1/.pm-gates"
+}
 
 # gates_rows <mailbox>: one tab-separated row per gate: id, by, passes (true, false; a cc gate passes on
 # the engineer's evidence), the time of the engineer's latest evidence (or empty), what, check, the PM's

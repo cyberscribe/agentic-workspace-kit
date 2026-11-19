@@ -5,6 +5,54 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.8.0 — 2026-11-19
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
+changes; the plugins take effect in the next session.
+
+**Plugins.** projects 3.8.0: a Cowork manager runs the pairing's mailbox writes itself, and re-sealing
+the gate list is recorded rather than handed to the person. closeout 1.6.1, workspace 2.3.2, scheduler
+0.1.2 and ongoing 0.1.0 are unchanged.
+
+- **The lock lets go by renaming where it cannot remove.** Cowork's Linux shell on a connected folder
+  can make files and rename them (onto a file, and a folder onto an empty folder) but not remove them,
+  which 3.6.4 took for "neither". A holder now takes its file out of the lock by removing it, or, where
+  removal is refused, by renaming it into `.aw-gone/` beside the lock; the empty lock folder is taken by
+  the next writer's rename, and the next shell that can remove files sweeps `.aw-gone/`. Two writers
+  still cannot both hold a lock: a lock folder holding a file can only be replaced by nothing, each
+  holder's file has a name of its own and is taken out once, and the lock folder itself is only ever
+  removed with `rmdir`, never renamed away. The probe now asks whether a file can be taken out either
+  way, and turns away only a shell that can do neither.
+- **No lock strands.** A lock held on another host, whose processes cannot be checked, is taken over
+  once it is two minutes old (`AW_LOCK_STALE`), by the later of the time it records and its file's own
+  time; the lock guards edits that take milliseconds. A host is now the host name and, on Linux, its boot
+  and process-id namespace, since Cowork's sessions share the host name `claude` while each counts its
+  own process ids. A lock from 3.7.0 on Linux reads as another host's and goes by age.
+- **A Cowork manager runs `post`, `status`, `gates` and `check` itself**, with `--pm <token>` on each
+  write. What acts on the person's computer (launching the engineer, `watch`, `join`, `leave`, `where`,
+  `default`) still stops in Cowork's shell, with the advice to hand the command over. `check` there
+  reads an engineer whose process is on another host from its activity beat and end mark, and says the
+  process cannot be checked from here rather than calling it ended; `.cc-pid` records the host
+  beside the process id. The mailbox README's *From Cowork* section is rewritten to match.
+- **A re-seal waits on no one and is never silent.** The seal still refuses a list whose fixed part has
+  changed. When the PM re-seals, `.pm-gates` records when, by which PM session and what changed, and
+  `pair.sh check`, `pair.sh gates` and the engineer's session-start line list every re-seal. A `--seal`
+  with nothing changed records nothing, and the decision to seal is made under the PM's lock, so two PM
+  posts at once seal a fresh list once.
+- **Pairing protocol.** A Cowork PM arms only the next check-in, never two ahead, since in auto mode it
+  cannot switch off or delete its own scheduled tasks; Closing says that a leftover check-in fires once
+  into the closed pairing and ends. Scheduled tasks the PM creates are recorded in the mailbox, so the
+  engineer's write-up agrees with them. A message from another pairing's PM is headed `Not from this
+  pairing's PM:` and asks for replies headed `Re: PM-NNN (other)`.
+- **Tests.** Section 23 runs the lock and `pair.sh` with stand-ins for `rm`, `rmdir` and `unlink` that
+  refuse one folder while `mv` works, as Cowork's mount does: writers land, twelve at once on two sides
+  take distinct ids, a dead holder is taken over, the lock is left empty and a shell able to remove
+  sweeps what was set aside; a shell that can neither remove nor rename is turned away. It covers a lock
+  on another host by age, the Cowork shell running the PM's commands and handing over the rest, and
+  re-seal visibility.
+
+---
+
 ## v3.7.0 — 2026-11-16
 
 **To update:** run `kit/setup.sh update` in the workspace, then `kit/setup.sh skills` so Cowork has the

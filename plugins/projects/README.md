@@ -262,13 +262,14 @@ still there, or starts a new one, in auto permission mode, with the pairing hook
 loaded for that session only. Between turns a background watch the engineer starts
 wakes it when a message arrives, so one written while it was idle is picked up
 without you relaying it, and the session stays free for you to type into. A Cowork PM checks back
-by a scheduled message into its own conversation, re-armed at each check-in; either way the PM tests what
+by a scheduled message into its own conversation, each check-in arming only the next; either way the PM tests what
 is reported against evidence, and accepts it or writes the next brief. `close` ends the pairing.
 
 Done is a list of gates, not a sentence in a report. The PM writes `gates.json` in the mailbox with the
 brief: each gate a plain `what` and a `check`, at least one of them run the way the user meets the work (CI
 on GitHub, a real terminal, the browser). Posting the brief seals what the gates say; after that only
-whether each passes, and its evidence, changes. The engineer records evidence and the PM, checking it at
+whether each passes, and its evidence, changes, unless the PM re-seals a deliberate change, which is
+recorded and listed to both sides with what changed, and asks nothing of you. The engineer records evidence and the PM, checking it at
 the source, sets the pass; `pair.sh gates` prints the list, and the count (`Gates: 4 of 6 pass`) is in the
 engineer's opening context and the PM's check. At every start and resume, before new work, the engineer
 reads the mailbox, the gates and `git log` and runs the brief's `baseline:` check, so a fault left by the

@@ -34,8 +34,9 @@
 #   pair.sh check --mailbox DIR
 #                   The PM's check-in: the engineer's state, derived from evidence (below), what is open
 #                   each way, when each side last picked a message up, any header dated later than its
-#                   file was written, and once per spell the line that says the engineer needs a
-#                   session or a watch.
+#                   file was written, every re-seal of the gate list (when, by which PM session, what
+#                   changed), and once per spell the line that says the engineer needs a session or a
+#                   watch.
 #   pair.sh post --mailbox DIR --from pm|cc --title TEXT [--pm TOKEN]
 #                   Appends the message on stdin to the other side's file under the next id, taken
 #                   under a lock, with Status: open. --pm names the PM's token from .pm-session; a
@@ -49,7 +50,9 @@
 #                   pass, and refuses a list whose fixed part changed since the PM sealed it (exit 1). The
 #                   engineer records evidence for a gate, which proposes a pass, as a line in its own status
 #                   file; the PM sets passes and evidence in gates.json, or seals the list again after
-#                   changing it on purpose. A PM post seals a list that is not sealed yet.
+#                   changing it on purpose, which is recorded and shown to both sides rather than waiting
+#                   on anyone. A PM post seals a list that is not sealed yet. --pm names the PM's token,
+#                   which the seal record carries.
 #   pair.sh init --mailbox DIR --name NAME
 #                   Makes a mailbox in DIR, any folder: the protocol README and the four files below.
 #                   A folder that already holds a mailbox is left as it is.
@@ -66,8 +69,13 @@
 # files. A message's status is the last line for its id in its reader's status file ("PM-007 · <time> ·
 # done ..."), or, where there is none, the last Status: line in the message itself. A mailbox made
 # before the status files existed has its Status: lines edited in place by the reader, and still reads
-# the same. Each side takes its own lock (.pm-lock, .cc-lock), because a lock only means something to
-# processes on one machine.
+# the same. Each side takes its own lock (.pm-lock, .cc-lock). A lock taken on one host is taken over
+# from another only by age (lib/lock.sh), so each side's writes stay on its own host as a rule.
+#
+# A manager in Cowork runs post, status, gates, check and init itself. Cowork's Linux shell may make and
+# rename files in a connected folder but not remove them, and lib/lock.sh lets go by renaming there.
+# What needs the person's computer (the launcher, watch, join, leave, where, default) is handed to the
+# person as a command to paste.
 #
 # Times are this machine's clock, written with its UTC offset ("2026-10-27 20:17 +0000"), so two
 # machines in different zones still agree on the order of events. Headers are written by pair.sh post,
@@ -188,6 +196,14 @@ claude_pid() {
     return 0
 }
 
+# record_pid: the claude process and the host it runs on (lib/lock.sh's aw_host), for .cc-pid. A reader
+# on another host (the PM in Cowork) cannot check that process, and says so rather than call it ended.
+record_pid() {
+    local p; p="$(claude_pid)"
+    [ -n "$p" ] && printf '%s\n%s\n' "$p" "$(aw_host)"
+    return 0
+}
+
 # ---- The registry ----------------------------------------------------------------------------------
 # One "<mailbox><TAB><session id or ->" line per mailbox under a header line, changed only through
 # lib/lock.sh, so two sessions joining or leaving at once cannot lose each other's line.
@@ -195,16 +211,15 @@ claude_pid() {
 . "$here/lib/lock.sh"
 # shellcheck source=lib/gates.sh
 . "$here/lib/gates.sh"
-# can_write_or_stop: a command that writes to the mailbox asks first whether this shell can remove
-# files there (lib/lock.sh's probe). A shell that can make files but not remove them would leave a
-# lock for good, so it is turned away with nothing changed. This covers such a shell that the Cowork
-# check below does not recognise.
+# can_write_or_stop: a command that writes to the mailbox asks first whether this shell can take files
+# out there, by removing or renaming them (lib/lock.sh's probe). A shell that can do neither would leave
+# a lock for good, so it is turned away with nothing changed.
 can_write_or_stop() {
     local rc=0
-    aw_can_remove "$mb" || rc=$?
+    aw_can_let_go "$mb" || rc=$?
     [ $rc -eq 0 ] && return 0
     if [ $rc -eq 2 ]; then
-        say "nothing was changed: this shell can make files in $mb but not remove them, so it cannot take the mailbox's lock. Run pair.sh in a terminal on the computer that holds the folder; a manager in Cowork gives the person the command to paste (the mailbox README's 'From Cowork' section)."
+        say "nothing was changed: this shell can make files in $mb but neither remove nor rename them, so it cannot take the mailbox's lock. Run pair.sh in a terminal on the computer that holds the folder."
     else
         say "nothing was changed: this shell cannot write in $mb"
     fi
@@ -226,12 +241,12 @@ reg_bind() {
 # shellcheck disable=SC2016
 reg_drop() { [ -f "$registry" ] && aw_rewrite "$registry" awk -F'\t' -v m="$1" '/^#/ || $1 != m'; return 0; }
 
-# ---- A manager in Cowork does not run pair.sh ----------------------------------------------------------
-# Cowork's Linux shell sees the person's folders as a mount (under ~/mnt, its home being in /sessions)
-# where it may make files but not remove them, and its host is one the computer cannot check, so a
-# lock taken there could stand for good. The manager gives the person each command to paste in a
-# terminal on their computer instead. The shell is told apart by being Linux with the mailbox, the
-# folder named or the current folder on such a mount; the probe in can_write_or_stop catches the rest.
+# ---- What a manager in Cowork hands to the person -------------------------------------------------------
+# Cowork's Linux shell sees the person's folders as a mount (under ~/mnt, its home being in /sessions).
+# It runs the mailbox commands itself (post, status, gates, check, init). The rest act on the person's
+# computer rather than on the mailbox: a watch that must outlive the turn, the registry a join or leave
+# changes, this machine's mailbox root. Those it gives the person to paste in a terminal. The shell is
+# told apart by being Linux with the mailbox, the folder named or the current folder on such a mount.
 in_cowork_shell() {
     local p
     [ "$(uname -s 2>/dev/null)" = Linux ] || return 1
@@ -241,9 +256,9 @@ in_cowork_shell() {
     return 1
 }
 case "$mode" in
-    post|status|gates|check|init|where|watch|default|join|leave)
+    where|watch|default|join|leave)
         if in_cowork_shell; then
-            say "nothing was run: this is Cowork's Linux shell, where the manager does not run pair.sh. Give the person the command to paste in a terminal on their computer, with the paths there; the mailbox README's 'From Cowork' section has the forms."
+            say "nothing was run: this is Cowork's Linux shell, and pair.sh $mode acts on the person's computer rather than on the mailbox. Give the person the command to paste in a terminal on their computer, with the paths there; the mailbox README's 'From Cowork' section has the forms."
             exit 2
         fi ;;
 esac
@@ -369,7 +384,7 @@ $joins
 EOJ
     [ -n "$mb" ] || exit 0
     printf '%s\n' "$sid" > "$mb/.cc-session"
-    claude_pid > "$mb/.cc-pid"
+    record_pid > "$mb/.cc-pid"
     rm -f "$mb/.cc-ended"
     reg_bind "$mb" "$sid"
     rm -f "$mb/.cc-join"
@@ -487,28 +502,40 @@ watch_cmd() {
 }
 
 # derive_state: the engineer's state from evidence, into ds_state (not-started, ended, working, watching
-# or idle) and ds_ev (the same word with its evidence, as check prints it).
+# or idle) and ds_ev (the same word with its evidence, as check prints it). A process recorded on another
+# host (the hooks run on the person's computer, the PM may read from Cowork) cannot be checked from here:
+# its line says so, and the state rests on the end mark and the activity beat.
 derive_state() {
-    local pid now beat wp sid tf f tm
-    pid="$(head -n 1 "$mb/.cc-pid" 2>/dev/null | tr -d '[:space:]')"
+    local pid now beat wp sid tf f tm phost me alive
+    me="$(aw_host)"
+    pid="$(sed -n 1p "$mb/.cc-pid" 2>/dev/null | tr -d '[:space:]')"
+    phost="$(sed -n 2p "$mb/.cc-pid" 2>/dev/null)"
+    [ "$phost" = "$me" ] && phost=""
+    if [ -z "$pid" ]; then alive=""
+    elif [ -n "$phost" ]; then alive=", process $pid on $phost, which cannot be checked from here"
+    else alive=", pid $pid alive"; fi
     if [ -z "$pid" ] && [ ! -f "$mb/.cc-session" ]; then
         ds_state=not-started; ds_ev="not started: no session has been recorded"; return 0
     fi
     if [ -f "$mb/.cc-ended" ]; then
         ds_state=ended; ds_ev="ended: session ended at $(sed -n 1p "$mb/.cc-ended")"; return 0
     fi
-    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+    if [ -n "$pid" ] && [ -z "$phost" ] && ! kill -0 "$pid" 2>/dev/null; then
         ds_state=ended; ds_ev="ended: no running process for pid $pid"; return 0
     fi
     now="$(date +%s)"
     beat="$(head -n 1 "$mb/.cc-beat" 2>/dev/null | tr -d '[:space:]')"
     case "$beat" in ''|*[!0-9]*) beat=0 ;; esac
     if [ $(( now - beat )) -lt 120 ]; then
-        ds_state=working; ds_ev="working: last activity $(hms "$beat")${pid:+, pid $pid alive}"; return 0
+        ds_state=working; ds_ev="working: last activity $(hms "$beat")$alive"; return 0
     fi
+    # The watch runs where the engineer's session does, so it is on the host .cc-pid names.
     wp="$(head -n 1 "$mb/.cc-watch" 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "$wp" ] && [ -n "$phost" ]; then
+        ds_state=watching; ds_ev="watching: a watch is recorded (process $wp on $phost, which cannot be checked from here)$alive"; return 0
+    fi
     if [ -n "$wp" ] && kill -0 "$wp" 2>/dev/null; then
-        ds_state=watching; ds_ev="watching: watch running (process $wp)${pid:+, pid $pid alive}"; return 0
+        ds_state=watching; ds_ev="watching: watch running (process $wp)$alive"; return 0
     fi
     # The session's transcript is written as the session runs. A beat older than the session's hooks (a plugin
     # loaded before the beat was added, say) would read idle beside a fresh transcript, so a transcript written
@@ -520,12 +547,12 @@ derive_state() {
         tm=""
         [ -n "$tf" ] && tm="$(mtime_of "$tf")"
         if [ -n "$tm" ] && [ $(( now - tm )) -lt 120 ]; then
-            ds_state=working; ds_ev="working: transcript written $(hms "$tm")${pid:+, pid $pid alive}, the activity beat is older"; return 0
+            ds_state=working; ds_ev="working: transcript written $(hms "$tm")$alive, the activity beat is older"; return 0
         fi
     fi
     ds_state=idle
-    if [ "$beat" -gt 0 ]; then ds_ev="idle: last activity $(hms "$beat")${pid:+, pid $pid alive}, no watch running"
-    else ds_ev="idle: no activity recorded${pid:+, pid $pid alive}, no watch running"
+    if [ "$beat" -gt 0 ]; then ds_ev="idle: last activity $(hms "$beat")$alive, no watch running"
+    else ds_ev="idle: no activity recorded$alive, no watch running"
     fi
 }
 
@@ -547,6 +574,32 @@ clock_check() {
     done
 }
 
+# pm_who: the PM session a seal is recorded against: its Claude Code session, the token it passed with
+# --pm, or, with neither, the host it ran on.
+pm_who() {
+    if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then printf 'PM session %s' "$CLAUDE_CODE_SESSION_ID"
+    elif [ -n "$opt_pm" ]; then printf 'PM token %s' "$opt_pm"
+    else printf 'a PM on %s that gave no --pm token' "$(aw_host)"; fi
+}
+# seal_locked first|again: seals the gate list under the PM's lock, recording who and what changed. The
+# list's state is read again under the lock, so two PM writers at once record one seal between them:
+# first seals only a list never sealed, again only one that has changed (or was never sealed). Status 0
+# when it sealed, 1 when there was nothing to seal, 2 when it could not; g_state and g_why are left as
+# the lock found them.
+seal_locked() {
+    local rc=0
+    aw_lock "$mb/.pm-lock" || { say "nothing was sealed: the lock $mb/.pm-lock was not taken (the line above says why)"; return 2; }
+    gates_state "$mb"
+    case "$1:$g_state" in
+        first:unsealed|again:unsealed) gates_seal "$mb" "$(pm_who)" || rc=2 ;;
+        again:changed) gates_seal "$mb" "$(pm_who)" "$(printf '%s' "$g_why" | paste -sd ';' - | sed 's/;/; /g')" || rc=2 ;;
+        *) rc=1 ;;
+    esac
+    aw_unlock "$mb/.pm-lock"
+    [ $rc -ne 2 ] || say "cannot write $mb/.pm-gates"
+    return $rc
+}
+
 # last_received <status file>: "<id> at <HH:MM>" for the last line its writer recorded as received.
 last_received() {
     [ -f "$1" ] || return 0
@@ -560,7 +613,7 @@ case "$mode" in
         # A joined session whose pairing has closed is unbound, and hears nothing more of it.
         if [ -f "$mb/.closed" ] && [ "${PAIR_ROLE:-}" != "cc" ]; then reg_drop "$mb"; exit 0; fi
         [ -n "$sid" ] && printf '%s\n' "$sid" > "$mb/.cc-session" 2>/dev/null
-        claude_pid > "$mb/.cc-pid" 2>/dev/null
+        record_pid > "$mb/.cc-pid" 2>/dev/null
         rm -f "$mb/.cc-ended"
         nowatch_set 0
         set_state working
@@ -569,6 +622,7 @@ case "$mode" in
         if [ -n "$ids" ]; then printf 'Open for you in to-cc.md: %s. ' "$ids"; else printf 'Nothing is open for you in to-cc.md. ' ; fi
         dup_line "$cc_file" | tr '\n' ' '
         gates_line "$mb" | tr '\n' ' '
+        gates_reseals "$mb" | tr '\n' ' '
         # The startup routine, on a start or a resume (after a compaction the session is mid-work, and has run it).
         case "$(printf '%s' "$input" | tr '\n' ' ' | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')" in
             compact) ;;
@@ -619,7 +673,7 @@ case "$mode" in
         [ -f "$mb/.cc-beat" ] && read -r last < "$mb/.cc-beat"
         case "$last" in ''|*[!0-9]*) last=0 ;; esac
         [ $(( now - last )) -gt 30 ] && printf '%s\n' "$now" > "$mb/.cc-beat" 2>/dev/null
-        [ -s "$mb/.cc-pid" ] || claude_pid > "$mb/.cc-pid" 2>/dev/null
+        [ -s "$mb/.cc-pid" ] || record_pid > "$mb/.cc-pid" 2>/dev/null
         rm -f "$mb/.cc-ended"
         exit 0
         ;;
@@ -722,6 +776,7 @@ case "$mode" in
         printf 'Open for the engineer: %s\n' "${to_cc:-none}"
         printf 'Open for the PM: %s\n' "${to_pm:-none}"
         gates_line "$mb"
+        gates_reseals "$mb"
         pick="$(last_received "$mb/status-cc.md")"
         [ -z "$pick" ] || printf 'Last picked up: %s\n' "$pick"
         pick="$(last_received "$mb/status-pm.md")"
@@ -740,7 +795,7 @@ case "$mode" in
             case "$n" in
                 README.md|KICKOFF.md|PM-KICKOFF.md|to-cc.md|to-pm.md|status-cc.md|status-pm.md|gates.json|gates.json.lock|.closed|.post-lock) continue ;;
                 *[Cc]onflict*) ;;
-                .cc-*|.pm-*|*.tmp.[0-9]*|.aw-probe) continue ;;
+                .cc-*|.pm-*|*.tmp.[0-9]*|.aw-probe*|.aw-gone) continue ;;
                 *) [ -n "$(find "$f" -prune -mmin +5 2>/dev/null)" ] || continue ;;
             esac
             strays="${strays:+$strays, }$n"
@@ -750,7 +805,7 @@ case "$mode" in
         # spell is said once; a working or watching engineer clears it.
         if [ -n "$to_cc" ] && [ ! -f "$mb/.closed" ]; then
             case "$ds_state" in
-                working|watching) rm -f "$mb/.pm-warned" ;;
+                working|watching) [ ! -f "$mb/.pm-warned" ] || : > "$mb/.pm-warned" ;;
                 ended)
                     if [ "$(cat "$mb/.pm-warned" 2>/dev/null)" != ended ]; then
                         printf 'ended\n' > "$mb/.pm-warned"
@@ -787,7 +842,7 @@ case "$mode" in
         # The brief and its gate list go together: the PM's first post with gates.json in place seals it.
         if [ "$opt_from" = pm ] && [ ! -f "$mb/.pm-gates" ]; then
             gates_state "$mb"
-            if [ "$g_state" = unsealed ]; then gates_seal "$mb" && say "gates.json is sealed: its ids, whats, checks and bys are fixed from now on"
+            if [ "$g_state" = unsealed ]; then seal_locked first && say "gates.json is sealed: its ids, whats, checks and bys are fixed from now on"
             elif [ "$g_state" = invalid ]; then say "warning: gates.json is not sealed, since it is not a gate list: ${g_why%%$'\n'*}"
             fi >&2
         fi
@@ -819,8 +874,12 @@ case "$mode" in
         esac
         [ -z "$opt_from" ] || can_write_or_stop
         if [ "$opt_from" = pm ] && [ $opt_seal -eq 1 ]; then
-            gates_seal "$mb" || { say "cannot write $mb/.pm-gates"; exit 2; }
-            if [ "$g_state" = changed ]; then say "sealed again, taking these changes:"; printf '%s\n' "$g_why" | sed 's/^/  /'
+            rc=0; seal_locked again || rc=$?
+            [ $rc -ne 2 ] || exit 2
+            if [ $rc -eq 1 ]; then say "already sealed as it stands ($(sed -n 's/^sealed: //p' "$mb/.pm-gates")); nothing to record"; exit 0; fi
+            if [ "$g_state" = changed ]; then
+                say "sealed again, taking these changes, recorded for both sides (pair.sh check and the engineer's session start list it):"
+                printf '%s\n' "$g_why" | sed 's/^/  /'
             else say "sealed: the ids, whats, checks and bys in $gf are fixed from now on"; fi
             exit 0
         fi
@@ -866,6 +925,7 @@ case "$mode" in
         else sealed="sealed $(sed -n 's/^sealed: //p' "$mb/.pm-gates")"; fi
         printf 'Gates in %s: %s of %s pass; %s.\n' "$gf" \
             "$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "true"' | grep -c .)" "$(printf '%s\n' "$rows" | grep -c .)" "$sealed"
+        gates_reseals "$mb"
         printf '%s\n' "$rows" | awk -F'\t' '
             { who = ($2 == "cc") ? " (the engineer'"'"'s to pass)" : ($2 == "person") ? " (the person'"'"'s call)" : ""
               ev = ($7 != "") ? $7 : ($8 != "") ? $8 : "none written"
