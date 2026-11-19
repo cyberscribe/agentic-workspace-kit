@@ -262,7 +262,7 @@ still there, or starts a new one, in auto permission mode, with the pairing hook
 loaded for that session only. Between turns a background watch the engineer starts
 wakes it when a message arrives, so one written while it was idle is picked up
 without you relaying it, and the session stays free for you to type into. A Cowork PM checks back
-by a scheduled message into its own conversation, re-armed at each check-in; either way the PM tests what
+by a scheduled message into its own conversation, each check-in arming only the next; either way the PM tests what
 is reported against evidence, and accepts it or writes the next brief. `close` ends the pairing.
 
 Done is a list of gates, not a sentence in a report. The PM writes `gates.json` in the mailbox with the

@@ -618,7 +618,11 @@ for s23_f in "$s23_rd" "$KIT/plugins/projects/commands/pair.md" "$KIT/plugins/pr
     ! grep -q 'does not run `pair.sh`' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: still says a Cowork manager does not run pair.sh"$'\n'
     ! grep -qi 'osascript' "$s23_f" || s23_bad+="${s23_f#"$KIT"/}: still names osascript"$'\n'
 done
-empty "23 the docs: a Cowork manager runs the mailbox commands and hands over the rest" "$s23_bad"
+grep -q "Not from this pairing's PM" "$s23_rd" && grep -q 'Re: PM-NNN (other)' "$s23_rd" || s23_bad+="README: the heading for a message from another pairing"$'\n'
+grep -q 'Scheduled tasks are recorded here' "$s23_rd" || s23_bad+="README: scheduled tasks recorded in the mailbox"$'\n'
+grep -q 'never two ahead' "$KIT/plugins/projects/commands/pair.md" && grep -q 'into the closed pairing' "$KIT/plugins/projects/commands/pair.md" \
+    || s23_bad+="pair.md: one check-in ahead, and a leftover firing once into a closed pairing"$'\n'
+empty "23 the docs: a Cowork manager runs the mailbox commands and hands over the rest; another pairing's heading; scheduled tasks recorded; one check-in ahead" "$s23_bad"
 
 # The guidance the model follows: these are instruction-presence checks, since the model applies them.
 s23_ex="$KIT/plugins/projects/examples/pair"

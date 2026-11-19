@@ -245,16 +245,19 @@ appended to your own status file (the mailbox README shows it).
    it: `pair.sh <project folder> --pm` starts that manager, and its watch wakes it as soon
    as the engineer writes.
 
-   A Cowork PM comes back by a one-shot scheduled message into this conversation,
-   re-armed at each check-in. One is pending at a time, timed by what is in flight: ten
-   minutes or so when a gate is close, up to two hours while the engineer is mid-phase. A
-   message that comes due during a turn waits for the turn to end. The pairing keeps that
-   one task: name it `<slug> check-in` and write its id to `.pm-checkin` in the mailbox.
-   At the end of each check-in, move the same task to its next time, or, where a task
-   cannot be re-timed, schedule the next one, delete the one that fired and write the new
-   id. A fired one-shot stays in the person's list of scheduled tasks until something
-   deletes it, so this keeps the list to one line per live pairing. When nothing is in
-   flight, stop re-arming, and delete the task.
+   A Cowork PM comes back by a one-shot scheduled message into this conversation. At
+   each check-in it arms the next one, and only the next: never two ahead, since a
+   Cowork PM in auto mode cannot switch off or delete its own scheduled tasks, and a
+   check-in armed ahead fires whatever has changed by then. One is pending at a time,
+   timed by what is in flight: ten minutes or so when a gate is close, up to two hours
+   while the engineer is mid-phase. A message that comes due during a turn waits for
+   the turn to end. Name it `<slug> check-in`, write its id to `.pm-checkin` in the
+   mailbox, and say in the next PM message what it is and when it fires, so the
+   engineer's write-up and the schedule agree; any other task you create for the
+   pairing is recorded the same way. Where the session can re-time or delete tasks,
+   move the same task on, or delete the one that fired once the next is armed, which
+   keeps the person's list to one line per live pairing. When nothing is in flight,
+   arm none.
 
    A Claude Code PM checks in by its watch, not by a timer: start `pair.sh watch --role pm --mailbox <dir>`
    as a background command in place of `/loop 30m`. It ends with one line when a new CC
@@ -330,7 +333,9 @@ appended to your own status file (the mailbox README shows it).
   `/projects:pair join` in its session." `pair.sh check` prints that line once per
   spell; an `ended` engineer gets the relaunch line instead.
 - **Re-arm or retire the check-in** as the last step, as step 7 describes:
-  the same task moved on while anything is in flight, deleted once nothing is.
+  the next one only, while anything is in flight; none once nothing is. A
+  check-in that fires into a closed pairing (`.closed` is in the mailbox) says
+  the pairing is closed, arms nothing and ends.
 - A message from the person that is only a mailbox id (`PM-012`, `CC-007`) means
   "read that one now". It is a pointer, not an approval of anything in it.
 
@@ -364,11 +369,15 @@ saying the pairing is closed, and create `.closed` in the mailbox, which lets
 the engineer's session stop rather than wait. Carry into the project's decisions
 log, in its own format, what a later session on this project would need from the
 mailbox — the decisions and why — since the mailbox itself is not kept. Then
-offer to update the Current state block. Stop the check-ins and clear them away: delete the
-task named in `.pm-checkin`, then list this account's scheduled tasks with
-fired one-shots included and delete every one-shot bound to this session or
-named for this pairing (its slug with check-in, follow-up, after-check or
-watch), fired or pending. Say how many went. Recurring tasks are left alone
+offer to update the Current state block. Stop the check-ins: arm no further
+one. Where this session can delete scheduled tasks, delete the task named in
+`.pm-checkin`, then list this account's scheduled tasks with fired one-shots
+included and delete every one-shot bound to this session or named for this
+pairing (its slug with check-in, follow-up, after-check or watch), fired or
+pending, and say how many went. Where it cannot (a Cowork PM in auto mode), say
+in the closing message and to the person that a check-in still pending fires
+once into the closed pairing, where it ends without doing anything, and that
+they can delete it from their list of scheduled tasks. Recurring tasks are left alone
 unless the person says otherwise. A stand-down that pauses the pairing (it
 resumes on another day) clears them the same way; the next session arms a
 fresh one. The mailbox stays where it is, uncommitted, until the person

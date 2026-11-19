@@ -39,6 +39,11 @@ the gate list is recorded rather than handed to the person. closeout 1.6.1, work
   `pair.sh check`, `pair.sh gates` and the engineer's session-start line list every re-seal. A `--seal`
   with nothing changed records nothing, and the decision to seal is made under the PM's lock, so two PM
   posts at once seal a fresh list once.
+- **Pairing protocol.** A Cowork PM arms only the next check-in, never two ahead, since in auto mode it
+  cannot switch off or delete its own scheduled tasks; Closing says that a leftover check-in fires once
+  into the closed pairing and ends. Scheduled tasks the PM creates are recorded in the mailbox, so the
+  engineer's write-up agrees with them. A message from another pairing's PM is headed `Not from this
+  pairing's PM:` and asks for replies headed `Re: PM-NNN (other)`.
 - **Tests.** Section 23 runs the lock and `pair.sh` with stand-ins for `rm`, `rmdir` and `unlink` that
   refuse one folder while `mv` works, as Cowork's mount does: writers land, twelve at once on two sides
   take distinct ids, a dead holder is taken over, the lock is left empty and a shell able to remove

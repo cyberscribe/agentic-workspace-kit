@@ -18,7 +18,7 @@ machines: a file two machines change between copies would come back as two versi
 | `gates.json` | the PM | the phase's gates: what done means, each with its check (below) |
 | `KICKOFF.md` | the PM | the engineer's opening prompt; the launcher puts this machine's path for `{mailbox}` |
 | `.cc-*` | the engineer's session | its id, its state (`working`, `waiting` with a watch running, or `stopped`, since when), its lock |
-| `.pm-*`, `.closed` | the PM | its session and lock, the sealed copy of the gates and its seal record (`.pm-gates`); `.closed` once the pairing is closed |
+| `.pm-*`, `.closed` | the PM | its session and lock, the sealed copy of the gates and its seal record (`.pm-gates`), its check-in (`.pm-checkin`); `.closed` once the pairing is closed |
 | `.aw-gone/` | either side's lock | what a shell that cannot remove files set aside on letting go; the next shell that can remove files here clears it |
 
 Anything else here is a stray, such as a copy left by two machines writing one file: `pair.sh check`
@@ -40,6 +40,12 @@ Status: open
 
 `Status: open` goes on a line of its own, last in the message, and is never edited afterwards. A reply is a new message in the other file that names the id it answers on its
 first line (`Re: PM-007`).
+
+**From another pairing.** A PM from another pairing writes here with `pair.sh post --from pm`, so it
+takes the next free id like anyone else. Its title starts `Not from this pairing's PM:`, and it asks
+for replies headed `Re: PM-NNN (other)`, so the engineer reads it apart from its own PM's brief and its
+answer does not read as a reply to this pairing's PM. `post` warns that another PM holds this mailbox;
+for such a message that is expected.
 
 ## Time
 
@@ -107,6 +113,9 @@ seals it again with `pair.sh gates --mailbox <this folder> --from pm --seal`. `b
   `pair.sh watch --role pm` as a background command, which wakes it when a CC message arrives. Either way
   it reads `pair.sh check` before saying anything about the engineer, and tests what the engineer reports
   before accepting it.
+- **Scheduled tasks are recorded here.** Each one the PM creates for the pairing (a check-in, a
+  follow-up) has its id in `.pm-checkin` and a line in the PM's next message saying what it is and when
+  it fires. The engineer's write-ups take what is scheduled from there, so the two accounts agree.
 - A message that cannot wait for a check goes to the person directly.
 
 ## Commands handed to the person
