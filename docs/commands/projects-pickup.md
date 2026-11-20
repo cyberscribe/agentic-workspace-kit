@@ -13,8 +13,9 @@ Source: `plugins/projects/commands/pickup.md`.*
   folder that is its own repository is read inside it.
 - Writes a brief of under 40 lines, quoting the README's own words: the outcome; Done when progress
   and what is still open; the Current state block; planned steps; the last three decisions; the last
-  five commits; open questions; who to ask; how it is kept (`Versioned:`, `Sensitivity:`, resources);
-  what to read first; and a **Worth knowing** line for gaps and staleness.
+  five commits; open questions; who to ask; the person's role in it, from their People line, when it
+  has one; how it is kept (`Versioned:`, `Sensitivity:`, resources); what to read first; and a
+  **Worth knowing** line for gaps and staleness. A project with no role reads as before.
 - A missing section is said in its one line rather than left out: a missing finish line is the most
   useful thing a newcomer can learn.
 - After the brief, names what would fix any gap, for the person to do.
@@ -22,6 +23,10 @@ Source: `plugins/projects/commands/pickup.md`.*
 For a paused project, it then offers one write, on a yes: resuming it. `State: ready` (or `doing`,
 after counting the owner's projects in flight), the look-again `Check-in:` line removed, `Updated:`
 today, the dated line `<today> — Resumed.`, and the register row moved back to the active section.
+
+For a plan with open branches (Open questions, or a Done when criterion nothing says how to meet or who
+decides), it offers the questions about the plan that `/projects:new` asks, and writes what they
+settle on a yes.
 
 ## When to reach for it
 

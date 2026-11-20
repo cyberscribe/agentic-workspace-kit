@@ -69,3 +69,35 @@ if s28_ws="$s28/ws" && mkws_min "$s28_ws" 2>/dev/null; then
 else
     skp "28 the state check with and without a role: no fixture workspace (the kit source could not be cloned)"
 fi
+
+# ---- The interview: one order, the role offered from the profile, and the questions about the plan ----
+s28_new="$KIT/plugins/projects/commands/new.md"
+s28_bad=""
+# The order of "What to find out": outcome, role, finish line, the questions, people, versioning.
+s28_order="$(awk '/^## What to find out/{f=1; next} f && /^## /{exit} f && /^[0-9]+\. /' "$s28_new" \
+    | head -n 8 | grep -v '^2\. ' | sed -E 's/^([0-9]+)\. \*\*([^*]+)\*\*.*/\1 \2/' | paste -sd'|' -)"
+[[ "$s28_order" == "1 Name|3 Desired outcome|4 Their role in it|5 Done when|6 Questions about the plan|7 People|8 How it is versioned, and whether anything in it is sensitive" ]] \
+    || s28_bad+="the order is not outcome, role, finish line, questions, people, versioning: $s28_order"$'\n'
+s28_bad+="$(s28_has "$s28_new" 'The order is the same on both paths: the outcome, their role in it, the finish line, the questions about the plan, the people, then how it is versioned.' \
+        'offer those as the choices, with "another" always open' 'It goes on their own line in People as `as <role>`' \
+        '## Questions about the plan' 'one branch at a time' 'what happens if this part fails or slips' 'who decides it' \
+        'what done looks like for this part' 'is written into Open questions, in their words' \
+        'as soon as they say enough: this is a sharpening pass, never a gate' 'and Open questions when the questions about the plan left any')"
+s28_bad+="$(python3 - "$s28_new" <<'PY'
+import sys
+t = " ".join(open(sys.argv[1], encoding="utf-8").read().split())
+a, b, c = t.find("## Questions about the plan"), t.find("## How it is versioned, and whether it is sensitive"), t.find("## Close with the finish line")
+if not (0 <= a < b < c):
+    print(f"new.md: the questions section is not between What to find out and the versioning section ({a}, {b}, {c})")
+PY
+)"
+[[ -e "$KIT/plugins/projects/commands/grill.md" ]] && s28_bad+="a separate grill command exists; it lives in new and pickup"$'\n'
+empty "28 /projects:new: outcome, role, finish line, questions about the plan, people, versioning; the questions go branch by branch, write what is open to Open questions and stop on the person's word" "$s28_bad"
+
+s28_bad="$(s28_has "$KIT/plugins/ongoing/commands/new.md" '4. **Their role in it**' '**Roles** list' '"another" always open' 'as `as <role>`'
+    s28_has "$KIT/plugins/projects/commands/adopt.md" "**The person's role in it**" '**Roles**' '"another" always open' 'becomes `as <role>` on their own People line' \
+        'A project without one is not missing anything' 'The one exception is the person'"'"'s role'
+    s28_has "$KIT/plugins/ongoing/commands/adopt.md" "**People, with the person's role in it**" '**Roles** list' '"another" always open' 'becomes `as <role>`'
+    s28_has "$KIT/plugins/projects/commands/pickup.md" '**Your role in it:**' 'Omit the line when their line carries none' \
+        '**Questioning the plan.**' 'Questions about the plan' 'stopping on the person'"'"'s word' 'With no open branch, there is no offer.')"
+empty "28 /ongoing:new and both adopt commands ask the role from the profile's Roles; pickup names it and offers the questions for a plan with open branches" "$s28_bad"

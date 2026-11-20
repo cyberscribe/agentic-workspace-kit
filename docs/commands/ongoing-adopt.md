@@ -12,7 +12,8 @@ area, as small proposed insertions. Source: `plugins/ongoing/commands/adopt.md`.
 - Drafts what is missing in the area template's shape, each block marked
   `proposed by /ongoing:adopt <date>: confirm or edit`: the `Versioned:` and `Sensitivity:` lines,
   What this is, Desired state, Standards to keep (or `- not yet named`), the Current state block in area
-  states, Projects and Recurring. A project's dated log stays below, as history.
+  states, Projects and Recurring, and People with the person's role in the area (`as <role>`, from
+  their profile's Roles, asked once). A project's dated log stays below, as history.
 - When the folder sits with the projects, shows the move to the areas location and splits the files
   that name the old path into live ones (scheduled tasks, settings, scripts, guidance) and history,
   which stays as written.

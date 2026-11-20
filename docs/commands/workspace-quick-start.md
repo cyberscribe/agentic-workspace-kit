@@ -19,8 +19,10 @@ decides its mode from `mode=` rather than asking:
   owner, output preferences, working conventions, how the agent should show up, approval gates), and
   optionally the glossary, `.claude/projects.md` settings, the first projects, the team roster, a
   verification standard, the catalogue and the pilot build list.
-- **The personal part** writes the person's profile into the people directory, with their own
-  in-flight limit if they want one, and drafts lines for their personal agent settings for them to add.
+- **The personal part** writes the person's profile into the people directory, with the roles they
+  hold across their life in their own words (a handful at most, one is plenty, no questions about the
+  business), their own in-flight limit if they want one, and drafts lines for their personal agent
+  settings for them to add. Each project and area later names the role the person is in there.
 - **Fitting an existing system** shows a table of what exists against the kit's terms, records the
   team's names in `.claude/projects.md` and `.claude/closeout.md`, offers the `@kit/CLAUDE.kit.md`
   import line for their own `CLAUDE.md`, walks `/projects:adopt` proposals, and proposes folding

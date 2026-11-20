@@ -1,5 +1,5 @@
 ---
-description: Pick up a project cold — a brief of its outcome, done-when progress, current state, last decisions and commits, open questions and who to ask, for anyone taking a project over or coming back to it after time away; read-only while briefing; after the brief, one offered write: resuming a paused project, on a yes
+description: Pick up a project cold — a brief of its outcome, done-when progress, current state, last decisions and commits, open questions and who to ask, and the person's role in it, for anyone taking a project over or coming back to it after time away; read-only while briefing; after it, offers to resume a paused project or to question a plan with open branches, each on a yes
 offer-unprompted: Offer it when someone takes a project over, or comes back to one after time away.
 argument-hint: <slug or folder>
 ---
@@ -16,8 +16,8 @@ the wrong way.
 
 While it briefs, this command only reads. It writes, stages and sends nothing,
 and it does not fix what it finds; it names it, so the person can decide. After
-the brief there is one offered write, and only for a paused project: resuming
-it, on a yes.
+the brief come two offers, each written only on a yes: resuming a paused
+project, and questioning a plan that still has open branches.
 
 ## Where this works
 
@@ -104,11 +104,19 @@ thing a newcomer can learn.
 **Open questions:**
 - <each, as written>
 **Who to ask:** accountable — <name> (<profile>); consulted — <names>
+**Your role in it:** <the person's `as <role>` from their People line>
 **Kept:** <Versioned: value> · <Sensitivity: value>; resources: <names, and any not reachable here>
 **Read first:** <the first one or two items of Read before acting, if it exists>
 **Worth knowing:** <the gaps and staleness below, one line each>
 ```
 
+- **Your role in it** is the role on the People line of the person running the
+  command (their name from `git config user.name`), as written: who they are in
+  this work, a parent or a marketing leader, so every answer after the brief is
+  pitched to that. Omit the line when their line carries none. A role is
+  optional on every People line, theirs and everyone else's: a line without one
+  is complete, so neither **Worth knowing** nor what comes after the brief
+  mentions a missing role.
 - Omit a `Blocked by` or `Check-in` line the Current state block does not have,
   **Planned** if the README keeps no such list, and the **Read first** line if
   the README has no reading order. The **Kept** line says `not stated` for a
@@ -176,13 +184,21 @@ rewritten, for an untracked project), and `kit/setup.sh hooks` after moving a
 project that is its own repository — on a yes, or printed for the person when
 the conventions' **Folder moves** line gives moves to the person.
 
-For any other state, there is no offer. Then stop. The next move is theirs, and
-so is the commit.
+**Questioning the plan.** When the plan has open branches (Open questions in
+the README, or a Done when criterion that nothing in it says how to meet or who
+decides), offer the questions about the plan that `/projects:new` asks, in one
+question after the brief. On a yes, run them as that command's section
+"Questions about the plan" describes (`kit/plugins/projects/commands/new.md`):
+one branch at a time, stopping on the person's word; then show what changed in
+Done when, Planned, People, Working conventions and Open questions, and write it
+on a yes. With no open branch, there is no offer.
+
+Then stop. The next move is theirs, and so is the commit.
 
 ## Practices
 
-- Read-only while briefing; after the brief, one offered write: resuming a
-  paused project, on a yes. Correcting a stale Current state block while
+- Read-only while briefing; after the brief, two offers, each written on a yes:
+  resuming a paused project, and questioning a plan with open branches. Correcting a stale Current state block while
   briefing would hide from the new owner the very thing they most need to see.
 - Quote, don't compose. A summary that reads better than the README is a
   summary the README no longer backs.

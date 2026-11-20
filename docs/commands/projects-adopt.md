@@ -14,7 +14,9 @@ project is versioned. Source: `plugins/projects/commands/adopt.md`.*
   to five Done when criteria (ticked only with evidence), a Current state block with a proposed state
   and a dated line saying what it was drawn from, and People with one of five roles each.
 - Inserts each addition where the template's order puts it. Everything already in the file stays byte
-  for byte as it was.
+  for byte as it was, except one thing, in interactive mode and on a yes: the person's role in the
+  project (from their profile's Roles), added as `as <role>` to their own People line. It is offered
+  once, even for a project with nothing else missing; a project without one is not missing anything.
 - An older `Now` block is named, and in interactive mode offered for conversion to Current state.
 
 It runs two ways:

@@ -350,11 +350,11 @@ s17_bad+="$(s17_before "$s17_b" '12. **Resource not reachable here**' '13. **Loo
 empty "17 board: flags 9-13 in order, from the state check where it is present" "$s17_bad"
 
 s17_p="$s17_cmd/pickup.md"
-s17_bad="$(s17_has "$s17_p" 'read-only while briefing; after the brief, one offered write: resuming a paused project, on a yes' \
-    'Read-only while briefing; after the brief, one offered write: resuming a paused project, on a yes' \
+s17_bad="$(s17_has "$s17_p" 'read-only while briefing; after it, offers to resume a paused project or to question a plan with open branches, each on a yes' \
+    'Read-only while briefing; after the brief, two offers, each written on a yes: resuming a paused project, and questioning a plan with open branches.' \
     '`State: ready`' 'look again on YYYY-MM-DD' '`<today> — Resumed.`' 'Active section' 'in flight')"
 grep -qF 'Read-only, always' "$s17_p" && s17_bad+="pickup.md: still says Read-only, always"$'\n'
-empty "17 pickup: read-only while briefing, then one offered write that resumes a paused project" "$s17_bad"
+empty "17 pickup: read-only while briefing, then two offers on a yes: resume a paused project, question a plan with open branches" "$s17_bad"
 
 # Every command that moves a register row takes the section's name from the conventions, so a register
 # whose paused section is "On hold" keeps that name.
@@ -393,11 +393,12 @@ grep -qF 'belongs in general reference instead' "$KIT/templates/project-readme.m
 empty "17 areas: the project template routes work with no finish line to an area" "$s17_bad"
 
 check "17 areas: the ongoing plugin has a plugin.json with a version" jq -e '.name == "ongoing" and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' "$KIT/plugins/ongoing/.claude-plugin/plugin.json"
-s17_bad="$(s17_has "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**' '5. **Check-in cadence**' \
+s17_bad="$(s17_has "$s17_o/new.md" '3. **Desired state**' '4. **Their role in it**' '5. **Standards to keep**' '6. **Check-in cadence**' \
     '**How it is versioned, and whether anything in it is sensitive**' '**People and roles.**' '**accountable**' \
     '**Recurring.**' '**Projects.**' '**Precedents.**' '- not yet named' 'Areas do not count against the in-flight limit' \
     'ongoing/INDEX.md' '/projects:new')"
-s17_bad+="$(s17_before "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**')"
+s17_bad+="$(s17_before "$s17_o/new.md" '3. **Desired state**' '4. **Their role in it**')"
+s17_bad+="$(s17_before "$s17_o/new.md" '4. **Their role in it**' '5. **Standards to keep**')"
 s17_bad+="$(s17_has "$s17_o/review.md" 'Met, slipped or not known' '/projects:new' '`Check-in:` gets `last <today>`')"
 s17_bad+="$(s17_has "$s17_o/adopt.md" 'proposed by /ongoing:adopt' '## The move and the registers' 'live files')"
 s17_bad+="$(s17_has "$s17_o/pause.md" '`State: dormant`' 'look again on YYYY-MM-DD' 'Dormant')"

@@ -66,6 +66,11 @@ edit -->`, so it reads as a proposal until the owner says otherwise.
 - **Projects** — the former Done when list, unchanged, under a heading naming its
   outcome, marked inline; or links to projects that already serve it.
 - **Recurring** — scheduled tasks, reminders or routines the files name.
+- **People, with the person's role in it** — the owner's line as `/projects:adopt`
+  proposes it, and the person running the command asked, once, which of the roles in
+  their profile's **Roles** list they are in here ("another" always open). Their
+  answer becomes `as <role>` on their own People line; skipped, the line has none,
+  and nothing is missing.
 
 ## The move and the registers
 

@@ -904,7 +904,7 @@ The **projects** plugin keeps the §1.3 tracking axis, one command per moment:
 
 | When | Command | What it does |
 |---|---|---|
-| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, Done when, Current state and People; or, for a project that already exists, only the sections it is missing, with an older status block offered for conversion |
+| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, the person's role in it, Done when, questions that sharpen the plan, Current state and People; or, for a project that already exists, only the sections it is missing, with an older status block offered for conversion |
 | Opening a session | *(session-start line)* | Inside a project folder: outcome, Done-when progress, and the state with its owner and anything blocking it |
 | Any time | `/projects:board` | Every project in flight, grouped by state, with one-line flags: no owner, no Done when, a stale `Updated:`, blocked for more than 14 days, someone over their in-flight limit, the register out of step, adopt proposals unconfirmed, a project ready to close |
 | End of a session | `/closeout` | Learnings promoted; Done when and the Current state block brought up to date, reported apart |
