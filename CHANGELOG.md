@@ -5,6 +5,62 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased — v3.9.0
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
+changes; the plugins take effect in the next session.
+
+**Plugins.** closeout 1.7.0: closeout proposes templates for work that will come round again. workspace
+2.4.0: weekly hygiene reports what each plugin costs every session. projects 3.8.1: a gate's evidence
+counts only from when the gate took its present form. scheduler 0.1.2 and ongoing 0.1.0 are unchanged.
+
+**What the kit costs every session.** Claude Code's own estimate (`claude plugin details`), measured on
+2026-11-20 before this release: closeout ~50 tokens, projects ~771, workspace ~279, scheduler ~150 and
+ongoing ~414, about 1,660 tokens for all five. That is the name and description of each of the kit's
+nineteen commands; a command's body costs only when it runs. Claude Code's figure leaves out what the
+kit's hooks print at the start of a session, which it counts as nothing, and that is the other half:
+on a fixture workspace, a project's line is 409 characters, the workspace line with two findings 480,
+and the closeout review reminder, when a draft is waiting, 3,801. That is about 280 tokens a session,
+and about 1,470 on a session that opens with a draft to review. Section 9 now caps both halves (below).
+
+- **Closeout asks a third question: what here will come round again?** A procedure the session worked
+  out, a role it handed to a subagent, a routine it ran as steps. Where the work recurs, closeout
+  proposes the template for it rather than a note: a skill, an agent definition, a checklist or a
+  command, each a draft the person reads and nothing made without their yes. The tier for templates was
+  always in the table, but neither of the first two questions sent anything there. A proposal carries a
+  sign that the work recurs (done twice in the session, the person said it is regular, or the files show
+  an earlier round), looks first at what the workspace and the kit already have and proposes an update
+  where one covers the work, and says how long its description is, since that loads every session. A
+  one-off is not proposed. Checklists go to `rituals/` in the workspace, beside the kit's own. Asked in
+  the command, the ritual, the capture prompt, the review reminder, `DESIGN.md` and
+  `docs/memory-layers.md`. The capture child, which reads only the transcript, is given the path and
+  description of each skill, agent, command and checklist the workspace and the kit already have.
+  `check-evidence.sh` reads the new `source: recurring` with `kind:`, `recurs:`, `existing:` and
+  `cost:`, and refuses a proposal with no sign that the work recurs.
+- **Weekly hygiene reports plugin cost.** `plugins/workspace/scripts/plugin-cost.sh` reads Claude Code's
+  estimate for each plugin enabled for the repository (for the user, in the repository's settings, or
+  synced to the account), and hygiene reports each one, the total and its change, and names any at
+  2,000 tokens or more with the suggestion to enable it only in the projects that use it. Where there is
+  no `claude` command (Cowork's shell, a container) the report says "not measured here".
+- **The kit caps its own always-on text.** Section 9 holds each command's description to 450 characters
+  and all of them to 6,200 (about 1,900 tokens), and the session-start text to 700 characters for a
+  project's line, 800 for the workspace line and 4,300 for the review reminder, so a new command, a
+  longer description or a longer line is a deliberate choice.
+- **One tier for a skill.** A skill is a procedure the assistant follows, so closeout files it, and an
+  update to one, as a template, in `skills/`; general reference is facts, in `docs/`. The tier table had
+  put `.claude/skills/` under general reference and `skills/` under templates, so the same skill could
+  be filed either way. Checklists go to `rituals/` at the workspace's root, which the first one promoted
+  creates, with a one-line README.
+- **A gate's evidence counts only from when the gate took its present form.** The engineer's evidence
+  line counts if it was written at or after the seal that first fixed its gate, or the latest re-seal
+  that added it or changed its what, check or by. A new gate list that reuses an id no longer inherits
+  the last list's evidence; `pair.sh gates` shows older evidence as not counted. Times written in
+  different zones compare as instants.
+- **`AW_SECTIONS` takes commas as well as spaces.** `AW_SECTIONS=4,11` picked no section and ran the
+  whole suite; it now runs sections 4 and 11.
+
+---
+
 ## v3.8.0 — 2026-11-19
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
