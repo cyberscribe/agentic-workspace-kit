@@ -106,7 +106,7 @@ closeout_config() {
             function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
             # An email address in any cell; seven or more digits in one run of phone
             # characters only in the Channel and Handle cells, where a number would be
-            # a contact (a figure in Role or Default relationship is not one). A date
+            # a contact (a figure in Job or Default relationship is not one). A date
             # written YYYY-MM-DD is taken out first, so it never reads as a number.
             function email(s) { return s ~ /[[:alnum:]._%+-]+@[[:alnum:]-]+(\.[[:alnum:]-]+)*\.[[:alpha:]][[:alpha:]]+/ }
             function phone(s,   t, d, n, part, i) {

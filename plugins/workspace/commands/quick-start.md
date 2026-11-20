@@ -79,7 +79,9 @@ which parts you will offer. The script takes the first that fits, in this order:
   answered some of it (projects in the register, a staleness setting in place), offer only
   the questions still open.
 - **`nothing-left`** — filled in, and they have a profile: say so, and offer the
-  last section on its own.
+  last section on its own. A profile with no **Roles** list (one made before the
+  kit asked for roles) is offered that one question first, as the personal part
+  asks it, and nothing else of it.
 
 Every mode ends with "Reachable and running".
 
@@ -165,16 +167,30 @@ keeps the repository private matters as much to one person as to a team.
 
 1. **Their profile**, from `kit/templates/person-profile.md` (or the template
    `.claude/projects.md` names) into the people directory, named as `.claude/projects.md` says (by default their full name,
-   lowercase, joined by hyphens: `memory/people/priya-shah.md`): role, what they own, what to come to them for, what
+   lowercase, joined by hyphens: `memory/people/priya-shah.md`): job, what they own, what to come to them for, what
    not to, how they like requests. Written with them, in their words; it is the
    "who to go to" directory for the team and for every agent.
-2. *Optional* — **Their in-flight limit** — how many projects they can be doing
+2. **Their roles** — the parts they play across their life, in their own words:
+   "who are you, at work and outside it, in the things you might bring here?"
+   A marketing leader at work, a parent and a spouse at home, a woodworker at
+   the weekend. A handful at most; one is plenty, and a person who keeps work
+   and home apart may give only their work. Write them as a short list under
+   **Roles** in their profile (add the section if the template does not carry
+   it). Ask nothing about the business itself (its size, revenue or market):
+   the roles are who they are, and each project and area later names the one
+   they are in there, so a session knows whether it is helping a parent plan a
+   holiday or a marketing leader plan a launch. The profile is the team's to
+   read, so they give only what they are glad to share.
+
+   Show the profile as a draft once these are answered, and write it only on
+   their yes: an answer to a question is not a yes to the file.
+3. *Optional* — **Their in-flight limit** — how many projects they can be doing
    at once and still finish them. Offer the team default from
    `.claude/projects.md` as the suggested answer, and add it to their profile as
    an **In-flight limit** row (add the row if the template does not carry it).
    A number below the team default is as useful as one above it; it is theirs
    to set.
-3. *Optional* — **Their personal layer.** Ask how they like an agent to work with
+4. *Optional* — **Their personal layer.** Ask how they like an agent to work with
    them — depth, format, pace — and draft a few lines for their own
    `~/.claude/CLAUDE.md` or their other tool's equivalent. Those files are theirs and
    outside this repository: show the lines and let them add them. Anything that

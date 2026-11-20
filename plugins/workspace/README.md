@@ -23,9 +23,10 @@ of their own — and offers only the parts that apply:
   preferences, working conventions, how the agent should show up, and the
   approval gates — written into the always-loaded file a line at a time, because
   every line there is paid for by every session.
-- **The personal part — each person.** Their profile in the people directory, and
-  a few lines for their own personal layer, which stays theirs and outside the
-  repository.
+- **The personal part — each person.** Their profile in the people directory,
+  with the roles they hold across their life (a marketing leader, a parent, a
+  woodworker) that each project and area later names, and a few lines for their
+  own personal layer, which stays theirs and outside the repository.
 
 And, if the team wants them, a few things that live in their own files so they
 cost the always-loaded budget nothing:
