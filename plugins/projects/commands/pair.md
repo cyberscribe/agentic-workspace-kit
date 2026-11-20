@@ -98,7 +98,8 @@ bash <kit>/plugins/projects/hooks/pair.sh gates \
   --from pm --id G1 pass "<what you saw>"
 ```
 
-The commands:
+The commands, each run as `bash kit/plugins/projects/hooks/pair.sh …` (the file is not executable
+on its own; the hooks call it through `bash` too):
 
 - `pair.sh post --mailbox <dir> --from pm --pm <token> --title "<title>"`, the message on
   stdin, appends it to `to-cc.md` under the next id, taken under a lock, with

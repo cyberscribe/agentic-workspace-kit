@@ -1031,6 +1031,11 @@ s23_pp="$(CLAUDE_CONFIG_DIR="$SCRATCH/s23/claude-none" bash "$s23_launch" "$s23_
     && ! -f "$s23_mb/.pm-session" ]] \
     && ok "23 launcher --pm --print: the PM's command and prompt, every placeholder filled, nothing run or written" \
     || ko "23 launcher --pm --print: the PM's command and prompt, every placeholder filled, nothing run or written" "$s23_pp"
+# Every pair.sh command in the PM's prompt runs through bash: the hook script is 100644 (3.10.0).
+s23_bash_calls="$(grep -oE 'bash [^ ]*hooks/pair\.sh (post|check|status)' <<<"$s23_pp" | grep -c . || true)"
+[[ "$s23_bash_calls" -ge 3 ]] && ! grep_all -E '(^|[ (])/[^ ]*hooks/pair\.sh (post|check|status|gates)' <<<"$(sed 's#bash /#bash_/#g' <<<"$s23_pp")" \
+    && ok "23 launcher --pm --print: every pair.sh command in the PM's prompt is run with bash" \
+    || ko "23 launcher --pm --print: every pair.sh command in the PM's prompt is run with bash" "bash calls $s23_bash_calls; $(grep -n 'pair.sh' <<<"$s23_pp" | head -n 5)"
 [[ "$s23_pp" == *"&& PAIR_ROLE=pm PAIR_MAILBOX="* ]] && ok "23 launcher --pm --print: the PM's command carries PAIR_ROLE=pm and PAIR_MAILBOX, as the engineer's does" \
     || ko "23 launcher --pm --print: the PM's command carries PAIR_ROLE=pm and PAIR_MAILBOX, as the engineer's does" "$s23_pp"
 

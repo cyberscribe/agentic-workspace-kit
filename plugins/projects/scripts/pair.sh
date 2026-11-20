@@ -123,7 +123,7 @@ if [ $resume -eq 1 ]; then
         prompt="Resuming the pairing as its PM. Your token is $tok: post every PM message with --pm $tok. Read $mb/to-pm.md for CC messages with Status: open, then start the PM watch if none is running: $watch_cmd"
         how="Resuming PM session $sid"
     else
-        prompt="Resuming the pairing. First the startup routine: read $mb/to-cc.md for anything with Status: open, the gate list if there is one ($pairsh gates --mailbox $mb) and git log; run the brief's baseline check (its baseline: line) and report the result in your next CC message, a red baseline before anything new. Then carry on from your last message in $mb/to-pm.md. Start the mailbox watch from your opening context as a background command if none is running."
+        prompt="Resuming the pairing. First the startup routine: read $mb/to-cc.md for anything with Status: open, the gate list if there is one (bash $pairsh gates --mailbox $mb) and git log; run the brief's baseline check (its baseline: line) and report the result in your next CC message, a red baseline before anything new. Then carry on from your last message in $mb/to-pm.md. Start the mailbox watch from your opening context as a background command if none is running."
         how="Resuming session $sid"
     fi
 else
@@ -131,7 +131,7 @@ else
         args+=(--name "$slug-pm")
         # awk, not sed, so no character in a path or token can act as a sed command.
         # Paths go in quoted for the shell (%q), and through the environment, since awk -v would read their backslashes.
-        prompt="$(PM_M="$(printf '%q' "$mb")" PM_P="$(printf '%q' "$pairsh")" PM_W="$watch_cmd" awk -v t="$tok" -v s="$slug" '
+        prompt="$(PM_M="$(printf '%q' "$mb")" PM_P="bash $(printf '%q' "$pairsh")" PM_W="$watch_cmd" awk -v t="$tok" -v s="$slug" '
             function rep(str, key, val,   out, i) { out = ""; while ((i = index(str, key)) > 0) { out = out substr(str, 1, i - 1) val; str = substr(str, i + length(key)) } return out str }
             { $0 = rep($0, "{mailbox}", ENVIRON["PM_M"]); $0 = rep($0, "{token}", t); $0 = rep($0, "{pair}", ENVIRON["PM_P"]); $0 = rep($0, "{slug}", s); $0 = rep($0, "{watch}", ENVIRON["PM_W"]); print }' \
             "$plugin/examples/pair/PM-KICKOFF.md")"

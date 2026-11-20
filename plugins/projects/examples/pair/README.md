@@ -27,7 +27,7 @@ names it.
 ## A message
 
 Append only, newest last. Each side writes only its own files, and takes the next id with
-`kit/plugins/projects/hooks/pair.sh post`, which reads the last id and appends under a lock, so two
+`bash kit/plugins/projects/hooks/pair.sh post`, which reads the last id and appends under a lock, so two
 writers never share one. Anyone else who writes to a file (a second session, the person) takes the
 next free id the same way. Two messages under one id are two messages: `pair.sh check` and the
 engineer's start hook name the id, and the later is read in full, not as an amendment.
@@ -50,7 +50,7 @@ for such a message that is expected.
 ## Time
 
 Every time written here comes from the system clock, never from an estimate: read it with `date`
-each time. A header is written by `kit/plugins/projects/hooks/pair.sh post`, which stamps it itself, or
+each time. A header is written by `bash kit/plugins/projects/hooks/pair.sh post`, which stamps it itself, or
 headed with the output of `date`; a header typed by hand, or dated later than the file it sits in, is named
 by `pair.sh check`. Keep the clock synced with network time where the machine allows it. Write the UTC offset
 with every time (`2026-10-06 17:40 +0100`, from `date '+%Y-%m-%d %H:%M %z'`), so times written on
@@ -65,7 +65,7 @@ editing the message:
 PM-007 · 2026-10-06 18:05 +0100 · done 4f2a91c
 ```
 
-`kit/plugins/projects/hooks/pair.sh status --mailbox <this folder> --from cc --id PM-007 done 4f2a91c`
+`bash kit/plugins/projects/hooks/pair.sh status --mailbox <this folder> --from cc --id PM-007 done 4f2a91c`
 writes that line (`--from pm` for the PM). Without a shell, append it by hand. The last line for an
 id holds. A status:
 
