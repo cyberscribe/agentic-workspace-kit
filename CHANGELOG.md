@@ -43,9 +43,15 @@ private marker's hook prints nothing unless the word is there.
   or as soon as the person says enough: a sharpening pass, never a gate. `/projects:pickup` offers the
   same questions for a project whose plan has open branches. There is no separate command, so no new
   description in every session.
-- **Written on a yes.** `/projects:new`, `/ongoing:new` and the quick-start write a README or profile
-  only on the person's yes to the draft they were shown; ending the questions is not that yes, and the
-  yes covers only what was shown.
+- **Written on a yes.** Every command that writes shows the change first and writes it only on the
+  person's yes to it: ending the questions or answering one is not that yes, and the yes covers only
+  what was shown. Two exceptions are named, by design: an adopt run in draft mode, which writes
+  proposals marked as such, and closeout's mechanical promotions, which it makes and lists.
+- **Small fixes in the pairing.** `pair.sh` reads a message id only from a full header
+  (`## <ID> · <time> · <title>`), so a subhead inside a message is no longer an open message or counted
+  for the next id. The PM's prompt and the mailbox README run `pair.sh` with `bash`, since the hook
+  script is not executable on its own. Closeout never hands the person a command with a placeholder
+  left in it.
 - **`#private`.** Writing `#private` in any message marks the whole session private: closeout says so
   once, keeps no draft of it, and the next session's reminder says nothing about it. A `/closeout` asked
   for in a private session asks before writing anything. The new `closeout-private.sh` hook
@@ -75,7 +81,7 @@ private marker's hook prints nothing unless the word is there.
   keeps every refusal: green checks, every gate passed, and a merge commit holding exactly the release
   tree.
 - **Tests.** Section 27 (the release script), 28 (roles, the interview order, the questions about the
-  plan, and a README with no role giving exactly the old session-start line), 29 (diagnose, with a
+  plan, writing on a yes, and a README with no role giving exactly the old session-start line), 29 (diagnose, with a
   planted secret, project name and home path); sections 4, 9, 10 and 21 extended.
 
 ---
