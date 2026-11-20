@@ -21,6 +21,10 @@ Source: `plugins/projects/commands/board.md`.*
 Typed as `/projects:board write`, it also writes the same board to `projects/BOARD.md` (or beside the
 register), with a first line marking it as generated.
 
+Typed as `/projects:board by role`, it groups the cards in each column by your role in each project
+(the `as <role>` on your People line), in your profile's order; `/projects:board role parent` shows
+only the work you are in as a parent. A project with no role is never a gap or a flag.
+
 ## When to reach for it
 
 When someone asks where the work stands, before a team check-in, or when a session opens at the

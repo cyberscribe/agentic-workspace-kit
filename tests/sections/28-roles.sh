@@ -47,8 +47,8 @@ s28_bad+="$(s28_has "$KIT/templates/project-readme.md" 'name — what they answe
 empty "28 the project and area templates carry the person's role in People, after the five roles and apart from them" "$s28_bad"
 
 # The owner is read the same with a role and without one; the stand-in template line names no owner.
-printf '# Holiday\n\n## Desired outcome\n\nA week away.\n\n## People\n\n- Sam Lee — accountable — as parent — `memory/people/sam-lee.md`\n- Alex — consulted — as spouse\n' > "$s28/with.md"
-printf '# Holiday\n\n## Desired outcome\n\nA week away.\n\n## People\n\n- Sam Lee — accountable — `memory/people/sam-lee.md`\n- Alex — consulted\n' > "$s28/without.md"
+printf '# Holiday\n\n## Desired outcome\n\nA week away.\n\n## Current state\n\n- **State:** ready\n- **Updated:** 2026-11-20\n\n## People\n\n- Sam Lee — accountable — as parent — `memory/people/sam-lee.md`\n- Alex — consulted — as spouse\n' > "$s28/with.md"
+printf '# Holiday\n\n## Desired outcome\n\nA week away.\n\n## Current state\n\n- **State:** ready\n- **Updated:** 2026-11-20\n\n## People\n\n- Sam Lee — accountable — `memory/people/sam-lee.md`\n- Alex — consulted\n' > "$s28/without.md"
 s28_o1="$(awk -f "$s28_awk" "$s28/with.md" | awk -F '\037' '{print $8}')"
 s28_o2="$(awk -f "$s28_awk" "$s28/without.md" | awk -F '\037' '{print $8}')"
 s28_o3="$(awk -f "$s28_awk" "$KIT/templates/project-readme.md" | awk -F '\037' '{print $8}')"
@@ -101,3 +101,74 @@ s28_bad="$(s28_has "$KIT/plugins/ongoing/commands/new.md" '4. **Their role in it
     s28_has "$KIT/plugins/projects/commands/pickup.md" '**Your role in it:**' 'Omit the line when their line carries none' \
         '**Questioning the plan.**' 'Questions about the plan' 'stopping on the person'"'"'s word' 'With no open branch, there is no offer.')"
 empty "28 /ongoing:new and both adopt commands ask the role from the profile's Roles; pickup names it and offers the questions for a plan with open branches" "$s28_bad"
+
+# ---- Using the role: the session-start line names it; with none, the line is as it was ------------
+s28_hook="$KIT/plugins/projects/hooks/session-start.sh"
+# s28_line <hook> <cwd>: the line the person sees, from a hook run with its own stamp folder.
+s28_line() { jq -nc --arg c "$2" '{cwd: $c, source: "startup"}' \
+    | env PROJECTS_HOOK_STATE_DIR="$s28/stamps" "$st_bash" "$1" 2>/dev/null | jq -r '.systemMessage // empty'; }
+s28_ctx() { jq -nc --arg c "$2" '{cwd: $c, source: "startup"}' \
+    | env PROJECTS_HOOK_STATE_DIR="$s28/stamps" "$st_bash" "$1" 2>/dev/null | jq -r '.hookSpecificOutput.additionalContext // empty'; }
+if [[ -d "${s28_ws:-}/projects/holiday" ]]; then
+    # The hook as origin/main has it, beside its own readme.awk, for the no-role comparison.
+    s28_old="$s28/old-hook"; mkdir -p "$s28_old/lib"
+    if git -C "$KIT" show origin/main:plugins/projects/hooks/session-start.sh > "$s28_old/session-start.sh" 2>/dev/null \
+        && git -C "$KIT" show origin/main:plugins/projects/hooks/lib/readme.awk > "$s28_old/lib/readme.awk" 2>/dev/null; then
+        for f in "$KIT"/plugins/projects/hooks/lib/*; do [[ "${f##*/}" == readme.awk ]] || cp "$f" "$s28_old/lib/"; done
+        s28_have_old=1
+    else s28_have_old=0; fi
+    s28_p="$s28_ws/projects/holiday"
+    git -C "$s28_ws" config user.name "Sam Lee"
+    cp "$s28/with.md" "$s28_p/README.md"
+    s28_bad=""
+    s28_l="$(s28_line "$s28_hook" "$s28_p")"
+    grep_all -F 'accountable Sam Lee (as parent)' <<<"$s28_l" || s28_bad+="owner's role not beside the owner: $s28_l"$'\n'
+    grep_all -F ' — you: ' <<<"$s28_l" && s28_bad+="the owner is told their role twice: $s28_l"$'\n'
+    grep_all -F 'is who that person is in this work' <<<"$(s28_ctx "$s28_hook" "$s28_p")" || s28_bad+="the agent is not told what the role means"$'\n'
+    git -C "$s28_ws" config user.name "Alex Kim"
+    s28_l="$(s28_line "$s28_hook" "$s28_p")"
+    grep_all -F 'accountable Sam Lee (as parent) — you: as spouse' <<<"$s28_l" || s28_bad+="the person's own role not named: $s28_l"$'\n'
+    empty "28 session-start: the owner's role beside their name, and the person's own when they are someone else on People" "$s28_bad"
+    cp "$s28/without.md" "$s28_p/README.md"
+    if [[ $s28_have_old -eq 1 ]]; then
+        s28_n="$(s28_line "$s28_hook" "$s28_p"; s28_ctx "$s28_hook" "$s28_p")"
+        s28_o="$(s28_line "$s28_old/session-start.sh" "$s28_p"; s28_ctx "$s28_old/session-start.sh" "$s28_p")"
+        [[ -n "$s28_n" && "$s28_n" == "$s28_o" ]] \
+            && ok "28 session-start: a README with no role gives exactly the line and context it gave before roles" \
+            || ko "28 session-start: a README with no role gives exactly the line and context it gave before roles" "$(diff <(printf '%s\n' "$s28_o") <(printf '%s\n' "$s28_n"))"
+    else
+        skp "28 session-start with no role against origin/main: origin/main is not in this checkout"
+    fi
+    # An area: the same role, after the line.
+    mkdir -p "$s28_ws/ongoing/garden"
+    printf '# Garden\n\n## Desired state\n\nThe garden in good health.\n\n## Current state\n\n- **State:** active\n- **Updated:** 2026-11-01\n\n## People\n\n- Sam Lee — accountable — as gardener\n' > "$s28_ws/ongoing/garden/README.md"
+    git -C "$s28_ws" config user.name "Sam Lee"
+    s28_l="$(s28_line "$s28_hook" "$s28_ws/ongoing/garden")"
+    grep_all -F 'Area: Garden' <<<"$s28_l" && grep_all -F ' — Sam Lee as gardener' <<<"$s28_l" \
+        && ok "28 session-start in an area names the owner's role too" \
+        || ko "28 session-start in an area names the owner's role too" "$s28_l"
+fi
+
+# ---- The board, the update and an older profile: the role offered, never flagged ---------------------
+s28_bad="$(s28_has "$KIT/plugins/projects/commands/board.md" '**"by role"**' '**"role <word>"**' 'neither is ever a gap or a flag'
+    s28_has "$KIT/plugins/workspace/commands/quick-start.md" 'A profile with no **Roles** list' 'an answer to a question is not a yes to the file'
+    s28_has "$KIT/lib/setup/update.sh" 'New in 3.10.0: the roles you hold' 'Nothing needs it; without it, everything reads as before.')"
+grep -qF '[write] [by role | role <role>]' "$KIT/plugins/projects/commands/board.md" || s28_bad+="board: no argument hint for the role"$'\n'
+# update.sh says it once: only on the update that crosses into 3.10.0.
+s28_older="$(sed -n '/^older() {/,/exit 1 }.; }$/p' "$KIT/lib/setup/update.sh")"
+s28_got="$(eval "$s28_older"; for p in "3.9.0 3.10.0" "3.10.0 3.10.0" "3.10.1 3.10.0" "2.9.9 3.10.0"; do older $p && echo y || echo n; done | paste -sd' ' -)"
+[[ "$s28_got" == "y n n y" ]] || s28_bad+="older(): $s28_got"$'\n'
+empty "28 the board groups and filters by role without flagging its absence; setup update and quick-start offer the role to an older profile once" "$s28_bad"
+
+# ---- Written on a yes: the gate runs showed an answer taken for consent --------------------------------
+s28_bad="$(s28_has "$KIT/plugins/projects/commands/new.md" "write it only on the person's yes to it" 'is not that yes: show the draft and ask.'
+    s28_has "$KIT/plugins/ongoing/commands/new.md" "write it only on the person's yes to it" 'is not that yes: show the draft and ask.')"
+empty "28 /projects:new and /ongoing:new write the README only on a yes to it, not on the end of the questions" "$s28_bad"
+
+# ---- The yes covers what was shown; a missing role is never a gap in pickup (PM-169) ----------------
+s28_bad="$(s28_has "$KIT/plugins/projects/commands/new.md" 'The yes covers what was shown and nothing more' 'never written on that yes unseen. Quote only what the person said.' \
+        'Fill in what the interview settled, shown with the README draft'
+    s28_has "$KIT/plugins/ongoing/commands/new.md" 'The yes covers what was shown and nothing more' 'Fill in what the interview settled, shown with the README draft'
+    s28_has "$KIT/plugins/projects/commands/pickup.md" 'A role is optional on every People line, theirs and everyone else' \
+        'neither **Worth knowing** nor what comes after the brief mentions a missing role')"
+empty "28 a yes to the draft writes only what was shown; pickup never lists a missing role as a gap" "$s28_bad"

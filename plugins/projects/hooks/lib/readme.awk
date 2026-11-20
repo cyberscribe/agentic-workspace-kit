@@ -4,8 +4,9 @@
 #   file  has_block  state  outcome  done_found  done_total  done_ticked  owner
 #   proposed  title  people_found  blocked_by  blocked_since  updated  old_format
 #   versioned  sensitivity  resources  resources_generated  resources_ignored
+#   roles
 #
-# Fields 16-20 were added in kit 3.0, after the first fifteen, so a reader takes
+# Fields 16-20 were added in kit 3.0, and field 21 in 3.10, after the first fifteen, so a reader takes
 # fields by position (awk -F '\037' '{ print $17 }') or ends a read with a spare
 # variable; a reader of the first fifteen keeps working.
 #
@@ -49,10 +50,10 @@ function flush(   st, bb, up) {
     if (file == "") return
     if (block_section) { st = blk_state; bb = blk_blocked; up = blk_updated }
     else { st = any_state; bb = any_blocked; up = any_updated }
-    printf "%s\037%d\037%s\037%s\037%d\037%d\037%d\037%s\037%d\037%s\037%d\037%s\037%s\037%s\037%d\037%s\037%s\037%s\037%s\037%s\n", \
+    printf "%s\037%d\037%s\037%s\037%d\037%d\037%d\037%s\037%d\037%s\037%d\037%s\037%s\037%s\037%d\037%s\037%s\037%s\037%s\037%s\037%s\n", \
         file, (block_section || any_state != ""), st, outcome, done_found, done_total, done_ticked, \
         owner, proposed, title, people_found, bb, since_date(bb), up, old_format, \
-        versioned, sensitivity, res_names, res_generated, res_ignored
+        versioned, sensitivity, res_names, res_generated, res_ignored, roles
 }
 
 function reset() {
@@ -60,7 +61,7 @@ function reset() {
     any_state = ""; any_blocked = ""; any_updated = ""
     outcome = ""; done_found = 0; done_total = 0; done_ticked = 0; owner = ""
     proposed = 0; title = ""; section = ""; fence = 0
-    people_found = 0; old_format = 0
+    people_found = 0; old_format = 0; roles = ""
     cont_blk = 0; cont_any = 0; outcome_done = 0
     versioned = ""; sensitivity = ""; versioned_seen = 0; sensitivity_seen = 0
     res_names = ""; res_generated = ""; res_ignored = ""; in_cmt = 0; vis = ""
@@ -260,6 +261,26 @@ section == "done" && /^[ \t]*[-*][ \t]+\[[ xX]\]/ {
     done_total++
     if ($0 ~ /\[[xX]\]/) done_ticked++
     next
+}
+
+# Each person's role in the work: the part of their People line that starts "as " between the dashes
+# ("- Sam — accountable — as parent — profile"), kept as name=role, ";"-joined, in the order of the
+# lines. A line without one adds nothing; a stand-in ("as <role>") is a gap.
+section == "people" && /^[ \t]*[-*][ \t]+/ {
+    rl = $0
+    sub(/^[ \t]*[-*][ \t]+/, "", rl)
+    gsub(/ – /, " — ", rl)
+    np = split(rl, rp, / — /)
+    if (np > 1) {
+        for (ri = 2; ri <= np; ri++) {
+            seg = trim(rp[ri]); gsub(/\*|`/, "", seg)
+            if (tolower(substr(seg, 1, 3)) == "as " && !is_gap(trim(substr(seg, 4)))) {
+                rn = rp[1]; gsub(/\*|`/, "", rn); rn = trim(rn)
+                if (!is_gap(rn)) roles = roles (roles == "" ? "" : ";") rn "=" trim(substr(seg, 4))
+                break
+            }
+        }
+    }
 }
 
 section == "people" && owner == "" && /^[ \t]*[-*][ \t]+/ {

@@ -66,6 +66,29 @@ root="$(projects_root "$cwd")"
 [[ -n "$root" ]] || exit 0
 projects_config "$root"
 
+# The person's role in a project or area: the "as <role>" part of a People line (readme.awk field 21,
+# name=role pairs joined by ";"). role_of <roles> <name>: that person's role, matched on the whole name
+# or, failing that, the first name. you_suffix <roles> <owner>: " — you: as <role>" when the person in
+# this repository's git config is on the list and is not the owner (whose role sits beside their name).
+role_of() {
+    printf '%s' "$1" | tr ';' '\n' | awk -F= -v n="$2" '
+        { k = tolower($1); w = tolower(n) }
+        k == w { print substr($0, length($1) + 2); found = 1; exit }
+        !found && first == "" { split(k, a, " "); split(w, b, " "); if (a[1] != "" && a[1] == b[1]) first = substr($0, length($1) + 2) }
+        END { if (!found && first != "") print first }'
+}
+you_suffix() {
+    local me r
+    [[ -n "$1" ]] || return 0
+    me="$(git -C "$root" config user.name 2>/dev/null)"
+    [[ -n "$me" ]] || return 0
+    [[ -n "$2" && "$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')" == "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]] && return 0
+    r="$(role_of "$1" "$me")"
+    [[ -n "$r" && "$(printf '%s' "$2" | awk '{print tolower($1)}')" != "$(printf '%s' "$me" | awk '{print tolower($1)}')" ]] && printf ' — you: as %s' "$r"
+    return 0
+}
+role_note="The role after \"as\" is who that person is in this work (a parent, a marketing leader), apart from what they answer for: pitch help to it. It is context, not a field to report on."
+
 # emit <lines for the person> <context for the agent>
 emit() {
     jq -nc --arg m "$1" --arg c "$2" \
@@ -124,10 +147,10 @@ EOF
     fi
 
     # Fields are read by position (readme.awk): the first fifteen, then versioned, sensitivity,
-    # resources and resources_generated; _rest takes whatever follows, so each flag stays a flag
-    # however many fields a later version appends.
+    # resources, resources_generated, resources_ignored and roles; _rest takes whatever follows, so
+    # each flag stays a flag however many fields a later version appends.
     IFS=$'\x1f' read -r file _has state outcome done_found done_total done_ticked owner proposed title people_found \
-        blocked_by _since updated old_format _versioned _sensitivity resources resources_generated _rest <<EOF
+        blocked_by _since updated old_format _versioned _sensitivity resources resources_generated _ignored roles _rest <<EOF
 $record
 EOF
     name="${title:-${project##*/}}"
@@ -175,6 +198,7 @@ EOF
         fi
         if [[ -n "$owner" ]]; then
             line3="$line3 — accountable $owner"
+            r="$(role_of "$roles" "$owner")"; [[ -n "$r" ]] && line3="$line3 (as $r)"
         else
             [[ "$people_found" == "1" ]] && line3="$line3 — no one accountable in People" || line3="$line3 — no one accountable named"
         fi
@@ -182,6 +206,7 @@ EOF
         # kit no longer uses, so the line says where they came from.
         [[ "$old_format" == "1" ]] && line3="$line3 — from an older Now block; /projects:adopt converts it"
     fi
+    line3="$line3$(you_suffix "$roles" "$owner")"
 
     lines="$line1
 $line2
@@ -218,6 +243,8 @@ $lines
 Read ${file#"$root"/} in full before acting on this project: the lines above point at it rather than standing in for it."
     [[ "$proposed" == "1" ]] && context="$context
 Sections marked \"proposed\" were drafted by /projects:adopt and are still for the person to confirm or edit."
+    [[ -n "$roles" ]] && context="$context
+$role_note"
     [[ -n "$resource_context" ]] && context="$context
 $resource_context"
     emit "$lines" "$context"
@@ -287,9 +314,16 @@ if [[ -n "$area" && -f "$root/$area/README.md" ]]; then
             print s
         }' "$root/$area/README.md")"
     [[ -n "$line" ]] || exit 0
+    # The owner's role, and the person's own when they are someone else on the People line, as for a project.
+    arec="$(awk -v alias_people="$ALIAS_PEOPLE" -f "$here/lib/readme.awk" "$root/$area/README.md" 2>/dev/null)"
+    aowner="$(printf '%s' "$arec" | awk -F '\037' '{ print $8 }')" aroles="$(printf '%s' "$arec" | awk -F '\037' '{ print $21 }')"
+    r="$(role_of "$aroles" "$aowner")"; [[ -n "$aowner" && -n "$r" ]] && line="$line — $aowner as $r"
+    line="$line$(you_suffix "$aroles" "$aowner")"
+    anote=""; [[ -n "$aroles" ]] && anote="
+$role_note"
     emit "$line" "Where this session's ongoing area stands, from the projects plugin's session-start line (read from $area/README.md; the file is canonical, and this is a summary of it):
 $line
-Read $area/README.md in full before acting on this area: the line above points at it rather than standing in for it."
+Read $area/README.md in full before acting on this area: the line above points at it rather than standing in for it.$anote"
 fi
 
 # ---- Anywhere else: at most one line a day ----------------------------------

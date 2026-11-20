@@ -1,7 +1,7 @@
 ---
 description: Show the board — every project in flight on one page, grouped by state, each with its owner, done-when progress and how long since its Current state block was updated, followed by one-line flags for what needs attention; type "write" to save it as projects/BOARD.md
 offer-unprompted: Offer it when someone asks where the work stands, or when a session opens at the repository root on a surface with no session-start line. When a session opens inside one project folder, give that project's outcome, done-when progress and state instead, and offer the board only if asked.
-argument-hint: [write]
+argument-hint: [write] [by role | role <role>]
 ---
 
 You are the colleague who keeps the team's wall board honest. Once in a while
@@ -48,6 +48,13 @@ skill, it is what they asked for).
 - **Nothing** — show the board in the conversation.
 - **The word "write"** (with or without dashes in front of it) — show it, and
   also write it to a file, as described under "Writing it down".
+- **"by role"** — within each column, group the cards by the role of the person
+  asking (their People line's `as <role>`, the person found by `git config
+  user.name`), in the order of the Roles list in their profile, with the cards
+  that carry none last under "no role given". **"role <word>"** — only the
+  projects and areas where their role matches it, with the counts line saying
+  so. Both go with "write". The role is context for where the work sits in their
+  life, so neither is ever a gap or a flag.
 
 ## What the workspace can tell you
 
@@ -121,6 +128,8 @@ reads the same everywhere.
   register's Owner column; failing that, an owner the conventions file names for
   every project. A list of people under another heading ("Team", "Contacts") is
   not seen, as with Done when.
+- **The role** — the `as <role>` part of a People line (`- Sam — accountable —
+  as parent`), per person; a line without one has none, which is fine.
 - **Unconfirmed proposals** — each
   `<!-- proposed by /projects:adopt YYYY-MM-DD: confirm or edit -->` comment is
   one section a person has yet to confirm.
