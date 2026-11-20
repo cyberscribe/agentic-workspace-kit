@@ -1240,7 +1240,7 @@ if capture "$P3" s-three; then
         'what here will come round again?' '- source: correction | missing-context | general | recurring' \
         '- kind: skill | agent | checklist | command' '- recurs: repeated | said | earlier-round <path>' \
         '- existing: <the file it would update> | none' '- cost: <the description' 'one-off is not proposed' \
-        'propose an update to it'; do
+        'propose an update to it' 'templates: none — <reason>'; do
         grep -qF -- "$w" <<<"$prompt" || bad+="capture prompt: no: $w"$'\n'
     done
     for w in plain source found kind recurs existing cost; do
@@ -1254,7 +1254,7 @@ if capture "$P3" s-three; then
             'the likely move, what goes wrong and what to do instead' 'a warning a colleague would give' \
             '**what here will come round again?**' '**skill**' '**agent definition**' '**checklist**' '**command**' \
             'never a file made without their yes' 'A one-off is not proposed' 'propose an update to it, not a new' \
-            'so the proposal says how many characters it is'; do
+            'so the proposal says how many characters it is' '- `Templates: none — <reason>`, when no template is proposed.'; do
             grep -qF -- "$w" <<<"$flat" || bad+="$f: no: $w"$'\n'
         done
     done
@@ -1262,6 +1262,7 @@ if capture "$P3" s-three; then
     grep -qF 'An item that warns of a trap on the obvious next move is shown as that warning' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: the trap as a warning"$'\n'
     grep -qF 'An item whose source is recurring proposes a skill, an agent definition, a checklist or a command' "$KIT/plugins/closeout/hooks/closeout-review.sh" \
         && grep -qF 'make nothing until the user says yes' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: a recurring item as a proposal"$'\n'
+    grep -qF "a draft's templates: none line is shown as it is" "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: templates: none"$'\n'
     flat="$(tr '\n' ' ' < "$KIT/docs/memory-layers.md" | tr -s ' ')"
     for w in 'what here will come round again' 'a one-off is not' '`rituals/` at the root (the team'"'"'s own checklists, beside the kit'"'"'s'; do
         grep -qF -- "$w" <<<"$flat" || bad+="memory-layers.md: no: $w"$'\n'

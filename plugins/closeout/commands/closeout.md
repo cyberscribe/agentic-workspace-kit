@@ -42,7 +42,9 @@ show an earlier round. A one-off is not proposed. Look first at what the workspa
 already has (`skills/`, `.claude/agents/`, `.claude/commands/`, `rituals/` and the
 kit's own): where one already covers the work, propose an update to it, not a new
 file. A skill's or command's description is loaded into every session, so the
-proposal says how many characters it is.
+proposal says how many characters it is. When none is proposed, the report says
+so in one line, `Templates: none — <reason>` (a one-off session, an existing
+template already covers it), so the person can see the question was asked.
 
 Look for what passes, in this order, and give the first the most care:
 
@@ -329,6 +331,7 @@ there, on an explicit yes.
 - What was promoted, and at which tier, each by its plain sentence first.
 - What was already written, and where, and anything observed and not explained.
 - What is proposed and still needs a decision.
+- `Templates: none — <reason>`, when no template is proposed.
 - What each candidate was checked against (the transcript, the draft's quotes,
   or the conversation), and which were corrected, dropped or left unverified.
 - Any leave-out test offered: drafted, declined, or the tier reconsidered.

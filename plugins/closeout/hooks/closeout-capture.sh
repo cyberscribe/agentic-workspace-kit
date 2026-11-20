@@ -309,6 +309,11 @@ Begin the file with this line, exactly, so the review can find the record:
 
   transcript: $transcript_path
 
+When no item proposes a template, the next line says so, with the reason (a
+one-off session, an existing template already covers it):
+
+  templates: none — <reason>
+
 Then one section per item, in this shape:
 
   ### <one-line claim>

@@ -44,7 +44,9 @@ recurs: the session did it more than once, the person said it is regular, or the
 round. A one-off is not proposed. Look first at what the workspace already has (`skills/`,
 `.claude/agents/`, `.claude/commands/`, `rituals/` and the kit's own): where one already covers the
 work, propose an update to it, not a new file. A skill's or command's description is loaded into every
-session, so the proposal says how many characters it is.
+session, so the proposal says how many characters it is. When none is proposed, the report says so in
+one line, `Templates: none — <reason>` (a one-off session, an existing template already covers it), so
+the person can see the question was asked.
 
 **Where learnings come from, in this order.** The order says where to look first, not what kinds to
 record.
@@ -236,6 +238,7 @@ picked per row:
 
 - What was promoted, and at which tier.
 - What is proposed and still needs a decision.
+- `Templates: none — <reason>`, when no template is proposed.
 - What each candidate was checked against, and which were corrected, dropped or left unverified.
 - Any leave-out test offered: drafted, declined, or the tier reconsidered.
 - Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new state and
