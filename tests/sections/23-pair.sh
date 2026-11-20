@@ -1282,3 +1282,20 @@ s23_reset
 [ -n "${s23_claude:-}" ] && kill "$s23_claude" 2>/dev/null
 unset CLAUDE_PROJECT_DIR
 true
+
+# ---- A message starts only at a full header (3.10.0) ------------------------------------------------
+# "## <ID> · <time> · <title>" opens a message; a subhead inside one ("## PM-002, the second part") is
+# part of it. Before, the subhead read as an open message and pushed the next id past it.
+s23_sh="$SCRATCH/s23-subhead"; rm -rf "$s23_sh"; mkdir -p "$s23_sh"
+bash "$s23_hook" init --mailbox "$s23_sh" --name "Subheads" >/dev/null 2>&1
+printf '\n## PM-001 · 2026-11-20 10:00 +0000 · The brief\nFirst part.\n\n## PM-002, the second part\nMore of the same brief.\n\n## CC-9 notes\nStatus: open\n' >> "$s23_sh/to-cc.md"
+s23_bad=""
+s23_o="$(env -u PAIR_ROLE -u PAIR_MAILBOX bash "$s23_hook" check --mailbox "$s23_sh" 2>&1)"
+grep_all -F 'Open for the engineer: PM-001' <<<"$s23_o" && ! grep_all -F 'PM-002' <<<"$s23_o" || s23_bad+="check: $(grep 'Open for' <<<"$s23_o")"$'\n'
+grep_all -F 'share an id' <<<"$s23_o" && s23_bad+="a subhead read as a second message under an id"$'\n'
+s23_id="$(printf 'Next.\n' | env -u PAIR_ROLE -u PAIR_MAILBOX bash "$s23_hook" post --mailbox "$s23_sh" --from pm --title "Next" 2>/dev/null | tail -n 1)"
+[[ "$s23_id" == PM-002 ]] || s23_bad+="the next id is $s23_id, not PM-002"$'\n'
+env -u PAIR_ROLE -u PAIR_MAILBOX bash "$s23_hook" status --mailbox "$s23_sh" --from cc --id PM-001 done x >/dev/null 2>&1 || s23_bad+="status could not find PM-001"$'\n'
+# The mailbox README template's own example is a full header, so it still shows the form.
+grep_all -E '^## PM-007 · 2026-10-06 17:40 \+0100 · Short title$' "$KIT/plugins/projects/examples/pair/README.md" || s23_bad+="the template's example header changed"$'\n'
+empty "23 a message starts only at a full header: a subhead inside one is neither an open message, a duplicate, nor counted for the next id" "$s23_bad"
