@@ -10,7 +10,7 @@
 #
 #   ### <one-line claim>
 #   - plain: <the claim in one everyday sentence, as the person reads it first>
-#   - source: correction | missing-context | general                 (general when left out)
+#   - source: correction | missing-context | general | recurring     (general when left out)
 #   - tier: <tier name>
 #   - destination: <file or directory>
 #   - check: supported | contradicted | unsupported | already-written | observed
@@ -19,6 +19,10 @@
 #   - correction: <what the record shows>  or  - dropped: <why>      (contradicted)
 #   - missing: <what would support it>                               (unsupported)
 #   - found: <where a session would already find it>                 (already-written)
+#   - kind: skill | agent | checklist | command                      (recurring)
+#   - recurs: repeated | said | earlier-round <path>                 (recurring)
+#   - existing: <the file it would update> | none                    (recurring)
+#   - cost: <the description's length, in characters>                (a recurring skill or command)
 #
 # already-written is a learning a later session would find by itself (in the code, the files, the docs,
 # git log or a tool's help); it is not promoted, and found: says where. observed is something the session
@@ -37,6 +41,12 @@
 # Three rules about where a learning came from, as the item says: every item has a plain: line; a
 # working-standards item is never a general lesson (it needs a correction or a gap in context, with the
 # incident behind it); and a correction cites at least one line that is the person's own words.
+#
+# A recurring item proposes a template for work that will come round again, and is held to the sign that
+# it recurs: repeated needs two or more evidence lines, said a line in the person's own words, and
+# earlier-round the path of the earlier round. It names its kind and the file it would update (or none),
+# a skill or command its cost, and it belongs to the templates tier: a skill is a procedure the
+# assistant follows, not general reference, which is facts.
 #
 # The record is found in this order: --transcript, the draft's transcript: line, --session, and the
 # draft's own name (<session-id>.md), each id looked up as <config>/projects/*/<id>.jsonl under
@@ -200,7 +210,26 @@ while [[ $i -lt $total ]]; do
         correction)
             [[ $persons -gt 0 || -z "$record" ]] || refuse "$claim: a correction, with no evidence line in the person's own words" ;;
         missing-context|general) ;;
-        *) refuse "$claim: source: is '$source', not correction, missing-context or general" ;;
+        recurring)
+            kind="$(get kind | sed -n 1p | tr -d '`' | tr '[:upper:]' '[:lower:]' | squash)"
+            recurs="$(get recurs | sed -n 1p | tr -d '`' | squash)"
+            case "$kind" in
+                skill|agent|checklist|command) ;;
+                *) refuse "$claim: recurring, and kind: is '$kind', not skill, agent, checklist or command" ;;
+            esac
+            # A skill, an agent, a checklist and a command are all templates: general reference is facts.
+            grep -qi 'templat' <<<"$tier" || refuse "$claim: recurring, and its tier is '$tier', not the templates tier"
+            case "$recurs" in
+                repeated) [[ $n_ev -ge 2 || -z "$record" ]] || refuse "$claim: recurs: repeated, with fewer than two evidence lines" ;;
+                said) [[ $persons -gt 0 || -z "$record" ]] || refuse "$claim: recurs: said, with no evidence line in the person's own words" ;;
+                earlier-round\ ?*) ;;
+                *) refuse "$claim: recurring, with no sign that it recurs (recurs: repeated, said, or earlier-round <path>); a one-off is not proposed" ;;
+            esac
+            [[ -n "$(get existing)" ]] || refuse "$claim: recurring, with no existing: line (the file it would update, or none)"
+            case "$kind" in skill|command)
+                [[ "$(get cost | sed -n 1p)" =~ [0-9] ]] || refuse "$claim: a $kind with no cost: line (its description's length, in characters)" ;;
+            esac ;;
+        *) refuse "$claim: source: is '$source', not correction, missing-context, general or recurring" ;;
     esac
     [[ -n "$strict" && "${source:-general}" == general ]] \
         && refuse "$claim: for the always-loaded tier, from a general lesson; it needs the person's correction or a gap in context, with the incident"

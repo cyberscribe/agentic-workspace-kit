@@ -198,20 +198,16 @@ closeout_config() {
     # conventional location that exists in this repo.
     local t_always t_general t_project t_templates
     t_always="${CLOSEOUT_TIER_ALWAYS:-$(closeout_first_existing "$project_dir" CLAUDE.md AGENTS.md)}"
-    # In a workspace built on the kit, .claude/skills/ is the skills bridge's output, rewritten from
-    # kit/ and skills/ on its next run; its manifest, .claude/skills/.kit-generated, says so. A learning
-    # written there would be lost, so general reference goes to skills/, the team's own skills.
-    if [[ -f "$project_dir/.claude/skills/.kit-generated" ]]; then
-        t_general="${CLOSEOUT_TIER_GENERAL:-skills/}"
-    else
-        t_general="${CLOSEOUT_TIER_GENERAL:-$(closeout_first_existing "$project_dir" .claude/skills/ .claude/plugins/)}"
-    fi
+    # General reference is facts, in docs/. A skill is a procedure the assistant follows, so it is a
+    # template, in skills/: in a workspace built on the kit, .claude/skills/ is the skills bridge's
+    # output, rewritten on its next run, and no destination.
+    t_general="${CLOSEOUT_TIER_GENERAL:-docs/}"
     if [[ "$DOC_DIR" == "." ]]; then
         t_project="${CLOSEOUT_TIER_PROJECT:-README.md, $DECISIONS_FILE}"
     else
         t_project="${CLOSEOUT_TIER_PROJECT:-$DOC_DIR/, $DECISIONS_FILE}"
     fi
-    t_templates="${CLOSEOUT_TIER_TEMPLATES:-$(closeout_first_existing "$project_dir" .claude/agents/ .claude/commands/)}"
+    t_templates="${CLOSEOUT_TIER_TEMPLATES:-skills/, .claude/agents/, .claude/commands/, rituals/ (a skill, an agent, a command, a checklist)}"
 
     # Individual scope is a Claude Code convention rather than a repo layout, so it
     # is derived, not detected. The per-project memory directory is keyed by the
@@ -224,9 +220,9 @@ closeout_config() {
 | Tier | Loaded back | Shared destination (committed) | Individual destination (this machine only) |
 |---|---|---|---|
 | Working standards | ALWAYS — every session, every turn | $t_always | ~/.claude/CLAUDE.md |
-| General reference | as needed, in ANY project | $t_general | ~/.claude/skills/ |
+| General reference | as needed, in ANY project | $t_general | the auto-memory, a pointer at most |
 | Project reference | as needed, only in THIS project | $t_project | ~/.claude/projects/$mem_slug/memory/ |
-| Templates & agent roles | as needed, when that role or scaffold is invoked | $t_templates | ~/.claude/agents/ |
+| Templates & agent roles | as needed, when that role or scaffold is invoked | $t_templates | ~/.claude/skills/, ~/.claude/agents/ |
 EOF
 )"
 }

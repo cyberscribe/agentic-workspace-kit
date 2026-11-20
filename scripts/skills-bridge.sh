@@ -284,8 +284,9 @@ cmp -s "$tmp/manifest" "$MANIFEST" 2>/dev/null || changes=$((changes + 1))
 
 # Apply: removals first, then the kit's folders, then the workspace's, then the manifest.
 if [[ $DRY -eq 0 ]]; then
-    mkdir -p "$SK" 2>/dev/null && [[ -w "$SK" ]] \
-        || stop 1 ".claude/skills/ cannot be written here (an agent's sandbox may refuse it); run kit/setup.sh skills from a terminal"
+    if ! mkdir -p "$SK" 2>/dev/null || [[ ! -w "$SK" ]]; then
+        stop 1 ".claude/skills/ cannot be written here (an agent's sandbox may refuse it); run kit/setup.sh skills from a terminal"
+    fi
     while IFS=' ' read -r verb arg; do
         case "$verb" in
             remove)

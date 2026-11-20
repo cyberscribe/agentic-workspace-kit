@@ -1203,6 +1203,43 @@ for s23_i in 1 2 3 4; do printf 'b\n' | s23_bare bash "$s23_hook" post --mailbox
 empty "23 gates: a re-seal is recorded with when, by which PM session and what changed, and listed by check, gates and the engineer's session start; an unchanged --seal records nothing; four posts at once seal a fresh list once" "$s23_bad"
 cp "$SCRATCH/s23/gates-ok.json" "$s23_mb/gates.json"; s23_g --from pm --seal >/dev/null
 
+# Evidence counts only from when its gate took its present form (PM-156): a list that reuses an id starts
+# with none, a re-seal that changes G2 leaves G1's evidence counted, and times in two zones compare as
+# instants. The seal history and the evidence are written by hand here, so every time is fixed.
+s23_bad=""
+s23_eb="$SCRATCH/s23/evidence-age"; bash "$s23_hook" init --mailbox "$s23_eb" --name age >/dev/null
+printf '%s\n' '{ "gates": [
+  { "id": "G1", "what": "The suite is green", "check": "bash tests/run.sh", "passes": false, "evidence": "" },
+  { "id": "G2", "what": "Notes written", "check": "read notes.md, all of it", "by": "cc", "passes": false, "evidence": "" },
+  { "id": "G3", "what": "A new gate on an old id", "check": "c", "passes": false, "evidence": "" } ] }' > "$s23_eb/gates.json"
+{ printf 'sealed: 2026-11-20 13:52 +0000\n'; jq -S -c 'del(.gates[].passes, .gates[].evidence)' "$s23_eb/gates.json"
+  printf 'first seal: 2026-11-15 10:00 +0000 · PM token a\n'
+  printf "re-seal: 2026-11-20 13:52 +0000 · PM token b · G2's check changed; G3 was removed\n"
+  printf "re-seal: 2026-11-20 13:52 +0000 · PM token b · G3 was added\n"; } > "$s23_eb/.pm-gates"
+printf '%s\n' '# Statuses set by the cc side: id · time · status. The last line for an id holds.' \
+    'gate G1 · 2026-11-15 11:25 +0000 · G1 run after the first seal' \
+    'gate G2 · 2026-11-15 11:25 +0000 · G2 notes, against the old check' \
+    'gate G3 · 2026-11-15 11:25 +0000 · evidence for the G3 of an earlier list' > "$s23_eb/status-cc.md"
+s23_eg() { s23_bare bash "$s23_hook" gates --mailbox "$s23_eb" 2>&1; }
+s23_out="$(s23_eg)"
+[[ "$s23_out" == *"0 of 3 pass"* ]] || s23_bad+="count: $s23_out"$'\n'
+[[ "$s23_out" == *"evidence  G1"*"G1 run after the first seal"* ]] || s23_bad+="G1's evidence, after the first seal, is not counted: $s23_out"$'\n'
+[[ "$s23_out" == *"open      G2"*"not counted: the engineer's evidence of 2026-11-15 11:25 +0000 is older than this gate's seal"* ]] \
+    || s23_bad+="G2, changed since its evidence: $s23_out"$'\n'
+[[ "$s23_out" == *"open      G3"*"not counted"* && "$s23_out" != *"earlier list"* ]] || s23_bad+="G3, an id reused: $s23_out"$'\n'
+s23_out="$(s23_bare bash "$s23_hook" check --mailbox "$s23_eb" 2>&1)"
+[[ "$s23_out" == *"Gates: 0 of 3 pass, 1 with evidence for the PM to check"* ]] || s23_bad+="the check line: $s23_out"$'\n'
+# 14:51 at +0100 is 13:51 UTC, a minute before G2's re-seal: not counted. 14:52 at +0100 is the re-seal's
+# own minute: counted, and G2, the engineer's to pass, passes on it.
+printf 'gate G2 · 2026-11-20 14:51 +0100 · a minute early, in summer time\n' >> "$s23_eb/status-cc.md"
+s23_out="$(s23_eg)"; [[ "$s23_out" == *"open      G2"*"not counted: the engineer's evidence of 2026-11-20 14:51 +0100"* ]] || s23_bad+="+0100, a minute early: $s23_out"$'\n'
+printf 'gate G2 · 2026-11-20 14:52 +0100 · in the seal'"'"'s minute, in summer time\n' >> "$s23_eb/status-cc.md"
+s23_out="$(s23_eg)"; [[ "$s23_out" == *"1 of 3 pass"*"pass      G2"*"in the seal's minute"* ]] || s23_bad+="+0100, the same minute: $s23_out"$'\n'
+# A list sealed before the history was kept has only its sealed: line, which stands for every gate.
+printf 'sealed: 2026-11-16 09:00 +0000\n%s\n' "$(jq -S -c 'del(.gates[].passes, .gates[].evidence)' "$s23_eb/gates.json")" > "$s23_eb/.pm-gates"
+s23_out="$(s23_eg)"; [[ "$s23_out" == *"open      G1"*"not counted"*"pass      G2"* ]] || s23_bad+="a seal with no history: $s23_out"$'\n'
+empty "23 gates: evidence counts only from when its gate took its present form — an id reused, a gate changed and another not, two time zones in the same minute and one before it, a seal with no history" "$s23_bad"
+
 # The count, where each side meets it: the engineer's opening context (with the startup routine on a start
 # or resume, not after a compaction) and the PM's check.
 cp "$SCRATCH/s23/gates-ok.json" "$s23_mb/gates.json"; s23_g --from pm --seal >/dev/null

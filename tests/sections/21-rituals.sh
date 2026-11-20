@@ -67,21 +67,28 @@ s21_bad="$(s21_needs plugins/closeout/README.md 'Committing is the person' 'inne
     'push.recurseSubmodules=check' '.claude/skills/.kit-generated')"
 empty "21 closeout README and DESIGN: the commit order and the skills-bridge rule are explained" "$s21_bad"
 
-# --- Closeout: .claude/skills/ is not a destination beside the skills bridge ------------------------
-# s21_general <project dir> [VAR=value...]: the General reference row's shared destination.
-s21_general() {
-    local d="$1"; shift
+# --- Closeout: general reference is facts in docs/, and a skill is a template ----------------------------
+# s21_row <tier> <project dir> [VAR=value...]: that row's shared destination in the tier table.
+s21_row() {
+    local t="$1" d="$2"; shift 2
     env "$@" CLOSEOUT_USER_CONVENTIONS= bash -c 'source "$1/lib/config.sh"; closeout_config "$2"; printf "%s\n" "$TIER_TABLE"' \
-        _ "$KIT/plugins/closeout/hooks" "$d" | awk -F'|' '$2 ~ /General reference/ { gsub(/^ +| +$/, "", $4); print $4 }'
+        _ "$KIT/plugins/closeout/hooks" "$d" | awk -F'|' -v t="$t" '$2 ~ t { gsub(/^ +| +$/, "", $4); print $4 }'
 }
 s21_pb="$s21_dir/bridge" s21_pn="$s21_dir/nobridge"
 mkdir -p "$s21_pb/.claude/skills/kit-closeout" "$s21_pb/skills" "$s21_pn/.claude/skills"
 printf '# Written by kit/scripts/skills-bridge.sh.\nkit\tkit-closeout\tplugins/closeout/commands/closeout.md\n' \
     > "$s21_pb/.claude/skills/.kit-generated"
-s21_got="$(s21_general "$s21_pb")|$(s21_general "$s21_pn")|$(s21_general "$s21_pb" CLOSEOUT_TIER_GENERAL=docs/reference/)"
-[[ "$s21_got" == "skills/|.claude/skills/|docs/reference/" ]] \
-    && ok "21 closeout config: with the bridge's manifest, general reference goes to skills/; without it, .claude/skills/; the variable still wins" \
-    || ko "21 closeout config: with the bridge's manifest, general reference goes to skills/; without it, .claude/skills/; the variable still wins" "$s21_got"
+s21_got="$(s21_row 'General reference' "$s21_pb")|$(s21_row 'General reference' "$s21_pn")|$(s21_row 'General reference' "$s21_pb" CLOSEOUT_TIER_GENERAL=docs/reference/)"
+s21_tpl="$(s21_row 'Templates' "$s21_pn")"
+[[ "$s21_got" == "docs/|docs/|docs/reference/" && "$s21_tpl" == 'skills/, .claude/agents/, .claude/commands/, rituals/ (a skill, an agent, a command, a checklist)' ]] \
+    && ok "21 closeout config: general reference is docs/, bridge or not, and the variable still wins; templates name skills/, agents, commands and rituals/" \
+    || ko "21 closeout config: general reference is docs/, bridge or not, and the variable still wins; templates name skills/, agents, commands and rituals/" "$s21_got / $s21_tpl"
+s21_bad="$(s21_needs plugins/closeout/commands/closeout.md '| General reference | as needed, in any project | `docs/` |' \
+    'a procedure the assistant follows is a skill here, not general reference' 'rituals/` at the workspace' \
+    'The first checklist promoted there creates the folder')"
+s21_bad+="$(s21_needs rituals/closeout.md 'general reference (facts) goes to `docs/`' 'the first one promoted there creates the folder')"
+s21_bad+="$(s21_needs docs/memory-layers.md 'skills (procedures the assistant follows)' '`rituals/` at the root')"
+empty "21 closeout: one tier for a skill (templates) in the command, the ritual and memory-layers, and rituals/ named as the checklists' home, made by the first one" "$s21_bad"
 
 # --- Hygiene, register audit, the quick-start: the 3.0 wording --------------------------------------
 s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'kit/rituals/weekly-hygiene.md' \
@@ -91,10 +98,66 @@ s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'kit/rituals/weekly-h
     '`external_paths_missing`' '`sensitive_tracked`' '`versioned_mismatch`' '`skills_bridge_stale`' \
     "the kit's bytes" "the workspace's bytes" 'hygiene-YYYY-MM-DD.md`, whatever comes before' \
     'bash kit/pilot/measure.sh' 'kit/pilot/ablate.sh' 'skills-bridge.sh --check' 'projects/_done/')"
-s21_bad+="$(s21_needs rituals/weekly-hygiene.md 'Nine checks' '| **Submodules** |' 'state.sh --quick' \
+s21_bad+="$(s21_needs rituals/weekly-hygiene.md 'Ten checks' '| **Plugin cost** |' 'plugin-cost.sh' '| **Submodules** |' 'state.sh --quick' \
     'hygiene-YYYY-MM-DD.md`, whatever comes before' "the kit's bytes and the workspace's bytes" \
     'kit/pilot/measure.sh' 'bash kit/pilot/ablate.sh' 'kit/docs/memory-layers.md')"
 empty "21 hygiene: the command and the ritual list submodules, split the budget into kit and workspace, and compare with any *hygiene-date report" "$s21_bad"
+
+# --- Plugin cost (wave 1): plugin-cost.sh against a stub claude ---------------------------------------
+# The stub answers `plugin list --json` with five plugins: enabled for the user, disabled for the user,
+# enabled in this repository's settings, enabled in another repository's, and synced to the account; and
+# `plugin details` with an always-on line written three ways (plain, with a thousands comma, in k), or
+# Claude Code's not-found line. Only the three that apply here are counted.
+s21_pc="$s21_dir/plugin-cost" s21_pcbin="$s21_dir/plugin-cost-bin"
+mkdir -p "$s21_pc/repo" "$s21_pcbin"
+s21_pcroot="$(cd "$s21_pc/repo" && pwd -P)"
+cat > "$s21_pcbin/claude" <<EOF
+#!/usr/bin/env bash
+case "\$1 \$2" in
+    "plugin list") cat <<'JSON'
+[{"id":"light@m","scope":"user","enabled":true},
+ {"id":"off@m","scope":"user","enabled":false},
+ {"id":"heavy@m","scope":"project","enabled":true,"projectPath":"$s21_pcroot"},
+ {"id":"elsewhere@m","scope":"project","enabled":true,"projectPath":"/somewhere/else"},
+ {"id":"synced@s","scope":"synced","enabled":true},
+ {"id":"gone@s","scope":"synced","enabled":true}]
+JSON
+    ;;
+    "plugin details")
+        case "\$3" in
+            light@m) printf 'light 1.0\n\nProjected token cost\n  Always-on:   ~771 tok   added to every session\n' ;;
+            heavy@m) printf 'heavy 2.0\n\nProjected token cost\n  Always-on:   ~11,679 tok   added to every session\n' ;;
+            synced@s) printf 'synced 1.0\n\nProjected token cost\n  Always-on:   ~1.2k tok   added to every session\n' ;;
+            *) printf 'Plugin "%s" not found. Run \`claude plugin list\` to see installed plugins.\n' "\$3" ;;
+        esac ;;
+esac
+EOF
+chmod +x "$s21_pcbin/claude"
+s21_out="$(PATH="$s21_pcbin:$PATH" bash "$KIT/plugins/workspace/scripts/plugin-cost.sh" "$s21_pc/repo" 2>&1)"; s21_rc=$?
+s21_want="plugin	gone@s	not measured	Plugin \"gone@s\" not found. Run \`claude plugin list\` to see installed plugins.
+plugin	heavy@m	11679
+plugin	light@m	771
+plugin	synced@s	1200
+total	13650	3
+heavy	heavy@m	11679"
+[[ $s21_rc -eq 0 && "$s21_out" == "$s21_want" ]] \
+    && ok "21 plugin cost: the plugins enabled here are measured (user, this repository, synced), a comma and a k read as tokens, the total and the heavy one named, and a plugin Claude Code cannot find says why" \
+    || ko "21 plugin cost: the plugins enabled here are measured (user, this repository, synced), a comma and a k read as tokens, the total and the heavy one named, and a plugin Claude Code cannot find says why" "rc=$s21_rc"$'\n'"$s21_out"
+s21_out="$(AW_PLUGIN_HEAVY=500 PATH="$s21_pcbin:$PATH" bash "$KIT/plugins/workspace/scripts/plugin-cost.sh" "$s21_pc/repo" 2>&1 | grep '^heavy' | cut -f2 | paste -sd' ' -)"
+[[ "$s21_out" == "heavy@m light@m synced@s" ]] \
+    && ok "21 plugin cost: AW_PLUGIN_HEAVY moves the line a plugin is called heavy at" \
+    || ko "21 plugin cost: AW_PLUGIN_HEAVY moves the line a plugin is called heavy at" "$s21_out"
+# Without claude (Cowork's shell, a container): one line, status 0. The script decides this with builtins
+# alone, so it runs here with a PATH that holds nothing.
+mkdir -p "$s21_dir/empty-path"
+s21_out="$(PATH="$s21_dir/empty-path" "$BASH" "$KIT/plugins/workspace/scripts/plugin-cost.sh" "$s21_pc/repo" 2>&1)"; s21_rc=$?
+[[ $s21_rc -eq 0 && "$s21_out" == "not measured here: the claude command is not on this machine" ]] \
+    && ok "21 plugin cost: with no claude command, one line saying it was not measured here, and status 0" \
+    || ko "21 plugin cost: with no claude command, one line saying it was not measured here, and status 0" "rc=$s21_rc $s21_out"
+s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md '**Plugin cost — every run.**' 'bash kit/plugins/workspace/scripts/plugin-cost.sh' \
+    'enabling it only in the projects that use it' '`not measured here`' 'which Claude Code does not count' \
+    'The plugin cost: each plugin')"
+empty "21 hygiene: the command reports plugin cost, names the heavy ones with the per-project suggestion, and says not measured here without claude" "$s21_bad"
 
 s21_bad="$(s21_needs plugins/workspace/commands/register-audit.md 'kit/docs/documentation-register.md' \
     '`kit/` is left out' '.claude/skills/.kit-generated' 'Findings in the kit go upstream' 'team/people.md' '**Contact detail**'
@@ -310,7 +373,7 @@ s21_bad="$(s21_needs docs/memory-layers.md '**What the stores are for.**' '**Com
     '**Context the AI cannot find anywhere else.**' '**The test every promotion passes first: is it otherwise discoverable?**' \
     'in the code, the files, the docs, `git log` or a tool'"'"'s own help')"
 s21_bad+="$(s21_needs plugins/closeout/commands/closeout.md '**is it otherwise discoverable?**' \
-    'Passes the test when it is…' '| `skills/`, `.claude/agents/`, `.claude/commands/` |' '`kit/docs/memory-layers.md` §3 names' \
+    'Passes the test when it is…' '| `skills/`, `.claude/agents/`, `.claude/commands/`, `rituals/` |' '`kit/docs/memory-layers.md` §3 names' \
     'project reference in `projects/<slug>/` and its own `decisions.md`' '**The page against the evidence.**' \
     'the correction goes through the agent the same way')"
 s21_bad+="$(s21_needs docs/getting-started.md '**The four shelves**' '**A bounded always-loaded tier**' \

@@ -375,7 +375,9 @@ if [ "$mode" = stop ] && [ -z "$mb" ]; then
         [ $(( now - at )) -le 600 ] || continue
         js="$(field "$cand/.cc-join" session)"
         if [ -n "$js" ]; then [ "$js" = "$sid" ] || continue
-        else [ -n "$want_cwd" ] && [ "$(field "$cand/.cc-join" cwd)" = "$want_cwd" ] || continue
+        else
+            [ -n "$want_cwd" ] || continue
+            [ "$(field "$cand/.cc-join" cwd)" = "$want_cwd" ] || continue
         fi
         mb="$cand"
         break
@@ -853,7 +855,7 @@ case "$mode" in
         # The reader sets the status of the other side's message, in its own file.
         case "$opt_from" in cc) file="$cc_file" ;; pm) file="$mb/to-pm.md" ;;
             *) say "status needs --from pm or --from cc"; exit 2 ;; esac
-        [ -n "$opt_id" ] && [ -n "$rest" ] || { say "status needs --id <message id> and the status (done, declined or waiting <on what>)"; exit 2; }
+        if [ -z "$opt_id" ] || [ -z "$rest" ]; then say "status needs --id <message id> and the status (done, declined or waiting <on what>)"; exit 2; fi
         grep -q "^## $opt_id " "$file" 2>/dev/null || { say "no $opt_id in $file"; exit 2; }
         can_write_or_stop
         sf="$(status_file "$file")"
@@ -932,7 +934,8 @@ case "$mode" in
               if ($3 == "true") printf "  pass      %s  %s%s\n            evidence: %s\n", $1, $5, who, ev
               else if ($4 != "") printf "  evidence  %s  %s%s\n            from the engineer, %s: %s\n            for the PM to check: %s\n", $1, $5, who, $4, $8, $6
               else printf "  open      %s  %s%s\n            check: %s\n", $1, $5, who, $6
-              if ($3 != "true" && $7 != "") printf "            the PM: %s\n", $7 }'
+              if ($3 != "true" && $7 != "") printf "            the PM: %s\n", $7
+              if ($9 != "") printf "            not counted: the engineer'"'"'s evidence of %s is older than this gate'"'"'s seal\n", $9 }'
         exit 0
         ;;
 esac

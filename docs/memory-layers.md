@@ -28,8 +28,11 @@ say where it is already found, and move on. A note earns a place when it records
 show: a decision and the reason for it, a correction the person made, a trap that cost an afternoon, a
 fact that lives in someone's head. Beside it goes a second question: where would the obvious next move
 go wrong? A trap on the path anyone would take first is found otherwise only by falling into it again,
-so it is recorded as the likely move, what goes wrong and what to do instead. Tier and scope are asked
-only of what passes.
+so it is recorded as the likely move, what goes wrong and what to do instead. A third question asks
+what here will come round again: a procedure the session worked out, a role it handed to a subagent, a
+routine it ran as steps. Work that recurs is proposed as a template (a skill, an agent definition, a
+checklist or a command), or as an update to one that already covers it; a one-off is not. Tier and
+scope are asked only of what passes.
 
 **Tracking is not context.** Task lists, project status and who is doing what this week get
 reconciled, not promoted. Conflating the two is how an end-of-session knowledge pass turns into a
@@ -43,9 +46,9 @@ reference.
 | Type | What it is | The test | Loads |
 |---|---|---|---|
 | **Working standards** | The human–AI relationship and how to improve that layer | Does this change how we work together, in any project? | `ALWAYS` |
-| **General reference** | Context and information useful on an as-needed basis | Would I want this to hand whenever the topic comes up? | `AS-NEEDED` |
+| **General reference** | Facts useful on an as-needed basis: about a tool, a domain, the team | Would I want this to hand whenever the topic comes up? | `AS-NEEDED` |
 | **Project reference** | Context specific to a project that persists across sessions. A project has a defined desired outcome, a finish line, or a named deliverable | Does this stop meaning anything once the project ships? | `PER PROJECT` |
-| **Templates** | Reusable units for completing a *category* of work — checklists, agent role definitions, log skeletons — rather than the work unit itself | Is this the thing, or the mould the thing is made in? | `AS-NEEDED` |
+| **Templates** | Reusable units for completing a *category* of work — skills (procedures the assistant follows), checklists, agent role definitions, commands, log skeletons — rather than the work unit itself | Is this the thing, or the mould the thing is made in? | `AS-NEEDED` |
 
 The type is a property of the content and travels with it; the store is an accident of which surface
 happened to be open. A store-first taxonomy has to be re-derived every time a new tool appears; a
@@ -65,7 +68,7 @@ content-first one absorbs the new tool as another column.
 | Working standards | `CLAUDE.md`, whose first line imports `kit/CLAUDE.kit.md` (the kit's standards, updated with the kit); `AGENTS.md` routes other tools to the same two files | `~/.claude/CLAUDE.md`, and each other surface's own file |
 | General reference | `docs/` (including `docs/workspace-map.md`, and `docs/catalogue.md` and `docs/verification.md` once the team keeps them), `memory/terms.md` and `memory/glossary.md` (with each project's and area's own), `memory/people/`, `memory/context/`; the kit's own reference in `kit/docs/` | Claude Code auto-memory under `~/.claude/projects/`, holding a **pointer** at most |
 | Project reference | `projects/<slug>/` — canonical, whether the workspace tracks it, it is its own repository, or it stays untracked (its README's `Versioned:` line) — and the project's own `decisions.md`; material outside the repository is named under the README's `## Resources` | Per-surface memory, holding a **pointer** to the project folder; `.claude/resources.local.md`, which maps resource names to this machine's paths |
-| Templates | `kit/templates/` and `kit/rituals/` (the kit's), `skills/` (the team's own), `.claude/agents/`, `.claude/commands/` (and `.gemini/commands/` where Gemini CLI is set up) | `~/.claude/agents/`, `~/.claude/commands/`, and `.claude/skills/`, the skills bridge written on each machine for Cowork |
+| Templates | `kit/templates/` and `kit/rituals/` (the kit's), `skills/` (the team's own), `.claude/agents/`, `.claude/commands/` (and `.gemini/commands/` where Gemini CLI is set up), `rituals/` at the root (the team's own checklists, beside the kit's; the first one promoted creates it) | `~/.claude/agents/`, `~/.claude/commands/`, and `.claude/skills/`, the skills bridge written on each machine for Cowork |
 | *Tracking (other axis)* | Each project README's **Current state** block, `projects/INDEX.md`, `pilot/build-list.md` | None; the kit keeps tracking shared |
 
 Closeout drafts written by the plugin's end-of-session hook live in `~/.claude/closeout-drafts/` —

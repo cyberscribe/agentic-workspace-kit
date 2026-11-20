@@ -36,7 +36,8 @@ fi
 # Outside a kit workspace the plugin is installed but has nothing to do (hooks/lib/boundary.sh).
 # shellcheck source=lib/boundary.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boundary.sh"
-[[ -n "$(aw_workspace_root "$input")" ]] || exit 0
+ws_root="$(aw_workspace_root "$input")"
+[[ -n "$ws_root" ]] || exit 0
 
 # shellcheck source=lib/config.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/config.sh"
@@ -182,6 +183,23 @@ about anything, write that in one line; if the session's work concerns only one
 of them, leave the section out. You are suggesting; nothing is sent to anyone."
 fi
 
+# (7c) The templates the workspace already has. The child reads only the transcript and its draft
+# folder, so it cannot look for an existing skill, agent, command or checklist itself; it gets their paths
+# and descriptions here, to propose an update where one covers the work. At most 60, the workspace's own
+# first, then the kit's.
+existing_templates="" n_templates=0
+for p in "$ws_root"/skills/*/SKILL.md "$ws_root"/.claude/agents/*.md "$ws_root"/.claude/commands/*.md \
+         "$ws_root"/rituals/*.md "$ws_root"/kit/plugins/*/commands/*.md "$ws_root"/kit/rituals/*.md; do
+    [[ -f "$p" ]] || continue
+    n_templates=$((n_templates + 1)); [[ $n_templates -le 60 ]] || break
+    f="${p#"$ws_root"/}"
+    d="$(awk 'NR == 1 && /^---/ { on = 1; next } on && /^---/ { stop = 1 } stop { next }
+              on && /^description:/ && d == "" { d = $0; sub(/^description:[ \t]*/, "", d) } END { print d }' "$p" 2>/dev/null)"
+    [[ -n "$d" ]] || d="$(awk '/^# / && t == "" { t = $0; sub(/^# +/, "", t) } END { print t }' "$p" 2>/dev/null)"
+    existing_templates+="  - $f${d:+ — ${d:0:110}}"$'\n'
+done
+[[ -n "$existing_templates" ]] || existing_templates="  (none found)"$'\n'
+
 read -r -d '' PROMPT <<EOF || true
 You are reviewing a just-ended Claude Code session for this project to capture
 durable learnings before they are lost. Read the session transcript (JSONL) at:
@@ -202,6 +220,29 @@ would give, and its evidence is the moment it went wrong: the person's
 correction, or the failed step and what fixed it. It usually goes to project or
 general reference, beside what it is about.
 
+A third question goes with them: what here will come round again? A procedure
+the session worked out, a role it handed to a subagent, a routine it ran as
+steps: where the work will recur, propose the template for it rather than a
+note. That is a skill (a procedure the assistant follows next time: its name,
+when it applies, its steps), an agent definition (a role for a subagent: what it
+may touch and what it reports), a checklist (the steps of a routine a person or
+an assistant ticks through) or a command (where the person would start it by
+name). You are drafting a proposal; nothing is made without the person's yes.
+Its evidence is the turns where the session did the work, and a sign that it
+recurs: the session did it more than once (recurs: repeated, with two or more
+evidence lines), the person said it is regular (recurs: said, citing their
+words), or the files show an earlier round (recurs: earlier-round <path>). A
+one-off is not proposed. Look first at what the repository already has
+(skills/, .claude/agents/, .claude/commands/, rituals/ and the kit's own):
+where one already covers the work, propose an update to it and name it in
+existing:, not a new file. A skill is a procedure the assistant follows, so it
+is a template, never general reference, which is facts; an update to an
+existing one is a recurring item in the templates tier too, even when a
+correction prompted it. A skill's or
+command's description is loaded into every session, so cost: gives its length
+in characters. These are the ones the repository has; you cannot read them, so
+judge from the path and description:
+${existing_templates}
 Look for what passes that test in this order, and give the first the most care:
 
 1. The person's interventions: what they redirected, corrected, refused or
@@ -272,7 +313,7 @@ Then one section per item, in this shape:
 
   ### <one-line claim>
   - plain: <the claim as one everyday sentence; the person reads this first>
-  - source: correction | missing-context | general
+  - source: correction | missing-context | general | recurring
   - tier: <tier name>
   - scope: shared | individual
   - destination: <the specific file or directory>
@@ -284,6 +325,10 @@ Then one section per item, in this shape:
   - dropped: <why>                                      (contradicted, dropped)
   - missing: <what would support it>                    (unsupported only)
   - found: <where a later session would find it>        (already-written only)
+  - kind: skill | agent | checklist | command            (recurring only)
+  - recurs: repeated | said | earlier-round <path>       (recurring only)
+  - existing: <the file it would update> | none          (recurring only)
+  - cost: <the description's length, in characters>     (a skill or command)
 
   <the note itself, one to three sentences>
 

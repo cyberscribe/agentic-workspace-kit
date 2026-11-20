@@ -28,6 +28,22 @@ give ("`git status` from the VM leaves a lock on the repository; use
 is not otherwise discoverable except by falling into it again. It usually goes to
 project or general reference, beside what it is about.
 
+A third question goes with them: **what here will come round again?** A procedure
+the session worked out, a role it handed to a subagent, a routine it ran as steps:
+where the work will recur, propose the template for it rather than a note. That is
+a **skill** (a procedure the assistant follows next time: its name, when it
+applies, its steps), an **agent definition** (a role for a subagent: what it may
+touch and what it reports), a **checklist** (the steps of a routine a person or an
+assistant ticks through) or a **command** (where the person would start it by
+name). Each is a draft the person reads, never a file made without their yes. Its
+evidence is the turns where the session did the work, and a sign that it recurs:
+the session did it more than once, the person said it is regular, or the files
+show an earlier round. A one-off is not proposed. Look first at what the workspace
+already has (`skills/`, `.claude/agents/`, `.claude/commands/`, `rituals/` and the
+kit's own): where one already covers the work, propose an update to it, not a new
+file. A skill's or command's description is loaded into every session, so the
+proposal says how many characters it is.
+
 Look for what passes, in this order, and give the first the most care:
 
 1. **The person's interventions** in this session: what they redirected,
@@ -92,9 +108,9 @@ session would find by itself is recorded as already written, with where.
 | Tier | Loaded back | Typical shared destination | Passes the test when it is… |
 |---|---|---|---|
 | Working standards | always — every session, every turn | `CLAUDE.md` or `AGENTS.md` | a way of working that sessions get wrong without being told |
-| General reference | as needed, in any project | `.claude/skills/`, `docs/` | a fact about a tool or a domain that no file here states |
+| General reference | as needed, in any project | `docs/` | a fact about a tool or a domain that no file here states |
 | Project reference | as needed, only in this project | the project folder, `docs/DECISIONS.md` | a decision and why, where the code shows only the result |
-| Templates & agent roles | when that role or scaffold is invoked | `skills/`, `.claude/agents/`, `.claude/commands/` | the shape of a piece of work that will come round again |
+| Templates & agent roles | when that role or scaffold is invoked | `skills/`, `.claude/agents/`, `.claude/commands/`, `rituals/` | the shape of a piece of work that will come round again: a procedure the assistant follows is a skill here, not general reference |
 
 In a workspace built on the kit, the always-loaded file is `CLAUDE.md`, and its
 first line imports `kit/CLAUDE.kit.md`. That file, like everything under `kit/`,
@@ -103,10 +119,14 @@ the kit, not in a closeout. Promotions into working standards go below the
 import line. A learning about the kit itself is drafted in the report, and an
 edit inside `kit/` is made only with a person approving it. Where
 `.claude/skills/.kit-generated` exists, `.claude/skills/` is the skills bridge's
-generated copy, rewritten on its next run, so general reference goes to
-`skills/` instead. The destinations there are the ones `kit/docs/memory-layers.md`
-§3 names: project reference in `projects/<slug>/` and its own `decisions.md`, and
-templates in `skills/`, `.claude/agents/` or `.claude/commands/`. The skeletons in
+generated copy, rewritten on its next run, and is no destination: a skill goes
+to `skills/`, which the bridge copies from. The destinations there are the ones
+`kit/docs/memory-layers.md` §3 names: general reference (facts) in `docs/`,
+project reference in `projects/<slug>/` and its own `decisions.md`, and templates
+in `skills/`, `.claude/agents/` or `.claude/commands/`, and a checklist in
+`rituals/` at the workspace's root, beside the kit's own in `kit/rituals/`. The
+first checklist promoted there creates the folder, with a `README.md` of one line
+saying it holds the team's own checklists. The skeletons in
 `kit/templates/` and the rituals in `kit/rituals/` are the kit's, and a change to
 one is a learning about the kit.
 
@@ -143,7 +163,9 @@ the files as they are now.
 **Against the session's record.** A line promoted from a misremembered session
 carries the mistake into every later session that reads it. So write each
 candidate in the shape the capture draft uses — `plain:`, `source:`
-(`correction`, `missing-context` or `general`), tier, scope, destination, then
+(`correction`, `missing-context`, `general`, or `recurring` for a proposed
+template, which adds `kind:`, `recurs:`, `existing:` and, for a skill or command,
+`cost:`), tier, scope, destination, then
 `check:`, `evidence: L<n> "<quote>"`, and `was:`, `correction:` or `dropped:`,
 `missing:` or `found:` as its result needs (the full shape is in the plugin's
 `docs/DESIGN.md`) — and check it against the record. Find the turn that
