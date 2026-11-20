@@ -139,9 +139,9 @@ A captured learning is classified on two axes before anything is promoted:
 | Tier | Loaded back | Shared destination (detected) | Individual destination |
 |---|---|---|---|
 | Working standards | ALWAYS — every session, every turn | `CLAUDE.md` | `~/.claude/CLAUDE.md` |
-| General reference | as needed, in ANY project | `.claude/skills/` | `~/.claude/skills/` |
+| General reference | as needed, in ANY project | `docs/` | Claude Code's auto-memory, a pointer at most |
 | Project reference | as needed, only in THIS project | `docs/`, `docs/DECISIONS.md` | `~/.claude/projects/<p>/memory/` |
-| Templates & agent roles | as needed, when invoked | `.claude/agents/`, `.claude/commands/` | `~/.claude/agents/` |
+| Templates & agent roles | as needed, when invoked | `skills/`, `.claude/agents/`, `.claude/commands/`, `rituals/` | `~/.claude/skills/`, `~/.claude/agents/` |
 
 **Scope**: shared (committed, reaches teammates) or individual (this machine only).
 
@@ -195,9 +195,9 @@ under `"env"` in the project's `.claude/settings.json`:
 | Variable | Default |
 |---|---|
 | `CLOSEOUT_TIER_ALWAYS` | first of `CLAUDE.md`, `AGENTS.md` |
-| `CLOSEOUT_TIER_GENERAL` | first of `.claude/skills/`, `.claude/plugins/`; `skills/` where `.claude/skills/.kit-generated` marks `.claude/skills/` as the kit's generated skills bridge |
+| `CLOSEOUT_TIER_GENERAL` | `docs/` (facts; a skill is a template, in `skills/`: `.claude/skills/`, which `.claude/skills/.kit-generated` marks as the kit's generated skills bridge, is no destination) |
 | `CLOSEOUT_TIER_PROJECT` | `<doc dir>/`, `<doc dir>/DECISIONS.md` |
-| `CLOSEOUT_TIER_TEMPLATES` | first of `.claude/agents/`, `.claude/commands/` |
+| `CLOSEOUT_TIER_TEMPLATES` | `skills/, .claude/agents/, .claude/commands/, rituals/`, one per kind |
 
 **Replacing the taxonomy** — different tiers, names, count, or load rates. Put a
 `## Promotion tiers` heading in `.claude/closeout.md`. The plugin detects that

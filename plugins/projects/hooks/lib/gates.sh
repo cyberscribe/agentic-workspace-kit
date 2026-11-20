@@ -103,19 +103,55 @@ gates_reseals() {
 
 # gates_rows <mailbox>: one tab-separated row per gate: id, by, passes (true, false; a cc gate passes on
 # the engineer's evidence), the time of the engineer's latest evidence (or empty), what, check, the PM's
-# evidence, the engineer's.
+# evidence, the engineer's, and the time of evidence left out as older than the gate (or empty).
+#
+# The engineer's evidence counts only from when the gate it names took its present form: the seal that
+# first fixed it, or the latest re-seal that added it or changed its what, check or by. .pm-gates holds
+# that history (the "first seal:" and "re-seal:" lines; a list sealed before the history was kept has
+# only its "sealed:" line, which stands for every gate). So a new list that reuses an id starts with no
+# evidence, and a re-seal that changes G2 leaves G1's evidence counted. Times are compared as minutes
+# since 1970 in UTC, worked out from the "%Y-%m-%d %H:%M %z" text both files use, so a seal made in one
+# time zone and evidence written in another compare correctly. Evidence in the same minute counts.
 gates_rows() {
-    local cc="$1/status-cc.md"
+    local cc="$1/status-cc.md" seal="$1/.pm-gates"
     [ -f "$cc" ] || cc=/dev/null
+    [ -f "$seal" ] || seal=/dev/null
     jq -r '.gates[] | [.id, (.by // "pm"), (.passes | tostring), .what, .check, (.evidence // "")] | @tsv' "$1/gates.json" \
         | awk -F'\t' -v OFS='\t' '
+            # "2026-11-20 13:52 +0000" as minutes since 1970 in UTC; -1 for text that is not a time.
+            function mins(t,    a, y, m, d, era, yoe, doy, doe, off) {
+                if (t !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9] [+-][0-9][0-9][0-9][0-9]$/) return -1
+                y = substr(t, 1, 4) + 0; m = substr(t, 6, 2) + 0; d = substr(t, 9, 2) + 0
+                if (m <= 2) y--
+                era = int(y / 400); yoe = y - era * 400
+                doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
+                doe = yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
+                off = substr(t, 19, 2) * 60 + substr(t, 21, 2); if (substr(t, 18, 1) == "-") off = -off
+                return (era * 146097 + doe - 719468) * 1440 + substr(t, 12, 2) * 60 + substr(t, 15, 2) - off
+            }
+            # The seal history: when the list was first fixed, and when each gate was last added or changed.
+            FILENAME == seal {
+                if ($0 ~ /^sealed: /) { if (base == "") base = mins(substr($0, 9)) }
+                else if ($0 ~ /^first seal: /) { split(substr($0, 13), a, sep); base = mins(a[1]) }
+                else if ($0 ~ /^re-seal: /) {
+                    n = split(substr($0, 10), a, sep); t0 = mins(a[1]); k = split(a[3], c, "; ")
+                    for (j = 1; j <= k; j++) {
+                        if (c[j] ~ /^[^ ]+ was added$/) { g = c[j]; sub(/ was added$/, "", g); since[g] = t0 }
+                        else if (c[j] ~ /^[^ ]+'"'"'s [a-z]+ changed$/) { g = c[j]; sub(/'"'"'s [a-z]+ changed$/, "", g); since[g] = t0 }
+                    }
+                }
+                next
+            }
             # "gate <id> · <time> · <evidence>", cut with index so a dot in the evidence stays in it.
             FILENAME == cc { if ($0 ~ /^gate [^ ]+ · /) { s = substr($0, 6); i = index(s, sep); id = substr(s, 1, i - 1)
                              s = substr(s, i + length(sep)); i = index(s, sep); if (i == 0) next
-                             t[id] = substr(s, 1, i - 1); e[id] = substr(s, i + length(sep)) }; next }
+                             tt = substr(s, 1, i - 1); from = (id in since) ? since[id] : (base == "" ? -1 : base)
+                             if (from >= 0 && mins(tt) < from) { old[id] = tt; next }
+                             t[id] = tt; e[id] = substr(s, i + length(sep)) }; next }
             { pass = $3; if ($2 == "cc" && ($1 in t)) pass = "true"
-              print $1, $2, pass, (($1 in t) ? t[$1] : ""), $4, $5, $6, (($1 in e) ? e[$1] : "") }
-        ' sep=' · ' cc="$cc" "$cc" -
+              print $1, $2, pass, (($1 in t) ? t[$1] : ""), $4, $5, $6, (($1 in e) ? e[$1] : ""), \
+                    ((!($1 in t) && ($1 in old)) ? old[$1] : "") }
+        ' sep=' · ' seal="$seal" cc="$cc" "$seal" "$cc" -
 }
 
 # gates_line <mailbox>: the one-line summary the session-start line and the PM's check carry, or nothing

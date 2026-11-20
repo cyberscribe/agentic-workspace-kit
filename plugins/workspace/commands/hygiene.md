@@ -1,5 +1,5 @@
 ---
-description: Weekly hygiene — check where context lives against the workspace's own conventions (the always-loaded budget, submodules, strays, registers, promised files, promotion candidates, staleness, pending work, the closeout drafts sweep), write a dated report to audits/, then work through it with you; type "report" for the scan alone
+description: Weekly hygiene — check where context lives against the workspace's own conventions (the always-loaded budget, plugin cost, submodules, strays, registers, promised files, promotion candidates, staleness, pending work, the closeout drafts sweep), write a dated report to audits/, then work through it with you; type "report" for the scan alone
 offer-unprompted: Offer it once a week, or when files have piled up outside the places the workspace map names.
 argument-hint: [report]
 ---
@@ -86,6 +86,19 @@ apart.
   in `audits/` whose name ends `hygiene-YYYY-MM-DD.md`, whatever comes before
   that; on the first run, say it is the first reading. If a line grew, say which
   file grew.
+- **Plugin cost — every run.** Plugins cost context too: each skill, command and
+  agent a plugin carries adds its name and description to every session, used or
+  not. Run `bash kit/plugins/workspace/scripts/plugin-cost.sh` from the repository
+  root (the script beside this command, outside a workspace built on the kit). It
+  reads Claude Code's own estimate for each plugin enabled here and prints one
+  `plugin` line each, a `total`, and a `heavy` line for each at 2,000 tokens or
+  more. Report each plugin's always-on tokens and the total, with the change
+  against the previous report. For a heavy one, suggest enabling it only in the
+  projects that use it (in that project's `.claude/settings.json`) rather than for
+  the user everywhere. Where the script says `not measured here` (no `claude`
+  command, as in Cowork's shell or a container), the line says that, and the
+  check is not a failure. The figure leaves out what a plugin's hooks print into
+  a session, which Claude Code does not count; say so once under the line.
 - **Submodules.** Run the kit's state check in its quick form from the
   repository root — `bash kit/plugins/workspace/scripts/state.sh --quick` — and put
   every `submodule.<path>` line in a table, clean ones included: path · role ·
@@ -223,6 +236,8 @@ Shape it so next week's run can read it back:
 - A title with the date, then the budget lines first: the kit's bytes and the
   workspace's bytes, each with its files, then the total, and the change on
   each line since the date of the previous report.
+- The plugin cost: each plugin's always-on tokens, the total and its change, the
+  heavy ones with the suggestion, or `not measured here`.
 - The submodules table, then its one-line checks.
 - One line per check — `clean`, a count, or `not run` with the reason.
 - Then the findings, grouped by check, each with the path and the move you

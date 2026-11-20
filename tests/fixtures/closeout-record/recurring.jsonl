@@ -1,0 +1,8 @@
+{"type": "user", "message": {"role": "user", "content": "Cut the release for the docs site."}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Release steps: bump the version, build, check the links, then tag."}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "links: 0 broken; tagged docs-v4.1"}]}}
+{"type": "user", "message": {"role": "user", "content": "Now cut the release for the API docs too, same as before."}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Release steps again: bump the version, build, check the links, then tag."}]}}
+{"type": "user", "message": {"role": "user", "content": "I hand the dependency review to a helper every Monday; it reads the lock files and reports what changed, and touches nothing."}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Asked a subagent to read the lock files and list each changed package; it changed no files."}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Renamed the old screenshot folder once, by hand."}]}}

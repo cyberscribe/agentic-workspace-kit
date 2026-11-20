@@ -286,11 +286,34 @@ path, not as a kind of item to collect, because telling the capture to record
 only failures cut memory's gain (below), and gotchas were taken off its list of
 kinds for that reason.
 
+**What will come round again.** A third question goes with the two: what here
+will come round again? The tier table always had a row for templates and agent
+roles, but neither question sent anything there: both look for a fact the next
+session lacks, and a procedure the session worked out is not a missing fact, it
+is a shape of work. So closeout almost never proposed one. The third question
+asks for it directly: a skill, an agent definition, a checklist or a command,
+drafted for the person to read and made only on their yes. Two guards keep it
+from filling the workspace with templates. A one-off is not proposed: the item
+carries a sign that the work recurs (`recurs: repeated`, with two or more
+evidence lines; `said`, citing the person's words; or `earlier-round <path>`),
+and `check-evidence.sh` refuses one without it. And the workspace's own and the
+kit's are looked at first, so work an existing one covers becomes an update
+(`existing:` names the file). The capture child reads only the transcript and
+its draft folder, so the hook gives it the path and description of each skill,
+agent, command and checklist the workspace and the kit have (60 at most); in the
+first trial runs, without that list, it wrote "existing: none (not inspected)". A skill's or command's description loads into every
+session, so `cost:` gives its length, and the person weighs it as they would a
+line in the always-loaded file. A checklist goes to `rituals/` in the workspace,
+beside the kit's own in `kit/rituals/`, which are the kit's checklists: a skill
+is followed by the assistant, a checklist is ticked through by a person or an
+assistant, and the folder name says so.
+
 **The bias guard.** An item bound for the always-loaded tier comes from a
 correction or a gap in context, with the incident and the person's words behind
 it. A generic lesson with no incident is not promoted there: it costs every
 session and changes nothing a session would otherwise get wrong. The draft says
-which source an item has (`source: correction | missing-context | general`), and
+which source an item has (`source: correction | missing-context | general`, or
+`recurring` for a proposed template), and
 `check-evidence.sh` refuses a working-standards item whose source is `general`,
 and a `correction` with no evidence line in the person's own words.
 
@@ -468,9 +491,16 @@ In a workspace built on the kit, `.claude/skills/` is generated: the skills
 bridge writes the kit's commands there as skills, with copies of the team's own
 skills from `skills/`, and rewrites what its manifest,
 `.claude/skills/.kit-generated`, lists on its next run. A learning promoted
-into it would be overwritten or left unlisted, so while that manifest exists the
-general-reference destination is `skills/`, where the bridge copies from. A
-repository without the bridge keeps the earlier default.
+into it would be overwritten or left unlisted, so it is no destination.
+
+Since 1.7.0 a skill is a template, wherever it is promoted: a procedure the
+assistant follows is the shape of a piece of work, and general reference is
+facts, in `docs/`. Before, the tier table put `.claude/skills/` under general
+reference and `skills/` under templates, so the same skill could honestly be
+filed under either; the third question made that visible, when trial drafts
+filed one update to a skill each way. The general-reference default is now
+`docs/`, and the templates row names `skills/`, `.claude/agents/`,
+`.claude/commands/` and `rituals/`, one per kind.
 
 ## Troubleshooting
 

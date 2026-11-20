@@ -25,7 +25,8 @@
 #                                   claude binary with `plugin validate` is on PATH (for a release);
 #                                   implies AW_TEST_CLAUDE=1
 #   AW_SECTIONS="13 16" bash tests/run.sh
-#                                   run only the named sections ("4b", "11", or a file's number in
+#                                   run only the named sections, separated by spaces or commas
+#                                   ("4b", "11", or a file's number in
 #                                   tests/sections/); a section that reads another's fixtures brings it
 #   AW_TEST_CLAUDE=1 bash tests/run.sh
 #                                   run the checks in tests/sections/ that start Claude Code, with a
@@ -219,7 +220,8 @@ aw_has() { case " $1 " in *" $2 "*) return 0 ;; esac; return 1; }
 # slow tier). An id that names neither is printed with a leading "?".
 aw_expand() {
     local id p out="" hit
-    for id in $1; do
+    # Section ids are separated by spaces or commas ("4 11" or "4,11").
+    for id in ${1//,/ }; do
         if aw_has "$aw_all" "$id"; then out+=" $id"; continue; fi
         hit=""
         for p in $aw_all; do case "$p" in "$id"[a-z]) hit+=" $p" ;; esac; done
@@ -1195,6 +1197,24 @@ if capture "$P3" s-three; then
     grep -qF "$TRANSCRIPT" <<<"$prompt" && ok "4 capture prompt names the transcript" || ko "4 capture prompt names the transcript"
     grep -qF "$DRAFTS/three/s-three.md" <<<"$prompt" && ok "4 capture prompt names the per-session draft file" || ko "4 capture prompt names the per-session draft file"
     grep -qF '| Working standards |' <<<"$prompt" && ok "4 capture prompt carries the default tier table" || ko "4 capture prompt carries the default tier table"
+    grep -qF '  (none found)' <<<"$prompt" && ok "4 capture prompt: a workspace with no skills, agents, commands or checklists says none were found" \
+        || ko "4 capture prompt: a workspace with no skills, agents, commands or checklists says none were found" "$(grep -A3 'judge from the path' <<<"$prompt")"
+fi
+# The templates the workspace already has reach the child, which cannot read the repository itself: each
+# path with its description, or its title where it has none.
+mkdir -p "$P3/skills/site-release" "$P3/rituals"
+printf -- '---\nname: site-release\ndescription: Release the site. Use when someone asks to publish it.\n---\n\n1. Build.\n' > "$P3/skills/site-release/SKILL.md"
+printf '# Month-end support queue\n\n- [ ] Export open tickets\n' > "$P3/rituals/month-end.md"
+if capture "$P3" s-templates; then
+    prompt="$(cat "$REC.prompt")"
+    grep -qF '  - skills/site-release/SKILL.md — Release the site. Use when someone asks to publish it.' <<<"$prompt" \
+        && grep -qF '  - rituals/month-end.md — Month-end support queue' <<<"$prompt" && ! grep -qF '(none found)' <<<"$prompt" \
+        && ok "4 capture prompt lists the workspace's existing skills and checklists with their descriptions, for an update rather than a new one" \
+        || ko "4 capture prompt lists the workspace's existing skills and checklists with their descriptions, for an update rather than a new one" "$(grep -A4 'judge from the path' <<<"$prompt")"
+else ko "4 capture prompt lists the workspace's existing skills and checklists with their descriptions, for an update rather than a new one" "the stub never ran"; fi
+rm -rf "$P3/skills" "$P3/rituals"
+if capture "$P3" s-three; then
+    prompt="$(cat "$REC.prompt")"
     # The record check: the prompt asks for the three results read to the end of the transcript, starts
     # the draft with the transcript: line, and its item shape names every field check-evidence.sh reads.
     bad=""
@@ -1216,10 +1236,14 @@ if capture "$P3" s-three; then
         '- plain: <the claim as one everyday sentence' '- source: correction | missing-context | general' \
         '| already-written | observed' '- found: <where a later session would find it>' 'goes through the glossary' \
         'a general lesson with no incident is not' 'write' 'the file with that one item, as observed' 'a quotation mark as \"' \
-        'where would the obvious next move go wrong?' 'the likely move, what goes' 'reads as a warning a colleague'; do
+        'where would the obvious next move go wrong?' 'the likely move, what goes' 'reads as a warning a colleague' \
+        'what here will come round again?' '- source: correction | missing-context | general | recurring' \
+        '- kind: skill | agent | checklist | command' '- recurs: repeated | said | earlier-round <path>' \
+        '- existing: <the file it would update> | none' '- cost: <the description' 'one-off is not proposed' \
+        'propose an update to it'; do
         grep -qF -- "$w" <<<"$prompt" || bad+="capture prompt: no: $w"$'\n'
     done
-    for w in plain source found; do
+    for w in plain source found kind recurs existing cost; do
         grep -qE "get $w" "$KIT/plugins/closeout/scripts/check-evidence.sh" || bad+="the checker does not read $w"$'\n'
     done
     for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
@@ -1227,21 +1251,31 @@ if capture "$P3" s-three; then
         for w in '**is it otherwise discoverable?**' '`git log` or a tool'"'"'s own help' "**The person's interventions" \
             'read as missing context.**' '**Only then a general lesson' '**Plain words first.**' 'not what kinds to' \
             'a generic lesson' 'goes through the glossary' 'where would the obvious next move go wrong?**' \
-            'the likely move, what goes wrong and what to do instead' 'a warning a colleague would give'; do
+            'the likely move, what goes wrong and what to do instead' 'a warning a colleague would give' \
+            '**what here will come round again?**' '**skill**' '**agent definition**' '**checklist**' '**command**' \
+            'never a file made without their yes' 'A one-off is not proposed' 'propose an update to it, not a new' \
+            'so the proposal says how many characters it is'; do
             grep -qF -- "$w" <<<"$flat" || bad+="$f: no: $w"$'\n'
         done
     done
     grep -qF 'Show each item to the user by its plain: line first' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: plain: first"$'\n'
     grep -qF 'An item that warns of a trap on the obvious next move is shown as that warning' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: the trap as a warning"$'\n'
+    grep -qF 'An item whose source is recurring proposes a skill, an agent definition, a checklist or a command' "$KIT/plugins/closeout/hooks/closeout-review.sh" \
+        && grep -qF 'make nothing until the user says yes' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: a recurring item as a proposal"$'\n'
+    flat="$(tr '\n' ' ' < "$KIT/docs/memory-layers.md" | tr -s ' ')"
+    for w in 'what here will come round again' 'a one-off is not' '`rituals/` at the root (the team'"'"'s own checklists, beside the kit'"'"'s'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="memory-layers.md: no: $w"$'\n'
+    done
     flat="$(tr '\n' ' ' < "$KIT/plugins/closeout/docs/DESIGN.md" | tr -s ' ')"
     for w in '## Not otherwise discoverable, and where learnings come from' '**The bias guard.**' '## Plain words first' \
         '"If ablation is the crux of the spine of synthesis, conjugate the nominal as an irreversible prime."' \
         '"Avoid writing to files another agent is already working on."' '**The quoting rule.**' "**A run's prompt is a turn.**" \
         '**Observed, cause unknown.**' 'It starts without the ending session'"'"'s identity.' '**The obvious next move.**' \
+        '**What will come round again.**' 'neither question sent anything there' '`recurs: repeated`' \
         'not as a kind of item to collect, because telling the capture to record only failures cut memory'"'"'s gain'; do
         grep -qF -- "$w" <<<"$flat" || bad+="DESIGN.md: no: $w"$'\n'
     done
-    empty "4 closeout by what is not otherwise discoverable: the capture prompt, the command and the ritual alike — corrections first, plain words, the bias guard, already written and observed, and the trap on the obvious next move" "$bad"
+    empty "4 closeout by what is not otherwise discoverable: the capture prompt, the command and the ritual alike — corrections first, plain words, the bias guard, already written and observed, the trap on the obvious next move, and what will come round again" "$bad"
     if grep -qF 'People known for this repository' <<<"$prompt" && grep -qF 'Who needs to' <<<"$prompt" \
         && grep -qE '^  - casey$' <<<"$prompt"; then
         ok "4 capture prompt adds who-needs-to-know for three people, naming them"
@@ -1583,12 +1617,38 @@ bad=""
 for want in 'Owners are in notes/owners.jsonl: no plain: line' \
     'Always keep summaries short: for the always-loaded tier, from a general lesson' \
     "Summaries name the feature and the person to ask: a correction, with no evidence line in the person's own words" \
-    'L3: not a turn of the conversation' "source: is 'hunch', not correction, missing-context or general" \
+    'L3: not a turn of the conversation' "source: is 'hunch', not correction, missing-context, general or recurring" \
     'already-written, with no found: line saying where' 'Search fails for reasons unknown: observed, and bound for the always-loaded tier' \
     '7 refused'; do
     grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
 done
 empty "4 sources: refused by name — no plain line, a general lesson for the always-loaded tier, a correction not in the person's words, a task notification as a turn, an unknown source, already written with no place, observed for the always-loaded tier" "$bad"
+
+# Work that will come round again, proposed as a template (wave 1): a procedure done twice, a role the
+# person says is regular, and an update to a checklist the files already hold all pass; a one-off, a
+# repeat cited once, a role said only by the agent, a template outside the templates tier, and an
+# unknown kind are refused by name. Whether the work recurs is the model's reading; this checks the
+# draft carries the sign and the checker holds it to it.
+ce "$CFX/recurring.md"
+bad=""
+[[ $crc -eq 0 ]] || bad+="exit $crc, not 0"$'\n'
+grep -qF '3 items: 3 supported, 0 contradicted, 0 unsupported (unverified); 0 refused' <<<"$cout" || bad+="not three passed"$'\n'
+empty "4 recurring: a skill for work done twice, an agent the person says is regular, and an update to an existing checklist all pass" "$bad$([[ -n "$bad" ]] && printf '%s' "$cout")"
+ce "$CFX/recurring-refused.md"
+bad=""
+[[ $crc -eq 1 ]] || bad+="exit $crc, not 1"$'\n'
+for want in 'A command for renaming the screenshot folder: recurring, with no sign that it recurs' \
+    'A skill for the docs release, cited once: recurs: repeated, with fewer than two evidence lines' \
+    'A skill for the docs release, cited once: a skill with no cost: line' \
+    "The dependency review, said by the agent: recurring, and its tier is 'Project reference', not the templates tier" \
+    "The dependency review, said by the agent: recurs: said, with no evidence line in the person's own words" \
+    'The dependency review, said by the agent: recurring, with no existing: line' \
+    "A macro for the release: recurring, and kind: is 'macro'" \
+    "The docs-release skill gains the second release's steps, filed as general reference: recurring, and its tier is 'General reference', not the templates tier" \
+    '8 refused'; do
+    grep -qF -- "$want" <<<"$cout" || bad+="missing: $want"$'\n'
+done
+empty "4 recurring: refused by name — a one-off, a repeat cited once, a skill with no cost, a role said only by the agent, outside the templates tier (a skill filed as general reference too), no existing line, an unknown kind" "$bad$([[ -n "$bad" ]] && printf '%s' "$cout")"
 
 fi
 # ---------------------------------------------------------------------------------------------------
@@ -2341,6 +2401,46 @@ scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
 [[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the nineteen commands" \
     || ko "9 the kit has exactly the nineteen commands" "has: $have"
+# The kit's always-on cost: each command's description is in every session's context, used or not, so
+# their total is budgeted like the always-loaded file. Claude Code measured the kit's five plugins at
+# ~1,664 tokens on 2026-11-20 (`claude plugin details`) for 5,329 bytes of descriptions, about 3.2
+# bytes a token; the cap leaves room for a command or two, and the one on each keeps any single
+# description short. A description runs from "description:" to the end of its line.
+desc_bytes="$(cd "$KIT/plugins" && for f in ./*/commands/*.md ./*/agents/*.md ./*/skills/*/SKILL.md; do
+    [[ -f "$f" ]] || continue
+    awk -v f="${f#./}" 'NR == 1 && /^---/ { on = 1; next } on && /^---/ { exit }
+        on && /^description:/ { d = $0; sub(/^description:[ \t]*/, "", d); print f "\t" length(d) }' "$f"
+done)"
+desc_total="$(awk -F'\t' '{ t += $2 } END { print t + 0 }' <<<"$desc_bytes")"
+bad="$(awk -F'\t' -v cap="${AW_DESC_CAP:-450}" '$2 > cap { print $1 ": " $2 " characters, over " cap }' <<<"$desc_bytes")"
+[[ "$desc_total" -le "${AW_DESC_TOTAL_CAP:-6200}" ]] || bad+="all descriptions: $desc_total characters, over ${AW_DESC_TOTAL_CAP:-6200} (about $((desc_total * 10 / 32)) tokens)"$'\n'
+empty "9 the kit's always-on cost is capped: every description at most 450 characters, all of them at most 6,200 (about 1,900 tokens)" "$bad"
+# The other half of the always-on cost: what the kit's session-start hooks print into the model's context
+# (additionalContext), which Claude Code's estimate counts as nothing. Measured on a fixture workspace in
+# three states a session meets: inside a project (the projects line), with two things out of step (the
+# workspace line), and with a closeout draft waiting (the review reminder, the longest). Machine paths
+# are taken out before counting, so the figure is the kit's own text. On 2026-11-20: 409, 480 and 3,801
+# characters, about 1,470 tokens with a draft waiting and 280 without.
+HC="$SCRATCH/hook-cost" HCW="$SCRATCH/hook-cost/ws"
+mkdir -p "$HCW/.claude" "$HCW/projects/demo" "$HC/drafts/demo" "$HC/home"
+: > "$HCW/.claude/kit-templates.lock"; ln -s "$KIT" "$HCW/kit" 2>/dev/null; git -C "$HCW" init -q 2>/dev/null
+printf '# Projects\n\n## Active\n\n| Project | Owner |\n|---|---|\n| [Demo](demo/) | Sam |\n' > "$HCW/projects/INDEX.md"
+printf '# Demo\n\n**Outcome:** a demo.\n\n## Done when\n\n- [ ] one\n\n## Current state\n\n- **State:** doing\n- **Updated:** 2026-11-20\n' > "$HCW/projects/demo/README.md"
+printf 'transcript: /nowhere.jsonl\n\n### x\n- plain: x\n' > "$HC/drafts/demo/s1.md"
+hc_ctx() { # <plugin> <hook> <cwd>: the additionalContext it prints, with the fixture's paths taken out
+    printf '{"session_id":"hc","source":"startup","cwd":"%s"}' "$3" \
+        | env -u PAIR_ROLE -u PAIR_MAILBOX HOME="$HC/home" CLOSEOUT_DRAFT_ROOT="$HC/drafts" CLAUDE_PLUGIN_ROOT="$KIT/plugins/$1" \
+              CLAUDE_PROJECT_DIR="$3" bash "$KIT/plugins/$1/hooks/$2" 2>/dev/null \
+        | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null | awk -v a="$HC" -v b="$KIT" '{ gsub(a, ""); gsub(b, ""); print }'
+}
+hc_p="$(hc_ctx projects session-start.sh "$HCW/projects/demo" | wc -c | tr -d ' ')"
+hc_w="$(hc_ctx workspace session-start.sh "$HCW" | wc -c | tr -d ' ')"
+hc_r="$(hc_ctx closeout closeout-review.sh "$HCW/projects/demo" | wc -c | tr -d ' ')"
+bad=""
+[[ $hc_p -gt 0 && $hc_p -le ${AW_HOOK_CAP_PROJECTS:-700} ]] || bad+="the projects line: $hc_p characters (cap ${AW_HOOK_CAP_PROJECTS:-700}; 0 means it printed nothing)"$'\n'
+[[ $hc_w -gt 0 && $hc_w -le ${AW_HOOK_CAP_WORKSPACE:-800} ]] || bad+="the workspace line: $hc_w characters (cap ${AW_HOOK_CAP_WORKSPACE:-800})"$'\n'
+[[ $hc_r -gt 0 && $hc_r -le ${AW_HOOK_CAP_REVIEW:-4300} ]] || bad+="the review reminder: $hc_r characters (cap ${AW_HOOK_CAP_REVIEW:-4300})"$'\n'
+empty "9 the kit's session-start text is capped: a project's line at most 700 characters, the workspace line at most 800, the closeout review reminder at most 4,300" "$bad"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }

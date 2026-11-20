@@ -20,7 +20,7 @@ here="$(cd "$(dirname "$0")" && pwd -P)"
 
 usage() { sed -n '6,12p' "$0" | sed 's/^# \{0,1\}//'; }
 op="${1:-}" f="${2:-}"
-[ -n "$op" ] && [ -n "$f" ] || { usage >&2; exit 2; }
+if [ -z "$op" ] || [ -z "$f" ]; then usage >&2; exit 2; fi
 case "$op" in
     add)
         [ $# -eq 3 ] || { usage >&2; exit 2; }

@@ -945,7 +945,7 @@ if [[ -n "$KNAME" ]]; then
     if [[ -n "$mg_gm" ]] && [[ -z "$(git --no-optional-locks config -f "$mg_gm" --get "submodule.$KNAME.branch" 2>/dev/null)" ]]; then
         mg_act config ".gitmodules submodule.$KNAME.branch=main"
         if [[ $DRY -eq 1 ]]; then
-            [[ -e "$SHADOW/.gitmodules" ]] || cat "$WS/.gitmodules" | mg_vwrite .gitmodules
+            [[ -e "$SHADOW/.gitmodules" ]] || mg_vwrite .gitmodules < "$WS/.gitmodules"
             git config -f "$SHADOW/.gitmodules" "submodule.$KNAME.branch" main
         else
             git config -f "$WS/.gitmodules" "submodule.$KNAME.branch" main || mg_stop M1 "writing .gitmodules failed"

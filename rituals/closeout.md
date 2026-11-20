@@ -33,6 +33,19 @@ wrong and what to do instead, with the moment it went wrong as its evidence. Its
 a warning a colleague would give. It usually goes to project or general reference, beside what it is
 about.
 
+A third question goes with them: **what here will come round again?** A procedure the session worked
+out, a role it handed to a subagent, a routine it ran as steps: where the work will recur, propose the
+template for it rather than a note. That is a **skill** (a procedure the assistant follows next time: its
+name, when it applies, its steps), an **agent definition** (a role for a subagent: what it may touch and
+what it reports), a **checklist** (the steps of a routine a person or an assistant ticks through) or a
+**command** (where the person would start it by name). Each is a draft the person reads, never a file
+made without their yes. Its evidence is the turns where the session did the work, and a sign that it
+recurs: the session did it more than once, the person said it is regular, or the files show an earlier
+round. A one-off is not proposed. Look first at what the workspace already has (`skills/`,
+`.claude/agents/`, `.claude/commands/`, `rituals/` and the kit's own): where one already covers the
+work, propose an update to it, not a new file. A skill's or command's description is loaded into every
+session, so the proposal says how many characters it is.
+
 **Where learnings come from, in this order.** The order says where to look first, not what kinds to
 record.
 
@@ -74,8 +87,11 @@ In a workspace built on the kit, the always-loaded file is `CLAUDE.md`, and its 
 budget and are reviewed upstream, by pull request to the kit, not in a closeout. Promotions into working
 standards go below the import line. A learning about the kit itself is drafted in the report, and an
 edit inside `kit/` happens only with a person approving it. Where `.claude/skills/.kit-generated`
-exists, `.claude/skills/` is the skills bridge's generated copy, rewritten on its next run, so general
-reference goes to `skills/`.
+exists, `.claude/skills/` is the skills bridge's generated copy, rewritten on its next run, and is no
+destination: general reference (facts) goes to `docs/`, and a skill, a procedure the assistant follows,
+is a template in `skills/`. A checklist goes to `rituals/` at the workspace's root, beside the kit's own
+in `kit/rituals/`; the first one promoted there creates the folder, with a one-line `README.md` saying
+it holds the team's own checklists.
 
 **Sensitive projects.** A project whose README reads `Sensitivity: sensitive` is kept untracked or as
 its own private repository, and learnings from it land in its own folder only. Nothing from it — a
