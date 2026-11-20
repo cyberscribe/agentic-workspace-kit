@@ -50,7 +50,7 @@
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook       9 the nineteen commands, on Claude Code and as skills; the
+#   4b the projects session-start hook       9 the twenty commands, on Claude Code and as skills; the
 #                                               closeout command and ritual carry the same core rules
 #                                            10 ablations: pilot/ablate.sh against a stub claude; the
 #                                               blind comparator, the bare arm, the login-token switch,
@@ -62,7 +62,7 @@
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
 # pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files,
-# 25 the workspace boundary, 26 the scheduler plugin, 27 the release script.
+# 25 the workspace boundary, 26 the scheduler plugin, 27 the release script, 28 roles, 29 diagnose.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -2421,15 +2421,15 @@ fi
 # ---------------------------------------------------------------------------------------------------
 if aw_want 9; then
 echo
-echo "9 · The nineteen commands, on Claude Code and as skills, from one source each"
+echo "9 · The twenty commands, on Claude Code and as skills, from one source each"
 
 # The command set is fixed by the contract's command list; a twentieth, or a missing one, fails here
 # so the plugins, the skills and this list move together.
 commands="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename
-scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
+scheduler/tasks workspace/diagnose workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the nineteen commands" \
-    || ko "9 the kit has exactly the nineteen commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the twenty commands" \
+    || ko "9 the kit has exactly the twenty commands" "has: $have"
 # The kit's always-on cost: each command's description is in every session's context, used or not, so
 # their total is budgeted like the always-loaded file. Claude Code measured the kit's five plugins at
 # ~1,664 tokens on 2026-11-20 (`claude plugin details`) for 5,329 bytes of descriptions, about 3.2

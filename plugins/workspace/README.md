@@ -8,6 +8,7 @@ commands, two hooks and a state check:
 | **`/workspace:quick-start`** | The one door into the kit: set it up for the team and for each person, and check it is reachable on every surface they use. |
 | **`/workspace:hygiene`** | The weekly tidy of where context lives, with the always-loaded byte count every time. |
 | **`/workspace:register-audit`** | The monthly check of the register guidance files are written in. |
+| **`/workspace:diagnose`** | A scrubbed fault report for the kit's maintainers: versions, where the plugins load from, install records and hook state, with no paths, names or secrets. |
 
 ## Quick-start
 
