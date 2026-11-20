@@ -49,7 +49,11 @@
 # CLOSEOUT_DISABLED and the two state folders keep drafts and hook state out, and auto-update is off.
 # Checked on the week-0 runs (45 real runs without the token, 2026-09-29): real runs write the CLI's
 # global state file ~/.claude.json and its rotating backups under ~/.claude/backups, and nothing else.
-# With the token those land in the run's own temporary config directory and HOME.
+# With the token those land in the run's own temporary config directory and HOME. Without it, Claude Code
+# also records a project-scope install in ~/.claude/plugins/installed_plugins.json for each plugin the
+# worktree's settings enable, so before each worktree goes the runner removes those records from inside
+# it with `claude plugin uninstall --scope project --keep-data <id>` (unrecord, below). --keep-data
+# leaves the plugin's data folder, which the person's own install shares, where it is.
 #
 # Cost and billing. The cost_usd column is the CLI's total_cost_usd: an API-equivalent cost, what the
 # run's tokens would cost at API prices. Runs on a subscription login (the person's own login, or the
@@ -420,6 +424,9 @@ markets="$(printf '%s' "$settings" | jq -r '(.extraKnownMarketplaces // {}) | to
 expected="$(printf '%s' "$settings" | jq -r --arg m "$(printf '%s\n' "$markets" | cut -f1 | paste -sd' ' -)" '
     ($m | split(" ")) as $names | (.enabledPlugins // {}) | to_entries[]
     | select(.value == true and ((.key | split("@")[1]) as $mk | $names | index($mk))) | .key' 2>/dev/null)"
+# enabled_ids: every plugin the target's settings enable, whatever its marketplace; each is a record a
+# subscription-mode run leaves behind.
+enabled_ids="$(printf '%s' "$settings" | jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == true) | .key' 2>/dev/null)"
 market_paths="" submodules=""
 while IFS=$'\t' read -r _name mpath; do
     [[ -n "$mpath" ]] || continue
@@ -457,6 +464,19 @@ tmp="$(cd "$tmp" && pwd -P)"
 : > "$tmp/worktrees"
 : > "$tmp/scratch-dirs"
 pid=""
+: > "$tmp/ran"
+# unrecord <worktree>: in subscription mode, the project-scope install records a run left for that
+# folder are removed through Claude Code's own uninstall, run from inside it, once per enabled plugin.
+# Token mode needs none: its records are in the run's own config directory, which goes on exit.
+unrecord() {
+    [[ ${token_mode:-0} -eq 0 && -d "$1" ]] || return 0
+    local id
+    while IFS= read -r id; do
+        [[ -n "$id" ]] || continue
+        (cd "$1" && claude plugin uninstall --scope project --keep-data "$id" < /dev/null > /dev/null 2>&1) || true
+    done <<< "$enabled_ids"
+    grep -vxF -- "$1" "$tmp/ran" > "$tmp/ran.new" 2>/dev/null; mv "$tmp/ran.new" "$tmp/ran"
+}
 cleanup() {
     # A headless run still going when the runner is stopped would carry on, billed, inside a worktree
     # about to be removed; it is stopped first.
@@ -471,7 +491,11 @@ cleanup() {
     done < "$tmp/scratch-dirs"
     # Worktrees go whatever --keep says: each run's outputs are already copied under runs/, which is all
     # an inspection or --judge-kept reads, and a kept worktree would stay registered in the target.
+    # A run stopped part way still left its records: they go before its worktree does.
     local wt
+    while IFS= read -r wt; do
+        [[ -n "$wt" ]] && unrecord "$wt"
+    done < <(cat "$tmp/ran" 2>/dev/null)
     while IFS= read -r wt; do
         [[ -n "$wt" && -d "$wt" ]] && git -C "$target" worktree remove --force "$wt" >/dev/null 2>&1
     done < "$tmp/worktrees"
@@ -1121,6 +1145,7 @@ for line in sys.stdin:
 
             # The run. --no-session-persistence keeps the transcript out of ~/.claude: the stream captured
             # here is the only record, and a Check reads tool calls from it.
+            printf '%s\n' "$wt" >> "$tmp/ran"
             (cd "$wt" && exec env "${renv[@]}" claude "${args[@]}" \
                 < /dev/null > "$rd/stream.jsonl" 2> "$rd/stderr.txt") &
             pid=$!
@@ -1183,6 +1208,7 @@ for line in sys.stdin:
             row "$today,$id,$arm,$i,$grade,,$m,$status,$source"
             printf 'ablate.sh: %s %s run %s: %s%s%s\n' "$id" "$arm" "$i" "$status" "${grade:+, check $grade}" "${problem:+ — $problem}" >&2
 
+            unrecord "$wt"
             git -C "$target" worktree remove --force "$wt" >/dev/null 2>&1
             [[ $halt -eq 1 ]] && break
         done

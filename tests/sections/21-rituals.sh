@@ -159,6 +159,33 @@ s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md '**Plugin cost — ev
     'The plugin cost: each plugin')"
 empty "21 hygiene: the command reports plugin cost, names the heavy ones with the per-project suggestion, and says not measured here without claude" "$s21_bad"
 
+# --- Stale install records (wave 2): prune-plugin-records.sh on a fixture file ------------------------
+# Four records: user scope, a project folder that exists, and two for one folder that is gone. The
+# default only counts and leaves the file as it was; --apply backs it up, then keeps exactly the two
+# whose folder is there or that have none.
+s21_pr="$s21_dir/prune" s21_prs="$KIT/plugins/workspace/scripts/prune-plugin-records.sh"
+mkdir -p "$s21_pr/here"
+jq -n --arg here "$s21_pr/here" --arg gone "$s21_pr/gone" '{version: 2, plugins: {
+    "a@m": [{scope: "user"}, {scope: "project", projectPath: $here}, {scope: "project", projectPath: $gone}],
+    "b@m": [{scope: "project", projectPath: $gone}]}}' > "$s21_pr/records.json"
+s21_sum0="$(cksum < "$s21_pr/records.json")"
+s21_out="$(bash "$s21_prs" "$s21_pr/records.json" 2>&1)"; s21_rc=$?
+s21_bad=""
+[[ $s21_rc -eq 0 && "$(head -n 1 <<<"$s21_out")" == "2 install records name a project folder that no longer exists (1 folders)." ]] || s21_bad+="count: rc=$s21_rc $s21_out"$'\n'
+grep_all -F -- '--apply' <<<"$s21_out" || s21_bad+="no --apply line for the person"$'\n'
+[[ "$(cksum < "$s21_pr/records.json")" == "$s21_sum0" ]] || s21_bad+="the default changed the file"$'\n'
+s21_out="$(bash "$s21_prs" --apply "$s21_pr/records.json" 2>&1)"; s21_rc=$?
+[[ $s21_rc -eq 0 ]] || s21_bad+="--apply: rc=$s21_rc $s21_out"$'\n'
+[[ "$(find "$s21_pr" -maxdepth 1 -name 'records.json.bak-*' -exec cksum {} \; | cut -d' ' -f1,2)" == "$s21_sum0" ]] || s21_bad+="no backup of the original beside it"$'\n'
+[[ "$(jq -c '[.plugins | to_entries[] | .key as $k | .value[] | $k + ":" + (.projectPath // "user")]' "$s21_pr/records.json")" \
+    == "$(jq -nc --arg h "$s21_pr/here" '["a@m:user", ("a@m:" + $h)]')" ]] || s21_bad+="kept: $(jq -c .plugins "$s21_pr/records.json")"$'\n'
+s21_out="$(bash "$s21_prs" "$s21_pr/nothing.json" 2>&1)"; s21_rc=$?
+[[ $s21_rc -eq 0 && "$s21_out" == "no install records here"* ]] || s21_bad+="no file: rc=$s21_rc $s21_out"$'\n'
+s21_bad+="$(s21_needs plugins/workspace/commands/hygiene.md 'bash kit/plugins/workspace/scripts/prune-plugin-records.sh' \
+    'its `--apply` line to run themselves' 'hygiene changes nothing in the person'"'"'s own Claude Code files'
+    s21_needs rituals/weekly-hygiene.md 'prune-plugin-records.sh')"
+empty "21 stale install records: counted by default with the file untouched, removed with --apply after a backup, user and live-folder records kept, and hygiene gives the person the --apply line" "$s21_bad"
+
 s21_bad="$(s21_needs plugins/workspace/commands/register-audit.md 'kit/docs/documentation-register.md' \
     '`kit/` is left out' '.claude/skills/.kit-generated' 'Findings in the kit go upstream' 'team/people.md' '**Contact detail**'
     s21_needs docs/documentation-register.md '`kit/` (the kit, read in place' '.claude/skills/.kit-generated')"

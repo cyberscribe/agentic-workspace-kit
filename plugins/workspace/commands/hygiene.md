@@ -99,6 +99,11 @@ apart.
   command, as in Cowork's shell or a container), the line says that, and the
   check is not a failure. The figure leaves out what a plugin's hooks print into
   a session, which Claude Code does not count; say so once under the line.
+  Then run `bash kit/plugins/workspace/scripts/prune-plugin-records.sh`, which
+  only counts: install records left for project folders that no longer exist
+  (scratch copies, temporary worktrees). When it finds any, report the count
+  and give the person its `--apply` line to run themselves, with Claude Code
+  closed; hygiene changes nothing in the person's own Claude Code files.
 - **Submodules.** Run the kit's state check in its quick form from the
   repository root — `bash kit/plugins/workspace/scripts/state.sh --quick` — and put
   every `submodule.<path>` line in a table, clean ones included: path · role ·

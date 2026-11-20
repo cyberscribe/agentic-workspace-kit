@@ -2650,6 +2650,11 @@ ASTUB="$SCRATCH/abl-bin" ALOG="$SCRATCH/abl-log"
 mkdir -p "$ASTUB" "$ALOG"
 cat > "$ASTUB/claude" <<'STUBSCRIPT'
 #!/usr/bin/env bash
+# `claude plugin …` is the runner's clean-up of install records: one line per call, the folder it ran
+# in and its arguments, kept in a dot-file so it does not count as a run.
+if [[ "${1:-}" == plugin ]]; then
+    printf '%s\t%s\n' "$PWD" "$*" >> "${ALOG:?}/.plugin-calls"; exit 0
+fi
 # The comparator is the call with --tools: it prefers whichever output keeps the dated line, and says
 # which letter that was, so the runner's unblinding can be checked against it.
 if [[ " $* " == *" --tools "* ]]; then
@@ -2749,6 +2754,20 @@ for r in "$ALOG"/call.*; do
 done
 [[ "$(calls)" == 4 ]] || bad+="$(calls) calls, not 4"$'\n'
 empty "10 each run sets AW_HEADLESS_RUN and CLOSEOUT_DISABLED, places the fixture and passes the flags and allowed tools" "$bad"
+# Install records (CC-141): on a subscription login each run's worktree gets one project-scope uninstall
+# per plugin its settings enable, run from inside it, before it goes.
+bad=""
+pc="$(cat "$ALOG/.plugin-calls" 2>/dev/null)"
+[[ "$(grep -c . <<<"$pc")" == 8 ]] || bad+="$(grep -c . <<<"$pc") uninstall calls, not 8 (4 runs x 2 enabled plugins)"$'\n'
+[[ "$(cut -f1 <<<"$pc" | sort -u | grep -c .)" == 4 ]] || bad+="not one folder per run: $(cut -f1 <<<"$pc" | sort -u)"$'\n'
+while IFS= read -r d; do
+    [[ -n "$d" ]] || continue
+    [[ "$d" == */wt/dates/*/run-* ]] || bad+="ran outside a run's worktree: $d"$'\n'
+    [[ "$(awk -F'\t' -v d="$d" '$1 == d {print $2}' <<<"$pc" | sort | paste -sd'|' -)" \
+        == "plugin uninstall --scope project --keep-data notes@local-kit|plugin uninstall --scope project --keep-data other@elsewhere" ]] \
+        || bad+="$d: $(awk -F'\t' -v d="$d" '$1 == d {print $2}' <<<"$pc" | paste -sd'|' -)"$'\n'
+done < <(cut -f1 <<<"$pc" | sort -u)
+empty "10 on a subscription login, each run's project-scope install record of every enabled plugin is uninstalled from inside its worktree, keeping the plugin's data" "$bad"
 [[ "$(grep -lx 'line=present' "$ALOG"/call.* | grep -c .)" == 2 && "$(grep -lx 'line=absent' "$ALOG"/call.* | grep -c .)" == 2 ]] \
     && ok "10 the line is present in the with arm and absent in the without arm" \
     || ko "10 the line is present in the with arm and absent in the without arm" "$(cat "$ALOG"/call.*)"
@@ -2905,6 +2924,7 @@ empty "10 the parser refuses allowed tools that could commit, a fixture over the
 
 # Stopped from outside mid-run, the runner stops the headless child before it removes the worktrees.
 AMARK="$SCRATCH/abl-mark"; mkdir -p "$AMARK"
+pc0="$(grep -c . "$ALOG/.plugin-calls" 2>/dev/null)"
 env PATH="$ASTUB:$PATH" ALOG="$ALOG" STUB_SLEEP=6 STUB_MARK="$AMARK" bash "$ABL" --target "$AR" --runs 1 dates >/dev/null 2>&1 &
 arun=$!
 for _ in $(seq 1 50); do [[ -s "$AMARK/stub.pid" ]] && break; sleep 0.1; done
@@ -2913,6 +2933,9 @@ spid="$(cat "$AMARK/stub.pid" 2>/dev/null)"
 if [[ -n "$spid" ]] && ! kill -0 "$spid" 2>/dev/null && [[ ! -e "$AMARK/late" && "$(wtcount)" == 1 ]]; then
     ok "10 a runner stopped mid-run stops its headless child and leaves no worktree"
 else ko "10 a runner stopped mid-run stops its headless child and leaves no worktree" "stub=$spid late=$(ls "$AMARK")"; fi
+[[ "$(( $(grep -c . "$ALOG/.plugin-calls" 2>/dev/null) - pc0 ))" == 2 ]] \
+    && ok "10 a runner stopped mid-run still uninstalls that run's install records before its worktree goes" \
+    || ko "10 a runner stopped mid-run still uninstalls that run's install records before its worktree goes" "$(tail -n 4 "$ALOG/.plugin-calls")"
 
 # The comparator. An ablation with a Judge: run i of each arm goes to the comparator unlabelled; the
 # stub comparator prefers the dated output by content, so every verdict unblinds to `with` whichever
@@ -3053,6 +3076,8 @@ tokrun() { ablate env -u CLAUDE_CONFIG_DIR HOME="$AHOME" TMPDIR="$ATMP" CLAUDE_C
 tokrun bash "$ABL" --target "$AR" --runs 1 --bare --dry-run personal dates
 dry_out="$aout"
 tokrun bash "$ABL" --target "$AR" --runs 1 --bare --keep personal dates
+[[ ! -s "$ALOG/.plugin-calls" ]] && ok "10 with a token, no uninstall runs: the records are in the run's own config directory" \
+    || ko "10 with a token, no uninstall runs: the records are in the run's own config directory" "$(cat "$ALOG/.plugin-calls")"
 kept="$(sed -n 's/^ablate.sh: kept \([^ ]*\) .*/\1/p' <<<"$aout")"
 got="$(tail -n 6 "$ACSV" | cut -d, -f2,3,5,13 | paste -sd' ' -)"
 [[ $arc -eq 0 && "$got" == "dates,with,1,ok dates,without,0,ok dates,bare,0,ok personal,with,1,ok personal,without,1,ok personal,bare,1,ok" ]] \
