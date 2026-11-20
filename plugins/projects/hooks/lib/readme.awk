@@ -274,6 +274,8 @@ section == "people" && /^[ \t]*[-*][ \t]+/ {
     if (np > 1) {
         for (ri = 2; ri <= np; ri++) {
             seg = trim(rp[ri]); gsub(/\*|`/, "", seg)
+            # Also "accountable, as parent": a role written inside the part for the five roles.
+            if (tolower(seg) ~ /^[a-z ,]+, as /) sub(/^[A-Za-z ,]+, [Aa]s /, "as ", seg)
             if (tolower(substr(seg, 1, 3)) == "as " && !is_gap(trim(substr(seg, 4)))) {
                 rn = rp[1]; gsub(/\*|`/, "", rn); rn = trim(rn)
                 if (!is_gap(rn)) roles = roles (roles == "" ? "" : ";") rn "=" trim(substr(seg, 4))

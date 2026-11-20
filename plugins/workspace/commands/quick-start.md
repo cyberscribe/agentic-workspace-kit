@@ -29,6 +29,17 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/workspace:quick-start` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+This holds in every part: the team part's lines in the always-loaded file, the profile, the
+conventions files, and each setup step.
+
 ## Find out where things stand
 
 Before asking anything, run the state check from the repository root. It prints

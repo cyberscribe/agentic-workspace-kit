@@ -22,6 +22,17 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/projects:adopt` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+Draft mode is the one exception, by design: it asks nothing and writes each proposal marked
+`proposed by /projects:adopt`, for the person to confirm or edit later.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,
@@ -116,8 +127,9 @@ Look for each section by what it does, not only by its heading.
 - **The person's role in it**, in interactive mode only, and offered once even
   when nothing else is missing: which of the roles in their profile's **Roles**
   list the person running the command is in here, with "another" always open (a
-  parent, a marketing leader, a woodworker). On a yes it becomes `as <role>` on
-  their own People line, after what they answer for: the one change this command
+  parent, a marketing leader, a woodworker). On a yes it becomes its own part of
+  their People line, after what they answer for and before the profile, as
+  `- <name> — accountable — as <role> — <profile>`: the one change this command
   makes inside a line already there. A project without one is not missing
   anything, so the no-argument list does not name it, and draft mode leaves it.
 - **Desired outcome** is present if the README, or a file it names as holding

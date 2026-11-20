@@ -82,6 +82,18 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/closeout` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+This holds for every proposal and every tracking change closeout brings back. Mechanical,
+uncontested promotions are the exception, by design: they are made directly, as Promote says, and
+listed in the report.
+
 ## In a pairing
 
 When this session is the product manager of an open `/projects:pair` pairing (its token in the

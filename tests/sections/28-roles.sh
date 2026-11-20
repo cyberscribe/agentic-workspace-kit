@@ -95,9 +95,9 @@ PY
 empty "28 /projects:new: outcome, role, finish line, questions about the plan, people, versioning; the questions go branch by branch, write what is open to Open questions and stop on the person's word" "$s28_bad"
 
 s28_bad="$(s28_has "$KIT/plugins/ongoing/commands/new.md" '4. **Their role in it**' '**Roles** list' '"another" always open' 'as `as <role>`'
-    s28_has "$KIT/plugins/projects/commands/adopt.md" "**The person's role in it**" '**Roles**' '"another" always open' 'becomes `as <role>` on their own People line' \
+    s28_has "$KIT/plugins/projects/commands/adopt.md" "**The person's role in it**" '**Roles**' '"another" always open' '`- <name> — accountable — as <role> — <profile>`' \
         'A project without one is not missing anything' 'The one exception is the person'"'"'s role'
-    s28_has "$KIT/plugins/ongoing/commands/adopt.md" "**People, with the person's role in it**" '**Roles** list' '"another" always open' 'becomes `as <role>`'
+    s28_has "$KIT/plugins/ongoing/commands/adopt.md" "**People, with the person's role in it**" '**Roles** list' '"another" always open' 'its own part of their People line, `— as <role> —`'
     s28_has "$KIT/plugins/projects/commands/pickup.md" '**Your role in it:**' 'Omit the line when their line carries none' \
         '**Questioning the plan.**' 'Questions about the plan' 'stopping on the person'"'"'s word' 'With no open branch, there is no offer.')"
 empty "28 /ongoing:new and both adopt commands ask the role from the profile's Roles; pickup names it and offers the questions for a plan with open branches" "$s28_bad"
@@ -172,3 +172,23 @@ s28_bad="$(s28_has "$KIT/plugins/projects/commands/new.md" 'The yes covers what 
     s28_has "$KIT/plugins/projects/commands/pickup.md" 'A role is optional on every People line, theirs and everyone else' \
         'neither **Worth knowing** nor what comes after the brief mentions a missing role')"
 empty "28 a yes to the draft writes only what was shown; pickup never lists a missing role as a gap" "$s28_bad"
+
+# ---- Written on a yes, in every command that writes (PM-173) ------------------------------------------
+s28_bad=""
+for s28_f in projects/commands/adopt.md projects/commands/close.md projects/commands/hold.md projects/commands/rename.md \
+             ongoing/commands/adopt.md ongoing/commands/review.md ongoing/commands/pause.md ongoing/commands/drop.md \
+             workspace/commands/quick-start.md scheduler/commands/tasks.md closeout/commands/closeout.md; do
+    s28_bad+="$(s28_has "$KIT/plugins/$s28_f" '## Written on a yes' "written only on the person's yes to it" \
+        "the end of the questions, or \"that's all\" is not that yes" 'The yes covers what was shown and nothing more' 'Quote only what the person said.')"
+done
+s28_bad+="$(s28_has "$KIT/plugins/projects/commands/adopt.md" 'Draft mode is the one exception, by design'
+    s28_has "$KIT/plugins/closeout/commands/closeout.md" 'Mechanical, uncontested promotions are the exception, by design')"
+empty "28 every command that writes shows the change first and writes it only on a yes to it, with the two exceptions named" "$s28_bad"
+
+# A role written inside the part for the five roles ("accountable, as marketing lead", as one live adopt
+# run wrote it) is read too; "accountable, responsible" is not a role.
+printf '# P\n\n## People\n\n- Jo Rivera — accountable, as marketing lead — `memory/people/jo.md`\n- Kim — accountable, responsible\n' > "$s28/comma.md"
+s28_got="$(awk -f "$s28_awk" "$s28/comma.md" | awk -F '\037' '{ print $8 "|" $21 }')"
+[[ "$s28_got" == "Jo Rivera|Jo Rivera=marketing lead" ]] \
+    && ok "28 readme.awk reads a role written as ', as <role>' inside the five roles' part, and no role in 'accountable, responsible'" \
+    || ko "28 readme.awk reads a role written as ', as <role>' inside the five roles' part, and no role in 'accountable, responsible'" "$s28_got"
