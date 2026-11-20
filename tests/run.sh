@@ -1271,6 +1271,10 @@ if capture "$P3" s-three; then
         "Closing out the manager is the person's call."; do
         grep -qF -- "$w" <<<"$flat" || bad+="closeout.md: no: $w"$'\n'
     done
+    for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
+        grep -qF 'every value in them filled in: no `<placeholder>`' "$KIT/$f" || bad+="$f: commands handed over may carry placeholders"$'\n'
+    done
+    grep -qF 'Hand the person no command for it.' "$KIT/plugins/closeout/commands/closeout.md" || bad+="closeout.md: the refused sentinel still handed over"$'\n'
     flat="$(tr '\n' ' ' < "$KIT/rituals/closeout.md" | tr -s ' ')"
     for w in '**Several sessions on one project.**' 'no file is written by two of them' 'The doing sessions go first, one at a time' \
         'The coordinator goes last and writes the shared files.' 'A session that has stopped does not hold the others up'; do

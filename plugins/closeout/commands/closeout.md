@@ -360,7 +360,8 @@ there, on an explicit yes.
 - Who needs to know what, if that step applied.
 - What was verified, and against which standard, if the repository has one.
 - Which files were touched, new against modified, and anything left unfinished.
-- The commands that commit them, in the order below.
+- The commands that commit them, in the order below, every value in them filled in: no `<placeholder>`
+  is handed to the person.
 - Any line the personal conventions ask for.
 
 Leave the commit to the person. List what you touched, by name (a broad staging
@@ -414,6 +415,11 @@ if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
   mkdir -p "$d" && touch "$d/.closeout-ran.$CLAUDE_CODE_SESSION_ID"
 fi
 ```
+
+If that is refused (a permission check, a sandbox), say so in one line: the capture may then write a
+draft as well, which the next session offers like any other. Hand the person no command for it. A
+command for the person always has its values filled in, never a `<placeholder>` or a variable only
+this session holds; where they cannot be filled in, it is left out.
 
 ## Practices
 

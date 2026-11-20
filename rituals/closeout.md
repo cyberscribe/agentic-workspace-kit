@@ -246,7 +246,8 @@ picked per row:
 - Who needs to know what, if step 6 applied.
 - Which files were touched, new against modified.
 - Anything left unfinished.
-- The commands that commit them, in the order below.
+- The commands that commit them, in the order below, every value in them filled in: no `<placeholder>`
+  is handed to the person.
 
 Leave the commit to the person. List what you touched, by name (a broad staging command sweeps in
 unrelated work), and give the commands for them to run, with each message editable: writing or
