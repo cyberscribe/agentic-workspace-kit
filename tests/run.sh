@@ -1263,6 +1263,29 @@ if capture "$P3" s-three; then
     grep -qF 'An item whose source is recurring proposes a skill, an agent definition, a checklist or a command' "$KIT/plugins/closeout/hooks/closeout-review.sh" \
         && grep -qF 'make nothing until the user says yes' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: a recurring item as a proposal"$'\n'
     grep -qF "a draft's templates: none line is shown as it is" "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: templates: none"$'\n'
+    # A pairing closes out engineers first and the manager last (3.10.0): the capture prompt, the
+    # command, the ritual, the pair command and the mailbox README say the same.
+    grep -qF "are the product manager's to write" <<<"$prompt" && grep -qF "manager's to write)" <<<"$prompt" || bad+="capture prompt: no: the manager's to write"$'\n'
+    flat="$(tr '\n' ' ' < "$KIT/plugins/closeout/commands/closeout.md" | tr -s ' ')"
+    for w in '## In a pairing' 'the engineers close out first and this session last' 'close out this session only and say so in one line' \
+        "Closing out the manager is the person's call."; do
+        grep -qF -- "$w" <<<"$flat" || bad+="closeout.md: no: $w"$'\n'
+    done
+    flat="$(tr '\n' ' ' < "$KIT/rituals/closeout.md" | tr -s ' ')"
+    for w in '**Several sessions on one project.**' 'no file is written by two of them' 'The doing sessions go first, one at a time' \
+        'The coordinator goes last and writes the shared files.' 'A session that has stopped does not hold the others up'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="rituals/closeout.md: no: $w"$'\n'
+    done
+    flat="$(tr '\n' ' ' < "$KIT/plugins/projects/commands/pair.md" | tr -s ' ')"
+    for w in '## Closing out a session in the pairing' 'titled `Close out`' 'one engineer at a time when there are several' \
+        'up to 15 minutes from the post' 'Leave alone every file an engineer listed.' 'bash kit/plugins/projects/scripts/pair.sh <project folder>'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="pair.md: no: $w"$'\n'
+    done
+    flat="$(tr '\n' ' ' < "$KIT/plugins/projects/examples/pair/README.md" | tr -s ' ')"
+    for w in '## Closing out' 'the engineer closes out first and the PM last, so no file is written by both' 'titled `Closed out`' \
+        'leaves alone every file the engineer listed' 'closes out that session only, and says so in one line'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="pair/README.md: no: $w"$'\n'
+    done
     flat="$(tr '\n' ' ' < "$KIT/docs/memory-layers.md" | tr -s ' ')"
     for w in 'what here will come round again' 'a one-off is not' '`rituals/` at the root (the team'"'"'s own checklists, beside the kit'"'"'s'; do
         grep -qF -- "$w" <<<"$flat" || bad+="memory-layers.md: no: $w"$'\n'

@@ -82,6 +82,17 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/closeout` works inside a kit workspace, and do nothing
 else.
 
+## In a pairing
+
+When this session is the product manager of an open `/projects:pair` pairing (its token in the
+mailbox's `.pm-session`, no `.closed`), the engineers close out first and this session last: follow
+"Closing out a session in the pairing" in `kit/plugins/projects/commands/pair.md` before writing
+anything durable. When this session is a pairing's engineer (the session-start line or `PAIR_ROLE=cc`
+says so), close out this session only and say so in one line: write your own files, leave the
+project's shared files (its decisions log, its README's Current state, the workspace's memory) to the
+manager with your entries proposed in a `Closed out` reply, as the mailbox README's *Closing out*
+section says. Closing out the manager is the person's call.
+
 ## A private session
 
 A person can mark a session private by writing `#private` in any message; the

@@ -346,6 +346,11 @@ Then one section per item, in this shape:
 
   <the note itself, one to three sentences>
 
+In a /projects:pair pairing, the project's shared files (its decisions log, its
+README's Current state) are the product manager's to write: an item from an
+engineer's session for one of them says so in destination:, as "<file> (the
+manager's to write)".
+
 L<n> is the line number the Read tool shows for the transcript. The span is
 copied exactly from that line and short enough to read at a glance, twenty words
 at most. Give as many evidence lines as the item needs. Inside the quotes, write

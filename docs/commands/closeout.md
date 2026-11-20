@@ -36,6 +36,14 @@ backstop for a session that ends without it.
 
 ## Common questions
 
+**Can a session be kept out of closeout?** Yes: write `#private` in any message. The session is marked
+private from start to end, it is said back to you once, and the capture keeps no draft of it. A
+`/closeout` you ask for in it asks before writing anything.
+
+**I run it in a pairing.** In the manager's session it has each engineer close out first, then writes
+the shared files last; in an engineer's session it closes out that session only. The pair command's
+page (`docs/commands/projects-pair.md`) and its mailbox README's *Closing out* section have the detail.
+
 **Can it edit `kit/CLAUDE.kit.md`?** No. That file is the kit's: a learning about the kit is drafted
 in the report, and a change there goes to the kit by pull request (see `CONTRIBUTING.md`). Promotions
 into working standards go below the import line of `CLAUDE.md`.

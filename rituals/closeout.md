@@ -287,6 +287,13 @@ for the thing it was supposed to catch. The compensating moves:
 - When a promotion cannot be finished, leave a draft wherever a later session will look, and have the
   weekly pass report drafts left waiting.
 
+**Several sessions on one project.** When sessions work a project together, one coordinating and
+others doing, each closes out its own session and no file is written by two of them. The doing
+sessions go first, one at a time; each writes only its own files and hands any entry for a shared
+file (the decisions log, the project's current state) to the coordinator, with a list of the files it
+wrote. The coordinator goes last and writes the shared files. A session that has stopped does not hold
+the others up: the person hears which one still needs its closeout.
+
 **A private session keeps nothing.** A person can mark a session private at any point (in Claude
 Code, by writing `#private` in a message), and it is said back to them in one line. The backstop then
 keeps no draft of it, and the next session's reminder says nothing about it. The ritual still runs if

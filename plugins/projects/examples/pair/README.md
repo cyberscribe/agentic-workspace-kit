@@ -118,6 +118,26 @@ seals it again with `pair.sh gates --mailbox <this folder> --from pm --seal`. `b
   it fires. The engineer's write-ups take what is scheduled from there, so the two accounts agree.
 - A message that cannot wait for a check goes to the person directly.
 
+## Closing out
+
+A closeout keeps what a session learned; it does not end the pairing (that is the PM's last message
+and `.closed`). When the person runs closeout in the PM's session, the engineer closes out first and
+the PM last, so no file is written by both:
+
+- The PM posts a message titled `Close out` before it writes anything durable.
+- The engineer closes out its own session straight away. It writes what is its own: the code
+  repository it works in and its notes in the project's handoff folder. The shared files are the PM's:
+  the project's decisions log, its README's Current state, the workspace's memory and logs. An entry
+  the engineer has for one of those goes in its reply, for the PM to write.
+- It replies with a `CC-NNN` titled `Closed out`, listing every file it wrote and every entry it
+  proposes, and sets the `Close out` message done.
+- The PM then writes the shared files, and leaves alone every file the engineer listed. An engineer
+  whose session has stopped does not hold the PM up: the PM closes out and tells the person which
+  engineer still needs it, with the command that resumes it.
+
+A closeout run in the engineer's own session closes out that session only, and says so in one line.
+Closing out the PM is the person's call.
+
 ## Commands handed to the person
 
 A command the person pastes into a terminal is written to survive the paste: each line about 70
