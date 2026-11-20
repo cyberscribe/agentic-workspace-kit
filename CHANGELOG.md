@@ -5,7 +5,7 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased — v3.10.0
+## v3.10.0 — 2026-11-21
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. It offers
 three template changes as diffs: the project and area READMEs (a role on each People line) and the
