@@ -5,6 +5,81 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased — v3.10.0
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. It offers
+three template changes as diffs: the project and area READMEs (a role on each People line) and the
+person profile (a Roles list, and its Role row renamed Job). Existing READMEs and profiles keep
+reading exactly as they are: a People line without a role and a profile without Roles are complete.
+The plugins take effect in the next session.
+
+**Plugins.** projects 3.9.0: the person's role in each project, and questions that sharpen a plan.
+ongoing 0.2.0: the role in each area. workspace 2.5.0: roles in the quick-start, `/workspace:diagnose`,
+and stale install records in hygiene. closeout 1.8.0: the `#private` marker, "Templates: none", and
+closeout across a pairing. scheduler 0.1.2 is unchanged.
+
+**What the kit costs every session.** Section 9's measures, before and after this release: the twenty
+command descriptions 5,076 → 5,399 characters (cap 6,200; `/workspace:diagnose` is the new one); a
+project's session-start line 409 characters unchanged, or 600 when its People line carries a role (cap
+700); the workspace line 488 unchanged; the closeout review reminder 3,782 → 3,832 (cap 4,300). The
+private marker's hook prints nothing unless the word is there.
+
+- **The person's roles.** The quick-start's personal part asks for the roles a person holds across their
+  life, in their own words, a handful at most (a marketing leader at work, a parent at home, a
+  woodworker at the weekend), and keeps them as a Roles list in their profile. It asks nothing about the
+  business. Each project and area records which of them the person is in there, as `as <role>` on their
+  People line after what they answer for: "parent" is who they are in the work, "accountable" what they
+  answer for. `/projects:new`, `/ongoing:new` and both adopt commands offer the profile's roles as
+  choices, with another always open. The session-start line puts the owner's role beside their name, and
+  the person's own when they are someone else on the list; `/projects:pickup` names it; the board groups
+  or filters by it (`by role`, `role <word>`). A role is context for the agent, not a field to report
+  on: nothing flags its absence. `readme.awk` reads it as field 21. `setup.sh update` mentions it once,
+  on the update into 3.10.0, when the profile has none.
+- **Questions that sharpen a plan.** `/projects:new` now runs in one order: the outcome, the person's
+  role in it, the finish line, questions about the plan, the people, then versioning. Once the finish
+  line is drafted it questions the plan one branch at a time (what happens if this part fails, who
+  decides it, what done looks like for it), puts each answer where it belongs, and writes any branch
+  without an answer into Open questions in the person's words. It stops when every branch is settled
+  or as soon as the person says enough: a sharpening pass, never a gate. `/projects:pickup` offers the
+  same questions for a project whose plan has open branches. There is no separate command, so no new
+  description in every session.
+- **Written on a yes.** `/projects:new`, `/ongoing:new` and the quick-start write a README or profile
+  only on the person's yes to the draft they were shown; ending the questions is not that yes, and the
+  yes covers only what was shown.
+- **`#private`.** Writing `#private` in any message marks the whole session private: closeout says so
+  once, keeps no draft of it, and the next session's reminder says nothing about it. A `/closeout` asked
+  for in a private session asks before writing anything. The new `closeout-private.sh` hook
+  (UserPromptSubmit) stops at a text match and prints nothing otherwise; the capture hook also reads the
+  person's own messages for the word.
+- **`/workspace:diagnose`.** A fault report for the kit's maintainers: the kit's version and commit, each
+  plugin's version and where Claude Code loads it from, install records (duplicates, and records for
+  folders that are gone), hook state, the state check's fixed-value keys, the last failing test section
+  and tool versions. Every line is scrubbed of paths, project and area names, the person's name, emails,
+  tokens and webhook URLs. It is shown before it is saved, saved outside any repository on a yes, and
+  never sent.
+- **Closeout in a pairing.** When closeout runs in the manager's session of an open `/projects:pair`
+  pairing, the engineers close out first, one at a time, each writing only its own files and listing
+  them in a `Closed out` reply; the manager goes last and writes the shared files (the decisions log,
+  the README's Current state). A stopped engineer does not hold it up: the person is told which one
+  still needs its closeout, with its resume command. In an engineer's session, closeout covers that
+  session only. The pairing stays open.
+- **"Templates: none".** When closeout proposes no template, its report says so in one line with the
+  reason (a one-off session, a template already covers it); the capture draft carries the same line.
+- **Leave-out runs leave no install records.** `pilot/ablate.sh`, on a subscription login, uninstalls
+  each run's project-scope plugin records from inside its worktree before it goes (`--keep-data`, so the
+  person's own plugin data stays). `plugins/workspace/scripts/prune-plugin-records.sh` counts records
+  for folders that no longer exist and, with `--apply`, removes them after a backup; weekly hygiene runs
+  the count and gives the person the `--apply` line.
+- **A release script that takes the version.** `scripts/release.sh <version> pr|ship --notes <dir>` reads
+  the release's notes from `<dir>/<version>/notes.md`, takes the tag's subject from its first line, and
+  keeps every refusal: green checks, every gate passed, and a merge commit holding exactly the release
+  tree.
+- **Tests.** Section 27 (the release script), 28 (roles, the interview order, the questions about the
+  plan, and a README with no role giving exactly the old session-start line), 29 (diagnose, with a
+  planted secret, project name and home path); sections 4, 9, 10 and 21 extended.
+
+---
+
 ## v3.9.0 — 2026-11-20
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template
