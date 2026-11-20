@@ -82,6 +82,15 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/closeout` works inside a kit workspace, and do nothing
 else.
 
+## A private session
+
+A person can mark a session private by writing `#private` in any message; the
+closeout plugin then says so in one line, and the capture at the end of the
+session keeps no draft of it. In a session marked that way, `/closeout` runs only
+because the person asked for it here, and it asks before writing anything: show
+each proposed change and write it on their yes. Nothing from the session goes
+anywhere else unasked, the decisions log included.
+
 ## Conventions come first
 
 Read these before anything else, in this order, and follow them over the defaults

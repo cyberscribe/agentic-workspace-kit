@@ -287,6 +287,11 @@ for the thing it was supposed to catch. The compensating moves:
 - When a promotion cannot be finished, leave a draft wherever a later session will look, and have the
   weekly pass report drafts left waiting.
 
+**A private session keeps nothing.** A person can mark a session private at any point (in Claude
+Code, by writing `#private` in a message), and it is said back to them in one line. The backstop then
+keeps no draft of it, and the next session's reminder says nothing about it. The ritual still runs if
+the person asks for it in that session, and asks before writing anything.
+
 *A hook-based implementation for Claude Code ships with this kit at `plugins/closeout/`. The pattern
 matters more than the tool.*
 

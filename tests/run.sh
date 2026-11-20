@@ -1330,6 +1330,34 @@ check "4 capture: the stale sentinel is removed" test ! -e "$DRAFTS/one/.closeou
 : > "$DRAFTS/one/.closeout-ran.s-other"
 capture "$P1" s-mine && ok "4 capture: another session's sentinel does not suppress this one" || ko "4 capture: another session's sentinel does not suppress this one"
 
+# The private marker (3.10.0): #private in a message marks the session. The prompt hook says so once and
+# writes a flag by the session id; the capture keeps nothing for a flagged session, nor for one whose
+# transcript holds the word in the person's own message, and an unmarked session is captured as before.
+PRIV="$HOOKS/closeout-private.sh"
+priv() { # <session> <prompt> [cwd]: the prompt hook's stdout
+    jq -nc --arg s "$1" --arg p "$2" --arg c "${3:-$P1}" '{session_id: $s, prompt: $p, cwd: $c, hook_event_name: "UserPromptSubmit"}' \
+        | env CLOSEOUT_DRAFT_ROOT="$DRAFTS" bash "$PRIV" 2>/dev/null
+}
+bad=""
+out="$(priv s-priv "Let us plan the surprise party. #private")"
+[[ "$(jq -r '.systemMessage' <<<"$out" 2>/dev/null)" == "Private session: closeout will keep no draft of it"* ]] || bad+="no line for the person: $out"$'\n'
+grep_all -F 'A /closeout in this session runs only if the person asks for it' <<<"$(jq -r '.hookSpecificOutput.additionalContext' <<<"$out" 2>/dev/null)" || bad+="no context for the agent"$'\n'
+[[ -f "$DRAFTS/.private/s-priv" ]] || bad+="no flag written"$'\n'
+[[ -z "$(priv s-priv "still #private")" ]] || bad+="said twice in one session"$'\n'
+for p in "nothing to see" "#privateer" "see notes/#private/x" "#private-notes" "email jo@x.org#private"; do
+    [[ -z "$(priv s-not "$p")" ]] || bad+="marked by: $p"$'\n'
+done
+[[ ! -e "$DRAFTS/.private/s-not" ]] || bad+="a flag for a session never marked"$'\n'
+[[ -n "$(priv s-caps "OK, #PRIVATE from here")" ]] || bad+="#PRIVATE in capitals not seen"$'\n'
+[[ -z "$(priv s-out "#private" "$SCRATCH")" ]] || bad+="said outside a kit workspace"$'\n'
+empty "4 private: #private marks the session once, with one line for the person; other words, tags and paths do not" "$bad"
+suppressed "4 private: a session flagged #private leaves no closeout draft" s-priv-ctl "$P1" s-priv
+check "4 private: the flag is removed when the session ends" test ! -e "$DRAFTS/.private/s-priv"
+PTR="$SCRATCH/transcripts/private.jsonl"
+{ cat "$TRANSCRIPT"; printf '%s\n' '{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Keep this one #private, please."}]}}'; } > "$PTR"
+suppressed "4 private: #private in the person's own message, with no flag, still leaves no draft" s-ptr-ctl "$P1" s-ptr prompt_input_exit "$PTR"
+capture "$P1" s-plain && ok "4 private: an unmarked session is captured as before" || ko "4 private: an unmarked session is captured as before"
+
 # review <project> [VAR=value...]: the SessionStart hook's stdout.
 review() {
     local project="$1"; shift
@@ -2421,7 +2449,8 @@ empty "9 the kit's always-on cost is capped: every description at most 450 chara
 # three states a session meets: inside a project (the projects line), with two things out of step (the
 # workspace line), and with a closeout draft waiting (the review reminder, the longest). Machine paths
 # are taken out before counting, so the figure is the kit's own text. On 2026-11-20: 409, 480 and 3,801
-# characters, about 1,470 tokens with a draft waiting and 280 without.
+# characters, about 1,470 tokens with a draft waiting and 280 without. In 3.10.0: 409 (600 with a role on
+# People), 488 and 3,832.
 HC="$SCRATCH/hook-cost" HCW="$SCRATCH/hook-cost/ws"
 mkdir -p "$HCW/.claude" "$HCW/projects/demo" "$HC/drafts/demo" "$HC/home"
 : > "$HCW/.claude/kit-templates.lock"; ln -s "$KIT" "$HCW/kit" 2>/dev/null; git -C "$HCW" init -q 2>/dev/null
@@ -2437,11 +2466,16 @@ hc_ctx() { # <plugin> <hook> <cwd>: the additionalContext it prints, with the fi
 hc_p="$(hc_ctx projects session-start.sh "$HCW/projects/demo" | wc -c | tr -d ' ')"
 hc_w="$(hc_ctx workspace session-start.sh "$HCW" | wc -c | tr -d ' ')"
 hc_r="$(hc_ctx closeout closeout-review.sh "$HCW/projects/demo" | wc -c | tr -d ' ')"
+# A project whose People line carries a role (3.10.0) adds the role and one sentence on what it means.
+mkdir -p "$HCW/projects/roled"
+printf '# Roled\n\n**Outcome:** a demo.\n\n## Done when\n\n- [ ] one\n\n## Current state\n\n- **State:** doing\n- **Updated:** 2026-11-20\n\n## People\n\n- Sam — accountable — as parent\n' > "$HCW/projects/roled/README.md"
+hc_pr="$(hc_ctx projects session-start.sh "$HCW/projects/roled" | wc -c | tr -d ' ')"
 bad=""
 [[ $hc_p -gt 0 && $hc_p -le ${AW_HOOK_CAP_PROJECTS:-700} ]] || bad+="the projects line: $hc_p characters (cap ${AW_HOOK_CAP_PROJECTS:-700}; 0 means it printed nothing)"$'\n'
+[[ $hc_pr -gt $hc_p && $hc_pr -le ${AW_HOOK_CAP_PROJECTS:-700} ]] || bad+="the projects line with a role: $hc_pr characters (cap ${AW_HOOK_CAP_PROJECTS:-700}; it should be longer than $hc_p without one)"$'\n'
 [[ $hc_w -gt 0 && $hc_w -le ${AW_HOOK_CAP_WORKSPACE:-800} ]] || bad+="the workspace line: $hc_w characters (cap ${AW_HOOK_CAP_WORKSPACE:-800})"$'\n'
 [[ $hc_r -gt 0 && $hc_r -le ${AW_HOOK_CAP_REVIEW:-4300} ]] || bad+="the review reminder: $hc_r characters (cap ${AW_HOOK_CAP_REVIEW:-4300})"$'\n'
-empty "9 the kit's session-start text is capped: a project's line at most 700 characters, the workspace line at most 800, the closeout review reminder at most 4,300" "$bad"
+empty "9 the kit's session-start text is capped: a project's line at most 700 characters, with a role or without, the workspace line at most 800, the closeout review reminder at most 4,300" "$bad"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }

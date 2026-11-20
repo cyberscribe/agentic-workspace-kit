@@ -55,6 +55,15 @@ cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
 [[ "$reason" == "clear" ]] && exit 0
 [[ -z "$transcript_path" || ! -f "$transcript_path" ]] && exit 0
 
+# (3b) A private session keeps nothing (closeout-private.sh). The flag the prompt hook wrote is the
+# record; the person's own messages in the transcript are read too, so a flag that was never written
+# (the hook timed out, the word came in a resumed session) still counts. Either way the flag goes.
+private_flag="${CLOSEOUT_DRAFT_ROOT:-$HOME/.claude/closeout-drafts}/.private/${session_id:-none}"
+if [[ -f "$private_flag" ]]; then rm -f "$private_flag"; exit 0; fi
+said="$(jq -r 'select(.type == "user") | .message.content | if type == "string" then . else (map(select(.type == "text") | .text) | join(" ")) end' \
+    "$transcript_path" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+grep -qE '(^|[^[:alnum:]_#/-])#private([^[:alnum:]_/-]|$)' <<<"$said" && exit 0
+
 # (4) Skip trivial sessions — a handful of transcript lines is not worth a run.
 min_lines="${CLOSEOUT_MIN_LINES:-6}"
 lines="$(wc -l < "$transcript_path" 2>/dev/null || echo 0)"
