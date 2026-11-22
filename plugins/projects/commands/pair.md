@@ -190,11 +190,12 @@ appended to your own status file (the mailbox README shows it).
      not a stand-in for it;
    - **What the person wants, in their own words:** where the brief states what
      the person values (the work they find most satisfying, what success means
-     to them), quote them and name the source, and mark a premise that reached
-     you second-hand. When that premise shapes a recommendation, add an early
-     gate that tests it from the person's side: a fresh agent given only their
-     words and the draft says whether it describes something they would want.
-     Every later gate builds on the premise, so it is tested before they do;
+     to them, how much of their time it may take), quote them and name the
+     source, and mark a premise that reached you second-hand. When that premise
+     shapes a recommendation, add an early gate that tests it from the person's
+     side: a fresh agent given only their words and the draft says whether it
+     describes something they would want. Every later gate builds on the
+     premise, so it is tested before they do;
    - `baseline:` on a line of its own, with the command the engineer runs at every
      start and resume before new work (a suite subset, a smoke run), so a fault
      left by the last session is found first;
