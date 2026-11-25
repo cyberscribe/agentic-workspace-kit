@@ -28,11 +28,14 @@ Pause or Resume, and View log. It reads only through `scripts/schedule.sh` (`lis
 `show --json`, `log`) and makes each action a CLI call whose output it shows. It has no delete action;
 deleting stays in the CLI. On mobile it draws the same lists with buttons only.
 
-On the terminal the pane is a view, not a control. Each task is one row of text, and a waiting run's question
-is shown whole, with no buttons or answer field; the pane's hint says to ask Claude, or use `/scheduler:tasks`,
-to act. This is because the terminal did not give the pane the keyboard on Claude Code 2.1.314 (observed
-2026-10-30: `ctrl+x`, then Tab, moved the conversation to the background instead). Acting from the pane is on the
-desktop app, which draws its buttons and answer field.
+On the terminal the pane takes the keyboard when it opens, and every action has a key. Each of the first
+nine tasks is a row with a digit that selects it; `r` runs the selected task now, `p` pauses or resumes it, `l`
+shows its log and `x` closes the log. View log holds the focus at first, since it changes nothing. A waiting run's
+answer field takes typed text once Tab has moved the focus into it, and Enter sends the answer. Escape hands the
+keyboard back to the prompt and closes the pane. This works because the pane asks for the keyboard as it opens
+(`focus`), which Claude Code grants while the prompt is empty, as it is once `/scheduler-pane` has run (checked
+on Claude Code 2.1.332, 2026-11-25). When the terminal has no room to seat the pane, the same view is drawn in the
+band above the prompt, with `c` to close it.
 
 The pane rides on Claude Code's early-access plugin API, which can change between releases. If it
 breaks, `schedule.sh` and `/scheduler:tasks` stand on their own: every action the pane offers runs one of

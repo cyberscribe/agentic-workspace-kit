@@ -15,9 +15,11 @@ Opens a pane titled "Scheduled tasks" with the `/scheduler-pane` slash command. 
 3. **All tasks**: name, status, schedule, next fire, last run, and Run now, Pause or Resume, and View log.
 4. **Footer**: backend, tasks folder, and the time the pane last refreshed.
 
-On the terminal the pane is a view: each task is one row of text, the waiting question is shown whole, and there
-are no buttons or answer field. The hint says to ask Claude, or use `/scheduler:tasks`. The terminal did not give
-the pane the keyboard on Claude Code 2.1.314 (observed 2026-10-30), so the pane cannot take buttons there.
+On the terminal the pane takes the keyboard when it opens. Each of the first nine tasks is a row whose digit
+selects it, and the selected task's actions each have a key: `r` Run now, `p` Pause or Resume, `l` View log, and
+`x` closes the log. View log holds the focus at first, since it changes nothing. Tab reaches a waiting run's answer
+field, where typed text, digits included, goes into the answer, and Enter sends it. Escape closes the pane. When
+the terminal has no room to seat a pane, the same view is drawn in the band above the prompt, with `c` to close it.
 
 Every action is a `schedule.sh` call, and its output is shown in the pane. The pane reads through `schedule.sh`
 (`list`, `show`, `log`, `home`) and keeps what it read in the plugin's state atom, which persists, so it is
@@ -53,7 +55,8 @@ can change between releases. The tasks, their runs and the CLI do not depend on 
   reporting the run `ok`.
 - On the desktop app, Run now, Pause and Resume each show the `schedule.sh` output in the pane, and the task list
   matches `schedule.sh list` afterwards.
-- On the terminal, the pane shows each task as one row and the waiting question whole, with no buttons.
+- On the terminal, pressing a task's digit moves the `>` marker to it, and `p` pauses it: the row then reads
+  `paused`, and `schedule.sh list` agrees.
 - Outside a kit workspace, the pane states that it works inside one.
 
 **If the pane breaks:** `schedule.sh` and `/scheduler:tasks` stand on their own. Every action the pane offers is

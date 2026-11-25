@@ -33,6 +33,8 @@ export type Board = {
   notice: string
   log: string
   logTask: string
+  // The task the terminal's action keys act on, by name; empty means the first task.
+  selected: string
 }
 
 declare module 'claude-code' {

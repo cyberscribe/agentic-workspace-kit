@@ -36,9 +36,14 @@ function result(stdout: string, exitCode = 0): ProcessRunResult {
 
 // The world beneath the pane: the CLI, answered from the fixtures and recorded in `calls`. The boundary check
 // is the one process call that is not schedule.sh; it answers as a kit workspace unless `place.inside` is false,
-// read on each call so a test can move the session out of the workspace between actions.
-function beneath(on: On, calls: Call[], place = { inside: true }) {
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+// read on each call so a test can move the session out of the workspace between actions. The surface seats the
+// pane unless `seat.placed` is false, and each open's arguments are kept in `seat.opens`.
+type Seat = { placed: boolean; opens: unknown[] }
+function beneath(on: On, calls: Call[], place = { inside: true }, seat: Seat = { placed: true, opens: [] }) {
+  on('ui.open', (_, e) => {
+    seat.opens.push(e)
+    return { value: seat.placed ? { isPlaced: true } : { isPlaced: false, reason: 'no room for a pane' } }
+  })
   on('process.run', (_, e) => {
     if (e.argv[1] === '-c') return { value: place.inside ? result('/srv/example/workspace') : result('', 1) }
     const args = e.argv.slice(2)
@@ -101,26 +106,104 @@ test('the three sections draw from the fixtures, on every surface', async ($, on
   }
 })
 
-test('on the terminal the pane is a view: the waiting question whole, every task a row, and no button or answer field', async ($, on) => {
+test('on the terminal the pane asks for the keyboard, and every action has a key', async ($, on) => {
+  const calls: Call[] = []
+  const seat: Seat = { placed: true, opens: [] }
+  beneath(on, calls, { inside: true }, seat)
+  const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
+  await openPane($, clock)
+
+  // The open asks for the keyboard, and Escape hands it back and closes the pane.
+  expect(seat.opens[0]).toMatchObject({ id: 'scheduled-tasks', focus: true, closeOnEscape: true })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  // The question is the run's whole result, its last line included, with an answer field under it.
+  expect(await ui.find({ type: 'Text', text: /1\. main/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Reply with the number of your pick/ })).toBeDefined()
+  expect(await ui.find({ type: 'Input' })).toBeDefined()
+  // A digit per task, a letter per action, and View log, which changes nothing, holding the focus at first.
+  const drawn = JSON.stringify(await ui.drawn())
+  for (const key of ['1', '2', '3', '4', 'r', 'p', 'l']) expect(drawn).toContain(`"hotkey":"${key}"`)
+  expect(drawn).toMatch(/"key":"task-log:morning-digest"[^}]*"autoFocus":true|"autoFocus":true[^}]*"key":"task-log:morning-digest"/)
+  expect(drawn).not.toMatch(/delete/i)
+  expect(await ui.find({ type: 'Text', text: /1-4 select · r run · p pause or resume · l log · Tab reaches the answer field · Esc closes/ })).toBeDefined()
+
+  // The first task is selected until a digit picks another; the actions follow the selection.
+  calls.length = 0
+  await ui.press({ key: 'run:morning-digest' })
+  expect(calls[0]?.args).toEqual(['run', 'morning-digest'])
+
+  await ui.press({ key: 'select:old-report' })
+  calls.length = 0
+  await ui.press({ key: 'toggle:old-report' })
+  expect(calls[0]?.args).toEqual(['resume', 'old-report'])
+
+  calls.length = 0
+  await ui.press({ key: 'task-log:old-report' })
+  expect(calls[0]?.args).toEqual(['log', 'old-report'])
+  expect(await ui.find({ type: 'Text', text: /Log: old-report/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /x closes the log/ })).toBeDefined()
+  await ui.press({ key: 'log-close' })
+  expect(await ui.find({ type: 'Text', text: /Log: old-report/ })).toBeUndefined()
+
+  calls.length = 0
+  await ui.input({ key: 'reply:ask-reviewer', text: '1' })
+  expect(calls[0]?.args).toEqual(['reply', 'ask-reviewer', '--run', 'run-0917', '--file', '-'])
+  expect(calls[0]?.stdin).toBe('1')
+  await ui.unmount()
+})
+
+const BAND = {
+  plugin: 'scheduler',
+  component: 'AbovePrompt',
+  props: {
+    hasSurvey: false,
+    isCollapsed: false,
+    isWorking: false,
+    maxRows: 40,
+    bodyColumns: 80,
+    scroll: { offset: 0, bodyRows: 40 },
+    view: {},
+  },
+} as const
+
+test('with no seat for a pane, the terminal view is drawn in the band until its Close', async ($, on) => {
+  const calls: Call[] = []
+  const seat: Seat = { placed: false, opens: [] }
+  beneath(on, calls, { inside: true }, seat)
+  const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
+
+  const said = await $.command.run({
+    command: 'scheduler-pane',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  await clock.settle()
+  expect(JSON.stringify(said)).toMatch(/shown above the prompt/)
+
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: /All tasks/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /Which branch should the review use/ })).toBeDefined()
+  expect(JSON.stringify(await band.drawn())).toContain('"hotkey":"c"')
+  calls.length = 0
+  await band.press({ key: 'toggle:morning-digest' })
+  expect(calls[0]?.args).toEqual(['pause', 'morning-digest'])
+
+  await band.press({ key: 'band-close' })
+  expect(await band.find({ type: 'Text', text: /All tasks/ })).toBeUndefined()
+  await band.unmount()
+})
+
+test('while the pane has its seat, the band draws nothing of the pane', async ($, on) => {
   const calls: Call[] = []
   beneath(on, calls)
   const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
   await openPane($, clock)
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  // The question is the run's whole result, its last line included, not one list item.
-  expect(await ui.find({ type: 'Text', text: /1\. main/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Reply with the number of your pick/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Answer it by asking Claude here/ })).toBeDefined()
-  for (const name of ['morning-digest', 'ask-reviewer', 'branch-check', 'old-report']) {
-    expect(await ui.find({ type: 'Text', text: new RegExp(name) })).toBeDefined()
-  }
-  // The terminal tree draws no button and no answer field: the pane shows, and acting is elsewhere.
-  expect(await ui.find({ type: 'Button' })).toBeUndefined()
-  expect(await ui.find({ type: 'Input' })).toBeUndefined()
-  // The hint says how to act instead, so no line promises a key.
-  expect(await ui.find({ type: 'Text', text: /Ask Claude here, or use \/scheduler:tasks, to run, pause, resume, answer or read a log/ })).toBeDefined()
-  await ui.unmount()
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await band.find({ type: 'Text', text: /All tasks/ })).toBeUndefined()
+  await band.unmount()
 })
 
 test('each button calls the CLI with its argument vector', async ($, on) => {
