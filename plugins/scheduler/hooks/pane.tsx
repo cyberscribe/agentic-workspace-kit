@@ -23,6 +23,7 @@ const EMPTY: Board = {
   log: '',
   logTask: '',
   selected: '',
+  opened: '',
 }
 
 // The shape tag names this layout. A stored value from an earlier layout is declined, not drawn.
@@ -188,118 +189,188 @@ function lastWords(t: Task) {
   return t.lastStatus === 'waiting' ? 'awaiting your answer' : t.lastStatus || 'none yet'
 }
 
-// The terminal's layout, in the pane or in the band above the prompt. Each of the first nine tasks is a row whose
-// digit selects it, and one row of actions acts on the selected task, each with its own key. The keys act while
-// the pane or the band holds the keyboard; Tab and the arrows move between the controls, and Enter presses the
-// one in focus. View log holds the focus at first, since it changes nothing. A waiting run's answer field takes
-// typed text once Tab has moved the focus into it.
+// A run's log as the terminal shows it: what a person reads first. The CLI's own log is kept whole for the
+// desktop pane and the CLI; here the timing line becomes when and how long, a zero cost and the auth source are
+// left out, the open-it command resumes in the terminal (the CLI's says --desktop, for the app), home paths
+// read as ~, and the run folder, an internal path, is dropped.
+export function readableLog(log: string) {
+  // A quoted path keeps working: a quoted home folder's 'site' becomes ~/'site', since a shell expands ~ only
+  // outside quotes.
+  const home = (text: string) =>
+    text.replace(/'\/(Users|home)\/[^/\s']+\//g, "~/'").replace(/\/(Users|home)\/[^/\s']+/g, '~')
+  const lines: string[] = []
+  for (const raw of log.split('\n')) {
+    const line = raw.replace(/^ {2}/, '')
+    const timing = line.match(
+      /^started (\S+) (\d\d:\d\d):\d\d, ended \S+ (\d\d:\d\d):\d\d, (\d+) attempt\(s\), exit (\d+), est\. \$([\d.]+)/,
+    )
+    if (timing) {
+      const [, day, from, to, attempts, exit, usd] = timing
+      const extras = [attempts !== '1' ? `${attempts} attempts` : '', Number(usd) > 0 ? `about $${usd}` : ''].filter(
+        x => x !== '',
+      )
+      lines.push(`ran ${day} ${from}–${to}, exit ${exit}${extras.length > 0 ? `, ${extras.join(', ')}` : ''}`)
+      continue
+    }
+    if (line.startsWith('folder: ')) continue
+    lines.push(home(line.replace('claude --desktop --resume', 'claude --resume')))
+  }
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+  return lines
+}
+
+// What a task's row says after its name: what needs the person first, then when it next runs.
+function rowWords(b: Board, t: Task) {
+  if (b.waiting.some(w => w.task === t.name)) return 'needs your answer'
+  const attention = b.attention.find(a => a.task === t.name)
+  if (attention) return `needs attention: ${firstLine(attention.reason)}`
+  if (t.status === 'paused') return `paused · ${t.schedule}`
+  return `${t.schedule} · ${t.next ? `next ${t.next}` : 'not scheduled'}`
+}
+
+// The terminal's layout, in the pane or in the band above the prompt, at two levels, as a terminal list reads.
+// The list: one row per task, which the arrows move between (the focus ring is the selection), Enter opens, and a
+// digit jumps to. A task's own view: its details, a waiting run's question and answer field, and its log. The
+// actions are buttons drawn with their keys (r, p, l), so the keys are on screen rather than remembered, and they
+// act on the selected task in the list and on the open one in its view. Escape steps back from a task's view to
+// the list, then closes the pane; in the band, where Escape belongs to the prompt, b and c do the same. A waiting
+// run's view gives its answer field the focus, so answering is open, type, Enter; there the letters type, and
+// Ctrl+D is the field's, until Escape steps back.
 function terminalView(
   $: EngineInterface,
   el: Elements['terminal'],
   b: Board,
   now: number,
+  cols: number,
   close: (() => void) | undefined,
 ) {
   const { Box, Text, Button, Input, Code } = el
+  // A row is cut to the body's width rather than wrapped, so a narrow dock still shows one row per task.
+  const fit = (text: string, room: number) => (text.length > room ? `${text.slice(0, Math.max(1, room - 1))}…` : text)
   const rows = b.tasks.slice(0, 9)
-  const current = rows.find(t => t.name === b.selected) ?? rows[0]
+  const opened = b.tasks.find(t => t.name === b.opened)
+  const current = opened ?? rows.find(t => t.name === b.selected) ?? rows[0]
+  const width = Math.max(...rows.map(t => t.name.length), 0)
+
+  const actions = current && (
+    <Box flexDirection="row" gap={3}>
+      <Button key={`run:${current.name}`} plain hotkey="r" onPress={() => act($, ['run', current.name], { timeoutMs: LONG_CALL_MS })}>
+        run now
+      </Button>
+      <Button
+        key={`toggle:${current.name}`}
+        plain
+        hotkey="p"
+        onPress={() => act($, [current.status === 'paused' ? 'resume' : 'pause', current.name])}
+      >
+        {current.status === 'paused' ? 'resume' : 'pause'}
+      </Button>
+      <Button
+        key={`task-log:${current.name}`}
+        plain
+        hotkey="l"
+        onPress={async () => {
+          if (opened && b.log !== '' && b.logTask === current.name) return patch($, { log: '' })
+          await patch($, { opened: current.name, selected: current.name })
+          await viewLog($, current.name)
+        }}
+      >
+        {opened && b.log !== '' ? 'hide log' : 'log'}
+      </Button>
+      {opened && (
+        <Button key="back" plain hotkey="b" autoFocus onPress={() => patch($, { opened: '', log: '' })}>
+          back
+        </Button>
+      )}
+      {!opened && close && (
+        <Button key="band-close" plain hotkey="c" onPress={close}>
+          close
+        </Button>
+      )}
+    </Box>
+  )
+
+  const footer = (
+    <Text dimColor>
+      {b.backend} · refreshed {b.refreshedAt}
+    </Text>
+  )
+
+  if (opened) {
+    const waiting = b.waiting.find(w => w.task === opened.name)
+    const attention = b.attention.find(a => a.task === opened.name)
+    return (
+      <Box flexDirection="column">
+        <Text bold wrap="truncate-end">
+          {opened.name} · {opened.status}
+        </Text>
+        <Text dimColor wrap="truncate-end">
+          {opened.schedule} · {opened.next ? `next ${opened.next}` : 'not scheduled'} · last {lastWords(opened)}
+        </Text>
+        {attention && <Text>{attention.reason}</Text>}
+        {waiting && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Needs your answer · waiting {waited(waiting.since, now)}</Text>
+            <Text>{waiting.question}</Text>
+            <Input
+              key={`reply:${waiting.task}`}
+              label="Answer"
+              autoFocus
+              placeholder="type, then Enter"
+              submitLabel="send"
+              onSubmit={text => {
+                if (text.trim() === '') return
+                void act($, ['reply', waiting.task, '--run', waiting.run, '--file', '-'], { timeoutMs: LONG_CALL_MS, stdin: text })
+              }}
+            />
+            <Button key={`session:${waiting.task}`} plain hotkey="o" onPress={() => patch($, { notice: `claude --resume ${waiting.sessionId}` })}>
+              open its session
+            </Button>
+          </Box>
+        )}
+        <Box marginTop={1}>{actions}</Box>
+        {/* The keys sit under the actions, above anything long, so a log never pushes them out of view. */}
+        <Text dimColor wrap="truncate-end">
+          {waiting ? 'type the answer, Enter sends · ' : ''}{close ? 'b back' : 'Esc back'} · Tab next
+        </Text>
+        {b.log !== '' && b.logTask === opened.name && (
+          <Box flexDirection="column" marginTop={1}>
+            {readableLog(b.log).map((line, i) => (
+              <Text key={`log:${i}`} bold={i === 0}>
+                {line === '' ? ' ' : line}
+              </Text>
+            ))}
+          </Box>
+        )}
+        {b.notice !== '' && <Code source={b.notice} wrap="wrap" />}
+        {footer}
+      </Box>
+    )
+  }
 
   return (
     <Box flexDirection="column">
-      {b.waiting.length > 0 && (
-        <Box flexDirection="column">
-          <Text bold>Needs your answer</Text>
-          {b.waiting.map(w => (
-            <Box key={`waiting:${w.task}`} flexDirection="column">
-              <Text bold>{w.task}</Text>
-              <Text dimColor>waiting {waited(w.since, now)}</Text>
-              <Text>{w.question}</Text>
-              <Input
-                key={`reply:${w.task}`}
-                label="Answer"
-                placeholder="Tab here, type an answer, Enter sends"
-                submitLabel="send"
-                onSubmit={text => {
-                  if (text.trim() === '') return
-                  void act($, ['reply', w.task, '--run', w.run, '--file', '-'], { timeoutMs: LONG_CALL_MS, stdin: text })
-                }}
-              />
-              <Button key={`session:${w.task}`} onPress={() => patch($, { notice: `claude --resume ${w.sessionId}` })}>
-                Open session
-              </Button>
-            </Box>
-          ))}
-        </Box>
-      )}
-
-      {b.attention.length > 0 && (
-        <Box flexDirection="column">
-          <Text bold>Needs attention</Text>
-          {b.attention.map(a => (
-            <Text key={`attention:${a.task}`}>
-              {a.task}: <Text dimColor>{a.reason}</Text>
-            </Text>
-          ))}
-        </Box>
-      )}
-
-      <Text bold>All tasks</Text>
       {b.tasks.length === 0 && <Text dimColor>No scheduled tasks yet. Make one with /scheduler:tasks.</Text>}
       {rows.map((t, i) => (
-        <Button key={`select:${t.name}`} plain hotkey={String(i + 1)} onPress={() => patch($, { selected: t.name })}>
-          <Text bold={t === current}>
-            {t === current ? '> ' : '  '}
-            {t.name}  {t.status}  {t.schedule}  ·  {t.next ? `next ${t.next}` : 'not scheduled'}  ·  last {lastWords(t)}
-          </Text>
+        <Button
+          key={`row:${t.name}`}
+          plain
+          hotkey={String(i + 1)}
+          autoFocus={t === current ? true : undefined}
+          onPress={() => patch($, { opened: t.name, selected: t.name, log: '', notice: '' })}
+        >
+          <Text bold={t === current}>{fit(`${t.name.padEnd(width)}  ${rowWords(b, t)}`, cols - 3)}</Text>
         </Button>
       ))}
       {b.tasks.length > rows.length && (
         <Text dimColor>{b.tasks.length - rows.length} more: /scheduler:tasks lists them all.</Text>
       )}
-      {current && (
-        <Box flexDirection="row" gap={2}>
-          <Button key={`run:${current.name}`} hotkey="r" onPress={() => act($, ['run', current.name], { timeoutMs: LONG_CALL_MS })}>
-            Run now
-          </Button>
-          <Button
-            key={`toggle:${current.name}`}
-            hotkey="p"
-            onPress={() => act($, [current.status === 'paused' ? 'resume' : 'pause', current.name])}
-          >
-            {current.status === 'paused' ? 'Resume' : 'Pause'}
-          </Button>
-          <Button key={`task-log:${current.name}`} hotkey="l" autoFocus onPress={() => viewLog($, current.name)}>
-            View log
-          </Button>
-          {close && (
-            <Button key="band-close" hotkey="c" onPress={close}>
-              Close
-            </Button>
-          )}
-        </Box>
-      )}
-
-      {b.log !== '' && (
-        <Box flexDirection="column">
-          <Text bold>Log: {b.logTask}</Text>
-          <Code source={b.log} wrap="wrap" />
-          <Button key="log-close" hotkey="x" onPress={() => patch($, { log: '' })}>
-            Close log
-          </Button>
-        </Box>
-      )}
-
+      {actions && <Box marginTop={1}>{actions}</Box>}
+      <Text dimColor wrap="truncate-end">
+        ↑↓ select · Enter or 1-{rows.length} open · {close ? 'c close' : 'Esc close'}
+      </Text>
       {b.notice !== '' && <Code source={b.notice} wrap="wrap" />}
-
-      <Text dimColor>
-        {current ? `1-${rows.length} select · r run · p pause or resume · l log · ` : ''}
-        {b.log !== '' ? 'x closes the log · ' : ''}
-        {b.waiting.length > 0 ? 'Tab reaches the answer field · ' : ''}
-        {close ? 'c closes' : 'Esc closes'}
-      </Text>
-      <Text dimColor>
-        {b.backend} · {b.tasksFolder} · refreshed {b.refreshedAt}
-      </Text>
+      {footer}
     </Box>
   )
 }
@@ -319,7 +390,10 @@ export const register: Register = on => {
     }
     // focus asks for the keyboard. The surface grants it while the prompt holds the keys over an empty composer,
     // as it does once this command has run; Escape hands the keys back and closes the pane.
-    const opened = await $.ui.open({ id: PANE, title: TITLE, focus: true, closeOnEscape: true })
+    await patch($, { opened: '', log: '', notice: '' })
+    // columns asks for a dock wide enough for a task row when the terminal seats the pane beside the transcript
+    // (fullscreen, from 110 columns); the surface caps it at 45% of the terminal. Inline it takes the full width.
+    const opened = await $.ui.open({ id: PANE, title: TITLE, focus: true, closeOnEscape: true, columns: 60 })
     if (!opened.isPlaced) {
       // No seat for a pane: the same view is drawn in the band above the prompt, until its Close.
       inBand = true
@@ -341,9 +415,21 @@ export const register: Register = on => {
 
     return next(e)
   })
-  on('ui.close', { id: PANE }, ($, e, next) => {
+  on('ui.close', { id: PANE }, async ($, e, next) => {
+    // Escape, or the close mark, from a task's own view steps back to the list and keeps the pane open.
+    if (e.origin.kind === 'person' && (await read($, board)).opened !== '') {
+      await patch($, { opened: '', log: '' })
+      return { value: undefined }
+    }
     timer?.cancel()
     timer = undefined
+
+    return next(e)
+  })
+
+  // The focus ring is the selection: arrowing onto a task's row selects it, so r, p and l act on that task.
+  on('ui.focus', async ($, e, next) => {
+    if (e.element?.startsWith('row:')) await patch($, { selected: e.element.slice('row:'.length) })
 
     return next(e)
   })
@@ -356,13 +442,15 @@ export const register: Register = on => {
       inBand = false
       $.ui.invalidate('ui.render')
     }
-    return terminalView($, $.ui.resolve(e), b, await $.clock.now(), close)
+    return terminalView($, $.ui.resolve(e), b, await $.clock.now(), e.props.bodyColumns, close)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const b = await read($, board)
     const now = await $.clock.now()
-    if (e.surface === 'terminal' && b.isInWorkspace) return terminalView($, $.ui.resolve(e), b, now, undefined)
+    if (e.surface === 'terminal' && b.isInWorkspace) {
+      return terminalView($, $.ui.resolve(e), b, now, e.props.bodyColumns, undefined)
+    }
 
     // The desktop, vscode and mobile trees: a block per task with its own buttons. Mobile has no Input.
     const { Box, Text, Button, Input, Code } = $.ui.resolve(e) as Elements['terminal']

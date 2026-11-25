@@ -28,14 +28,20 @@ Pause or Resume, and View log. It reads only through `scripts/schedule.sh` (`lis
 `show --json`, `log`) and makes each action a CLI call whose output it shows. It has no delete action;
 deleting stays in the CLI. On mobile it draws the same lists with buttons only.
 
-On the terminal the pane takes the keyboard when it opens, and every action has a key. Each of the first
-nine tasks is a row with a digit that selects it; `r` runs the selected task now, `p` pauses or resumes it, `l`
-shows its log and `x` closes the log. View log holds the focus at first, since it changes nothing. A waiting run's
-answer field takes typed text once Tab has moved the focus into it, and Enter sends the answer. Escape hands the
-keyboard back to the prompt and closes the pane. This works because the pane asks for the keyboard as it opens
-(`focus`), which Claude Code grants while the prompt is empty, as it is once `/scheduler-pane` has run (checked
-on Claude Code 2.1.332, 2026-11-25). When the terminal has no room to seat the pane, the same view is drawn in the
-band above the prompt, with `c` to close it. The band stacks one row per plugin, so other mods share it: rows past
+On the terminal the pane is a list that takes the keyboard when it opens. Each task is one row saying what
+needs you first (an answer, a failure) and otherwise when it next runs. Up and Down move between the rows, Enter
+or a row's digit opens the task, and `r` (run now), `p` (pause or resume) and `l` (log) act on the row the
+cursor is on; the keys are drawn on screen as `r: run now   p: pause   l: log`. An open task shows its details,
+its log on `l`, and, for a run that is waiting, the question with the answer field already focused: type the
+answer and press Enter. Escape goes back one level, from a task to the list, then closes the pane. While the
+answer field has the focus, letters and Ctrl+D belong to the field, as in any text field; Escape leaves it.
+
+In fullscreen mode, from 110 columns, Claude Code docks the pane beside the conversation in a column of its own,
+up to 45% of the width; below that, or outside fullscreen, it sits above the prompt across the full width. A
+plugin cannot choose between the two, so each row is cut to the pane's width rather than wrapped. All of this
+was checked on Claude Code 2.1.332 on 2026-11-25, in default and fullscreen mode at 80 and 120 columns. When the
+terminal has no room to seat the pane, the same view is drawn in the band above the prompt, with `c` to close
+it. The band stacks one row per plugin, so other mods share it: rows past
 the band's height are left out, another mod can hide or reorder the rows, and a key two plugins both use presses
 neither. Any of these can hide the band view's buttons or still its keys; the pane, or `/scheduler:tasks`, then
 does the same work.

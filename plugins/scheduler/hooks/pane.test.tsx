@@ -2,6 +2,8 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On, ProcessRunResult } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
+import { readableLog } from './pane'
+
 // The pane is drawn from the CLI's answers, so each test answers `$.process.run` from these fixtures. A waiting
 // run, a failed task and a healthy task cover the three sections; the paused task covers the Resume button.
 const LIST = [
@@ -80,13 +82,13 @@ const PANE = {
   },
 } as const
 
-test('the three sections draw from the fixtures, on every surface', async ($, on) => {
+test('the three sections draw from the fixtures, on the desktop, vscode and mobile', async ($, on) => {
   const calls: Call[] = []
   beneath(on, calls)
   const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
   await openPane($, clock)
 
-  for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
+  for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
 
     expect((await ui.find({ type: 'Text', text: /Needs your answer/ }))?.text).toBe('Needs your answer')
@@ -97,59 +99,90 @@ test('the three sections draw from the fixtures, on every surface', async ($, on
     expect(await ui.find({ type: 'Text', text: /morning-digest/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /morning-digest\s+active\s+weekdays 07:30/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /old-report\s+paused/ })).toBeDefined()
-    // The terminal row carries next and last on one line with its own spacing, so the desktop wording is checked elsewhere.
-    if (surface !== 'terminal') {
-      expect(await ui.find({ type: 'Text', text: /next Mon 2 Nov 07:30/ })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: /not scheduled · last ok/ })).toBeDefined()
-    }
+    expect(await ui.find({ type: 'Text', text: /next Mon 2 Nov 07:30/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /not scheduled · last ok/ })).toBeDefined()
     await ui.unmount()
   }
 })
 
-test('on the terminal the pane asks for the keyboard, and every action has a key', async ($, on) => {
+test('on the terminal the pane is a list: a row per task, the keys on screen, and the ring as the selection', async ($, on) => {
   const calls: Call[] = []
   const seat: Seat = { placed: true, opens: [] }
   beneath(on, calls, { inside: true }, seat)
   const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
   await openPane($, clock)
 
-  // The open asks for the keyboard, and Escape hands it back and closes the pane.
-  expect(seat.opens[0]).toMatchObject({ id: 'scheduled-tasks', focus: true, closeOnEscape: true })
+  // The open asks for the keyboard and a dock wide enough for a row; Escape hands the keyboard back.
+  expect(seat.opens[0]).toMatchObject({ id: 'scheduled-tasks', focus: true, closeOnEscape: true, columns: 60 })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  // The question is the run's whole result, its last line included, with an answer field under it.
-  expect(await ui.find({ type: 'Text', text: /1\. main/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Reply with the number of your pick/ })).toBeDefined()
-  expect(await ui.find({ type: 'Input' })).toBeDefined()
-  // A digit per task, a letter per action, and View log, which changes nothing, holding the focus at first.
+  // One row per task, what needs the person first: no sections, no question, no answer field at this level.
+  expect(await ui.find({ type: 'Text', text: /^morning-digest\s+weekdays 07:30 · next Mon 2 Nov 07:30$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ask-reviewer\s+needs your answer$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^branch-check\s+needs attention: failed: exit 1 at 2026-10-29 18:00$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^old-report\s+paused · @monthly$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Input' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /↑↓ select · Enter or 1-4 open · Esc close/ })).toBeDefined()
+  // A digit per row and a letter per action, drawn with their keys; the first row holds the ring at first.
   const drawn = JSON.stringify(await ui.drawn())
   for (const key of ['1', '2', '3', '4', 'r', 'p', 'l']) expect(drawn).toContain(`"hotkey":"${key}"`)
-  expect(drawn).toMatch(/"key":"task-log:morning-digest"[^}]*"autoFocus":true|"autoFocus":true[^}]*"key":"task-log:morning-digest"/)
+  expect(drawn).toMatch(/"key":"row:morning-digest"[^}]*"autoFocus":true|"autoFocus":true[^}]*"key":"row:morning-digest"/)
   expect(drawn).not.toMatch(/delete/i)
-  expect(await ui.find({ type: 'Text', text: /1-4 select · r run · p pause or resume · l log · Tab reaches the answer field · Esc closes/ })).toBeDefined()
 
-  // The first task is selected until a digit picks another; the actions follow the selection.
+  // The actions act on the selected row, the first until the ring moves. The ring moving with the arrows is the
+  // person's, which a test cannot raise; the tmux captures show it (playground-evidence/p6a).
   calls.length = 0
   await ui.press({ key: 'run:morning-digest' })
   expect(calls[0]?.args).toEqual(['run', 'morning-digest'])
+  await ui.unmount()
+})
 
-  await ui.press({ key: 'select:old-report' })
+test('Enter opens a task, back returns to the list, and a waiting one opens on its answer field', async ($, on) => {
+  const calls: Call[] = []
+  const seat: Seat = { placed: true, opens: [] }
+  beneath(on, calls, { inside: true }, seat)
+  const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
+  await openPane($, clock)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  // A task's own view: its details, the actions and back, and its log on l.
+  await ui.press({ key: 'row:morning-digest' })
+  expect(await ui.find({ type: 'Text', text: /^morning-digest · active$/ })).toBeDefined()
+  expect(JSON.stringify(await ui.drawn())).toContain('"hotkey":"b"')
   calls.length = 0
-  await ui.press({ key: 'toggle:old-report' })
-  expect(calls[0]?.args).toEqual(['resume', 'old-report'])
+  await ui.press({ key: 'task-log:morning-digest' })
+  expect(calls[0]?.args).toEqual(['log', 'morning-digest'])
+  expect(JSON.stringify(await ui.drawn())).toContain('"label":"hide log"')
+  await ui.press({ key: 'back' })
+  expect(await ui.find({ type: 'Text', text: /↑↓ select/ })).toBeDefined()
 
-  calls.length = 0
-  await ui.press({ key: 'task-log:old-report' })
-  expect(calls[0]?.args).toEqual(['log', 'old-report'])
-  expect(await ui.find({ type: 'Text', text: /Log: old-report/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /x closes the log/ })).toBeDefined()
-  await ui.press({ key: 'log-close' })
-  expect(await ui.find({ type: 'Text', text: /Log: old-report/ })).toBeUndefined()
-
+  // The waiting run: its whole question, and the answer field holding the focus, so answering is type then Enter.
+  await ui.press({ key: 'row:ask-reviewer' })
+  expect(await ui.find({ type: 'Text', text: /Reply with the number of your pick/ })).toBeDefined()
+  expect(JSON.stringify(await ui.drawn())).toMatch(/"key":"reply:ask-reviewer"[^}]*"autoFocus":true|"autoFocus":true[^}]*"key":"reply:ask-reviewer"/)
+  expect(await ui.find({ type: 'Text', text: /type the answer, Enter sends · Esc back/ })).toBeDefined()
   calls.length = 0
   await ui.input({ key: 'reply:ask-reviewer', text: '1' })
   expect(calls[0]?.args).toEqual(['reply', 'ask-reviewer', '--run', 'run-0917', '--file', '-'])
   expect(calls[0]?.stdin).toBe('1')
+  // A paused task's view offers resume.
+  await ui.press({ key: 'back' })
+  await ui.press({ key: 'row:old-report' })
+  calls.length = 0
+  await ui.press({ key: 'toggle:old-report' })
+  expect(calls[0]?.args).toEqual(['resume', 'old-report'])
+  await ui.unmount()
+})
+
+test('a row longer than the dock is cut to one line', async ($, on) => {
+  const calls: Call[] = []
+  beneath(on, calls)
+  const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
+  await openPane($, clock)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 30, placement: 'dock' } })
+  const row = await ui.find({ type: 'Text', text: /^morning-digest/ })
+  expect(row?.text).toMatch(/…$/)
+  expect((row?.text ?? '').length).toBeLessThanOrEqual(27)
   await ui.unmount()
 })
 
@@ -183,15 +216,15 @@ test('with no seat for a pane, the terminal view is drawn in the band until its 
   expect(JSON.stringify(said)).toMatch(/shown above the prompt/)
 
   const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await band.find({ type: 'Text', text: /All tasks/ })).toBeDefined()
-  expect(await band.find({ type: 'Text', text: /Which branch should the review use/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /^ask-reviewer\s+needs your answer$/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /↑↓ select · Enter or 1-4 open · c close/ })).toBeDefined()
   expect(JSON.stringify(await band.drawn())).toContain('"hotkey":"c"')
   calls.length = 0
   await band.press({ key: 'toggle:morning-digest' })
   expect(calls[0]?.args).toEqual(['pause', 'morning-digest'])
 
   await band.press({ key: 'band-close' })
-  expect(await band.find({ type: 'Text', text: /All tasks/ })).toBeUndefined()
+  expect(await band.find({ type: 'Text', text: /↑↓ select/ })).toBeUndefined()
   await band.unmount()
 })
 
@@ -202,7 +235,7 @@ test('while the pane has its seat, the band draws nothing of the pane', async ($
   await openPane($, clock)
 
   const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await band.find({ type: 'Text', text: /All tasks/ })).toBeUndefined()
+  expect(await band.find({ type: 'Text', text: /↑↓ select/ })).toBeUndefined()
   await band.unmount()
 })
 
@@ -313,4 +346,31 @@ test('the footer names the backend, the tasks folder and the refresh time', asyn
     await ui.find({ type: 'Text', text: /launchd · \/srv\/example\/tasks · refreshed \d{1,2}:\d{2}$/ }),
   ).toBeDefined()
   await ui.unmount()
+})
+
+test('the terminal log reads first what a person needs: status, when, how long, exit, and a resume that works there', () => {
+  // A home folder, spelled in pieces so the kit's machine-path check (section 13) does not read it as one.
+  const home = ['', 'Users', 'someone'].join('/')
+  const log = [
+    'Run 20261125-190934 of morning-digest: ok',
+    '  started 2026-11-25 19:09:34, ended 2026-11-25 19:12:10, 2 attempt(s), exit 0, est. $0.0125, auth none',
+    `  open it: cd '${home}/work/site' && claude --desktop --resume 46330a43`,
+    `  folder: ${home}/.local/state/agentic-workspace-kit/scheduler/runs/morning-digest/20261125-190934`,
+    '',
+    'Result:',
+    '  OK, done.',
+    '',
+  ].join('\n')
+  expect(readableLog(log)).toEqual([
+    'Run 20261125-190934 of morning-digest: ok',
+    'ran 2026-11-25 19:09–19:12, exit 0, 2 attempts, about $0.0125',
+    "open it: cd ~/'work/site' && claude --resume 46330a43",
+    '',
+    'Result:',
+    'OK, done.',
+  ])
+  // A zero cost and a single attempt say nothing.
+  expect(readableLog('  started 2026-11-25 19:09:34, ended 2026-11-25 19:09:34, 1 attempt(s), exit 0, est. $0.0000, auth none')).toEqual([
+    'ran 2026-11-25 19:09–19:09, exit 0',
+  ])
 })

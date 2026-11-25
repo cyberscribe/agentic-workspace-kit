@@ -18,14 +18,15 @@ second question. closeout 1.8.0 and ongoing 0.2.0 are unchanged.
 changed length. The new module prints nothing; it writes one line outside the repository after the first
 turn.
 
-- **The scheduler pane takes keys on the terminal.** The pane now asks for the keyboard as it opens, which
-  Claude Code grants once `/scheduler-pane` has run (checked on Claude Code 2.1.332). Each of the first
-  nine tasks is a row whose digit selects it; `r` runs the selected task now, `p` pauses or resumes it, `l`
-  shows its log and `x` closes it, and View log holds the focus at first, since it changes nothing. The
-  answer field and Open session are drawn on the terminal too: Tab reaches the field, Enter sends. Escape
-  closes the pane. Where the surface gives the pane no seat, the same view is drawn in the band above the
-  prompt, with `c` to close it. Before this the terminal pane was a view only. The desktop pane is
-  unchanged.
+- **The scheduler pane is a terminal list.** It takes the keyboard as it opens (checked on Claude Code
+  2.1.332). Each task is one row saying what needs the person first, else when it next runs; Up and Down move,
+  Enter or a digit opens a task, and `r` run now, `p` pause or resume and `l` log act on the row the cursor is
+  on, drawn on screen with their keys. An open task shows its details and log; a waiting run's opens with the
+  answer field focused, so answering is type, then Enter. Escape goes back from a task to the list, then closes
+  the pane, so Ctrl+D reaches Claude Code again. In fullscreen from 110 columns Claude Code docks the pane in a
+  column beside the conversation; each row is cut to fit. Where the surface gives the pane no seat, the same
+  view is drawn in the band above the prompt. Before this the terminal pane was a view only. The desktop pane
+  is unchanged.
 - **Hygiene reports the context a session carries.** A hooks module in the workspace plugin reads the
   status line's figure once, after the first turn of each session inside a kit workspace, and appends a
   line to `${XDG_STATE_HOME:-~/.local/state}/agentic-workspace-kit/workspace/context-readings.tsv`:

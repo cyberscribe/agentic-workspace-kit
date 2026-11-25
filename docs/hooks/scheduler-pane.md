@@ -15,11 +15,13 @@ Opens a pane titled "Scheduled tasks" with the `/scheduler-pane` slash command. 
 3. **All tasks**: name, status, schedule, next fire, last run, and Run now, Pause or Resume, and View log.
 4. **Footer**: backend, tasks folder, and the time the pane last refreshed.
 
-On the terminal the pane takes the keyboard when it opens. Each of the first nine tasks is a row whose digit
-selects it, and the selected task's actions each have a key: `r` Run now, `p` Pause or Resume, `l` View log, and
-`x` closes the log. View log holds the focus at first, since it changes nothing. Tab reaches a waiting run's answer
-field, where typed text, digits included, goes into the answer, and Enter sends it. Escape closes the pane. When
-the terminal has no room to seat a pane, the same view is drawn in the band above the prompt, with `c` to close it.
+On the terminal the pane is a list that takes the keyboard when it opens: a row per task, Up and Down to move,
+Enter or a row's digit to open one, and `r` run now, `p` pause or resume, `l` log for the row the cursor is on,
+drawn on screen with their keys. An open task shows its details and log; a waiting run's opens with the answer
+field focused, so answering is type, then Enter. Escape goes back from a task to the list, then closes the pane.
+In fullscreen from 110 columns Claude Code docks the pane in a column beside the conversation, and each row is
+cut to fit. When the terminal has no room to seat a pane, the same view is drawn in the band above the prompt,
+with `c` to close it.
 
 Every action is a `schedule.sh` call, and its output is shown in the pane. The pane reads through `schedule.sh`
 (`list`, `show`, `log`, `home`) and keeps what it read in the plugin's state atom, which persists, so it is
@@ -55,8 +57,8 @@ can change between releases. The tasks, their runs and the CLI do not depend on 
   reporting the run `ok`.
 - On the desktop app, Run now, Pause and Resume each show the `schedule.sh` output in the pane, and the task list
   matches `schedule.sh list` afterwards.
-- On the terminal, pressing a task's digit moves the `>` marker to it, and `p` pauses it: the row then reads
-  `paused`, and `schedule.sh list` agrees.
+- On the terminal, Down then `p` pauses the second task: its row then reads `paused`, and `schedule.sh list`
+  agrees. Enter opens a task and Escape comes back to the list.
 - Outside a kit workspace, the pane states that it works inside one.
 
 **If the pane breaks:** `schedule.sh` and `/scheduler:tasks` stand on their own. Every action the pane offers is
