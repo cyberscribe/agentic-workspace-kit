@@ -61,6 +61,35 @@ change to the guard files themselves (`scripts/check-paths.sh`, `githooks/`, `.g
 `lib/common.sh`) needs `AW_GUARD_CHANGE=1` for that commit, and is reviewed by the maintainer.
 `docs/hooks/` has a page for each hook.
 
+## Before you publish
+
+The checks above read text and paths. They cannot read meaning, so a pull request to the public kit has a
+short read by a person first. Go down this list before you push.
+
+| Check | Runs | Catches | Cannot catch |
+|---|---|---|---|
+| `check-paths.sh` path rules | pre-commit, pre-push, CI (`kit paths`) | a file outside the kit's folders, one private by its name, a symlink, anything the workspace's `.gitignore` lists | a private fact inside an allowed file |
+| Binary and size rules (R1, R2) | the same | an unlisted binary, a large file; a `.png` only with its row in `docs/images/SOURCES.md` | what a listed image shows, or the text in an `.svg` |
+| Private word list (R3) | pre-commit, commit-msg, pre-push; CI with the `AW_BANNED_WORDS` secret | a word or pattern from your list, as a whole word in any case | a word not on the list, a paraphrase, a misspelling |
+| Derived names (R4) | pre-commit, pre-push | a project, person, remote or machine path taken from your workspace | a name the workspace does not hold, such as a client mentioned only in conversation |
+| Copy check (R5) | pre-commit, pre-push | a verbatim copy of a workspace file | a close paraphrase, or a copy from somewhere other than the workspace |
+| Attribution (R6) | commit-msg, pre-push | an AI attribution trailer in a commit or tag message | attribution in a file's text |
+| The suite (`tests/run.sh`) | by hand, CI | broken behaviour, missing docs pages, a tool with no row in `docs/dependencies.md` | anything above |
+
+Then read the change yourself for what no check sees:
+
+- **The situation behind it.** A client's problem, an incident or a colleague's habit described without
+  names can still identify them. Write the general pattern, not the case it came from.
+- **Pasted material.** Transcripts, logs, terminal captures and test fixtures carry paths, session ids,
+  prompts and names. Write fixtures by hand rather than copying real runs.
+- **Images.** A screenshot or diagram can show a folder tree, a calendar or a message. Look at each one.
+- **Where you committed from.** From a checkout outside the workspace (a worktree in a scratch folder),
+  the hooks find no workspace and say "the workspace checks did not run". Run
+  `scripts/check-paths.sh --content --staged --workspace <your workspace>` yourself before each commit.
+- **The word list itself.** It catches only what is on it. Add a term the day it becomes private.
+- **Licences.** Code you did not write needs its licence checked and a row in `docs/dependencies.md`,
+  or it stays out.
+
 ## Running the tests
 
 From the kit's folder (`kit/` in a workspace, or a clone of its own):

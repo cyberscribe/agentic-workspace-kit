@@ -77,6 +77,22 @@ done
 empty "12 every hook script has docs/hooks/<name>.md, with the four sections in order, 25 to 70 lines, naming its source" \
     "$(printf '%s' "$s12_bad" | sed '/^$/d')"
 
+# --- Dependencies ----------------------------------------------------------------------------------
+# Every tool a kit script looks for with `command -v` (outside comments) has a row in docs/dependencies.md, named in backticks,
+# except the everyday ones that page lists as not counted. A new tool lands with its row and licence.
+s12_bad=""
+s12_tools="$(find "$KIT" -path "$KIT/.git" -prune -o -type f \( -name '*.sh' -o -path "$KIT/githooks/*" \) -print 2>/dev/null \
+    | while IFS= read -r s12_f; do grep -vE '^[[:space:]]*#' "$s12_f" | grep -oE 'command -v [a-z][a-z0-9_-]+([[:space:]]*[>);&|]|$)'; done \
+    | sed -E 's/^command -v ([a-z0-9_-]+).*/\1/' | sort -u)"
+s12_base=" awk sed grep date mv ps perl open setsid "
+for s12_t in $s12_tools; do
+    [[ "$s12_base" == *" $s12_t "* ]] && continue
+    grep -qF -- "\`$s12_t\`" "$KIT/docs/dependencies.md" 2>/dev/null || s12_bad+="$s12_t has no row in docs/dependencies.md"$'\n'
+done
+[[ -n "$s12_tools" ]] || s12_bad+="no command -v found in the kit's scripts: the scan itself is broken"$'\n'
+grep -qF 'docs/dependencies.md' "$KIT/README.md" || s12_bad+="the README's Licence section does not point at docs/dependencies.md"$'\n'
+empty "12 every tool a kit script looks for has a row in docs/dependencies.md, and the README points at it" "$s12_bad"
+
 # --- setup.sh --------------------------------------------------------------------------------------
 empty "12 docs/setup.md has the four sections in order, 25 to 70 lines, and names setup.sh" \
     "$(s12_page "$KIT/docs/setup.md" "setup.sh")"

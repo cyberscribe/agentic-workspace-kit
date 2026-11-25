@@ -1114,7 +1114,8 @@ repository has to be pulled back with `git subtree pull` before the next push.
 
 Code (the installer, the `pilot/` scripts, the plugins, `tests/`) is MIT. The writing — this README, `docs/`,
 `rituals/`, `templates/` and the rest of the prose — is CC BY 4.0: use and adapt it freely, including
-commercially, with credit. See `LICENSE`.
+commercially, with credit. See `LICENSE`. The kit vendors no third-party code; the programs it calls, and
+their licences, are in [`docs/dependencies.md`](docs/dependencies.md).
 
 Maintained as used: this kit runs the author's own workspace daily, and changes land when that
 workspace teaches something. Issues are read; there is no support commitment.
