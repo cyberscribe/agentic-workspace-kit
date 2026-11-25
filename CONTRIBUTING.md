@@ -162,3 +162,6 @@ that reads to the end for a command (`sed -n 1p` for `head -n 1`, a flag in plac
 - Guidance states norms as facts about how the work is done. `docs/documentation-register.md` has the
   rule, and section 8 of the suite fails capitals used for emphasis.
 - Scripts run under macOS's `/bin/bash` 3.2: no associative arrays, no `mapfile`.
+- A command stays under 20,000 bytes. After a compaction, Claude Code restores an invoked command cut at
+  20,000 characters, so anything past that is gone in a long session. Section 9 holds new commands to it,
+  and the six already longer at their present size until they are split.

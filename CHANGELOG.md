@@ -43,6 +43,10 @@ turn.
   optional, with what each is for and its licence; the kit vendors no third-party code. Section 12 fails a
   tool a kit script looks for with `command -v` that has no row there, and the README's Licence section
   points at the page.
+- **Commands stay within what survives a compaction.** After `/compact`, Claude Code restores an invoked
+  command cut at 20,000 characters (seen on 2.1.332). Section 9 holds every command to 20,000 bytes, and
+  the six already longer (closeout, pair, adopt, quick-start, hygiene, new) at their present size until
+  they are split. CONTRIBUTING says why.
 - **The retrospective asks what didn't work.** `/projects:close` keeps three questions; the second is now
   "What didn't work, and what would we change because of it?", recorded as "Didn't work, and would
   change".

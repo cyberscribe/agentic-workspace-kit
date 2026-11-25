@@ -2471,6 +2471,25 @@ desc_total="$(awk -F'\t' '{ t += $2 } END { print t + 0 }' <<<"$desc_bytes")"
 bad="$(awk -F'\t' -v cap="${AW_DESC_CAP:-450}" '$2 > cap { print $1 ": " $2 " characters, over " cap }' <<<"$desc_bytes")"
 [[ "$desc_total" -le "${AW_DESC_TOTAL_CAP:-6200}" ]] || bad+="all descriptions: $desc_total characters, over ${AW_DESC_TOTAL_CAP:-6200} (about $((desc_total * 10 / 32)) tokens)"$'\n'
 empty "9 the kit's always-on cost is capped: every description at most 450 characters, all of them at most 6,200 (about 1,900 tokens)" "$bad"
+# After a compaction Claude Code restores an invoked command cut at 20,000 characters, ending "[... skill
+# content truncated for compaction ...]" (seen on 2.1.332, 2026-11-25), so a longer command loses its end in a
+# long session. Bytes are counted, never fewer than characters, so the cap holds in any locale. Six commands
+# were already longer; each is held at its size until it is split, and the rest at 20,000.
+bad=""
+for f in "$KIT"/plugins/*/commands/*.md; do
+    rel="${f#"$KIT"/plugins/}"; rel="${rel%%/*}/$(basename "$f" .md)"
+    case "$rel" in
+        closeout/closeout|projects/pair) cap=27100 ;;
+        projects/adopt) cap=25200 ;;
+        workspace/quick-start) cap=24900 ;;
+        workspace/hygiene) cap=20400 ;;
+        projects/new) cap=20200 ;;
+        *) cap=20000 ;;
+    esac
+    size="$(wc -c < "$f" | tr -d ' ')"
+    [[ "$size" -le "$cap" ]] || bad+="$rel: $size bytes, over $cap"$'\n'
+done
+empty "9 no command grows past what survives a compaction: 20,000 bytes, or its size on 2026-11-25 for the six already longer" "$bad"
 # The other half of the always-on cost: what the kit's session-start hooks print into the model's context
 # (additionalContext), which Claude Code's estimate counts as nothing. Measured on a fixture workspace in
 # three states a session meets: inside a project (the projects line), with two things out of step (the
