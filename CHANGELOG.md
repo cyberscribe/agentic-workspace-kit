@@ -47,10 +47,11 @@ turn.
   change".
 - **The scheduler README says what shares the band.** It stacks one row per plugin: rows past its height
   are left out, another mod can hide or reorder rows, and a key two plugins share presses neither.
-- **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file and
-  test, wherever it sits, is MIT; the prose stays CC BY 4.0. Before this, most scripts and four of the five
-  plugins were named in neither list. Each plugin's `plugin.json` carries `"license": "MIT"`, and the
-  README's Licence section says the same in the same words.
+- **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file,
+  test and configuration file, wherever it sits, is MIT; the prose stays CC BY 4.0. Before this, most
+  scripts and four of the five plugins were named in neither list. Each plugin's `plugin.json` carries
+  `"license": "MIT"`, the README's Licence section says the same in the same words, and section 12 fails
+  a file that falls under neither paragraph.
 - `.gitignore` leaves out the `tsconfig.json` Claude Code writes beside a plugin loaded with `--plugin-dir`.
 
 ---

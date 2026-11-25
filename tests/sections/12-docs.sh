@@ -93,6 +93,28 @@ done
 grep -qF 'docs/dependencies.md' "$KIT/README.md" || s12_bad+="the README's Licence section does not point at docs/dependencies.md"$'\n'
 empty "12 every tool a kit script looks for has a row in docs/dependencies.md, and the README points at it" "$s12_bad"
 
+# --- Licence ---------------------------------------------------------------------------------------
+# Every file in the kit falls under one of LICENSE's two paragraphs: prose (CC BY 4.0) or code (MIT), each
+# named by place and kind. A file in neither is a gap in the licence. The lists below are LICENSE's own,
+# and LICENSE is checked to name each code place, so the two move together.
+s12_bad=""
+s12_files="$(git -C "$KIT" ls-files 2>/dev/null || (cd "$KIT" && find . -path ./.git -prune -o -type f -print | sed 's|^\./||'))"
+while IFS= read -r s12_f; do
+    [[ -n "$s12_f" ]] || continue
+    case "$s12_f" in
+        LICENSE) ;;
+        README.md|CHANGELOG.md|CONTRIBUTING.md|CLAUDE.kit.md|docs/*|rituals/*|templates/*.md|pilot/*.md) ;;
+        setup.sh|install.sh|lib/*|scripts/*|githooks/*|plugins/*|.claude-plugin/*|pilot/*|tests/*|.github/*|.gitignore|templates/*) ;;
+        *) s12_bad+="$s12_f is in neither paragraph of LICENSE"$'\n' ;;
+    esac
+done <<<"$s12_files"
+[[ -n "$s12_files" ]] || s12_bad+="no files listed: the scan itself is broken"$'\n'
+for s12_t in 'setup.sh' 'install.sh' 'lib/' 'scripts/' 'githooks/' 'plugins/' '.claude-plugin/' 'pilot/' 'tests/' \
+    '.github/' '.gitignore' 'configuration files in templates/' 'the Markdown in templates/' 'the Markdown' 'CLAUDE.kit.md'; do
+    grep -qF -- "$s12_t" "$KIT/LICENSE" || s12_bad+="LICENSE does not name $s12_t"$'\n'
+done
+empty "12 every file in the kit falls under LICENSE's code or prose paragraph, and LICENSE names each place" "$s12_bad"
+
 # --- setup.sh --------------------------------------------------------------------------------------
 empty "12 docs/setup.md has the four sections in order, 25 to 70 lines, and names setup.sh" \
     "$(s12_page "$KIT/docs/setup.md" "setup.sh")"
