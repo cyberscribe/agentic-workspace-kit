@@ -1112,9 +1112,11 @@ repository has to be pulled back with `git subtree pull` before the next push.
 
 ## Licence
 
-Code (the installer, the `pilot/` scripts, the plugins, `tests/`) is MIT. The writing — this README, `docs/`,
-`rituals/`, `templates/` and the rest of the prose — is CC BY 4.0: use and adapt it freely, including
-commercially, with credit. See `LICENSE`. The kit vendors no third-party code; the programs it calls, and
+Code — every script, hook, plugin file and test, whatever folder it is in: `setup.sh`, `install.sh`,
+`lib/`, `scripts/`, `githooks/`, everything under `plugins/`, the scripts in `pilot/`, `tests/`, `.github/`
+and the JSON files in `templates/` — is MIT. Prose — this README, the CHANGELOG, CONTRIBUTING, `docs/`,
+`rituals/`, the Markdown in `templates/`, `pilot/*.md` and `CLAUDE.kit.md` — is CC BY 4.0: use and adapt
+it freely, including commercially, with credit. See `LICENSE`. The kit vendors no third-party code; the programs it calls, and
 their licences, are in [`docs/dependencies.md`](docs/dependencies.md).
 
 Maintained as used: this kit runs the author's own workspace daily, and changes land when that
