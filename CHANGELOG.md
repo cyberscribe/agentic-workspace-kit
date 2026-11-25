@@ -5,6 +5,56 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## Unreleased — 3.11.0
+
+**To update:** run `kit/setup.sh update` in the workspace. No template changes. The plugins take effect
+in the next session.
+
+**Plugins.** scheduler 0.2.0: the pane takes the keyboard on the terminal. workspace 2.6.0: a reading of
+the context after each session's first turn, reported by hygiene. projects 3.9.1: the retrospective's
+second question. closeout 1.8.0 and ongoing 0.2.0 are unchanged.
+
+**What the kit costs every session.** Unchanged: no command description, session-start line or reminder
+changed length. The new module prints nothing; it writes one line outside the repository after the first
+turn.
+
+- **The scheduler pane takes keys on the terminal.** The pane now asks for the keyboard as it opens, which
+  Claude Code grants once `/scheduler-pane` has run (checked on Claude Code 2.1.332). Each of the first
+  nine tasks is a row whose digit selects it; `r` runs the selected task now, `p` pauses or resumes it, `l`
+  shows its log and `x` closes it, and View log holds the focus at first, since it changes nothing. The
+  answer field and Open session are drawn on the terminal too: Tab reaches the field, Enter sends. Escape
+  closes the pane. Where the surface gives the pane no seat, the same view is drawn in the band above the
+  prompt, with `c` to close it. Before this the terminal pane was a view only. The desktop pane is
+  unchanged.
+- **Hygiene reports the context a session carries.** A hooks module in the workspace plugin reads the
+  status line's figure once, after the first turn of each session inside a kit workspace, and appends a
+  line to `${XDG_STATE_HOME:-~/.local/state}/agentic-workspace-kit/workspace/context-readings.tsv`:
+  the time, tokens, window, the plugins with commands, and the surfaces (or `headless`).
+  `context-readings.sh` prints the last few for one workspace, leaving out headless runs, and
+  `/workspace:hygiene` reports them under the plugin cost as a different measure: the plugin cost is each
+  plugin's listing, and a reading is the whole window, the session-start hooks' output and the first
+  exchange included. Read them as a trend.
+- **Before you publish.** `CONTRIBUTING.md` lists each check the kit already runs (the path rules, binary
+  and size, the private word list, derived names, the copy check, attribution, the suite), where it runs,
+  what it catches and what it cannot, then what a person reads for: the situation behind a change, pasted
+  material, images, commits made from outside the workspace, and licences.
+- **Dependencies and their licences.** `docs/dependencies.md` lists the programs the kit calls, needed and
+  optional, with what each is for and its licence; the kit vendors no third-party code. Section 12 fails a
+  tool a kit script looks for with `command -v` that has no row there, and the README's Licence section
+  points at the page.
+- **The retrospective asks what didn't work.** `/projects:close` keeps three questions; the second is now
+  "What didn't work, and what would we change because of it?", recorded as "Didn't work, and would
+  change".
+- **The scheduler README says what shares the band.** It stacks one row per plugin: rows past its height
+  are left out, another mod can hide or reorder rows, and a key two plugins share presses neither.
+- **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file and
+  test, wherever it sits, is MIT; the prose stays CC BY 4.0. Before this, most scripts and four of the five
+  plugins were named in neither list. Each plugin's `plugin.json` carries `"license": "MIT"`, and the
+  README's Licence section says the same in the same words.
+- `.gitignore` leaves out the `tsconfig.json` Claude Code writes beside a plugin loaded with `--plugin-dir`.
+
+---
+
 ## v3.10.0 — 2026-11-21
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. It offers
