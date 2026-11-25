@@ -54,6 +54,27 @@ empty "12 every command has docs/commands/<name>.md, with the four sections in o
     "$(printf '%s' "$s12_bad" | sed '/^$/d')"
 empty "12 every command has a row in the README that links its page" "$s12_rows"
 
+# --- Command frontmatter -----------------------------------------------------------------------------
+# Every command opens with description (what Claude Code lists) and offer-unprompted (what install.sh turns
+# into each skill's offer), and carries no key outside the ones Claude Code or the kit reads, so a misspelt
+# key, which would be dropped without a word, fails here instead.
+s12_bad=""
+for s12_f in "$KIT"/plugins/*/commands/*.md; do
+    s12_rel="${s12_f#"$KIT"/}"
+    s12_keys="$(awk 'NR == 1 && $0 == "---" { on = 1; next } on && $0 == "---" { exit }
+        on && /^[A-Za-z_-]+:/ { k = $0; sub(/:.*/, "", k); print k }' "$s12_f")"
+    for s12_k in description offer-unprompted; do
+        grep -qx -- "$s12_k" <<<"$s12_keys" || s12_bad+="$s12_rel: no $s12_k"$'\n'
+    done
+    while IFS= read -r s12_k; do
+        case "$s12_k" in
+            description|offer-unprompted|argument-hint|allowed-tools|model|disable-model-invocation|'') ;;
+            *) s12_bad+="$s12_rel: unknown frontmatter key $s12_k"$'\n' ;;
+        esac
+    done <<<"$s12_keys"
+done
+empty "12 every command's frontmatter has description and offer-unprompted, and no key Claude Code and the kit do not read" "$s12_bad"
+
 # --- Hooks -----------------------------------------------------------------------------------------
 s12_bad="" s12_count=0
 for s12_f in "$KIT"/plugins/*/hooks/*.sh "$KIT"/plugins/*/hooks/*.tsx; do

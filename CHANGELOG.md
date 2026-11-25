@@ -50,6 +50,9 @@ turn.
 - **The retrospective asks what didn't work.** `/projects:close` keeps three questions; the second is now
   "What didn't work, and what would we change because of it?", recorded as "Didn't work, and would
   change".
+- **Command frontmatter is checked.** Section 12 fails a command without `description` or
+  `offer-unprompted`, or with a key neither Claude Code nor the kit reads, so a misspelt key no longer
+  drops its offer silently.
 - **The scheduler README says what shares the band.** It stacks one row per plugin: rows past its height
   are left out, another mod can hide or reorder rows, and a key two plugins share presses neither.
 - **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file,
