@@ -1019,8 +1019,8 @@ it, common questions, and how to tell it is working.
 The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.md) and
 [closeout-review](docs/hooks/closeout-review.md); the projects plugin's
 [session-start line](docs/hooks/projects-session-start.md) and [pairing hooks](docs/hooks/projects-pair.md); the workspace plugin's
-[session-start summary](docs/hooks/workspace-session-start.md) and
-[git guard](docs/hooks/workspace-guard-git.md); the scheduler plugin's
+[session-start summary](docs/hooks/workspace-session-start.md),
+[git guard](docs/hooks/workspace-guard-git.md) and [context reading](docs/hooks/workspace-context-reading.md); the scheduler plugin's
 [session-start line](docs/hooks/scheduler-session-start.md); and the git hooks in `githooks/`,
 [pre-commit](docs/hooks/pre-commit.md), [pre-merge-commit](docs/hooks/pre-merge-commit.md),
 [commit-msg](docs/hooks/commit-msg.md) and [pre-push](docs/hooks/pre-push.md).

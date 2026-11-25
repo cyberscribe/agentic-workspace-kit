@@ -159,6 +159,43 @@ s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md '**Plugin cost — ev
     'The plugin cost: each plugin')"
 empty "21 hygiene: the command reports plugin cost, names the heavy ones with the per-project suggestion, and says not measured here without claude" "$s21_bad"
 
+# --- Context readings (3.11): context-readings.sh against a fixture state file ------------------------
+# The module writes one line per session: time, tokens, window, workspace folder, plugins, surfaces. The
+# reader keeps this workspace's lines, leaves out headless runs and another workspace's, and prints the last few.
+s21_cr="$s21_dir/context-readings"
+mkdir -p "$s21_cr/repo" "$s21_cr/other" "$s21_cr/state/agentic-workspace-kit/workspace"
+s21_crroot="$(cd "$s21_cr/repo" && pwd -P)"
+s21_crf="$s21_cr/state/agentic-workspace-kit/workspace/context-readings.tsv"
+s21_out="$(XDG_STATE_HOME="$s21_cr/state" bash "$KIT/plugins/workspace/scripts/context-readings.sh" "$s21_cr/repo" 2>&1)"
+[[ "$s21_out" == "no readings yet" ]] \
+    && ok "21 context readings: with no state file, one line saying there are no readings yet" \
+    || ko "21 context readings: with no state file, one line saying there are no readings yet" "$s21_out"
+{
+    printf '2026-11-20 09:00 +0000\t41000\t1000000\t%s\tprojects,workspace\tterminal\n' "$s21_crroot"
+    printf '2026-11-21 09:00 +0000\t42000\t1000000\t%s\tprojects,workspace\tterminal\n' "$s21_crroot"
+    printf '2026-11-21 07:30 +0000\t19000\t1000000\t%s\tprojects,workspace\theadless\n' "$s21_crroot"
+    printf '2026-11-22 09:00 +0000\t99000\t1000000\t%s\tprojects\tterminal\n' "$(cd "$s21_cr/other" && pwd -P)"
+    printf '2026-11-23 09:00 +0000\t43000\t1000000\t%s\tprojects,workspace\tterminal,desktop\n' "$s21_crroot"
+} >"$s21_crf"
+s21_out="$(AW_CONTEXT_READINGS=2 XDG_STATE_HOME="$s21_cr/state" bash "$KIT/plugins/workspace/scripts/context-readings.sh" "$s21_cr/repo" 2>&1)"
+s21_want="reading	2026-11-21 09:00 +0000	42000	1000000	projects,workspace	terminal
+reading	2026-11-23 09:00 +0000	43000	1000000	projects,workspace	terminal,desktop"
+[[ "$s21_out" == "$s21_want" ]] \
+    && ok "21 context readings: this workspace's last readings, newest last, without headless runs or another workspace's, and no folder printed" \
+    || ko "21 context readings: this workspace's last readings, newest last, without headless runs or another workspace's, and no folder printed" "$s21_out"
+s21_bad="$(s21_needs plugins/workspace/commands/hygiene.md 'bash kit/plugins/workspace/scripts/context-readings.sh' \
+    'the two measure different things' 'do not' '`no readings yet`')"
+s21_bad+="$(s21_needs rituals/weekly-hygiene.md 'context-readings.sh' 'a different measure from the plugin cost')"
+empty "21 hygiene: the command and the ritual report the context readings beside the plugin cost, as a different measure" "$s21_bad"
+# claude plugin test runs the module's own tests; a build without the subcommand prints one skip.
+if command -v claude >/dev/null 2>&1 && claude plugin test --help >/dev/null 2>&1; then
+    s21_ptest="$(claude plugin test "$KIT/plugins/workspace" 2>&1)" \
+        && ok "21 claude plugin test passes on the workspace plugin (the context reading module)" \
+        || ko "21 claude plugin test passes on the workspace plugin (the context reading module)" "$s21_ptest"
+else
+    skp "21 claude plugin test not available in this claude build; the context reading module's tests not run"
+fi
+
 # --- Stale install records (wave 2): prune-plugin-records.sh on a fixture file ------------------------
 # Four records: user scope, a project folder that exists, and two for one folder that is gone. The
 # default only counts and leaves the file as it was; --apply backs it up, then keeps exactly the two

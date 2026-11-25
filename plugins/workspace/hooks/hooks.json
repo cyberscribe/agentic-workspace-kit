@@ -1,5 +1,6 @@
 {
-  "description": "Workspace plugin — SessionStart summary of what is out of step in the workspace (git hooks, the kit import, submodules, resources, the origin), and a PreToolUse guard that keeps an agent from bypassing the git hooks.",
+  "description": "Workspace plugin — SessionStart summary of what is out of step in the workspace (git hooks, the kit import, submodules, resources, the origin), a PreToolUse guard that keeps an agent from bypassing the git hooks, and a module that records the context a session carries after its first turn, for the hygiene report.",
+  "modules": ["./context-reading.tsx"],
   "hooks": {
     "SessionStart": [
       {
