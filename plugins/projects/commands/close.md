@@ -131,7 +131,9 @@ that saved time, a rejected alternative, a criterion that had to change — offe
 it for them to confirm or correct rather than asking cold.
 
 1. **What worked that we would do again?**
-2. **What would we change?**
+2. **What didn't work, and what would we change because of it?** Often the
+   most useful answer of the three: the thing that went wrong, said plainly, and
+   the change it led to or should lead to.
 3. **What should the next similar project know first?**
 
 A sentence each is enough. Write the answers into the README as its last
@@ -143,7 +145,7 @@ the README's other section headings:
 ## Retrospective — <today, YYYY-MM-DD>
 
 - **Would do again:** <answer>
-- **Would change:** <answer>
+- **Didn't work, and would change:** <answer>
 - **The next similar project should know first:** <answer>
 ```
 

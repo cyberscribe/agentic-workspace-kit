@@ -313,6 +313,12 @@ s17_bad="$(s17_has "$s17_c" 'projects/_done/<slug>/' 'mkdir -p projects/_done' '
     'grep -rl' '--exclude-dir=kit' 'not rewritten' '`_done/<slug>/`' 'Folder moves' 'print the same commands' \
     'the commit is left to the person')"
 empty "17 close: archives to projects/_done with git mv, rewrites the untracked .gitignore line and lists the others, runs hooks, follows Folder moves" "$s17_bad"
+# The retrospective stays three questions; the second asks what did not work and what changed because of it,
+# and the command's page says the same.
+s17_bad="$(s17_has "$s17_c" "2. **What didn't work, and what would we change because of it?**" "- **Didn't work, and would change:** <answer>")"
+s17_bad+="$(s17_has "$KIT/docs/commands/projects-close.md" "Three questions: what worked, what didn't and what to change because of it")"
+grep -q '^4\. \*\*' <(sed -n '/^## 2\. A short retrospective/,/^## 3\./p' "$s17_c") && s17_bad+="close.md: the retrospective has a fourth question"$'\n'
+empty "17 close: the retrospective asks what did not work and what changed because of it, in three questions, and the page agrees" "$s17_bad"
 
 s17_n="$s17_cmd/new.md"
 s17_bad="$(s17_has "$s17_n" '- **Versioned:** workspace' '- **Sensitivity:** normal' 'Versioned default' \

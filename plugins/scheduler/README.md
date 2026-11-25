@@ -35,7 +35,10 @@ answer field takes typed text once Tab has moved the focus into it, and Enter se
 keyboard back to the prompt and closes the pane. This works because the pane asks for the keyboard as it opens
 (`focus`), which Claude Code grants while the prompt is empty, as it is once `/scheduler-pane` has run (checked
 on Claude Code 2.1.332, 2026-11-25). When the terminal has no room to seat the pane, the same view is drawn in the
-band above the prompt, with `c` to close it.
+band above the prompt, with `c` to close it. The band stacks one row per plugin, so other mods share it: rows past
+the band's height are left out, another mod can hide or reorder the rows, and a key two plugins both use presses
+neither. Any of these can hide the band view's buttons or still its keys; the pane, or `/scheduler:tasks`, then
+does the same work.
 
 The pane rides on Claude Code's early-access plugin API, which can change between releases. If it
 breaks, `schedule.sh` and `/scheduler:tasks` stand on their own: every action the pane offers runs one of

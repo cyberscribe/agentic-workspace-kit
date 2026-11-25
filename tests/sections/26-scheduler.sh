@@ -1511,6 +1511,15 @@ s26_pn="$(grep -c "command.register({ name: 'scheduler-pane'" "$KIT/plugins/sche
 [[ "$s26_pn" == 1 ]] && grep -q '/scheduler-pane' "$KIT/docs/hooks/scheduler-pane.md" \
     && ok "26 the pane registers /scheduler-pane, and its page names that command" \
     || ko "26 the pane registers /scheduler-pane, and its page names that command" "register count $s26_pn"
+# The README says what the terminal pane does now, and how other mods in the band can hide its view there.
+s26_bad=""
+for s26_t in 'the pane takes the keyboard when it opens' '`r` runs the selected task now' 'Escape hands the' \
+    'drawn in the' 'The band stacks one row per plugin' 'a key two plugins both use presses' 'neither'; do
+    grep -qF -- "$s26_t" "$KIT/plugins/scheduler/README.md" || s26_bad+="README lacks: $s26_t"$'\n'
+done
+grep -qF 'On the terminal the pane is a view, not a control' "$KIT/plugins/scheduler/README.md" && s26_bad+="README still calls the terminal pane a view"$'\n'
+empty "26 the README says the terminal pane takes keys, and what can hide its band view" "$s26_bad"
+
 # --- The plugin's own tests (the pane) -------------------------------------------------------------
 # --- Catch-up (PM-082): a fire due while the machine was off ------------------------------------------
 # launchd runs a calendar job missed during sleep on wake, but not one missed while the machine was off;
