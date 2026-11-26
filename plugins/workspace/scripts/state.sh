@@ -1453,11 +1453,17 @@ emit signs "$signs"
 # mode: the first that fits, in the quick-start's order:
 #   joining         the team part is filled in (the kit's always-loaded file, no stand-ins left) and
 #                   this person has no profile: the personal part only
-#   existing-system any sign above: the kit adopts rather than installs
+#   nothing-left    filled in so, and they have a profile: the last section on its own
+#   existing-system any sign above, where the team part is not filled in under the kit's import: the kit
+#                   adopts rather than installs
 #   fresh           stand-ins still in the always-loaded file (or none to judge yet): team part, then personal
-#   nothing-left    filled in, and they have a profile: the last section on its own
-if [[ "$standins" == 0 && $prof != present ]] \
-   && { [[ $agents_md == kit && $always_loaded == AGENTS.md ]] || [[ $claude_md == kit ]]; }; then mode=joining
+# Once the team part is filled in under the kit's import, what the workspace keeps beside the kit's files
+# (its own register, decisions log or skills) is settled, so the signs no longer decide the mode; they are
+# still listed in signs=.
+settled=0
+[[ "$standins" == 0 ]] && { [[ $agents_md == kit && $always_loaded == AGENTS.md ]] || [[ $claude_md == kit ]]; } && settled=1
+if [[ $settled == 1 && $prof != present ]]; then mode=joining
+elif [[ $settled == 1 ]]; then mode=nothing-left
 elif [[ -n "$signs" ]]; then mode=existing-system
 elif [[ "$standins" != 0 || $always_loaded == none ]]; then mode=fresh
 else mode=nothing-left; fi

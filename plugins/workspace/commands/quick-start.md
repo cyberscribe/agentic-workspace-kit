@@ -81,18 +81,18 @@ which parts you will offer. The script takes the first that fits, in this order:
 - **`joining`** — the always-loaded file, `CLAUDE.md`, has no stand-ins left in
   its own §1–§3, and this person has no profile: the personal part only. This is what most people after the first will see; whatever the
   first person mapped or left beside the kit's files is already settled, and so
-  is the metrics baseline (see the last section).
-- **`existing-system`** — `signs` names at least one. The kit adopts rather than
-  installs: go to "Fitting the kit to a system already in place". If the team
-  part is also unfinished, offer only the questions the mapping leaves open.
-- **`fresh`** — stand-ins still in the always-loaded file, whatever the register
-  holds: the team part, then the personal part. Where an earlier run already
-  answered some of it (projects in the register, a staleness setting in place), offer only
-  the questions still open.
+  is the metrics baseline.
 - **`nothing-left`** — filled in, and they have a profile: say so, and offer the
   last section on its own. A profile with no **Roles** list (one made before the
   kit asked for roles) is offered that one question first, as the personal part
   asks it, and nothing else of it.
+- **`existing-system`** — `signs` names at least one, and the team part is not
+  filled in under the kit's import (once it is, what the workspace kept is
+  settled). The kit adopts rather than installs: go to "Fitting the kit to a
+  system already in place", asking only what the mapping leaves open.
+- **`fresh`** — stand-ins still in the always-loaded file, whatever the register
+  holds: the team part, then the personal part. Where an earlier run already
+  answered some of it, offer only the questions still open.
 
 Every mode ends with "Reachable and running".
 

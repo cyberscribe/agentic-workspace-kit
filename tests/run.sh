@@ -3440,8 +3440,9 @@ mkdir -p "$SX/.claude/skills/our-closeout" "$SX/skills/report-builder" "$SX/.cla
 printf -- '---\nname: our-closeout\n---\n' > "$SX/.claude/skills/our-closeout/SKILL.md"
 printf -- '---\nname: report-builder\n---\n' > "$SX/skills/report-builder/SKILL.md"
 printf 'Tidy the repository.\n' > "$SX/.claude/commands/tidy-repo.md"
-st_expect "11 existing system: own skills listed, the overlapping ones taken as signs" "$(st_run "$SX")" \
-    mode=existing-system own_skills=.claude/skills/our-closeout,skills/report-builder,.claude/commands/tidy-repo.md \
+# Its team part is filled in under the kit's import, so the signs are listed and settled: nothing left.
+st_expect "11 own skills beside a settled kit workspace: listed, the overlapping ones taken as signs, and nothing left" "$(st_run "$SX")" \
+    mode=nothing-left own_skills=.claude/skills/our-closeout,skills/report-builder,.claude/commands/tidy-repo.md \
     foreign_skills=.claude/skills/our-closeout,.claude/commands/tidy-repo.md signs=foreign_skills
 
 # Existing system, third shape: a GEMINI.md of its own, a decisions log elsewhere, and project
@@ -3451,10 +3452,36 @@ cp -R "$SN" "$SO"
 printf '# Ours\n' > "$SO/GEMINI.md"
 mkdir -p "$SO/docs/adr" && printf '# 1. Record decisions\n' > "$SO/docs/adr/0001-record.md"
 sed 's#^- \*\*Register:\*\* `projects/INDEX.md`#- **Register:** `work/INDEX.md`#' "$SN/.claude/projects.md" > "$SO/.claude/projects.md"
-st_expect "11 existing system: GEMINI.md, a decisions log elsewhere, another project layout" "$(st_run "$SO")" \
-    mode=existing-system gemini_md=present decisions_log=foreign decisions_log_other=docs/adr \
+st_expect "11 GEMINI.md, a decisions log elsewhere and another project layout beside a settled kit workspace: signs, and nothing left" "$(st_run "$SO")" \
+    mode=nothing-left gemini_md=present decisions_log=foreign decisions_log_other=docs/adr \
     projects_conventions=foreign register_path=work/INDEX.md register=missing \
     signs=gemini_md,decisions_log,projects_conventions
+
+# A workspace that has run on the kit for months (PM-218): the kit's import with the team part filled in,
+# its own register, a decisions log of its own shape and its own skills, and the person's profile found.
+# Those are what it has kept, so it reads nothing-left; it read existing-system once the profile was
+# found, and quick-start then offered to adopt it onto the kit again. Without the import, the same signs
+# still read existing-system, and so do they beside a kit file whose stand-ins are not filled in yet (an
+# install over a system of the person's own).
+SK="$SCRATCH/state-kit-kept"
+cp -R "$SN" "$SK"
+printf '# Our work\n\n## Live\n\n## Done\n' > "$SK/projects/INDEX.md"
+printf '# Decisions\n\n## Use plain files\n' > "$SK/logs/decisions.md"
+mkdir -p "$SK/.claude/skills/our-closeout" && printf -- '---\nname: our-closeout\n---\n' > "$SK/.claude/skills/our-closeout/SKILL.md"
+st_expect "11 a settled kit workspace with its own register, decisions log and skills: signs listed, nothing left" "$(st_run "$SK")" \
+    mode=nothing-left signs=register,decisions_log,foreign_skills person_profile=present claude_md=kit standins_remaining=0
+SKN="$SCRATCH/state-kit-kept-no-import"
+cp -R "$SK" "$SKN"
+sed '1d' "$SK/CLAUDE.md" > "$SKN/CLAUDE.md"
+st_expect "11 the same signs without the kit's import: existing system" "$(st_run "$SKN")" \
+    mode=existing-system signs=claude_md,register,decisions_log,foreign_skills claude_md=own
+SKS="$SCRATCH/state-kit-kept-standins"
+cp -R "$SK" "$SKS"
+cp "$SF/CLAUDE.md" "$SKS/CLAUDE.md"
+r="$(st_run "$SKS")"
+[[ "$(st_key "$r" mode)" == existing-system && "$(st_key "$r" claude_md)" == kit && "$(st_key "$r" standins_remaining)" -gt 0 ]] \
+    && ok "11 the same signs beside the kit's file with its stand-ins still in: existing system" \
+    || ko "11 the same signs beside the kit's file with its stand-ins still in: existing system" "$r"
 
 # A folder that is not a repository, and one that does not exist.
 SP="$SCRATCH/state-plain"; mkdir -p "$SP"

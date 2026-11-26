@@ -75,6 +75,12 @@ turn.
   path in the new `person_profile_named`; with no line, nothing changes. Such a workspace was read as
   `joining`, and the quick-start offered a newcomer's interview to someone with a profile. It now asks only
   for roles, and only when that profile has none.
+- **A workspace on the kit is not offered adoption again.** Once the team part is filled in under the kit's
+  import, the state check takes what the workspace keeps beside the kit's files (its own register, decisions
+  log or skills) as settled: the mode is `joining` or `nothing-left`, and `signs` still lists them. With its
+  profile found, a workspace that had run on the kit for months read `existing-system`, and quick-start
+  offered to adopt it onto the kit again. Without the import, or with the kit's stand-ins still in, the same
+  signs read `existing-system` as before.
 - **Diagnose shows the mode and whether the profile was found.** The report adds `mode`, `person_profile` and
   `people_dir` from the full state check (never the profile's path), and runs git without its system config,
   so a sandbox that refuses `/etc/gitconfig` no longer reads as a kit that is not a git checkout with no git

@@ -12,7 +12,7 @@ decides its mode from `mode=` rather than asking:
 |---|---|---|
 | `fresh` | `CLAUDE.md` still has angle-bracketed stand-ins | The team part, then the personal part |
 | `joining` | The team part is done; this person has no profile | The personal part only |
-| `existing-system` | Signs of a system that was here first | A mapping of that system onto the kit, changing nothing without a yes |
+| `existing-system` | Signs of a system that was here first, the team part not yet filled in under the kit | A mapping of that system onto the kit, changing nothing without a yes |
 | `nothing-left` | Everything is filled in | The last section on its own |
 
 - **The team part** fills `CLAUDE.md` §1–§3 below its import line (what the team does, the standards
