@@ -5,7 +5,7 @@
 #
 #   harness.sh [--out DIR] [--sizes "80x24 120x40 170x40"] [--modes "classic fullscreen"]
 #              [--fixtures "0 1 3 20 60"] [--seeds "1 2 3"] [--keys 300] [--mutate NAME] [--jobs 3]
-#              [--no-turn] [--plugin DIR]
+#              [--no-turn] [--plugin DIR] [--trail]
 #
 # For each fixture, size and mode it starts claude in a detached tmux session on a scratch workspace,
 # opens /scheduler-pane, and checks:
@@ -28,7 +28,8 @@
 # fixture's home is logged as env-lost in the cell's folder.
 #
 # Output: DIR/<cell>/ holds frames and a log; DIR/results.tsv one line per rule check
-# (cell, rule, pass|fail, detail); the exit status is 1 when any check failed.
+# (cell, rule, pass|fail, detail); the exit status is 1 when any check failed. With --trail, DIR/trail-<session>.txt
+# also keeps every key sent and every frame read, in order and timed, so a failure can be read frame by frame.
 # A && B || C is the suite's idiom here: record never fails (SC2015). ps is read on one tty (SC2009).
 # has_name reads the names file the loop around it reads, and writes nothing (SC2094).
 # shellcheck disable=SC2015,SC2009,SC2013,SC2094
@@ -45,6 +46,7 @@ MUTATE=""
 JOBS=3
 TURN=1
 SOURCE=""
+TRAIL=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --out) OUT="$2"; shift 2 ;;
@@ -57,6 +59,7 @@ while [[ $# -gt 0 ]]; do
         --jobs) JOBS="$2"; shift 2 ;;
         --no-turn) TURN=0; shift ;;
         --plugin) SOURCE="$2"; shift 2 ;;
+        --trail) TRAIL=1; shift ;;
         *) echo "harness.sh: unknown argument $1" >&2; exit 2 ;;
     esac
 done
@@ -184,6 +187,7 @@ mutate() {
 frame() {   # frame <session> <cols> <file>: captures and parses; sets F_OPEN F_RING F_HINT F_TOP F_TOPEND F_DOCK F_AGENTS
     tmux capture-pane -e -p -t "$1" >"$3.ansi" 2>/dev/null
     perl "$FRAME" "$2" <"$3.ansi" >"$3"
+    [[ "$TRAIL" == 1 ]] && { printf '=== frame %s %s\n' "${EPOCHREALTIME:-}" "${3##*/}"; cat "$3.ansi"; } >>"$OUT/trail-$1.txt"
     F_OPEN="$(sed -n 's/^open=//p' "$3")"; F_RING="$(sed -n 's/^ring=//p' "$3")"; F_HINT="$(sed -n 's/^hint=//p' "$3")"
     F_TOP="$(sed -n 's/^top=//p' "$3")"; F_TOPEND="$(sed -n 's/^topend=//p' "$3")"; F_DOCK="$(sed -n 's/^dock=//p' "$3")"
     F_AGENTS="$(sed -n 's/^agents=//p' "$3")"; F_BOLD="$(sed -n 's/^bold=//p' "$3")"
@@ -194,7 +198,10 @@ record() {  # record <cell> <rule> <pass|fail> <detail>
     printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >>"$OUT/results.tsv"
 }
 
-key() { tmux send-keys -t "$1" "$2"; nap "${3:-0.45}"; }
+key() {
+    [[ "$TRAIL" == 1 ]] && printf '>>> key %s %s\n' "$2" "${EPOCHREALTIME:-}" >>"$OUT/trail-$1.txt"
+    tmux send-keys -t "$1" "$2"; nap "${3:-0.45}"
+}
 
 start_session() {  # start_session <session> <cols> <rows> <mode> <fixture dir> <plugin dir>
     local s="$1" fx="$5" plug="$6" settings=""
@@ -391,9 +398,12 @@ keys_change() {  # keys_change <session> <cols> <dir> <cell> <view>
         frame "$s" "$cols" "$before"
         key "$s" "$k" 1.0
         frame "$s" "$cols" "$after"
-        # The pane's own lines: a key the pane does not take goes to the prompt, which is not the pane changing,
-        # and takes the ring with it, which is a dead key too rather than a change.
-        if cmp -s <(text_of "$before" | grep '│') <(text_of "$after" | grep '│') \
+        # The pane's own lines and its ring: a key the pane does not take goes to the prompt, which is not the
+        # pane changing, and takes the ring with it, which is a dead key too rather than a change. The ring is
+        # compared as well as the text, since the text is read without the selection mark, and an arrow that
+        # only moves the ring between actions changes nothing else.
+        if { cmp -s <(text_of "$before" | grep '│') <(text_of "$after" | grep '│') \
+            && [[ "$(sed -n 's/^ring=//p' "$before")" == "$(sed -n 's/^ring=//p' "$after")" ]]; } \
             || [[ -n "$(sed -n 's/^ring=//p' "$before")" && -z "$(sed -n 's/^ring=//p' "$after")" ]]; then
             dead+="$k "
         fi
@@ -472,8 +482,36 @@ done
 wait
 
 touched="$(for d in "${REAL_DIRS[@]}"; do [[ -d "$d" ]] && find "$d" -newer "$OUT/.started" -print 2>/dev/null; done)"
-if [[ -n "$touched" ]]; then record all isolation fail "the person's scheduler changed during the run: $(tr '\n' ' ' <<<"$touched")"
-else record all isolation pass "nothing under the person's scheduler home, state or LaunchAgents changed"; fi
+# The person's own tasks keep firing while the harness runs. A run their scheduler started (its meta says
+# trigger=schedule) writes its run folder, the task's state files, the runner log and a lock; those are set aside,
+# and named, rather than counted as the harness reaching the person's scheduler. Anything else that changed,
+# a run started any other way, or a change to the task files or the LaunchAgents, fails.
+state="$HOME/.local/state/agentic-workspace-kit/scheduler"
+own=() other=()
+while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    if [[ "$p" =~ ^$state/runs/([^/]+)/([^/]+) ]] && grep -qx 'trigger=schedule' "$state/runs/${BASH_REMATCH[1]}/${BASH_REMATCH[2]}/meta" 2>/dev/null; then
+        own+=("${BASH_REMATCH[1]}/${BASH_REMATCH[2]}")
+    else
+        other+=("$p")
+    fi
+done <<<"$touched"
+if [[ ${#own[@]} -gt 0 ]]; then
+    tasks="$(printf '%s\n' "${own[@]}" | cut -d/ -f1 | sort -u)"
+    rest=()
+    for p in "${other[@]}"; do
+        t="${p#"$state"/}"
+        case "$t" in
+            logs | logs/runner.log | locks | locks/* | state | runs) continue ;;
+            runs/* | state/*) n="${t#*/}"; n="${n%%/*}"; n="${n%%.*}"; grep -qx "$n" <<<"$tasks" && continue ;;
+        esac
+        rest+=("$p")
+    done
+    other=("${rest[@]}")
+    record all isolation note "the person's own scheduled runs fired meanwhile: $(printf '%s\n' "${own[@]}" | sort -u | tr '\n' ' ')"
+fi
+if [[ ${#other[@]} -gt 0 ]]; then record all isolation fail "the person's scheduler changed during the run: ${other[*]}"
+else record all isolation pass "nothing under the person's scheduler home, state or LaunchAgents changed, beyond their own scheduled runs"; fi
 fails="$(awk -F'\t' '$3 == "fail"' "$OUT/results.tsv" | wc -l | tr -d ' ')"
 passes="$(awk -F'\t' '$3 == "pass"' "$OUT/results.tsv" | wc -l | tr -d ' ')"
 printf '%s checks passed, %s failed (%s)\n' "$passes" "$fails" "$OUT/results.tsv"

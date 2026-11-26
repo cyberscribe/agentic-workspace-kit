@@ -76,7 +76,8 @@ turn.
   fifteenth task), judged from the scheduler's own state: a run passes on its goal, no key that did nothing,
   and its own closing line `BLOCKING: none` (nothing unreadable, no guess that could act on the wrong thing,
   every action seen to happen). The sessions run on a tmux server of their own, with focus events on. Both bind every scheduler path and hook to the
-  fixture, whatever the environment, and fail if the person's own scheduler changes during a run.
+  fixture, whatever the environment, and fail if the person's own scheduler changes during a run; a run their
+  own scheduler started meanwhile is named and set aside. `--trail` keeps every key and frame, timed.
 - **The scheduler README says what shares the band.** It stacks one row per plugin: rows past its height
   are left out, another mod can hide or reorder rows, and a key two plugins share presses neither.
 - **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file,
