@@ -18,15 +18,22 @@ second question. closeout 1.8.0 and ongoing 0.2.0 are unchanged.
 changed length. The new module prints nothing; it writes one line outside the repository after the first
 turn.
 
-- **The scheduler pane is a terminal list.** It takes the keyboard as it opens (checked on Claude Code
-  2.1.332). Each task is one row saying what needs the person first, else when it next runs; Up and Down move,
-  Enter or a digit opens a task, and `r` run now, `p` pause or resume and `l` log act on the row the cursor is
-  on, drawn on screen with their keys. An open task shows its details and log; a waiting run's opens with the
-  answer field focused, so answering is type, then Enter. Escape goes back from a task to the list, then closes
-  the pane, so Ctrl+D reaches Claude Code again. In fullscreen from 110 columns Claude Code docks the pane in a
-  column beside the conversation; each row is cut to fit. Where the surface gives the pane no seat, the same
-  view is drawn in the band above the prompt. Before this the terminal pane was a view only. The desktop pane
-  is unchanged.
+- **The scheduler pane is a terminal list.** It takes the keyboard as it opens and lays itself out to the
+  height Claude Code gives it (it asks for all of it: 27 rows in a 40-line terminal, where it had 11), since a
+  pane taller than its room scrolls and the arrows then move the text, not the cursor. Each task is one row
+  led by a state word (needs your answer, failed, paused, active, running), then its schedule and next run, so a
+  narrow pane cuts the schedule rather than the state; Up and Down move, and with more tasks than fit
+  the list is a window with `↑ N more` and `↓ N more` rows and its position in the key line (`7–12 of 20`),
+  so every task can be reached. Enter or a digit opens a task; `r` run now, `p` pause or resume and `l` log
+  act on the selected row, drawn on screen with their keys. An open task lists its actions one under another
+  (Left is Claude Code's own key and Right does nothing in a pane), shows its next run and its log, and a
+  waiting run's view opens with the answer field focused. Escape goes back from a task to the list, then
+  closes the pane. A `›` marks the selection as text; a key says what it started at once ("pausing…",
+  "sending: 2"), the row takes the new state as soon as the scheduler confirms it, and a line gives the
+  result, with no older read allowed to draw over it. A log reads like a pager, a line per arrow. The first
+  open draws the last list at once (`schedule.sh list --json --cached`, kept in the scheduler's state folder)
+  while the full read runs. Checked on Claude Code 2.1.332 by the new harness and a
+  cold-user agent (below). The desktop pane is unchanged.
 - **Hygiene reports the context a session carries.** A hooks module in the workspace plugin reads the
   status line's figure once, after the first turn of each session inside a kit workspace, and appends a
   line to `${XDG_STATE_HOME:-~/.local/state}/agentic-workspace-kit/workspace/context-readings.tsv`:
@@ -53,6 +60,23 @@ turn.
 - **Command frontmatter is checked.** Section 12 fails a command without `description` or
   `offer-unprompted`, or with a key neither Claude Code nor the kit reads, so a misspelt key no longer
   drops its offer silently.
+- **`/scheduler:tasks` with nothing asked lists and stops**: the table, then one line of what can come
+  next. `doctor` runs when asked, or for a task the list shows failing.
+- **`doctor` knows when it cannot see.** Inside a sandbox, launchd can hide its jobs and the unit files can be
+  unreadable, which made every unit look changed, with `sync` suggested. An empty or refused `launchctl
+  list`, an unreadable LaunchAgents folder or a silent `systemctl --user` now makes each unit `unknown` from
+  that shell, with no `sync` suggested and nothing counted as a problem; `show` and `doctor <name>` say so.
+- **The pane is tested as a person uses it.** `tests/pane/harness.sh` drives `/scheduler-pane` in Claude Code
+  in detached tmux sessions on scratch schedulers (0 to 60 tasks; 80×24, 120×40 and 170×40; classic and
+  fullscreen), checks a set of rules on every frame (the selection and the key line visible, every task
+  reachable, Escape leaves, Ctrl+D quits, each key named does something, every action reachable with the
+  arrows) and presses random keys from what each view binds, three seeds at a time. Section 30 runs it with
+  `AW_TEST_PANE=1` and always checks its frame reader. `tests/pane/cold-user.sh` gives a headless agent only
+  keys and the screen and five goals (run, pause and resume, read a log, answer a waiting run, find the
+  fifteenth task), judged from the scheduler's own state: a run passes on its goal, no key that did nothing,
+  and its own closing line `BLOCKING: none` (nothing unreadable, no guess that could act on the wrong thing,
+  every action seen to happen). The sessions run on a tmux server of their own, with focus events on. Both bind every scheduler path and hook to the
+  fixture, whatever the environment, and fail if the person's own scheduler changes during a run.
 - **The scheduler README says what shares the band.** It stacks one row per plugin: rows past its height
   are left out, another mod can hide or reorder rows, and a key two plugins share presses neither.
 - **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file,
