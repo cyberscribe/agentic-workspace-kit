@@ -34,6 +34,7 @@ nothing else.
 | `osascript`, `pmset` | Notifications and the wake check on macOS | Part of macOS |
 | `notify-send` | Desktop notifications on Linux | LGPL-2.1 (libnotify) |
 | `docker` | The opt-in container tests (`AW_TEST_DOCKER=1`) | Apache-2.0 (Docker Engine) |
+| `tmux` | The pane harness and its cold-user agent (`tests/pane/`, section 30 with `AW_TEST_PANE=1`) | ISC |
 | Ubuntu, Fedora and Debian base images | `tests/docker/*.Dockerfile` | Each distribution's own terms |
 
 ## Not counted here
