@@ -16,6 +16,9 @@
 # under the project and area locations, and register row names) <project>, unless --allow-names.
 # No workspace file's contents are read into the report.
 set -uo pipefail
+# A sandbox can refuse git its system config (/etc/gitconfig), and git then fails on every command, which
+# would read here as a kit that is not a git checkout; nothing this report reads needs that file.
+export GIT_CONFIG_NOSYSTEM=1
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 kit="$(cd "$here/../../.." && pwd -P)"
 target="$PWD" allow=0 out=""
@@ -85,8 +88,11 @@ report() {
     echo "## Versions"
     echo
     echo "- Kit: $(awk '/^## v[0-9]/ { print $2; exit }' "$kit/CHANGELOG.md" 2>/dev/null || echo unknown) ($(tail -n 1 "$kit/CLAUDE.kit.md" 2>/dev/null | tr -d '*'))"
-    echo "- Kit commit: $(git -C "$kit" rev-parse --short HEAD 2>/dev/null || echo 'not a git checkout'), branch $(git -C "$kit" symbolic-ref -q --short HEAD 2>/dev/null || echo detached), $(git -C "$kit" status --porcelain 2>/dev/null | grep -c . | tr -d ' ') changed files"
-    echo "- OS: $(uname -sr 2>/dev/null); bash ${BASH_VERSION%%(*}; $(git --version 2>/dev/null); jq $(jq --version 2>/dev/null | sed 's/^jq-//')"
+    # Where git fails, its own first line of error is the report, rather than a guess at the cause.
+    kc="$(git -C "$kit" rev-parse --short HEAD 2>&1)" || kc="no commit read (${kc%%$'\n'*})"
+    echo "- Kit commit: $kc, branch $(git -C "$kit" symbolic-ref -q --short HEAD 2>/dev/null || echo detached), $(git -C "$kit" status --porcelain 2>/dev/null | grep -c . | tr -d ' ') changed files"
+    gv="$(git --version 2>&1)"
+    echo "- OS: $(uname -sr 2>/dev/null); bash ${BASH_VERSION%%(*}; ${gv%%$'\n'*}; jq $(jq --version 2>/dev/null | sed 's/^jq-//')"
     cv="not on this machine"; have claude && cv="$(claude --version 2>/dev/null)"; echo "- Claude Code: ${cv%%$'\n'*}"
     echo
     echo "## Kit plugins"
@@ -135,9 +141,14 @@ report() {
     echo "## State check (quick)"
     echo
     # Only keys whose values are fixed words or numbers; anything that names a path or a project stays out.
-    bash "$kit/plugins/workspace/scripts/state.sh" --quick --target "$ws" 2>/dev/null \
-        | grep -vE '^(submodule\.|resource\.|external_paths=|origin=|kit_path=|target=)' \
-        | awk -F= '{ k = $1; v = substr($0, length($1) + 2); if (v ~ /^[A-Za-z0-9 ._,:+-]*$/ && length(v) <= 60) print "- " k ": " v; else print "- " k ": (left out)" }'
+    # The quick form drops three keys a fault in quick-start turns on, so they come from the full check:
+    # the mode, whether this person's profile was found, and the people folder (a folder the conventions
+    # name, read by the scrub like any value). The profile's own path never comes.
+    { bash "$kit/plugins/workspace/scripts/state.sh" --quick --target "$ws" 2>/dev/null
+      bash "$kit/plugins/workspace/scripts/state.sh" --target "$ws" 2>/dev/null | grep -E '^(mode|person_profile|people_dir)='
+    } | grep -vE '^(submodule\.|resource\.|external_paths=|origin=|kit_path=|target=)' \
+        | awk -F= '{ k = $1; v = substr($0, length($1) + 2); ok = (k == "people_dir") ? "^[A-Za-z0-9 ._/-]*$" : "^[A-Za-z0-9 ._,:+-]*$"
+                     if (v ~ ok && length(v) <= 60) print "- " k ": " v; else print "- " k ": (left out)" }'
     echo
     echo "## Last test run on this machine"
     echo

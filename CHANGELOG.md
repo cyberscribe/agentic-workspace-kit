@@ -12,8 +12,9 @@ rewriting — the record of what a version claimed is part of what the version i
 in the next session.
 
 **Plugins.** scheduler 0.2.0: the pane takes the keyboard on the terminal. workspace 2.6.0: a reading of the
-context after each session's first turn, reported by hygiene; the state check reads an Own profile line.
-projects 3.9.1: the retrospective's second question. closeout 1.8.0 and ongoing 0.2.0 are unchanged.
+context after each session's first turn, reported by hygiene; the state check reads an Own profile line, and
+diagnose shows the mode. projects 3.9.1: the retrospective's second question. closeout 1.8.0 and ongoing 0.2.0
+are unchanged.
 
 **What the kit costs every session.** Unchanged: no command description, session-start line or reminder
 changed length. The new module prints nothing; it writes one line outside the repository after the first
@@ -74,6 +75,10 @@ turn.
   path in the new `person_profile_named`; with no line, nothing changes. Such a workspace was read as
   `joining`, and the quick-start offered a newcomer's interview to someone with a profile. It now asks only
   for roles, and only when that profile has none.
+- **Diagnose shows the mode and whether the profile was found.** The report adds `mode`, `person_profile` and
+  `people_dir` from the full state check (never the profile's path), and runs git without its system config,
+  so a sandbox that refuses `/etc/gitconfig` no longer reads as a kit that is not a git checkout with no git
+  version; where git still fails, the report gives git's own error.
 - **The pane is tested as a person uses it.** `tests/pane/harness.sh` drives `/scheduler-pane` in Claude Code
   in detached tmux sessions on scratch schedulers (0 to 60 tasks; 80×24, 120×40 and 170×40; classic and
   fullscreen), checks a set of rules on every frame (the selection and the key line visible, every task

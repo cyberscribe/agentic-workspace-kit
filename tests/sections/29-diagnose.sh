@@ -61,3 +61,38 @@ grep_all -F 'zephyr-launch build' <<<"$s29_out2" && ! grep_all -F "$s29_secret" 
     || ko "29 diagnose --allow-names keeps project names and still scrubs secrets and paths" "$s29_out2"
 s29_bad="$(grep -c . <<<"$(grep -rlF 'diagnose' "$s29_ws" 2>/dev/null)")"
 [[ "$s29_bad" == 0 ]] && ok "29 diagnose writes nothing in the workspace without --out" || ko "29 diagnose writes nothing in the workspace without --out" "$(grep -rlF diagnose "$s29_ws")"
+
+# The mode and whether this person's profile was found come from the full check, which the quick form
+# leaves out; the profile's own path (a planted name, in the conventions' Own profile line) does not.
+mkdir -p "$s29_ws/memory"
+printf '# Casey\n' > "$s29_ws/memory/plantedprofile.md"
+printf '# Project conventions\n\n- **People:** `memory/people/<name>.md`\n- **Own profile:** `memory/plantedprofile.md`\n' > "$s29_ws/.claude/projects.md"
+s29_out="$(s29_run)"
+s29_bad=""
+for s29_w in '- mode: ' '- person_profile: present' '- people_dir: memory/people'; do
+    grep_all -F -- "$s29_w" <<<"$s29_out" || s29_bad+="no: $s29_w"$'\n'
+done
+for s29_w in plantedprofile person_profile_path person_profile_named; do
+    grep_all -F -- "$s29_w" <<<"$s29_out" && s29_bad+="the report holds: $s29_w"$'\n'
+done
+empty "29 diagnose: the report gives the mode, the person's profile found and the people folder, never the profile's path" "$s29_bad${s29_bad:+$s29_out}"
+
+# Under a sandbox that refuses git its system config, git fails on every command unless told not to
+# read it: a stub git that fails so stands in, and the kit still reads as a checkout with a git version.
+s29_git="$s29/stubgit"; s29_realgit="$(command -v git)"
+mkdir -p "$s29_git"
+cat > "$s29_git/git" <<EOF
+#!/usr/bin/env bash
+[[ "\${GIT_CONFIG_NOSYSTEM:-}" == 1 ]] || { echo "fatal: unable to read config file '/etc/gitconfig': Operation not permitted" >&2; exit 128; }
+exec "$s29_realgit" "\$@"
+EOF
+chmod +x "$s29_git/git"
+if env -u GIT_CONFIG_NOSYSTEM git -C "$KIT" rev-parse --short HEAD >/dev/null 2>&1; then
+    s29_out="$(cd "$s29_ws" && env -u GIT_CONFIG_NOSYSTEM HOME="$s29_home" CLAUDE_CONFIG_DIR="$s29_home/.claude" PATH="$s29_git:$s29_bin:$PATH" \
+        bash "$KIT/plugins/workspace/scripts/diagnose.sh" 2>&1)"
+    grep_all -E -- '^- Kit commit: [0-9a-f]{7,}, branch' <<<"$s29_out" && grep_all -E -- '^- OS: .*; git version [0-9]' <<<"$s29_out" \
+        && ok "29 diagnose reads the kit's commit and git's version where git cannot read its system config" \
+        || ko "29 diagnose reads the kit's commit and git's version where git cannot read its system config" "$(grep -E '^- (Kit commit|OS):' <<<"$s29_out")"
+else
+    skp "29 diagnose reads the kit's commit and git's version where git cannot read its system config (the kit here is not a git checkout)"
+fi
