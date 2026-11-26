@@ -17,11 +17,15 @@ Opens a pane titled "Scheduled tasks" with the `/scheduler-pane` slash command. 
 
 On the terminal the pane is a list that takes the keyboard when it opens: a row per task, Up and Down to move,
 Enter or a row's digit to open one, and `r` run now, `p` pause or resume, `l` log for the row the cursor is on,
-drawn on screen with their keys. An open task shows its details and log; a waiting run's opens with the answer
-field focused, so answering is type, then Enter. Escape goes back from a task to the list, then closes the pane.
-In fullscreen from 110 columns Claude Code docks the pane in a column beside the conversation, and each row is
-cut to fit. When the terminal has no room to seat a pane, the same view is drawn in the band above the prompt,
-with `c` to close it.
+drawn on screen with their keys. Each row leads with a state word; more tasks than fit scroll as a window with
+`↑ N more` and `↓ N more` rows and the position in the key line. A key says what it started at once and the
+result follows on its own line. An open task lists its actions one under another; its log scrolls a line at a
+time like a pager; a waiting run's shows the whole question with the answer field focused, so answering is type,
+then Enter. Escape goes back from a task to the list, then closes the pane. The pane asks for all the height it
+can get and fits itself to it, and its first open draws the last list it read while it reads the new one. In fullscreen
+from 110 columns Claude Code docks the pane in a column beside the conversation, and each row is cut to fit.
+When the terminal has no room to seat a pane, the same view is drawn in the band above the prompt, with `c` to
+close it.
 
 Every action is a `schedule.sh` call, and its output is shown in the pane. The pane reads through `schedule.sh`
 (`list`, `show`, `log`, `home`) and keeps what it read in the plugin's state atom, which persists, so it is

@@ -117,12 +117,12 @@ test('on the terminal the pane is a list: a row per task, the keys on screen, an
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   // One row per task, what needs the person first: no sections, no question, no answer field at this level.
-  expect(await ui.find({ type: 'Text', text: /^morning-digest\s+weekdays 07:30 · next Mon 2 Nov 07:30$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^ask-reviewer\s+needs your answer$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^branch-check\s+needs attention: failed: exit 1 at 2026-10-29 18:00$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^old-report\s+paused · @monthly$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^(› |  )?morning-digest\s+active · weekdays 07:30 · next Mon 2 Nov 07:30$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^(› |  )?ask-reviewer\s+needs your answer · / })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^(› |  )?branch-check\s+failed · daily 18:00 · next Fri 30 Oct 18:00$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^(› |  )?old-report\s+paused · @monthly$/ })).toBeDefined()
   expect(await ui.find({ type: 'Input' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /↑↓ select · Enter or 1-4 open · Esc close/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /↑↓ select · Enter or 1-4 open · Esc leaves/ })).toBeDefined()
   // A digit per row and a letter per action, drawn with their keys; the first row holds the ring at first.
   const drawn = JSON.stringify(await ui.drawn())
   for (const key of ['1', '2', '3', '4', 'r', 'p', 'l']) expect(drawn).toContain(`"hotkey":"${key}"`)
@@ -144,30 +144,36 @@ test('Enter opens a task, back returns to the list, and a waiting one opens on i
   const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
   await openPane($, clock)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  // Changing view pauses briefly (so the ring lands where it should), which the mocked clock has to pass.
+  const through = async (key: string) => {
+    const pressed = ui.press({ key })
+    await clock.advance(2_000)
+    await pressed
+  }
 
   // A task's own view: its details, the actions and back, and its log on l.
-  await ui.press({ key: 'row:morning-digest' })
-  expect(await ui.find({ type: 'Text', text: /^morning-digest · active$/ })).toBeDefined()
+  await through('row:morning-digest')
+  expect(await ui.find({ type: 'Text', text: /^morning-digest · next Mon 2 Nov 07:30 · active · / })).toBeDefined()
   expect(JSON.stringify(await ui.drawn())).toContain('"hotkey":"b"')
   calls.length = 0
-  await ui.press({ key: 'task-log:morning-digest' })
+  await through('task-log:morning-digest')
   expect(calls[0]?.args).toEqual(['log', 'morning-digest'])
-  expect(JSON.stringify(await ui.drawn())).toContain('"label":"hide log"')
-  await ui.press({ key: 'back' })
+  expect(JSON.stringify(await ui.drawn())).toMatch(/"label":"(› )?hide log"/)
+  await through('back')
   expect(await ui.find({ type: 'Text', text: /↑↓ select/ })).toBeDefined()
 
   // The waiting run: its whole question, and the answer field holding the focus, so answering is type then Enter.
-  await ui.press({ key: 'row:ask-reviewer' })
+  await through('row:ask-reviewer')
   expect(await ui.find({ type: 'Text', text: /Reply with the number of your pick/ })).toBeDefined()
   expect(JSON.stringify(await ui.drawn())).toMatch(/"key":"reply:ask-reviewer"[^}]*"autoFocus":true|"autoFocus":true[^}]*"key":"reply:ask-reviewer"/)
-  expect(await ui.find({ type: 'Text', text: /type the answer, Enter sends · Esc back/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /type the answer \(digits too\), Enter sends · Esc back/ })).toBeDefined()
   calls.length = 0
   await ui.input({ key: 'reply:ask-reviewer', text: '1' })
   expect(calls[0]?.args).toEqual(['reply', 'ask-reviewer', '--run', 'run-0917', '--file', '-'])
   expect(calls[0]?.stdin).toBe('1')
   // A paused task's view offers resume.
-  await ui.press({ key: 'back' })
-  await ui.press({ key: 'row:old-report' })
+  await through('back')
+  await through('row:old-report')
   calls.length = 0
   await ui.press({ key: 'toggle:old-report' })
   expect(calls[0]?.args).toEqual(['resume', 'old-report'])
@@ -180,7 +186,7 @@ test('a row longer than the dock is cut to one line', async ($, on) => {
   const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
   await openPane($, clock)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 30, placement: 'dock' } })
-  const row = await ui.find({ type: 'Text', text: /^morning-digest/ })
+  const row = await ui.find({ type: 'Text', text: /^(› |  )?morning/ })
   expect(row?.text).toMatch(/…$/)
   expect((row?.text ?? '').length).toBeLessThanOrEqual(27)
   await ui.unmount()
@@ -216,7 +222,7 @@ test('with no seat for a pane, the terminal view is drawn in the band until its 
   expect(JSON.stringify(said)).toMatch(/shown above the prompt/)
 
   const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await band.find({ type: 'Text', text: /^ask-reviewer\s+needs your answer$/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /^(› |  )?ask-reviewer\s+needs your answer · / })).toBeDefined()
   expect(await band.find({ type: 'Text', text: /↑↓ select · Enter or 1-4 open · c close/ })).toBeDefined()
   expect(JSON.stringify(await band.drawn())).toContain('"hotkey":"c"')
   calls.length = 0

@@ -37,6 +37,12 @@ export type Board = {
   selected: string
   // The task whose own view the terminal shows, by name; empty shows the list.
   opened: string
+  // The first task the terminal list shows, when there are more tasks than rows.
+  top: number
+  // What a key started, shown in the key line until it finishes; empty when nothing is under way.
+  busy: string
+  // The first line an open log shows, when it is longer than the pane.
+  logTop: number
 }
 
 declare module 'claude-code' {
