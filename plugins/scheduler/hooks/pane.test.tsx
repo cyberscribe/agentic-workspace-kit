@@ -192,6 +192,17 @@ test('a row longer than the dock is cut to one line', async ($, on) => {
   await ui.unmount()
 })
 
+test('a key line wider than the dock gives up its digits, not its keys', async ($, on) => {
+  const calls: Call[] = []
+  beneath(on, calls)
+  const clock = mock.clock(on, { now: Date.parse('2026-10-30T10:00:00Z') })
+  await openPane($, clock)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 40, placement: 'dock' } })
+  const line = await ui.find({ type: 'Text', text: /↑↓ select/ })
+  expect(line?.text).toBe('↑↓ select · Enter open · Esc leaves')
+  await ui.unmount()
+})
+
 const BAND = {
   plugin: 'scheduler',
   component: 'AbovePrompt',

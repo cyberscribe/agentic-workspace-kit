@@ -21,18 +21,18 @@ turn.
 - **The scheduler pane is a terminal list.** It takes the keyboard as it opens and lays itself out to the
   height Claude Code gives it (it asks for all of it: 27 rows in a 40-line terminal, where it had 11), since a
   pane taller than its room scrolls and the arrows then move the text, not the cursor. Each task is one row
-  led by a state word (needs your answer, failed, paused, active, running), then its schedule and next run, so a
-  narrow pane cuts the schedule rather than the state; Up and Down move, and with more tasks than fit
-  the list is a window with `↑ N more` and `↓ N more` rows and its position in the key line (`7–12 of 20`),
-  so every task can be reached. Enter or a digit opens a task; `r` run now, `p` pause or resume and `l` log
-  act on the selected row, drawn on screen with their keys. An open task lists its actions one under another
-  (Left is Claude Code's own key and Right does nothing in a pane), shows its next run and its log, and a
-  waiting run's view opens with the answer field focused. Escape goes back from a task to the list, then
-  closes the pane. A `›` marks the selection as text; a key says what it started at once ("pausing…",
-  "sending: 2"), the row takes the new state as soon as the scheduler confirms it, and a line gives the
-  result, with no older read allowed to draw over it. A log reads like a pager, a line per arrow. The first
-  open draws the last list at once (`schedule.sh list --json --cached`, kept in the scheduler's state folder)
-  while the full read runs. Checked on Claude Code 2.1.332 by the new harness and a
+  led by a state word (needs your answer, failed, paused, active, running), then its schedule and next run, so
+  a narrow pane cuts the schedule rather than the state, and its key line words rather than keys; Up and Down
+  move, and with more tasks than fit the list is a window with `↑ N more` and `↓ N more` rows and its position
+  in the key line (`7–12 of 20`), so every task can be reached. Enter or a digit opens a task; `r` run now,
+  `p` pause or resume and `l` log act on the selected row, drawn on screen with their keys. An open task lists
+  its actions one under another (Left is Claude Code's own key and Right does nothing in a pane), shows its
+  next run and its log, and a waiting run's view opens with the answer field focused. Escape goes back from a
+  task to the list, then closes the pane. A `›` marks the selection as text; a key says what it started at
+  once ("pausing…", "sending: 2"), the row takes the new state as soon as the scheduler confirms it, and a
+  line gives the result, with no older read allowed to draw over it. A log reads like a pager, a line per
+  arrow. The first open draws the last list at once (`schedule.sh list --json --cached`, kept in the
+  scheduler's state folder) while the full read runs. Checked on Claude Code 2.1.332 by the new harness and a
   cold-user agent (below). The desktop pane is unchanged.
 - **Hygiene reports the context a session carries.** A hooks module in the workspace plugin reads the
   status line's figure once, after the first turn of each session inside a kit workspace, and appends a

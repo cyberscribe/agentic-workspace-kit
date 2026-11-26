@@ -697,13 +697,24 @@ function terminalView(
   const nameRoom = narrow ? Math.max(10, Math.min(width, cols - 22)) : width
   const above = top
   const below = Math.max(0, total - top - shown)
+  const leave = close ? 'c close' : 'Esc leaves'
+  const at = (sep: string) => (total > shown ? `${top + 1}–${top + window.length}${sep}${total} · ` : '')
+  const digits = window.length > 1 ? ` or 1-${Math.min(9, window.length)}` : ''
+  // The key line is never cut: a docked pane can be narrower than its long form, so it gives up the position's
+  // words, then the digits, then the position, and keeps the keys that move, open and leave.
+  const shortest = `↑↓ select · Enter open · ${leave}`
+  const lines = [
+    `${at(' of ')}↑↓ select · Enter${digits} open · ${leave}`,
+    `${at('/')}↑↓ select · Enter${digits} open · ${leave}`,
+    `${at('/')}↑↓ select · Enter open · ${leave}`,
+  ]
   const keys = b.busy
     ? `working: ${b.busy}…`
     : total === 0
-      ? `Make one with /scheduler:tasks · ${close ? 'c close' : 'Esc leaves'}`
+      ? `Make one with /scheduler:tasks · ${leave}`
       : folded
-        ? `${total > shown ? `${top + 1}–${top + window.length}/${total} · ` : ''}↑↓ Enter open · ${close ? 'c close' : 'Esc leaves'}`
-        : `${total > shown ? `${top + 1}–${top + window.length} of ${total} · ` : ''}↑↓ select · Enter${window.length > 1 ? ` or 1-${Math.min(9, window.length)}` : ''} open · ${close ? 'c close' : 'Esc leaves'}`
+        ? `${at('/')}↑↓ Enter open · ${leave}`
+        : (lines.find(line => line.length <= cols) ?? shortest)
   const spare = rows - (folded ? 1 : 2) - result - (heading ? 1 : 0) - window.length - (above > 0 ? 1 : 0) - (below > 0 ? 1 : 0)
 
   return (

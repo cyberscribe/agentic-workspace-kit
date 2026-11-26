@@ -59,7 +59,7 @@ taller than its room scrolls, and while it scrolls the arrows move the text, not
 Code 2.1.332: above the prompt it gets 11 rows in a 24-line terminal and 27 in a 40-line one; in fullscreen mode
 a 24-line terminal gives 6, and from 110 columns Claude Code docks the pane beside the conversation in a column
 of its own, up to 45% of the width, with the full height. A plugin cannot choose between those seats, so each
-row is cut to the pane's width rather than wrapped. Checked on 2026-11-26 in default and fullscreen mode at
+row is cut to the pane's width rather than wrapped; the key line drops words, never its keys. Checked on 2026-11-26 in default and fullscreen mode at
 80×24, 120×40 and 170×40, by the harness in `tests/pane/` (section 30). When the
 terminal has no room to seat the pane, the same view is drawn in the band above the prompt, with `c` to close
 it. The band stacks one row per plugin, so other mods share it: rows past

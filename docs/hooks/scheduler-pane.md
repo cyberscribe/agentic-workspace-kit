@@ -23,7 +23,7 @@ result follows on its own line. An open task lists its actions one under another
 time like a pager; a waiting run's shows the whole question with the answer field focused, so answering is type,
 then Enter. Escape goes back from a task to the list, then closes the pane. The pane asks for all the height it
 can get and fits itself to it, and its first open draws the last list it read while it reads the new one. In fullscreen
-from 110 columns Claude Code docks the pane in a column beside the conversation, and each row is cut to fit.
+from 110 columns Claude Code docks the pane in a column beside the conversation; rows are cut, keys never.
 When the terminal has no room to seat a pane, the same view is drawn in the band above the prompt, with `c` to
 close it.
 
