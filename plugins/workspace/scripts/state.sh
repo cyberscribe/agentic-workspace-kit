@@ -33,7 +33,8 @@
 # Keys (the meaning of each is in the comment beside the line that works it out):
 #   state_version target in_git commits uncommitted authors author_names person person_slug
 #   always_loaded agents_md claude_md gemini_md standins_remaining surface_standins
-#   people_dir person_profile person_profile_path person_profile_candidates people_profiles
+#   people_dir person_profile person_profile_path person_profile_named person_profile_candidates
+#   people_profiles
 #   projects_conventions projects_dir paused_dir done_dir conventions_not_set in_flight_limit
 #   staleness default_owner
 #   register register_path register_rows project_folders projects_without_current_state
@@ -1202,13 +1203,47 @@ case "$people" in *'<'*) people="${people%%<*}" ;; esac
 people="${people%/}"; people="${people#./}"
 # people_dir: the folder person profiles live in.
 emit people_dir "$people"
-if [[ -z "$person_slug" ]]; then prof=unknown prof_path=""; note "git config user.name is not set"
+# A workspace that keeps a person's profile outside the people folder names it in the conventions:
+# "- **Own profile:** `memory/me.md`" where one person works, or one "`<git user.name>: <path>`" span per
+# person in a shared workspace. A named span counts for that name alone (matched as the slug is made);
+# a bare path counts only on a line that names no one. A span with a stand-in in it (<name>) is the
+# template's example, and counts for no one; so does a line inside an HTML comment, as the template has it.
+own=""
+[[ -f "$T/.claude/projects.md" ]] && own="$(awk -v me="$person_slug" '
+    # c: inside an HTML comment at the start of this line; a comment opened here and not closed hides
+    # the lines after it.
+    { l = tolower($0); was = c; t = $0
+      while (t != "") { if (!c && (i = index(t, "<!--"))) { c = 1; t = substr(t, i + 4) }
+                        else if (c && (i = index(t, "-->"))) { c = 0; t = substr(t, i + 3) } else t = "" } }
+    !was && l ~ /^[ \t]*[-*] \*\*own profile:\*\*/ {
+        l = $0; named = 0; bare = ""; hit = ""
+        while (match(l, /`[^`]*`/)) {
+            s = substr(l, RSTART + 1, RLENGTH - 2); l = substr(l, RSTART + RLENGTH)
+            if (s ~ /</) continue
+            i = index(s, ": ")
+            if (i) {
+                named = 1; n = tolower(substr(s, 1, i - 1)); p = substr(s, i + 2)
+                gsub(/[^a-z0-9]+/, "-", n); sub(/^-/, "", n); sub(/-$/, "", n); sub(/^ +/, "", p)
+                if (me != "" && n == me && hit == "") hit = p
+            } else if (bare == "") bare = s
+        }
+        print (named ? hit : bare); exit
+    }' "$T/.claude/projects.md" 2>/dev/null)"
+own="${own#./}"
+if [[ -n "$own" ]]; then
+    if [[ -f "$T/$own" ]]; then prof=present prof_path="$own"
+    else prof=missing prof_path=""; note "the conventions' Own profile line names $own, which is not there"; fi
+elif [[ -z "$person_slug" ]]; then prof=unknown prof_path=""; note "git config user.name is not set"
 elif [[ -f "$T/$people/$person_slug.md" ]]; then prof=present prof_path="$people/$person_slug.md"
 else prof=missing prof_path=""; fi
-# person_profile: present | missing | unknown (no user.name) — this person's profile.
+# person_profile: present | missing | unknown (no user.name) — this person's profile: at the path the
+# conventions' Own profile line names for them when there is one, else <people_dir>/<person_slug>.md.
 emit person_profile "$prof"
 # person_profile_path: that profile's path, when present.
 emit person_profile_path "$prof_path"
+# person_profile_named: the path the conventions' Own profile line names for this person, there or not
+# (a missing profile with this set is a line pointing nowhere); empty when no line names one.
+emit person_profile_named "$own"
 # Profiles that might be this person's under another name (first name only, say): for the agent to confirm.
 first="${person_slug%%-*}"
 # Markdown files in the people folder, README aside, matched without regard to case; a glob, not ls, so

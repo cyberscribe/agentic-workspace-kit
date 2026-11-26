@@ -7,12 +7,13 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ## Unreleased — 3.11.0
 
-**To update:** run `kit/setup.sh update` in the workspace. No template changes. The plugins take effect
+**To update:** run `kit/setup.sh update` in the workspace. One template change: the example conventions
+(`templates/workspace/projects.md`) carry an **Own profile** line, commented out. The plugins take effect
 in the next session.
 
-**Plugins.** scheduler 0.2.0: the pane takes the keyboard on the terminal. workspace 2.6.0: a reading of
-the context after each session's first turn, reported by hygiene. projects 3.9.1: the retrospective's
-second question. closeout 1.8.0 and ongoing 0.2.0 are unchanged.
+**Plugins.** scheduler 0.2.0: the pane takes the keyboard on the terminal. workspace 2.6.0: a reading of the
+context after each session's first turn, reported by hygiene; the state check reads an Own profile line.
+projects 3.9.1: the retrospective's second question. closeout 1.8.0 and ongoing 0.2.0 are unchanged.
 
 **What the kit costs every session.** Unchanged: no command description, session-start line or reminder
 changed length. The new module prints nothing; it writes one line outside the repository after the first
@@ -66,6 +67,13 @@ turn.
   unreadable, which made every unit look changed, with `sync` suggested. An empty or refused `launchctl
   list`, an unreadable LaunchAgents folder or a silent `systemctl --user` now makes each unit `unknown` from
   that shell, with no `sync` suggested and nothing counted as a problem; `show` and `doctor <name>` say so.
+- **The state check finds a profile kept outside the people folder.** A workspace that keeps a person's
+  profile elsewhere names it in `.claude/projects.md` with an **Own profile** line (`memory/me.md`, or one
+  `<git user.name>: <path>` per person in a shared workspace; the example conventions carry it commented out).
+  `state.sh` reads it before the people folder: `person_profile=present` at that path, or `missing` with the
+  path in the new `person_profile_named`; with no line, nothing changes. Such a workspace was read as
+  `joining`, and the quick-start offered a newcomer's interview to someone with a profile. It now asks only
+  for roles, and only when that profile has none.
 - **The pane is tested as a person uses it.** `tests/pane/harness.sh` drives `/scheduler-pane` in Claude Code
   in detached tmux sessions on scratch schedulers (0 to 60 tasks; 80×24, 120×40 and 170×40; classic and
   fullscreen), checks a set of rules on every frame (the selection and the key line visible, every task

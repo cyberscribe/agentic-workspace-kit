@@ -3332,8 +3332,9 @@ st_expect "11 fresh: mode and the always-loaded file" "$r" mode=fresh always_loa
 [[ "$(st_key "$r" standins_remaining)" -gt 0 && "$(st_key "$r" surface_standins)" == 0 ]] \
     && ok "11 fresh: stand-ins counted in §1–§3 of CLAUDE.md, none in the rendered §4 surface table" \
     || ko "11 fresh: stand-ins counted in §1–§3 of CLAUDE.md, none in the rendered §4 surface table" "$r"
+# The template's Own profile line is an example inside a comment, which names no one's profile.
 st_expect "11 fresh: the person, their profile and the project conventions" "$r" "person=Priya Shah" \
-    person_slug=priya-shah person_profile=missing person_profile_path= people_dir=memory/people people_profiles=0 \
+    person_slug=priya-shah person_profile=missing person_profile_path= person_profile_named= people_dir=memory/people people_profiles=0 \
     projects_conventions=kit "projects_dir=projects/<slug>/" "paused_dir=projects/<slug>/" "done_dir=projects/_done/<slug>/" \
     conventions_not_set=0 in_flight_limit=200 "staleness=1 week" default_owner=
 st_expect "11 fresh: register, decisions log and the other canonical files" "$r" register=kit \
@@ -3357,7 +3358,7 @@ PYFILL
 git -C "$SJ" add -A && git -C "$SJ" -c commit.gpgsign=false commit -q -m "Set up the kit"
 r="$(st_run "$SJ")"
 st_expect "11 joining: no stand-ins left and no profile for this person" "$r" mode=joining standins_remaining=0 \
-    surface_standins=0 person_profile=missing signs= commits=1 authors=1 "author_names=Test Runner" uncommitted=0
+    surface_standins=0 person_profile=missing person_profile_named= signs= commits=1 authors=1 "author_names=Test Runner" uncommitted=0
 
 # Nothing left: the same, with this person's profile, generated skills and a project folder with its
 # own decisions log — none of which is a sign of another system.
@@ -3379,6 +3380,34 @@ r="$(st_run "$SN/memory" --json)"
 [[ "$(printf '%s' "$r" | jq -r '.mode + " " + .target' 2>/dev/null)" == "nothing-left $SN" ]] \
     && ok "11 --json gives the same facts, and a folder inside a repository reports on the repository" \
     || ko "11 --json gives the same facts, and a folder inside a repository reports on the repository" "$r"
+
+# A profile kept outside the people folder, named by the conventions' Own profile line: there, it is
+# this person's profile and the mode moves on; pointing nowhere, it is missing with the path named; a
+# shared workspace's line counts only the span with this person's name. The fixture above, with no such
+# line (and the template's own example commented out), is unchanged.
+SW="$SCRATCH/state-own-profile"
+cp -R "$SJ" "$SW"
+st_own() { python3 - "$SW/.claude/projects.md" "$1" <<'PYOWN'
+import re, sys
+p, line = sys.argv[1], sys.argv[2]
+s = re.sub(r"(?m)^- \*\*Own profile:\*\*.*\n", "", open(p, encoding="utf-8").read())
+open(p, "w", encoding="utf-8").write(re.sub(r"(?m)^(- \*\*People:\*\*)", line + "\n\\1", s, count=1))
+PYOWN
+}
+st_own '- **Own profile:** `memory/ai/USER.md`'
+r="$(st_run "$SW")"
+st_expect "11 an Own profile line naming a file that is missing: missing, with the path named" "$r" \
+    person_profile=missing person_profile_path= person_profile_named=memory/ai/USER.md mode=joining
+mkdir -p "$SW/memory/ai" && printf '# Priya Shah\n\n## Roles\n\n- A designer\n' > "$SW/memory/ai/USER.md"
+r="$(st_run "$SW")"
+st_expect "11 an Own profile line naming a file that is there: present at that path, and nothing left" "$r" \
+    person_profile=present person_profile_path=memory/ai/USER.md person_profile_named=memory/ai/USER.md mode=nothing-left
+st_own '- **Own profile:** `Sam Lee: memory/sam.md`, `priya shah: memory/ai/USER.md`'
+st_expect "11 a shared workspace's Own profile line: the span with this person's name counts" "$(st_run "$SW")" \
+    person_profile=present person_profile_path=memory/ai/USER.md
+st_own '- **Own profile:** `Sam Lee: memory/ai/USER.md`'
+st_expect "11 a shared workspace's Own profile line naming only someone else: as if there were no line" "$(st_run "$SW")" \
+    person_profile=missing person_profile_named= mode=joining
 
 # Joining comes before existing system: once the team's file is filled in, what the first person left
 # beside it is settled, so a newcomer is offered the personal part.

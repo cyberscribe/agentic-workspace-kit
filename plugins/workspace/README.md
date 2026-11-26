@@ -152,6 +152,18 @@ bash kit/plugins/workspace/scripts/state.sh ../other-repo --json
 bash kit/plugins/workspace/scripts/state.sh --explain submodule.kit
 ```
 
+A person's profile is `<people folder>/<full-name-slug>.md`, unless the conventions
+name it elsewhere with a line in `.claude/projects.md`, which the example
+conventions carry commented out; a shared workspace gives one `<git user.name>:
+<path>` per person:
+
+```
+- **Own profile:** `memory/me.md`
+```
+
+Then `person_profile` is `present` with `person_profile_path` set when that file is
+there, and `missing` with `person_profile_named` holding the path when it is not.
+
 `--quick` gives only the keys the session-start summary reads, at a cost that
 does not grow with the number of projects. `--json` gives the same facts as one
 object. `--explain` says what each key means, or one key, from the comments beside
