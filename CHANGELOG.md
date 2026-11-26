@@ -5,11 +5,11 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
-## Unreleased — 3.11.0
+## v3.11.0 — 2026-11-26
 
 **To update:** run `kit/setup.sh update` in the workspace. One template change: the example conventions
-(`templates/workspace/projects.md`) carry an **Own profile** line, commented out. The plugins take effect
-in the next session.
+(`templates/workspace/projects.md`) carry an **Own profile** line, commented out. From 3.9.0, the update also
+offers 3.10.0's three template changes, folded in below. The plugins take effect in the next session.
 
 **Plugins.** scheduler 0.2.0: the pane takes the keyboard on the terminal. workspace 2.6.0: a reading of the
 context after each session's first turn, reported by hygiene; the state check reads an Own profile line, and
@@ -106,9 +106,10 @@ turn.
   a file that falls under neither paragraph.
 - `.gitignore` leaves out the `tsconfig.json` Claude Code writes beside a plugin loaded with `--plugin-dir`.
 
----
+### Folded in: 3.10.0 (2026-11-21)
 
-## v3.10.0 — 2026-11-21
+3.10.0 was dated here and never tagged or released; the last tag before this one is v3.9.0. It ships as
+part of 3.11.0, and its entry is kept below as it was written.
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. It offers
 three template changes as diffs: the project and area READMEs (a role on each People line) and the
