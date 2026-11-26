@@ -12,6 +12,8 @@ with the script `plugins/scheduler/scripts/schedule.sh` and its `port` step in `
   `permission_mode: dontAsk`.
 - Shows the task file and its next three fire times as a dry run, and writes it on a yes. The unit
   goes into launchd on macOS, systemd user timers on Linux, or a marked block of the crontab elsewhere.
+- On its own, with nothing asked, lists the tasks and stops, with one line on what can come next;
+  `doctor` runs when asked, or for a task the list shows failing.
 - Answers the everyday questions through the same script: `list`, `show`, `edit`, `pause`, `resume`,
   `run` now, `delete` (to `tasks/.trash/`), `runs --since` for what ran overnight (late runs marked),
   `log` for why one failed, `reply` for a run awaiting the person, `report` for a week's due fires,

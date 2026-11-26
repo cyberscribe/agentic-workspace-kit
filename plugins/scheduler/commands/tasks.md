@@ -24,6 +24,14 @@ awaiting a reply.
 so it does not need a kit workspace. The tasks belong to this machine and this
 person's login, and they keep running after this session ends.
 
+## With nothing asked
+
+`/scheduler:tasks` on its own means "what's scheduled?". Run `list`, show its table as it is, and
+stop there, with one line on what can come next: show, pause, run or change a task by its name, or
+describe a new one. `doctor` is for when the person asks whether things are working, or when the list
+itself shows a problem (a failed run, a task that paused itself), and then for that task alone:
+`doctor <name>`.
+
 ## Written on a yes
 
 Every change this command makes to a file is shown first, as it will be written, and written only on
