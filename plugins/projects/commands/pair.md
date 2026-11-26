@@ -98,7 +98,8 @@ bash <kit>/plugins/projects/hooks/pair.sh gates \
   --from pm --id G1 pass "<what you saw>"
 ```
 
-The commands:
+The commands, each run as `bash kit/plugins/projects/hooks/pair.sh …` (the file is not executable
+on its own; the hooks call it through `bash` too):
 
 - `pair.sh post --mailbox <dir> --from pm --pm <token> --title "<title>"`, the message on
   stdin, appends it to `to-cc.md` under the next id, taken under a lock, with
@@ -361,6 +362,27 @@ messages but never hears PM ones; `join` fixes that in place.
 `leave` runs `pair.sh leave --mailbox <dir>`: the session is unbound and its watch
 ends. Closing the pairing (`.closed`) unbinds a joined session the same way, at the
 end of its next turn.
+
+## Closing out a session in the pairing
+
+A closeout is not the close: it keeps what the sessions learned, and the pairing goes on. When the
+person runs closeout here (the command, the Cowork skill or the ritual by hand) while this session
+holds an open pairing (its token in the mailbox's `.pm-session`, and no `.closed`), the engineers go
+first and this session last, one writer per file:
+
+1. Before writing anything durable, run `pair.sh check` for each pairing this session holds. An
+   engineer that is `ended`, `idle` with no watch, or `stopped` is not waited for. To each of the
+   others, post a `PM-NNN` titled `Close out`, one engineer at a time when there are several: the next
+   one's message goes once the one before has answered. The message says what the mailbox README's
+   *Closing out* section says: close out your own session now, write only your own files, propose
+   any entry for the shared files in your reply, and reply `Closed out` with every file you wrote.
+2. Wait for each `Closed out` with the watch, up to 15 minutes from the post. A reply that does not
+   come in that time, or an engineer that stops meanwhile, does not hold the closeout up.
+3. Then close out this session. Read the engineers' lists first. Write the shared files: the
+   project's decisions log, its README's Current state, the workspace's memory and logs, with the
+   engineers' proposed entries in their place. Leave alone every file an engineer listed.
+4. In the report, name each engineer that did not close out, with the command that resumes it
+   (`bash kit/plugins/projects/scripts/pair.sh <project folder>`), so the person can run its closeout.
 
 ## Closing
 

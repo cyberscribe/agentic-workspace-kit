@@ -70,6 +70,8 @@ cat >"$s26/bin/launchctl" <<'EOF'
 #!/bin/bash
 d="$(dirname "$0")"; echo "$*" >>"$d/launchctl.log"; touch "$d/loaded"
 case "$1" in
+    # A real launchd always lists jobs; the stub lists one of its own beside the loaded labels.
+    list) printf 'PID\tStatus\tLabel\n-\t0\tcom.example.always\n'; sed 's/^/-\t0\t/' "$d/loaded" ;;
     print) grep -qx "${2##*/}" "$d/loaded" ;;
     bootstrap) l="$(sed -n '/<key>Label<\/key>/{n;s/.*<string>\(.*\)<\/string>.*/\1/p;}' "$3")"; echo "$l" >>"$d/loaded" ;;
     bootout) grep -vx "${2##*/}" "$d/loaded" >"$d/loaded.tmp"; mv "$d/loaded.tmp" "$d/loaded"
@@ -1062,6 +1064,14 @@ s26_cmd="$(tr '\n' ' ' <"$KIT/plugins/scheduler/commands/tasks.md" | tr -s ' ')"
 grep -q -i 'delete' "$KIT/plugins/scheduler/scripts/lib/port.sh" && [[ "$(grep -i 'delete' "$KIT/plugins/scheduler/scripts/lib/port.sh" | grep -v -i -c 'never\|not \|nothing')" != 0 ]] && s26_bad+="port.sh has a delete that is not a negation"$'\n'
 empty "26 port: a moved cloud task is paused, never deleted; the command says so and gives the way back, and no line deletes one" "$s26_bad"
 
+# With nothing asked, the command lists and stops; doctor runs only when asked or for a task the list shows failing.
+s26_bad=""
+[[ "$s26_cmd" == *'## With nothing asked'* && "$s26_cmd" == *'Run `list`, show its table as it is, and stop there'* \
+    && "$s26_cmd" == *'`doctor` is for when the person asks whether things are working, or when the list itself shows a problem'* ]] \
+    || s26_bad+="the command does not say that on its own it lists and stops"$'\n'
+grep -q 'On its own, with nothing asked, lists the tasks and stops' "$KIT/docs/commands/scheduler-tasks.md" || s26_bad+="the page does not say it"$'\n'
+empty "26 /scheduler:tasks with nothing asked lists the tasks and stops; doctor only when asked or for a failing task" "$s26_bad"
+
 # With none of the OS-tool overrides set, as on a person's machine, create still writes the env file
 # the runner starts from, with claude's path in it; without it, doctor says so.
 s26_bad=""
@@ -1511,6 +1521,17 @@ s26_pn="$(grep -c "command.register({ name: 'scheduler-pane'" "$KIT/plugins/sche
 [[ "$s26_pn" == 1 ]] && grep -q '/scheduler-pane' "$KIT/docs/hooks/scheduler-pane.md" \
     && ok "26 the pane registers /scheduler-pane, and its page names that command" \
     || ko "26 the pane registers /scheduler-pane, and its page names that command" "register count $s26_pn"
+# The README says what the terminal pane does now, and how other mods in the band can hide its view there.
+s26_bad=""
+for s26_t in 'a list that takes the keyboard when it opens' 'Up and Down move between the rows' \
+    'Escape goes back one level' 'Ctrl+D belong to the field' 'docks the pane beside the conversation' \
+    'the list is a window that follows the cursor' 'Left is Claude Code'"'"'s own key' 'lays itself out to fit it' \
+    'The band stacks one row per plugin' 'a key two plugins both use presses' 'neither'; do
+    grep -qF -- "$s26_t" "$KIT/plugins/scheduler/README.md" || s26_bad+="README lacks: $s26_t"$'\n'
+done
+grep -qF 'On the terminal the pane is a view, not a control' "$KIT/plugins/scheduler/README.md" && s26_bad+="README still calls the terminal pane a view"$'\n'
+empty "26 the README says the terminal pane takes keys, and what can hide its band view" "$s26_bad"
+
 # --- The plugin's own tests (the pane) -------------------------------------------------------------
 # --- Catch-up (PM-082): a fire due while the machine was off ------------------------------------------
 # launchd runs a calendar job missed during sleep on wake, but not one missed while the machine was off;
@@ -1597,6 +1618,39 @@ s26_mk cu1 '0 7 * * *'
 s26_cu=("$s26/systemd"/*catchup*); [[ ! -e "${s26_cu[0]}" ]] || s26_bad+="systemd: a catch-up unit was written"$'\n'
 s26_backend=none
 empty "26 catch-up units: a launchd agent with RunAtLoad that sync keeps and removes with the last active task; a cron @reboot line beside the task lines; none on systemd" "$s26_bad"
+
+# list --json keeps its answer in the state folder, and list --json --cached prints it at once (the pane draws it
+# while a full read runs); before any list there is nothing, with status 1.
+s26_reset; s26_backend=none
+s26_bad=""
+s26_o="$(s26_x list --json --cached 2>&1)"; s26_rc=$?
+[[ $s26_rc -ne 0 && -z "$s26_o" ]] || s26_bad+="with no list yet, --cached said '$s26_o' (status $s26_rc)"$'\n'
+s26_mk cache1 '0 7 * * *'; s26_mk cache2 '30 8 * * 1-5'
+s26_full="$(s26_x list --json 2>&1)"
+[[ "$(s26_x list --json --cached 2>&1)" == "$s26_full" ]] || s26_bad+="--cached does not print the last --json answer"$'\n'
+[[ "$(jq -r '.[].name' <<<"$(s26_x list --json --cached)" | paste -sd' ' -)" == "cache1 cache2" ]] || s26_bad+="the cache does not hold both tasks"$'\n'
+empty "26 list --json keeps its answer, and --cached prints it at once; nothing before the first list" "$s26_bad"
+
+# Seen from inside a sandbox, launchd hides its jobs (an empty or refused launchctl list) and the unit files
+# may be unreadable. doctor then says the scheduler cannot be seen from this shell and each unit is unknown,
+# and suggests no sync, which would rewrite units that are healthy; in sight again, the same unit is installed.
+s26_reset; s26_backend=launchd
+s26_mk blind1 '0 7 * * *'
+s26_bad=""
+mv "$s26/bin/launchctl" "$s26/bin/launchctl.seeing"
+printf '#!/bin/bash\nexit 1\n' >"$s26/bin/launchctl"; chmod +x "$s26/bin/launchctl"
+s26_o="$(s26_x doctor 2>&1)"
+[[ "$s26_o" == *"Scheduler: not visible from this shell (launchctl list is empty or refused from this shell)"* ]] || s26_bad+="doctor does not say it cannot see the scheduler: $s26_o"$'\n'
+[[ "$s26_o" == *"Task blind1: active, unit unknown from this shell"* ]] || s26_bad+="the task's unit is not unknown: $s26_o"$'\n'
+[[ "$s26_o" != *"sync' puts it right"* ]] || s26_bad+="doctor suggests a sync while blind: $s26_o"$'\n'
+[[ "$(s26_x doctor blind1 2>&1)" == *"unit (launchd): unknown from this shell"* ]] || s26_bad+="doctor blind1 does not say unknown: $(s26_x doctor blind1 2>&1)"$'\n'
+[[ "$(s26_x show blind1 2>&1)" == *"unknown: this shell cannot see the scheduler"* ]] || s26_bad+="show does not say unknown: $(s26_x show blind1 2>&1)"$'\n'
+printf '#!/bin/bash\n[ "$1" = list ] && exit 0\nexit 1\n' >"$s26/bin/launchctl"
+[[ "$(s26_x doctor 2>&1)" == *"Task blind1: active, unit unknown from this shell"* ]] || s26_bad+="an empty list is not read as hidden"$'\n'
+mv "$s26/bin/launchctl.seeing" "$s26/bin/launchctl"
+[[ "$(s26_x doctor 2>&1)" == *"Task blind1: active, unit installed"* ]] || s26_bad+="in sight again, the unit is not installed: $(s26_x doctor 2>&1)"$'\n'
+s26_backend=none
+empty "26 doctor in a sandbox: launchd hidden means each unit is unknown, with no sync suggested; in sight, installed" "$s26_bad"
 
 # claude plugin test runs each *.test.tsx under the plugin folder; a build without the subcommand prints one skip.
 if command -v claude >/dev/null 2>&1 && claude plugin test --help >/dev/null 2>&1; then

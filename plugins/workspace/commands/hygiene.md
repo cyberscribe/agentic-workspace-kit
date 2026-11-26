@@ -99,6 +99,19 @@ apart.
   command, as in Cowork's shell or a container), the line says that, and the
   check is not a failure. The figure leaves out what a plugin's hooks print into
   a session, which Claude Code does not count; say so once under the line.
+  Then run `bash kit/plugins/workspace/scripts/context-readings.sh` from the
+  repository root and report its `reading` lines under the plugin cost: the
+  tokens each recent session held after its first turn, with the plugins it
+  carried. Say plainly that the two measure different things: the plugin cost
+  is each plugin's always-on listing, and a reading is the whole window a real
+  session carried, hook output and the first exchange included, so it moves
+  with the workspace and the prompt. Read the readings as a trend and do not
+  subtract one from the other. Where it says `no readings yet`, say so.
+  Then run `bash kit/plugins/workspace/scripts/prune-plugin-records.sh`, which
+  only counts: install records left for project folders that no longer exist
+  (scratch copies, temporary worktrees). When it finds any, report the count
+  and give the person its `--apply` line to run themselves, with Claude Code
+  closed; hygiene changes nothing in the person's own Claude Code files.
 - **Submodules.** Run the kit's state check in its quick form from the
   repository root — `bash kit/plugins/workspace/scripts/state.sh --quick` — and put
   every `submodule.<path>` line in a table, clean ones included: path · role ·

@@ -29,6 +29,17 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/workspace:quick-start` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+This holds in every part: the team part's lines in the always-loaded file, the profile, the
+conventions files, and each setup step.
+
 ## Find out where things stand
 
 Before asking anything, run the state check from the repository root. It prints
@@ -49,7 +60,7 @@ names what it reads, so the same keys come from reading those files yourself.
 | `mode` | Which mode this is: see the next section |
 | `always_loaded` | The file every session here loads: `CLAUDE.md`, whose first line imports the kit's standards, `kit/CLAUDE.kit.md`. Judge stand-ins and fill the team part there, below the import; `kit/CLAUDE.kit.md` is the kit's and changes only by pull request to the kit, and `AGENTS.md`, a router for other tools, stays as it is. If the file cannot be read from this shell, what this surface actually loaded decides |
 | `standins_remaining`, `surface_standins` | Angle-bracketed stand-ins left in §1–§3, and rows to fill or remove in the §4 surface table. Above 0, the team part is open |
-| `person`, `person_profile`, `person_profile_candidates` | The person in front of you, from `git config user.name`, to confirm rather than assume; whether their profile is in `people_dir`; and profiles that may be theirs under another name |
+| `person`, `person_profile`, `person_profile_candidates` | The person in front of you, from `git config user.name`, to confirm, not assume; their profile, if any, at `person_profile_path` (an **Own profile** line's path, else in `people_dir`); profiles that may be theirs under another name |
 | `authors`, `author_names`, `readme`, `codeowners` | What the repository already says about the team: offer it as suggested answers, so people confirm rather than compose. One author is the cue for a Default owner line |
 | `conventions_not_set`, `in_flight_limit`, `staleness`, `default_owner` | The settings in `.claude/projects.md`. Each one still reading "not set yet" is a question for the team part |
 | `register_rows`, `glossary_terms`, `terms_rows`, `build_list`, `verification`, `catalogue` | What an earlier run already answered: offer only the questions still open |
@@ -70,16 +81,18 @@ which parts you will offer. The script takes the first that fits, in this order:
 - **`joining`** — the always-loaded file, `CLAUDE.md`, has no stand-ins left in
   its own §1–§3, and this person has no profile: the personal part only. This is what most people after the first will see; whatever the
   first person mapped or left beside the kit's files is already settled, and so
-  is the metrics baseline (see the last section).
-- **`existing-system`** — `signs` names at least one. The kit adopts rather than
-  installs: go to "Fitting the kit to a system already in place". If the team
-  part is also unfinished, offer only the questions the mapping leaves open.
+  is the metrics baseline.
+- **`nothing-left`** — filled in, and they have a profile: say so, and offer the
+  last section on its own. A profile with no **Roles** list (one made before the
+  kit asked for roles) is offered that one question first, as the personal part
+  asks it, and nothing else of it.
+- **`existing-system`** — `signs` names at least one, and the team part is not
+  filled in under the kit's import (once it is, what the workspace kept is
+  settled). The kit adopts rather than installs: go to "Fitting the kit to a
+  system already in place", asking only what the mapping leaves open.
 - **`fresh`** — stand-ins still in the always-loaded file, whatever the register
   holds: the team part, then the personal part. Where an earlier run already
-  answered some of it (projects in the register, a staleness setting in place), offer only
-  the questions still open.
-- **`nothing-left`** — filled in, and they have a profile: say so, and offer the
-  last section on its own.
+  answered some of it, offer only the questions still open.
 
 Every mode ends with "Reachable and running".
 
@@ -164,17 +177,31 @@ keeps the repository private matters as much to one person as to a team.
 ## The personal part — each person, on their first session
 
 1. **Their profile**, from `kit/templates/person-profile.md` (or the template
-   `.claude/projects.md` names) into the people directory, named as `.claude/projects.md` says (by default their full name,
-   lowercase, joined by hyphens: `memory/people/priya-shah.md`): role, what they own, what to come to them for, what
+   `.claude/projects.md` names) into the people directory, named as `.claude/projects.md` says or its **Own profile** line (by default their full name,
+   lowercase, joined by hyphens: `memory/people/priya-shah.md`): job, what they own, what to come to them for, what
    not to, how they like requests. Written with them, in their words; it is the
    "who to go to" directory for the team and for every agent.
-2. *Optional* — **Their in-flight limit** — how many projects they can be doing
+2. **Their roles** — the parts they play across their life, in their own words:
+   "who are you, at work and outside it, in the things you might bring here?"
+   A marketing leader at work, a parent and a spouse at home, a woodworker at
+   the weekend. A handful at most; one is plenty, and a person who keeps work
+   and home apart may give only their work. Write them as a short list under
+   **Roles** in their profile (add the section if the template does not carry
+   it). Ask nothing about the business itself (its size, revenue or market):
+   the roles are who they are, and each project and area later names the one
+   they are in there, so a session knows whether it is helping a parent plan a
+   holiday or a marketing leader plan a launch. The profile is the team's to
+   read, so they give only what they are glad to share.
+
+   Show the profile as a draft once these are answered, and write it only on
+   their yes: an answer to a question is not a yes to the file.
+3. *Optional* — **Their in-flight limit** — how many projects they can be doing
    at once and still finish them. Offer the team default from
    `.claude/projects.md` as the suggested answer, and add it to their profile as
    an **In-flight limit** row (add the row if the template does not carry it).
    A number below the team default is as useful as one above it; it is theirs
    to set.
-3. *Optional* — **Their personal layer.** Ask how they like an agent to work with
+4. *Optional* — **Their personal layer.** Ask how they like an agent to work with
    them — depth, format, pace — and draft a few lines for their own
    `~/.claude/CLAUDE.md` or their other tool's equivalent. Those files are theirs and
    outside this repository: show the lines and let them add them. Anything that

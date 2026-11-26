@@ -5,6 +5,191 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.11.0 — 2026-11-26
+
+**To update:** run `kit/setup.sh update` in the workspace. One template change: the example conventions
+(`templates/workspace/projects.md`) carry an **Own profile** line, commented out. From 3.9.0, the update also
+offers 3.10.0's three template changes, folded in below. The plugins take effect in the next session.
+
+**Plugins.** scheduler 0.2.0: the pane takes the keyboard on the terminal. workspace 2.6.0: a reading of the
+context after each session's first turn, reported by hygiene; the state check reads an Own profile line, and
+diagnose shows the mode. projects 3.9.1: the retrospective's second question. closeout 1.8.0 and ongoing 0.2.0
+are unchanged.
+
+**What the kit costs every session.** Unchanged: no command description, session-start line or reminder
+changed length. The new module prints nothing; it writes one line outside the repository after the first
+turn.
+
+- **The scheduler pane is a terminal list.** It takes the keyboard as it opens and lays itself out to the
+  height Claude Code gives it (it asks for all of it: 27 rows in a 40-line terminal, where it had 11), since a
+  pane taller than its room scrolls and the arrows then move the text, not the cursor. Each task is one row
+  led by a state word (needs your answer, failed, paused, active, running), then its schedule and next run, so
+  a narrow pane cuts the schedule rather than the state, and its key line words rather than keys; Up and Down
+  move, and with more tasks than fit the list is a window with `↑ N more` and `↓ N more` rows and its position
+  in the key line (`7–12 of 20`), so every task can be reached. Enter or a digit opens a task; `r` run now,
+  `p` pause or resume and `l` log act on the selected row, drawn on screen with their keys. An open task lists
+  its actions one under another (Left is Claude Code's own key and Right does nothing in a pane), shows its
+  next run and its log, and a waiting run's view opens with the answer field focused. Escape goes back from a
+  task to the list, then closes the pane. A `›` marks the selection as text; a key says what it started at
+  once ("pausing…", "sending: 2"), the row takes the new state as soon as the scheduler confirms it, and a
+  line gives the result, with no older read allowed to draw over it. A log reads like a pager, a line per
+  arrow. The first open draws the last list at once (`schedule.sh list --json --cached`, kept in the
+  scheduler's state folder) while the full read runs. Checked on Claude Code 2.1.332 by the new harness and a
+  cold-user agent (below). The desktop pane is unchanged.
+- **Hygiene reports the context a session carries.** A hooks module in the workspace plugin reads the
+  status line's figure once, after the first turn of each session inside a kit workspace, and appends a
+  line to `${XDG_STATE_HOME:-~/.local/state}/agentic-workspace-kit/workspace/context-readings.tsv`:
+  the time, tokens, window, the plugins with commands, and the surfaces (or `headless`).
+  `context-readings.sh` prints the last few for one workspace, leaving out headless runs, and
+  `/workspace:hygiene` reports them under the plugin cost as a different measure: the plugin cost is each
+  plugin's listing, and a reading is the whole window, the session-start hooks' output and the first
+  exchange included. Read them as a trend.
+- **Before you publish.** `CONTRIBUTING.md` lists each check the kit already runs (the path rules, binary
+  and size, the private word list, derived names, the copy check, attribution, the suite), where it runs,
+  what it catches and what it cannot, then what a person reads for: the situation behind a change, pasted
+  material, images, commits made from outside the workspace, and licences.
+- **Dependencies and their licences.** `docs/dependencies.md` lists the programs the kit calls, needed and
+  optional, with what each is for and its licence; the kit vendors no third-party code. Section 12 fails a
+  tool a kit script looks for with `command -v` that has no row there, and the README's Licence section
+  points at the page.
+- **Commands stay within what survives a compaction.** After `/compact`, Claude Code restores an invoked
+  command cut at 20,000 characters (seen on 2.1.332). Section 9 holds every command to 20,000 bytes, and
+  the six already longer (closeout, pair, adopt, quick-start, hygiene, new) at their present size until
+  they are split. CONTRIBUTING says why.
+- **The retrospective asks what didn't work.** `/projects:close` keeps three questions; the second is now
+  "What didn't work, and what would we change because of it?", recorded as "Didn't work, and would
+  change".
+- **Command frontmatter is checked.** Section 12 fails a command without `description` or
+  `offer-unprompted`, or with a key neither Claude Code nor the kit reads, so a misspelt key no longer
+  drops its offer silently.
+- **`/scheduler:tasks` with nothing asked lists and stops**: the table, then one line of what can come
+  next. `doctor` runs when asked, or for a task the list shows failing.
+- **`doctor` knows when it cannot see.** Inside a sandbox, launchd can hide its jobs and the unit files can be
+  unreadable, which made every unit look changed, with `sync` suggested. An empty or refused `launchctl
+  list`, an unreadable LaunchAgents folder or a silent `systemctl --user` now makes each unit `unknown` from
+  that shell, with no `sync` suggested and nothing counted as a problem; `show` and `doctor <name>` say so.
+- **The state check finds a profile kept outside the people folder.** A workspace that keeps a person's
+  profile elsewhere names it in `.claude/projects.md` with an **Own profile** line (`memory/me.md`, or one
+  `<git user.name>: <path>` per person in a shared workspace; the example conventions carry it commented out).
+  `state.sh` reads it before the people folder: `person_profile=present` at that path, or `missing` with the
+  path in the new `person_profile_named`; with no line, nothing changes. Such a workspace was read as
+  `joining`, and the quick-start offered a newcomer's interview to someone with a profile. It now asks only
+  for roles, and only when that profile has none.
+- **A workspace on the kit is not offered adoption again.** Once the team part is filled in under the kit's
+  import, the state check takes what the workspace keeps beside the kit's files (its own register, decisions
+  log or skills) as settled: the mode is `joining` or `nothing-left`, and `signs` still lists them. With its
+  profile found, a workspace that had run on the kit for months read `existing-system`, and quick-start
+  offered to adopt it onto the kit again. Without the import, or with the kit's stand-ins still in, the same
+  signs read `existing-system` as before.
+- **Diagnose shows the mode and whether the profile was found.** The report adds `mode`, `person_profile` and
+  `people_dir` from the full state check (never the profile's path), and runs git without its system config,
+  so a sandbox that refuses `/etc/gitconfig` no longer reads as a kit that is not a git checkout with no git
+  version; where git still fails, the report gives git's own error.
+- **The pane is tested as a person uses it.** `tests/pane/harness.sh` drives `/scheduler-pane` in Claude Code
+  in detached tmux sessions on scratch schedulers (0 to 60 tasks; 80×24, 120×40 and 170×40; classic and
+  fullscreen), checks a set of rules on every frame (the selection and the key line visible, every task
+  reachable, Escape leaves, Ctrl+D quits, each key named does something, every action reachable with the
+  arrows) and presses random keys from what each view binds, three seeds at a time. Section 30 runs it with
+  `AW_TEST_PANE=1` and always checks its frame reader. `tests/pane/cold-user.sh` gives a headless agent only
+  keys and the screen and five goals (run, pause and resume, read a log, answer a waiting run, find the
+  fifteenth task), judged from the scheduler's own state: a run passes on its goal, no key that did nothing,
+  and its own closing line `BLOCKING: none` (nothing unreadable, no guess that could act on the wrong thing,
+  every action seen to happen). The sessions run on a tmux server of their own, with focus events on. Both bind every scheduler path and hook to the
+  fixture, whatever the environment, and fail if the person's own scheduler changes during a run; a run their
+  own scheduler started meanwhile is named and set aside. `--trail` keeps every key and frame, timed.
+- **The scheduler README says what shares the band.** It stacks one row per plugin: rows past its height
+  are left out, another mod can hide or reorder rows, and a key two plugins share presses neither.
+- **All code is MIT.** `LICENSE` names code by kind rather than by file: every script, hook, plugin file,
+  test and configuration file, wherever it sits, is MIT; the prose stays CC BY 4.0. Before this, most
+  scripts and four of the five plugins were named in neither list. Each plugin's `plugin.json` carries
+  `"license": "MIT"`, the README's Licence section says the same in the same words, and section 12 fails
+  a file that falls under neither paragraph.
+- `.gitignore` leaves out the `tsconfig.json` Claude Code writes beside a plugin loaded with `--plugin-dir`.
+
+### Folded in: 3.10.0 (2026-11-21)
+
+3.10.0 was dated here and never tagged or released; the last tag before this one is v3.9.0. It ships as
+part of 3.11.0, and its entry is kept below as it was written.
+
+**To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. It offers
+three template changes as diffs: the project and area READMEs (a role on each People line) and the
+person profile (a Roles list, and its Role row renamed Job). Existing READMEs and profiles keep
+reading exactly as they are: a People line without a role and a profile without Roles are complete.
+The plugins take effect in the next session.
+
+**Plugins.** projects 3.9.0: the person's role in each project, and questions that sharpen a plan.
+ongoing 0.2.0: the role in each area. workspace 2.5.0: roles in the quick-start, `/workspace:diagnose`,
+and stale install records in hygiene. closeout 1.8.0: the `#private` marker, "Templates: none", and
+closeout across a pairing. scheduler 0.1.2 is unchanged.
+
+**What the kit costs every session.** Section 9's measures, before and after this release: the twenty
+command descriptions 5,076 → 5,399 characters (cap 6,200; `/workspace:diagnose` is the new one); a
+project's session-start line 409 characters unchanged, or 600 when its People line carries a role (cap
+700); the workspace line 488 unchanged; the closeout review reminder 3,782 → 3,832 (cap 4,300). The
+private marker's hook prints nothing unless the word is there.
+
+- **The person's roles.** The quick-start's personal part asks for the roles a person holds across their
+  life, in their own words, a handful at most (a marketing leader at work, a parent at home, a
+  woodworker at the weekend), and keeps them as a Roles list in their profile. It asks nothing about the
+  business. Each project and area records which of them the person is in there, as `as <role>` on their
+  People line after what they answer for: "parent" is who they are in the work, "accountable" what they
+  answer for. `/projects:new`, `/ongoing:new` and both adopt commands offer the profile's roles as
+  choices, with another always open. The session-start line puts the owner's role beside their name, and
+  the person's own when they are someone else on the list; `/projects:pickup` names it; the board groups
+  or filters by it (`by role`, `role <word>`). A role is context for the agent, not a field to report
+  on: nothing flags its absence. `readme.awk` reads it as field 21. `setup.sh update` mentions it once,
+  on the update into 3.10.0, when the profile has none.
+- **Questions that sharpen a plan.** `/projects:new` now runs in one order: the outcome, the person's
+  role in it, the finish line, questions about the plan, the people, then versioning. Once the finish
+  line is drafted it questions the plan one branch at a time (what happens if this part fails, who
+  decides it, what done looks like for it), puts each answer where it belongs, and writes any branch
+  without an answer into Open questions in the person's words. It stops when every branch is settled
+  or as soon as the person says enough: a sharpening pass, never a gate. `/projects:pickup` offers the
+  same questions for a project whose plan has open branches. There is no separate command, so no new
+  description in every session.
+- **Written on a yes.** Every command that writes shows the change first and writes it only on the
+  person's yes to it: ending the questions or answering one is not that yes, and the yes covers only
+  what was shown. Two exceptions are named, by design: an adopt run in draft mode, which writes
+  proposals marked as such, and closeout's mechanical promotions, which it makes and lists.
+- **Small fixes in the pairing.** `pair.sh` reads a message id only from a full header
+  (`## <ID> · <time> · <title>`), so a subhead inside a message is no longer an open message or counted
+  for the next id. The PM's prompt and the mailbox README run `pair.sh` with `bash`, since the hook
+  script is not executable on its own. Closeout never hands the person a command with a placeholder
+  left in it.
+- **`#private`.** Writing `#private` in any message marks the whole session private: closeout says so
+  once, keeps no draft of it, and the next session's reminder says nothing about it. A `/closeout` asked
+  for in a private session asks before writing anything. The new `closeout-private.sh` hook
+  (UserPromptSubmit) stops at a text match and prints nothing otherwise; the capture hook also reads the
+  person's own messages for the word.
+- **`/workspace:diagnose`.** A fault report for the kit's maintainers: the kit's version and commit, each
+  plugin's version and where Claude Code loads it from, install records (duplicates, and records for
+  folders that are gone), hook state, the state check's fixed-value keys, the last failing test section
+  and tool versions. Every line is scrubbed of paths, project and area names, the person's name, emails,
+  tokens and webhook URLs. It is shown before it is saved, saved outside any repository on a yes, and
+  never sent.
+- **Closeout in a pairing.** When closeout runs in the manager's session of an open `/projects:pair`
+  pairing, the engineers close out first, one at a time, each writing only its own files and listing
+  them in a `Closed out` reply; the manager goes last and writes the shared files (the decisions log,
+  the README's Current state). A stopped engineer does not hold it up: the person is told which one
+  still needs its closeout, with its resume command. In an engineer's session, closeout covers that
+  session only. The pairing stays open.
+- **"Templates: none".** When closeout proposes no template, its report says so in one line with the
+  reason (a one-off session, a template already covers it); the capture draft carries the same line.
+- **Leave-out runs leave no install records.** `pilot/ablate.sh`, on a subscription login, uninstalls
+  each run's project-scope plugin records from inside its worktree before it goes (`--keep-data`, so the
+  person's own plugin data stays). `plugins/workspace/scripts/prune-plugin-records.sh` counts records
+  for folders that no longer exist and, with `--apply`, removes them after a backup; weekly hygiene runs
+  the count and gives the person the `--apply` line.
+- **A release script that takes the version.** `scripts/release.sh <version> pr|ship --notes <dir>` reads
+  the release's notes from `<dir>/<version>/notes.md`, takes the tag's subject from its first line, and
+  keeps every refusal: green checks, every gate passed, and a merge commit holding exactly the release
+  tree.
+- **Tests.** Section 27 (the release script), 28 (roles, the interview order, the questions about the
+  plan, writing on a yes, and a README with no role giving exactly the old session-start line), 29 (diagnose, with a
+  planted secret, project name and home path); sections 4, 9, 10 and 21 extended.
+
+---
+
 ## v3.9.0 — 2026-11-20
 
 **To update:** run `kit/setup.sh update` in the workspace, then make the commit it prints. No template

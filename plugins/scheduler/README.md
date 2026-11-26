@@ -28,11 +28,44 @@ Pause or Resume, and View log. It reads only through `scripts/schedule.sh` (`lis
 `show --json`, `log`) and makes each action a CLI call whose output it shows. It has no delete action;
 deleting stays in the CLI. On mobile it draws the same lists with buttons only.
 
-On the terminal the pane is a view, not a control. Each task is one row of text, and a waiting run's question
-is shown whole, with no buttons or answer field; the pane's hint says to ask Claude, or use `/scheduler:tasks`,
-to act. This is because the terminal did not give the pane the keyboard on Claude Code 2.1.314 (observed
-2026-10-30: `ctrl+x`, then Tab, moved the conversation to the background instead). Acting from the pane is on the
-desktop app, which draws its buttons and answer field.
+On the terminal the pane is a list that takes the keyboard when it opens. Each task is one row: a state word
+first (needs your answer, failed, paused, active, running) and then its schedule and next run, waiting tasks first
+and then by name. Up and Down move between the rows, `›` marks the selected one, Enter or a row's digit opens
+it, and `r` (run now), `p` (pause or resume) and `l` (log) act on it; the keys are drawn on screen as
+`r: run now   p: pause   l: log`. When there are more tasks than fit,
+the list is a window that follows the cursor, with `↑ 3 more` and `↓ 12 more` rows at its ends and the position in the key line (`7–12 of 20`), so
+Down reaches every task; Enter on a "more" row moves a page. A key says what it started at once ("pausing…",
+"starting…"), the row shows the new state as soon as the scheduler confirms it, and a line under the keys gives
+the result in the scheduler's words.
+
+An open task lists its actions one under another for Up, Down and Enter, its log first. Its log reads like a
+pager: Up and Down scroll a line at a time, and the row the cursor rests on says where you are (`lines 3–10 of
+14`). For a run that is waiting, the whole question comes first, wrapped to fit, with the answer field already
+focused: type the answer, digits included, and press Enter; the pane shows `sending: …` at once and then the
+answer sent. A question too long to show whole is not answered blind: the pane says to widen the terminal or
+answer with `/scheduler:tasks`. Escape goes back one level, from a task to the list, then closes the pane.
+While the answer field has the focus, letters and Ctrl+D belong to the field, as in any text field; Escape
+leaves it. A key the view does not use goes to the prompt, as typing does with any pane open: Space and Page
+Down among them, since a plugin's key can only be a letter or a digit.
+
+The first open draws the last list the scheduler gave (`schedule.sh list --json --cached`, from its state
+folder) while the full read runs, and says it is updating; with many tasks the full read takes a second or two.
+
+Left and Right do not move between buttons: Left is Claude Code's own key, which opens its agents view, and
+Right does nothing in a pane. That is why actions sit one under another.
+
+The pane asks for all the height Claude Code gives an inline pane and lays itself out to fit it, because a pane
+taller than its room scrolls, and while it scrolls the arrows move the text, not the cursor. Measured on Claude
+Code 2.1.332: above the prompt it gets 11 rows in a 24-line terminal and 27 in a 40-line one; in fullscreen mode
+a 24-line terminal gives 6, and from 110 columns Claude Code docks the pane beside the conversation in a column
+of its own, up to 45% of the width, with the full height. A plugin cannot choose between those seats, so each
+row is cut to the pane's width rather than wrapped; the key line drops words, never its keys. Checked on 2026-11-26 in default and fullscreen mode at
+80×24, 120×40 and 170×40, by the harness in `tests/pane/` (section 30). When the
+terminal has no room to seat the pane, the same view is drawn in the band above the prompt, with `c` to close
+it. The band stacks one row per plugin, so other mods share it: rows past
+the band's height are left out, another mod can hide or reorder the rows, and a key two plugins both use presses
+neither. Any of these can hide the band view's buttons or still its keys; the pane, or `/scheduler:tasks`, then
+does the same work.
 
 The pane rides on Claude Code's early-access plugin API, which can change between releases. If it
 breaks, `schedule.sh` and `/scheduler:tasks` stand on their own: every action the pane offers runs one of

@@ -14,3 +14,7 @@ pilot/ablation-results.csv
 pilot/ablation-report.md
 pilot/ablations/
 pilot/metrics.csv
+
+# Written by Claude Code beside a plugin loaded with --plugin-dir; it extends the types folder the engine also
+# writes there (ignored by the engine's own .gitignore), so it works only on the machine that loaded it.
+plugins/*/tsconfig.json

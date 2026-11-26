@@ -50,7 +50,7 @@
 #   2b installer modes and flags
 #   3 JSON, TOML, versions, marketplaces     7 no AI-vendor attribution, in files and in history
 #   4 closeout hooks                         8 the register: no capitals-for-emphasis in prompts
-#   4b the projects session-start hook       9 the nineteen commands, on Claude Code and as skills; the
+#   4b the projects session-start hook       9 the twenty commands, on Claude Code and as skills; the
 #                                               closeout command and ritual carry the same core rules
 #                                            10 ablations: pilot/ablate.sh against a stub claude; the
 #                                               blind comparator, the bare arm, the login-token switch,
@@ -62,7 +62,8 @@
 # row per command), 13 privacy guards, 14 ownership and the engine, 15 setup, 16 the state check's 3.0
 # keys, 17 projects, 18 resources, 19 the skills bridge, 20 the migration, 21 closeout, hygiene and the
 # pilot in a 3.0 workspace, 22 agent reads from Claude Code's transcripts, 23 /projects:pair, 24 the Cowork plugin files,
-# 25 the workspace boundary, 26 the scheduler plugin.
+# 25 the workspace boundary, 26 the scheduler plugin, 27 the release script, 28 roles, 29 diagnose,
+# 30 the scheduler pane driven as a person drives it.
 #
 # Two shellcheck notes are off for the whole file, as in the section files: SC2015, since every check is
 # written "cond && ok … || ko …" and ok never fails; SC2016, since many patterns and messages hold a
@@ -1240,7 +1241,7 @@ if capture "$P3" s-three; then
         'what here will come round again?' '- source: correction | missing-context | general | recurring' \
         '- kind: skill | agent | checklist | command' '- recurs: repeated | said | earlier-round <path>' \
         '- existing: <the file it would update> | none' '- cost: <the description' 'one-off is not proposed' \
-        'propose an update to it'; do
+        'propose an update to it' 'templates: none — <reason>'; do
         grep -qF -- "$w" <<<"$prompt" || bad+="capture prompt: no: $w"$'\n'
     done
     for w in plain source found kind recurs existing cost; do
@@ -1254,7 +1255,7 @@ if capture "$P3" s-three; then
             'the likely move, what goes wrong and what to do instead' 'a warning a colleague would give' \
             '**what here will come round again?**' '**skill**' '**agent definition**' '**checklist**' '**command**' \
             'never a file made without their yes' 'A one-off is not proposed' 'propose an update to it, not a new' \
-            'so the proposal says how many characters it is'; do
+            'so the proposal says how many characters it is' '- `Templates: none — <reason>`, when no template is proposed.'; do
             grep -qF -- "$w" <<<"$flat" || bad+="$f: no: $w"$'\n'
         done
     done
@@ -1262,6 +1263,34 @@ if capture "$P3" s-three; then
     grep -qF 'An item that warns of a trap on the obvious next move is shown as that warning' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: the trap as a warning"$'\n'
     grep -qF 'An item whose source is recurring proposes a skill, an agent definition, a checklist or a command' "$KIT/plugins/closeout/hooks/closeout-review.sh" \
         && grep -qF 'make nothing until the user says yes' "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: a recurring item as a proposal"$'\n'
+    grep -qF "a draft's templates: none line is shown as it is" "$KIT/plugins/closeout/hooks/closeout-review.sh" || bad+="review reminder: templates: none"$'\n'
+    # A pairing closes out engineers first and the manager last (3.10.0): the capture prompt, the
+    # command, the ritual, the pair command and the mailbox README say the same.
+    grep -qF "are the product manager's to write" <<<"$prompt" && grep -qF "manager's to write)" <<<"$prompt" || bad+="capture prompt: no: the manager's to write"$'\n'
+    flat="$(tr '\n' ' ' < "$KIT/plugins/closeout/commands/closeout.md" | tr -s ' ')"
+    for w in '## In a pairing' 'the engineers close out first and this session last' 'close out this session only and say so in one line' \
+        "Closing out the manager is the person's call."; do
+        grep -qF -- "$w" <<<"$flat" || bad+="closeout.md: no: $w"$'\n'
+    done
+    for f in plugins/closeout/commands/closeout.md rituals/closeout.md; do
+        grep -qF 'every value in them filled in: no `<placeholder>`' "$KIT/$f" || bad+="$f: commands handed over may carry placeholders"$'\n'
+    done
+    grep -qF 'Hand the person no command for it.' "$KIT/plugins/closeout/commands/closeout.md" || bad+="closeout.md: the refused sentinel still handed over"$'\n'
+    flat="$(tr '\n' ' ' < "$KIT/rituals/closeout.md" | tr -s ' ')"
+    for w in '**Several sessions on one project.**' 'no file is written by two of them' 'The doing sessions go first, one at a time' \
+        'The coordinator goes last and writes the shared files.' 'A session that has stopped does not hold the others up'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="rituals/closeout.md: no: $w"$'\n'
+    done
+    flat="$(tr '\n' ' ' < "$KIT/plugins/projects/commands/pair.md" | tr -s ' ')"
+    for w in '## Closing out a session in the pairing' 'titled `Close out`' 'one engineer at a time when there are several' \
+        'up to 15 minutes from the post' 'Leave alone every file an engineer listed.' 'bash kit/plugins/projects/scripts/pair.sh <project folder>'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="pair.md: no: $w"$'\n'
+    done
+    flat="$(tr '\n' ' ' < "$KIT/plugins/projects/examples/pair/README.md" | tr -s ' ')"
+    for w in '## Closing out' 'the engineer closes out first and the PM last, so no file is written by both' 'titled `Closed out`' \
+        'leaves alone every file the engineer listed' 'closes out that session only, and says so in one line'; do
+        grep -qF -- "$w" <<<"$flat" || bad+="pair/README.md: no: $w"$'\n'
+    done
     flat="$(tr '\n' ' ' < "$KIT/docs/memory-layers.md" | tr -s ' ')"
     for w in 'what here will come round again' 'a one-off is not' '`rituals/` at the root (the team'"'"'s own checklists, beside the kit'"'"'s'; do
         grep -qF -- "$w" <<<"$flat" || bad+="memory-layers.md: no: $w"$'\n'
@@ -1328,6 +1357,34 @@ capture "$P1" s-stale && ok "4 capture: a stale sentinel is not honoured" || ko 
 check "4 capture: the stale sentinel is removed" test ! -e "$DRAFTS/one/.closeout-ran.s-stale"
 : > "$DRAFTS/one/.closeout-ran.s-other"
 capture "$P1" s-mine && ok "4 capture: another session's sentinel does not suppress this one" || ko "4 capture: another session's sentinel does not suppress this one"
+
+# The private marker (3.10.0): #private in a message marks the session. The prompt hook says so once and
+# writes a flag by the session id; the capture keeps nothing for a flagged session, nor for one whose
+# transcript holds the word in the person's own message, and an unmarked session is captured as before.
+PRIV="$HOOKS/closeout-private.sh"
+priv() { # <session> <prompt> [cwd]: the prompt hook's stdout
+    jq -nc --arg s "$1" --arg p "$2" --arg c "${3:-$P1}" '{session_id: $s, prompt: $p, cwd: $c, hook_event_name: "UserPromptSubmit"}' \
+        | env CLOSEOUT_DRAFT_ROOT="$DRAFTS" bash "$PRIV" 2>/dev/null
+}
+bad=""
+out="$(priv s-priv "Let us plan the surprise party. #private")"
+[[ "$(jq -r '.systemMessage' <<<"$out" 2>/dev/null)" == "Private session: closeout will keep no draft of it"* ]] || bad+="no line for the person: $out"$'\n'
+grep_all -F 'A /closeout in this session runs only if the person asks for it' <<<"$(jq -r '.hookSpecificOutput.additionalContext' <<<"$out" 2>/dev/null)" || bad+="no context for the agent"$'\n'
+[[ -f "$DRAFTS/.private/s-priv" ]] || bad+="no flag written"$'\n'
+[[ -z "$(priv s-priv "still #private")" ]] || bad+="said twice in one session"$'\n'
+for p in "nothing to see" "#privateer" "see notes/#private/x" "#private-notes" "email jo@x.org#private"; do
+    [[ -z "$(priv s-not "$p")" ]] || bad+="marked by: $p"$'\n'
+done
+[[ ! -e "$DRAFTS/.private/s-not" ]] || bad+="a flag for a session never marked"$'\n'
+[[ -n "$(priv s-caps "OK, #PRIVATE from here")" ]] || bad+="#PRIVATE in capitals not seen"$'\n'
+[[ -z "$(priv s-out "#private" "$SCRATCH")" ]] || bad+="said outside a kit workspace"$'\n'
+empty "4 private: #private marks the session once, with one line for the person; other words, tags and paths do not" "$bad"
+suppressed "4 private: a session flagged #private leaves no closeout draft" s-priv-ctl "$P1" s-priv
+check "4 private: the flag is removed when the session ends" test ! -e "$DRAFTS/.private/s-priv"
+PTR="$SCRATCH/transcripts/private.jsonl"
+{ cat "$TRANSCRIPT"; printf '%s\n' '{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Keep this one #private, please."}]}}'; } > "$PTR"
+suppressed "4 private: #private in the person's own message, with no flag, still leaves no draft" s-ptr-ctl "$P1" s-ptr prompt_input_exit "$PTR"
+capture "$P1" s-plain && ok "4 private: an unmarked session is captured as before" || ko "4 private: an unmarked session is captured as before"
 
 # review <project> [VAR=value...]: the SessionStart hook's stdout.
 review() {
@@ -2392,15 +2449,15 @@ fi
 # ---------------------------------------------------------------------------------------------------
 if aw_want 9; then
 echo
-echo "9 · The nineteen commands, on Claude Code and as skills, from one source each"
+echo "9 · The twenty commands, on Claude Code and as skills, from one source each"
 
 # The command set is fixed by the contract's command list; a twentieth, or a missing one, fails here
 # so the plugins, the skills and this list move together.
 commands="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename
-scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
+scheduler/tasks workspace/diagnose workspace/hygiene workspace/quick-start workspace/register-audit"
 have="$(cd "$KIT/plugins" && printf '%s\n' ./*/commands/*.md | sed 's#^\./##' | sed 's#/commands/#/#; s#\.md$##' | sort | paste -sd' ' -)"
-[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the nineteen commands" \
-    || ko "9 the kit has exactly the nineteen commands" "has: $have"
+[[ "$have" == "$(printf '%s' "$commands" | tr '\n' ' ')" ]] && ok "9 the kit has exactly the twenty commands" \
+    || ko "9 the kit has exactly the twenty commands" "has: $have"
 # The kit's always-on cost: each command's description is in every session's context, used or not, so
 # their total is budgeted like the always-loaded file. Claude Code measured the kit's five plugins at
 # ~1,664 tokens on 2026-11-20 (`claude plugin details`) for 5,329 bytes of descriptions, about 3.2
@@ -2415,12 +2472,32 @@ desc_total="$(awk -F'\t' '{ t += $2 } END { print t + 0 }' <<<"$desc_bytes")"
 bad="$(awk -F'\t' -v cap="${AW_DESC_CAP:-450}" '$2 > cap { print $1 ": " $2 " characters, over " cap }' <<<"$desc_bytes")"
 [[ "$desc_total" -le "${AW_DESC_TOTAL_CAP:-6200}" ]] || bad+="all descriptions: $desc_total characters, over ${AW_DESC_TOTAL_CAP:-6200} (about $((desc_total * 10 / 32)) tokens)"$'\n'
 empty "9 the kit's always-on cost is capped: every description at most 450 characters, all of them at most 6,200 (about 1,900 tokens)" "$bad"
+# After a compaction Claude Code restores an invoked command cut at 20,000 characters, ending "[... skill
+# content truncated for compaction ...]" (seen on 2.1.332, 2026-11-25), so a longer command loses its end in a
+# long session. Bytes are counted, never fewer than characters, so the cap holds in any locale. Six commands
+# were already longer; each is held at its size until it is split, and the rest at 20,000.
+bad=""
+for f in "$KIT"/plugins/*/commands/*.md; do
+    rel="${f#"$KIT"/plugins/}"; rel="${rel%%/*}/$(basename "$f" .md)"
+    case "$rel" in
+        closeout/closeout|projects/pair) cap=27100 ;;
+        projects/adopt) cap=25200 ;;
+        workspace/quick-start) cap=24900 ;;
+        workspace/hygiene) cap=20400 ;;
+        projects/new) cap=20200 ;;
+        *) cap=20000 ;;
+    esac
+    size="$(wc -c < "$f" | tr -d ' ')"
+    [[ "$size" -le "$cap" ]] || bad+="$rel: $size bytes, over $cap"$'\n'
+done
+empty "9 no command grows past what survives a compaction: 20,000 bytes, or its size on 2026-11-25 for the six already longer" "$bad"
 # The other half of the always-on cost: what the kit's session-start hooks print into the model's context
 # (additionalContext), which Claude Code's estimate counts as nothing. Measured on a fixture workspace in
 # three states a session meets: inside a project (the projects line), with two things out of step (the
 # workspace line), and with a closeout draft waiting (the review reminder, the longest). Machine paths
 # are taken out before counting, so the figure is the kit's own text. On 2026-11-20: 409, 480 and 3,801
-# characters, about 1,470 tokens with a draft waiting and 280 without.
+# characters, about 1,470 tokens with a draft waiting and 280 without. In 3.10.0: 409 (600 with a role on
+# People), 488 and 3,832.
 HC="$SCRATCH/hook-cost" HCW="$SCRATCH/hook-cost/ws"
 mkdir -p "$HCW/.claude" "$HCW/projects/demo" "$HC/drafts/demo" "$HC/home"
 : > "$HCW/.claude/kit-templates.lock"; ln -s "$KIT" "$HCW/kit" 2>/dev/null; git -C "$HCW" init -q 2>/dev/null
@@ -2436,11 +2513,16 @@ hc_ctx() { # <plugin> <hook> <cwd>: the additionalContext it prints, with the fi
 hc_p="$(hc_ctx projects session-start.sh "$HCW/projects/demo" | wc -c | tr -d ' ')"
 hc_w="$(hc_ctx workspace session-start.sh "$HCW" | wc -c | tr -d ' ')"
 hc_r="$(hc_ctx closeout closeout-review.sh "$HCW/projects/demo" | wc -c | tr -d ' ')"
+# A project whose People line carries a role (3.10.0) adds the role and one sentence on what it means.
+mkdir -p "$HCW/projects/roled"
+printf '# Roled\n\n**Outcome:** a demo.\n\n## Done when\n\n- [ ] one\n\n## Current state\n\n- **State:** doing\n- **Updated:** 2026-11-20\n\n## People\n\n- Sam — accountable — as parent\n' > "$HCW/projects/roled/README.md"
+hc_pr="$(hc_ctx projects session-start.sh "$HCW/projects/roled" | wc -c | tr -d ' ')"
 bad=""
 [[ $hc_p -gt 0 && $hc_p -le ${AW_HOOK_CAP_PROJECTS:-700} ]] || bad+="the projects line: $hc_p characters (cap ${AW_HOOK_CAP_PROJECTS:-700}; 0 means it printed nothing)"$'\n'
+[[ $hc_pr -gt $hc_p && $hc_pr -le ${AW_HOOK_CAP_PROJECTS:-700} ]] || bad+="the projects line with a role: $hc_pr characters (cap ${AW_HOOK_CAP_PROJECTS:-700}; it should be longer than $hc_p without one)"$'\n'
 [[ $hc_w -gt 0 && $hc_w -le ${AW_HOOK_CAP_WORKSPACE:-800} ]] || bad+="the workspace line: $hc_w characters (cap ${AW_HOOK_CAP_WORKSPACE:-800})"$'\n'
 [[ $hc_r -gt 0 && $hc_r -le ${AW_HOOK_CAP_REVIEW:-4300} ]] || bad+="the review reminder: $hc_r characters (cap ${AW_HOOK_CAP_REVIEW:-4300})"$'\n'
-empty "9 the kit's session-start text is capped: a project's line at most 700 characters, the workspace line at most 800, the closeout review reminder at most 4,300" "$bad"
+empty "9 the kit's session-start text is capped: a project's line at most 700 characters, with a role or without, the workspace line at most 800, the closeout review reminder at most 4,300" "$bad"
 # skill_of <plugin/command>: a command named after its plugin keeps its bare name.
 skill_of() { local p="${1%/*}" c="${1#*/}"; if [[ "$p" == "$c" ]]; then echo "$c"; else echo "$p-$c"; fi; }
 body_of() { awk 'NR == 1 && /^---$/ { fm = 1; next } fm && /^---$/ { fm = 0; next } !fm' "$1"; }
@@ -2649,6 +2731,11 @@ ASTUB="$SCRATCH/abl-bin" ALOG="$SCRATCH/abl-log"
 mkdir -p "$ASTUB" "$ALOG"
 cat > "$ASTUB/claude" <<'STUBSCRIPT'
 #!/usr/bin/env bash
+# `claude plugin …` is the runner's clean-up of install records: one line per call, the folder it ran
+# in and its arguments, kept in a dot-file so it does not count as a run.
+if [[ "${1:-}" == plugin ]]; then
+    printf '%s\t%s\n' "$PWD" "$*" >> "${ALOG:?}/.plugin-calls"; exit 0
+fi
 # The comparator is the call with --tools: it prefers whichever output keeps the dated line, and says
 # which letter that was, so the runner's unblinding can be checked against it.
 if [[ " $* " == *" --tools "* ]]; then
@@ -2748,6 +2835,20 @@ for r in "$ALOG"/call.*; do
 done
 [[ "$(calls)" == 4 ]] || bad+="$(calls) calls, not 4"$'\n'
 empty "10 each run sets AW_HEADLESS_RUN and CLOSEOUT_DISABLED, places the fixture and passes the flags and allowed tools" "$bad"
+# Install records (CC-141): on a subscription login each run's worktree gets one project-scope uninstall
+# per plugin its settings enable, run from inside it, before it goes.
+bad=""
+pc="$(cat "$ALOG/.plugin-calls" 2>/dev/null)"
+[[ "$(grep -c . <<<"$pc")" == 8 ]] || bad+="$(grep -c . <<<"$pc") uninstall calls, not 8 (4 runs x 2 enabled plugins)"$'\n'
+[[ "$(cut -f1 <<<"$pc" | sort -u | grep -c .)" == 4 ]] || bad+="not one folder per run: $(cut -f1 <<<"$pc" | sort -u)"$'\n'
+while IFS= read -r d; do
+    [[ -n "$d" ]] || continue
+    [[ "$d" == */wt/dates/*/run-* ]] || bad+="ran outside a run's worktree: $d"$'\n'
+    [[ "$(awk -F'\t' -v d="$d" '$1 == d {print $2}' <<<"$pc" | sort | paste -sd'|' -)" \
+        == "plugin uninstall --scope project --keep-data notes@local-kit|plugin uninstall --scope project --keep-data other@elsewhere" ]] \
+        || bad+="$d: $(awk -F'\t' -v d="$d" '$1 == d {print $2}' <<<"$pc" | paste -sd'|' -)"$'\n'
+done < <(cut -f1 <<<"$pc" | sort -u)
+empty "10 on a subscription login, each run's project-scope install record of every enabled plugin is uninstalled from inside its worktree, keeping the plugin's data" "$bad"
 [[ "$(grep -lx 'line=present' "$ALOG"/call.* | grep -c .)" == 2 && "$(grep -lx 'line=absent' "$ALOG"/call.* | grep -c .)" == 2 ]] \
     && ok "10 the line is present in the with arm and absent in the without arm" \
     || ko "10 the line is present in the with arm and absent in the without arm" "$(cat "$ALOG"/call.*)"
@@ -2904,6 +3005,7 @@ empty "10 the parser refuses allowed tools that could commit, a fixture over the
 
 # Stopped from outside mid-run, the runner stops the headless child before it removes the worktrees.
 AMARK="$SCRATCH/abl-mark"; mkdir -p "$AMARK"
+pc0="$(grep -c . "$ALOG/.plugin-calls" 2>/dev/null)"
 env PATH="$ASTUB:$PATH" ALOG="$ALOG" STUB_SLEEP=6 STUB_MARK="$AMARK" bash "$ABL" --target "$AR" --runs 1 dates >/dev/null 2>&1 &
 arun=$!
 for _ in $(seq 1 50); do [[ -s "$AMARK/stub.pid" ]] && break; sleep 0.1; done
@@ -2912,6 +3014,9 @@ spid="$(cat "$AMARK/stub.pid" 2>/dev/null)"
 if [[ -n "$spid" ]] && ! kill -0 "$spid" 2>/dev/null && [[ ! -e "$AMARK/late" && "$(wtcount)" == 1 ]]; then
     ok "10 a runner stopped mid-run stops its headless child and leaves no worktree"
 else ko "10 a runner stopped mid-run stops its headless child and leaves no worktree" "stub=$spid late=$(ls "$AMARK")"; fi
+[[ "$(( $(grep -c . "$ALOG/.plugin-calls" 2>/dev/null) - pc0 ))" == 2 ]] \
+    && ok "10 a runner stopped mid-run still uninstalls that run's install records before its worktree goes" \
+    || ko "10 a runner stopped mid-run still uninstalls that run's install records before its worktree goes" "$(tail -n 4 "$ALOG/.plugin-calls")"
 
 # The comparator. An ablation with a Judge: run i of each arm goes to the comparator unlabelled; the
 # stub comparator prefers the dated output by content, so every verdict unblinds to `with` whichever
@@ -3052,6 +3157,8 @@ tokrun() { ablate env -u CLAUDE_CONFIG_DIR HOME="$AHOME" TMPDIR="$ATMP" CLAUDE_C
 tokrun bash "$ABL" --target "$AR" --runs 1 --bare --dry-run personal dates
 dry_out="$aout"
 tokrun bash "$ABL" --target "$AR" --runs 1 --bare --keep personal dates
+[[ ! -s "$ALOG/.plugin-calls" ]] && ok "10 with a token, no uninstall runs: the records are in the run's own config directory" \
+    || ko "10 with a token, no uninstall runs: the records are in the run's own config directory" "$(cat "$ALOG/.plugin-calls")"
 kept="$(sed -n 's/^ablate.sh: kept \([^ ]*\) .*/\1/p' <<<"$aout")"
 got="$(tail -n 6 "$ACSV" | cut -d, -f2,3,5,13 | paste -sd' ' -)"
 [[ $arc -eq 0 && "$got" == "dates,with,1,ok dates,without,0,ok dates,bare,0,ok personal,with,1,ok personal,without,1,ok personal,bare,1,ok" ]] \
@@ -3225,8 +3332,9 @@ st_expect "11 fresh: mode and the always-loaded file" "$r" mode=fresh always_loa
 [[ "$(st_key "$r" standins_remaining)" -gt 0 && "$(st_key "$r" surface_standins)" == 0 ]] \
     && ok "11 fresh: stand-ins counted in §1–§3 of CLAUDE.md, none in the rendered §4 surface table" \
     || ko "11 fresh: stand-ins counted in §1–§3 of CLAUDE.md, none in the rendered §4 surface table" "$r"
+# The template's Own profile line is an example inside a comment, which names no one's profile.
 st_expect "11 fresh: the person, their profile and the project conventions" "$r" "person=Priya Shah" \
-    person_slug=priya-shah person_profile=missing person_profile_path= people_dir=memory/people people_profiles=0 \
+    person_slug=priya-shah person_profile=missing person_profile_path= person_profile_named= people_dir=memory/people people_profiles=0 \
     projects_conventions=kit "projects_dir=projects/<slug>/" "paused_dir=projects/<slug>/" "done_dir=projects/_done/<slug>/" \
     conventions_not_set=0 in_flight_limit=200 "staleness=1 week" default_owner=
 st_expect "11 fresh: register, decisions log and the other canonical files" "$r" register=kit \
@@ -3250,7 +3358,7 @@ PYFILL
 git -C "$SJ" add -A && git -C "$SJ" -c commit.gpgsign=false commit -q -m "Set up the kit"
 r="$(st_run "$SJ")"
 st_expect "11 joining: no stand-ins left and no profile for this person" "$r" mode=joining standins_remaining=0 \
-    surface_standins=0 person_profile=missing signs= commits=1 authors=1 "author_names=Test Runner" uncommitted=0
+    surface_standins=0 person_profile=missing person_profile_named= signs= commits=1 authors=1 "author_names=Test Runner" uncommitted=0
 
 # Nothing left: the same, with this person's profile, generated skills and a project folder with its
 # own decisions log — none of which is a sign of another system.
@@ -3272,6 +3380,34 @@ r="$(st_run "$SN/memory" --json)"
 [[ "$(printf '%s' "$r" | jq -r '.mode + " " + .target' 2>/dev/null)" == "nothing-left $SN" ]] \
     && ok "11 --json gives the same facts, and a folder inside a repository reports on the repository" \
     || ko "11 --json gives the same facts, and a folder inside a repository reports on the repository" "$r"
+
+# A profile kept outside the people folder, named by the conventions' Own profile line: there, it is
+# this person's profile and the mode moves on; pointing nowhere, it is missing with the path named; a
+# shared workspace's line counts only the span with this person's name. The fixture above, with no such
+# line (and the template's own example commented out), is unchanged.
+SW="$SCRATCH/state-own-profile"
+cp -R "$SJ" "$SW"
+st_own() { python3 - "$SW/.claude/projects.md" "$1" <<'PYOWN'
+import re, sys
+p, line = sys.argv[1], sys.argv[2]
+s = re.sub(r"(?m)^- \*\*Own profile:\*\*.*\n", "", open(p, encoding="utf-8").read())
+open(p, "w", encoding="utf-8").write(re.sub(r"(?m)^(- \*\*People:\*\*)", line + "\n\\1", s, count=1))
+PYOWN
+}
+st_own '- **Own profile:** `memory/ai/USER.md`'
+r="$(st_run "$SW")"
+st_expect "11 an Own profile line naming a file that is missing: missing, with the path named" "$r" \
+    person_profile=missing person_profile_path= person_profile_named=memory/ai/USER.md mode=joining
+mkdir -p "$SW/memory/ai" && printf '# Priya Shah\n\n## Roles\n\n- A designer\n' > "$SW/memory/ai/USER.md"
+r="$(st_run "$SW")"
+st_expect "11 an Own profile line naming a file that is there: present at that path, and nothing left" "$r" \
+    person_profile=present person_profile_path=memory/ai/USER.md person_profile_named=memory/ai/USER.md mode=nothing-left
+st_own '- **Own profile:** `Sam Lee: memory/sam.md`, `priya shah: memory/ai/USER.md`'
+st_expect "11 a shared workspace's Own profile line: the span with this person's name counts" "$(st_run "$SW")" \
+    person_profile=present person_profile_path=memory/ai/USER.md
+st_own '- **Own profile:** `Sam Lee: memory/ai/USER.md`'
+st_expect "11 a shared workspace's Own profile line naming only someone else: as if there were no line" "$(st_run "$SW")" \
+    person_profile=missing person_profile_named= mode=joining
 
 # Joining comes before existing system: once the team's file is filled in, what the first person left
 # beside it is settled, so a newcomer is offered the personal part.
@@ -3304,8 +3440,9 @@ mkdir -p "$SX/.claude/skills/our-closeout" "$SX/skills/report-builder" "$SX/.cla
 printf -- '---\nname: our-closeout\n---\n' > "$SX/.claude/skills/our-closeout/SKILL.md"
 printf -- '---\nname: report-builder\n---\n' > "$SX/skills/report-builder/SKILL.md"
 printf 'Tidy the repository.\n' > "$SX/.claude/commands/tidy-repo.md"
-st_expect "11 existing system: own skills listed, the overlapping ones taken as signs" "$(st_run "$SX")" \
-    mode=existing-system own_skills=.claude/skills/our-closeout,skills/report-builder,.claude/commands/tidy-repo.md \
+# Its team part is filled in under the kit's import, so the signs are listed and settled: nothing left.
+st_expect "11 own skills beside a settled kit workspace: listed, the overlapping ones taken as signs, and nothing left" "$(st_run "$SX")" \
+    mode=nothing-left own_skills=.claude/skills/our-closeout,skills/report-builder,.claude/commands/tidy-repo.md \
     foreign_skills=.claude/skills/our-closeout,.claude/commands/tidy-repo.md signs=foreign_skills
 
 # Existing system, third shape: a GEMINI.md of its own, a decisions log elsewhere, and project
@@ -3315,10 +3452,36 @@ cp -R "$SN" "$SO"
 printf '# Ours\n' > "$SO/GEMINI.md"
 mkdir -p "$SO/docs/adr" && printf '# 1. Record decisions\n' > "$SO/docs/adr/0001-record.md"
 sed 's#^- \*\*Register:\*\* `projects/INDEX.md`#- **Register:** `work/INDEX.md`#' "$SN/.claude/projects.md" > "$SO/.claude/projects.md"
-st_expect "11 existing system: GEMINI.md, a decisions log elsewhere, another project layout" "$(st_run "$SO")" \
-    mode=existing-system gemini_md=present decisions_log=foreign decisions_log_other=docs/adr \
+st_expect "11 GEMINI.md, a decisions log elsewhere and another project layout beside a settled kit workspace: signs, and nothing left" "$(st_run "$SO")" \
+    mode=nothing-left gemini_md=present decisions_log=foreign decisions_log_other=docs/adr \
     projects_conventions=foreign register_path=work/INDEX.md register=missing \
     signs=gemini_md,decisions_log,projects_conventions
+
+# A workspace that has run on the kit for months (PM-218): the kit's import with the team part filled in,
+# its own register, a decisions log of its own shape and its own skills, and the person's profile found.
+# Those are what it has kept, so it reads nothing-left; it read existing-system once the profile was
+# found, and quick-start then offered to adopt it onto the kit again. Without the import, the same signs
+# still read existing-system, and so do they beside a kit file whose stand-ins are not filled in yet (an
+# install over a system of the person's own).
+SK="$SCRATCH/state-kit-kept"
+cp -R "$SN" "$SK"
+printf '# Our work\n\n## Live\n\n## Done\n' > "$SK/projects/INDEX.md"
+printf '# Decisions\n\n## Use plain files\n' > "$SK/logs/decisions.md"
+mkdir -p "$SK/.claude/skills/our-closeout" && printf -- '---\nname: our-closeout\n---\n' > "$SK/.claude/skills/our-closeout/SKILL.md"
+st_expect "11 a settled kit workspace with its own register, decisions log and skills: signs listed, nothing left" "$(st_run "$SK")" \
+    mode=nothing-left signs=register,decisions_log,foreign_skills person_profile=present claude_md=kit standins_remaining=0
+SKN="$SCRATCH/state-kit-kept-no-import"
+cp -R "$SK" "$SKN"
+sed '1d' "$SK/CLAUDE.md" > "$SKN/CLAUDE.md"
+st_expect "11 the same signs without the kit's import: existing system" "$(st_run "$SKN")" \
+    mode=existing-system signs=claude_md,register,decisions_log,foreign_skills claude_md=own
+SKS="$SCRATCH/state-kit-kept-standins"
+cp -R "$SK" "$SKS"
+cp "$SF/CLAUDE.md" "$SKS/CLAUDE.md"
+r="$(st_run "$SKS")"
+[[ "$(st_key "$r" mode)" == existing-system && "$(st_key "$r" claude_md)" == kit && "$(st_key "$r" standins_remaining)" -gt 0 ]] \
+    && ok "11 the same signs beside the kit's file with its stand-ins still in: existing system" \
+    || ko "11 the same signs beside the kit's file with its stand-ins still in: existing system" "$r"
 
 # A folder that is not a repository, and one that does not exist.
 SP="$SCRATCH/state-plain"; mkdir -p "$SP"

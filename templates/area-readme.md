@@ -72,9 +72,11 @@ routines, by name and where they live.
 
 ## People *(optional)*
 
-As for a project: one line per person, name — role — profile, with one person who is **accountable** for the area.
+As for a project: one line per person, name — what they answer for — who they are in this work —
+profile, with one person who is **accountable** for the area. Who they are in it ("as a parent") is
+one of the roles from their profile, and optional.
 
-- <name> — <accountable> — `memory/people/<name>.md`
+- <name> — <accountable> — as <role> — `memory/people/<name>.md`
 
 ## Read before acting
 

@@ -44,7 +44,9 @@ recurs: the session did it more than once, the person said it is regular, or the
 round. A one-off is not proposed. Look first at what the workspace already has (`skills/`,
 `.claude/agents/`, `.claude/commands/`, `rituals/` and the kit's own): where one already covers the
 work, propose an update to it, not a new file. A skill's or command's description is loaded into every
-session, so the proposal says how many characters it is.
+session, so the proposal says how many characters it is. When none is proposed, the report says so in
+one line, `Templates: none — <reason>` (a one-off session, an existing template already covers it), so
+the person can see the question was asked.
 
 **Where learnings come from, in this order.** The order says where to look first, not what kinds to
 record.
@@ -236,6 +238,7 @@ picked per row:
 
 - What was promoted, and at which tier.
 - What is proposed and still needs a decision.
+- `Templates: none — <reason>`, when no template is proposed.
 - What each candidate was checked against, and which were corrected, dropped or left unverified.
 - Any leave-out test offered: drafted, declined, or the tier reconsidered.
 - Tracking, apart from the learnings: boxes ticked, distance to the finish line, the new state and
@@ -243,7 +246,8 @@ picked per row:
 - Who needs to know what, if step 6 applied.
 - Which files were touched, new against modified.
 - Anything left unfinished.
-- The commands that commit them, in the order below.
+- The commands that commit them, in the order below, every value in them filled in: no `<placeholder>`
+  is handed to the person.
 
 Leave the commit to the person. List what you touched, by name (a broad staging command sweeps in
 unrelated work), and give the commands for them to run, with each message editable: writing or
@@ -283,6 +287,18 @@ for the thing it was supposed to catch. The compensating moves:
   than waiting to be asked.
 - When a promotion cannot be finished, leave a draft wherever a later session will look, and have the
   weekly pass report drafts left waiting.
+
+**Several sessions on one project.** When sessions work a project together, one coordinating and
+others doing, each closes out its own session and no file is written by two of them. The doing
+sessions go first, one at a time; each writes only its own files and hands any entry for a shared
+file (the decisions log, the project's current state) to the coordinator, with a list of the files it
+wrote. The coordinator goes last and writes the shared files. A session that has stopped does not hold
+the others up: the person hears which one still needs its closeout.
+
+**A private session keeps nothing.** A person can mark a session private at any point (in Claude
+Code, by writing `#private` in a message), and it is said back to them in one line. The backstop then
+keeps no draft of it, and the next session's reminder says nothing about it. The ritual still runs if
+the person asks for it in that session, and asks before writing anything.
 
 *A hook-based implementation for Claude Code ships with this kit at `plugins/closeout/`. The pattern
 matters more than the tool.*

@@ -78,16 +78,19 @@ or a behaviour that changes.
 
 ## People *(optional)*
 
-One line per person: name — role — profile. The five roles are **accountable** (answers for
-the outcome; one person per outcome), **responsible** (does the work), **supporting** (helps with
-it), **consulted** (asked before a decision is taken) and **informed** (hears how it went). A person
-can hold two, as in "accountable, responsible". The older words (owns, does, helps, ask first, keep
-told) still read the same. Point at their profile in `memory/people/` rather than restating it. When
-two or more people are named, the closeout ritual adds a "who needs to know" step; a line `Who needs
-to know: ask` (or `off`) here overrides the team's setting for this project. A one-person project
-keeps only the owner's line, which is how the board and the register know whose it is.
+One line per person: name — what they answer for — who they are in this work — profile. What they
+answer for is one of five roles: **accountable** (answers for the outcome; one person per outcome),
+**responsible** (does the work), **supporting** (helps with it), **consulted** (asked before a
+decision is taken) and **informed** (hears how it went). A person can hold two, as in "accountable,
+responsible". The older words (owns, does, helps, ask first, keep told) still read the same. Who
+they are in this work is one of the roles from their profile, written after "as": a parent planning
+a holiday, a marketing leader planning a launch. It is optional, and it tells a session whose shoes
+it is helping in. Point at their profile in `memory/people/` rather than restating it. When two or
+more people are named, the closeout ritual adds a "who needs to know" step; a line `Who needs to
+know: ask` (or `off`) here overrides the team's setting for this project. A one-person project keeps
+only the owner's line, which is how the board and the register know whose it is.
 
-- <name> — <accountable> — `memory/people/<name>.md`
+- <name> — <accountable> — as <role> — `memory/people/<name>.md`
 
 ## Precedents *(optional)*
 

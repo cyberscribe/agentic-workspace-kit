@@ -956,16 +956,41 @@ catchup_unit() {
     return 0
 }
 
+# backend_sees: whether this shell can see the scheduler's own state; SEES is 1 or 0, SEES_WHY says why not.
+# Inside a sandbox (Claude Code's, for one) launchctl can be refused or list nothing, and the unit files can
+# be unreadable, so every unit would look missing or changed. The units are then unknown from here, not wrong,
+# and nothing should be "put right". A real launchd always lists jobs, so an empty list means it is hidden.
+SEES="" SEES_WHY=""
+backend_sees() {
+    [[ -n "$SEES" ]] && return 0
+    SEES=1
+    case "${BACKEND:-}" in
+        launchd)
+            local out
+            if ! out="$("$LAUNCHCTL" list 2>/dev/null)" || [[ -z "$(printf '%s\n' "$out" | sed 1d | sed '/^[[:space:]]*$/d')" ]]; then
+                SEES=0 SEES_WHY="launchctl list is empty or refused from this shell"
+            elif [[ -d "$LA_DIR" && ! -r "$LA_DIR" ]]; then
+                SEES=0 SEES_WHY="$LA_DIR cannot be read from this shell"
+            fi ;;
+        systemd)
+            "$SYSTEMCTL" --user show-environment >/dev/null 2>&1 || SEES=0 SEES_WHY="systemctl --user does not answer from this shell" ;;
+    esac
+}
+
 # unit_state <name>: for a loaded task, US is installed, not-loaded, differs, missing, absent (no unit,
-# as a paused or done task should be) or stale (a unit for a task that is not active).
+# as a paused or done task should be), stale (a unit for a task that is not active), or unknown (this shell
+# cannot see the scheduler: backend_sees).
 unit_state() {
     local name="$1" want=0 present=0 match=1 loaded=1 exp
     need_backend
+    backend_sees
+    if [[ "$SEES" == 0 ]]; then US=unknown; return 0; fi
     [[ "$(tv status)" == active ]] && want=1
     case "$BACKEND" in
         launchd)
             if [[ -f "$(plist_path "$name")" ]]; then
                 present=1
+                [[ -r "$(plist_path "$name")" ]] || { US=unknown; return 0; }
                 exp="$(render_unit "$name" launchd 2>/dev/null)"
                 [[ "$exp" == "$(cat "$(plist_path "$name")")" ]] || match=0
                 launchd_loaded "$name" || loaded=0
@@ -1885,7 +1910,7 @@ Usage:
   schedule.sh create --file <task.md> [--dry-run]
   schedule.sh edit <name> [--<field> <value>]... [--unset <field>]... [--prompt ... | --prompt-file ...]
                      [--dry-run]                 with no changes and a terminal, opens $EDITOR
-  schedule.sh list [--json]
+  schedule.sh list [--json [--cached]]     --cached: the last --json answer, kept in the state folder
   schedule.sh show <name> [--json]
   schedule.sh pause <name> [--reason <text>]
   schedule.sh resume <name>
@@ -2137,6 +2162,12 @@ next_for_task() {   # count: after the task is loaded
 cmd_list() {
     local json=0 n rows_w="" rows="" row
     [[ "${1:-}" == --json ]] && json=1
+    # list --json --cached: the last --json answer, kept in the state folder, printed at once (the pane draws it
+    # while the full read runs); nothing and status 1 when there is none yet.
+    if (( json )) && [[ "${2:-}" == --cached ]]; then
+        [[ -s "$S_DATA/state/list.json" ]] || return 1
+        cat "$S_DATA/state/list.json"; return 0
+    fi
     # The NAME column is as wide as the longest name, so a long one does not push its row out of line.
     local nw=4
     for n in $(task_names); do (( ${#n} > nw )) && nw=${#n}; done
@@ -2168,7 +2199,11 @@ cmd_list() {
         if [[ -n "$wait" ]]; then rows_w+="$row"$'\n'; else rows+="$row"$'\n'; fi
     done
     if (( json )); then
-        printf '[%s]\n' "$(printf '%s%s' "$rows_w" "$rows" | sed '/^$/d' | paste -sd, -)"
+        local out; out="$(printf '[%s]\n' "$(printf '%s%s' "$rows_w" "$rows" | sed '/^$/d' | paste -sd, -)")"
+        printf '%s\n' "$out"
+        if mkdir -p "$S_DATA/state" 2>/dev/null; then
+            printf '%s\n' "$out" >"$S_DATA/state/list.json.tmp.$$" 2>/dev/null && mv -f "$S_DATA/state/list.json.tmp.$$" "$S_DATA/state/list.json" 2>/dev/null
+        fi
     else
         printf '%-*s %-7s %-21s %-30s %s\n' "$nw" NAME STATUS NEXT LAST SCHEDULE
         printf '%s%s' "$rows_w" "$rows"
@@ -2251,6 +2286,7 @@ cmd_show() {
         installed) ustr="installed and matching the file" ;;
         not-loaded) ustr="written and matching the file, but not loaded in $BACKEND; 'schedule.sh sync' loads it" ;;
         differs) ustr="installed, but it differs from the file; 'schedule.sh sync' renders it again" ;;
+        unknown) ustr="unknown: this shell cannot see the scheduler (${SEES_WHY:-its unit file cannot be read}); look from a terminal outside the sandbox" ;;
         missing) ustr="missing, so it will not fire; 'schedule.sh sync' installs it" ;;
         absent) ustr="none, as a $(tv status) task has none" ;;
         stale) ustr="still installed although the task is $(tv status); 'schedule.sh sync' removes it" ;;
@@ -2760,8 +2796,10 @@ doctor_task() {
     if validate_task; then echo "  file: valid"; else echo "  file: ${VERR//$'\n'/; }"; problems=$((problems + 1)); fi
     git_dirty "$(task_file "$name")" && echo "  git: $GIT_MARK"
     if need_backend 2>/dev/null; then
-        unit_state "$name"; echo "  unit ($BACKEND): $US"
-        case "$US" in installed|absent) ;; *) problems=$((problems + 1)) ;; esac
+        unit_state "$name"
+        if [[ "$US" == unknown ]]; then echo "  unit ($BACKEND): unknown from this shell (${SEES_WHY:-its unit file cannot be read}); check from a terminal outside the sandbox"
+        else echo "  unit ($BACKEND): $US"; fi
+        case "$US" in installed|absent|unknown) ;; *) problems=$((problems + 1)) ;; esac
     fi
     [[ -d "$t_cwd" ]] && echo "  folder: $t_cwd" || { echo "  folder: $t_cwd does not exist"; problems=$((problems + 1)); }
     echo "  sandbox: $(sandbox_line)"
@@ -2788,6 +2826,10 @@ cmd_doctor() {
     local problems=0
     echo "schedule.sh $VERSION"
     if detect_backend; then echo "Backend: $BACKEND ($BACKEND_WHY)"; else echo "Backend: none found. $BACKEND_WHY."; problems=$((problems + 1)); fi
+    if [[ -n "${BACKEND:-}" ]]; then
+        backend_sees
+        [[ "$SEES" == 0 ]] && echo "Scheduler: not visible from this shell ($SEES_WHY), so each unit below is unknown rather than checked. Nothing here needs putting right on that account: run doctor from a terminal outside the sandbox to check the units."
+    fi
     echo "Tasks: $S_TASKS ($(task_names | wc -l | tr -d ' ') task(s); $S_TASKS_WHY)"
     echo "State: $S_DATA"
     if [[ -x "$RUNNER" ]]; then
@@ -2840,6 +2882,7 @@ cmd_doctor() {
         unit_state "$n"
         case "$US" in
             installed|absent) echo "Task $n: $(tv status), unit $US" ;;
+            unknown) echo "Task $n: $(tv status), unit unknown from this shell" ;;
             *) echo "Task $n: $(tv status), unit $US; 'schedule.sh sync' puts it right"; problems=$((problems + 1)) ;;
         esac
     done

@@ -1,5 +1,5 @@
 ---
-description: Start a new project — a short interview that defines its finish line, where it stands, how it is versioned and whether it is sensitive, its people, success criteria and precedents, then writes its README
+description: Start a new project — a short interview for its outcome, the person's role in it, a finish line it then questions branch by branch, its people, how it is versioned and whether it is sensitive, then writes its README
 offer-unprompted: Offer it when someone describes new work that has no project folder yet.
 argument-hint: [project name]
 ---
@@ -39,9 +39,13 @@ Anything it does not mention falls back to the defaults.
 
 ## How to run the interview
 
-- Offer two depths at the start. **Quick** — name, outcome, done-when, how it
-  is versioned and who owns it; about two minutes. **Full** — everything below.
-  They can stop at any point, and switch depth whenever they like.
+- Offer two depths at the start. **Quick** — name, outcome, their role in it,
+  done-when, a short pass questioning the plan, who owns it and how it is
+  versioned; about three minutes. **Full** — everything below. They can stop at
+  any point, and switch depth whenever they like.
+- The order is the same on both paths: the outcome, their role in it, the
+  finish line, the questions about the plan, the people, then how it is
+  versioned. Each answer is what the next question builds on.
 - Ask one thing at a time, or a small batch when the answers are quick. Offer a
   suggested answer where the repository gives you grounds for one — existing
   projects, people profiles, the decisions log — so they can confirm rather than
@@ -70,21 +74,33 @@ Anything it does not mention falls back to the defaults.
    hand over to it with what they have said so far. Ask, too, whether some piece
    of it has a finish line: that piece can be a project of its own, linked from
    the area.
-4. **Done when** — three to five criteria someone else could check without asking
+4. **Their role in it** — who they are in this work. Read the **Roles** list in
+   their profile (the file in the people directory matching `git config
+   user.name`) and offer those as the choices, with "another" always open: "Is
+   this one for you as the marketing lead, as a parent, or as something else?"
+   A role they name that the profile lacks can be added to it, on a yes. With
+   no profile or no Roles list, ask in their own words. It goes on their own
+   line in People as `as <role>`, beside what they answer for and apart from it:
+   "parent" is who they are here, "accountable" is what they answer for. It is
+   context for every later session, not a field to report on; skipped, the line
+   simply has none.
+5. **Done when** — three to five criteria someone else could check without asking
    the owner. "Stakeholders are happy" becomes "the sponsor has signed off the
    rollout plan in writing". This is the project's closeout state: every later
    session reconciles against it, and when every box is ticked, the project is
    finished.
-5. **How it is versioned, and whether anything in it is sensitive** — two
-   short questions, asked on the quick path too, and settled as the next
-   section describes.
+6. **Questions about the plan** — the sharpening pass in the next section, once
+   the finish line is drafted. On the quick path it is short; it stops whenever
+   they say so.
+7. **People** — on the quick path, who owns the outcome (the close below asks
+   if it is still open). On the full path, everyone involved, as in item 9.
+8. **How it is versioned, and whether anything in it is sensitive** — two
+   short questions, asked on the quick path too, and settled as the section
+   after next describes.
 
 That is the quick path; go straight to the close. The full path continues:
 
-6. *Optional* — **Success criteria.** How you will know it was worth doing, as
-   distinct from done: a measure, a behaviour that changes, a number with its
-   baseline and its window.
-7. *Optional* — **People and roles.** Who is involved, and in which of five roles:
+9. *Optional* — **People and roles.** Who is involved, and in which of five roles:
    **accountable** (answers for the outcome), **responsible** (does the work),
    **supporting** (helps with it), **consulted** (asked before a decision is
    taken), **informed** (hears how it went). One person is accountable for each
@@ -93,27 +109,34 @@ That is the quick path; go straight to the close. The full path continues:
    profiles; offer to start a profile, from the repository's person template if it
    has one, for anyone new. With a team roster (`team/people.md`), offer to seed
    this from it, each person's default relationship as the suggested role. Two or
-   more people here switches on the closeout's "who needs to know" step.
-8. *Optional* — **Precedents.** What has been tried before, here or elsewhere,
+   more people here switches on the closeout's "who needs to know" step. Each
+   person's own role in the work (`as <role>`, from their profile) is theirs to
+   give; ask it of the person running the command, as in item 4, and leave
+   others' lines without one unless it is offered.
+10. *Optional* — **Success criteria.** How you will know it was worth doing, as
+   distinct from done: a measure, a behaviour that changes, a number with its
+   baseline and its window.
+11. *Optional* — **Precedents.** What has been tried before, here or elsewhere,
    and what it taught. Look before you ask: search finished and paused projects
    (where the conventions file keeps them, else `projects/INDEX.md`,
    `projects/_done/` and any other folder of finished work), the decisions logs (`logs/decisions.md`,
    `projects/*/decisions.md`) and the general reference in `docs/` for anything
    similar, and offer what you find as candidates. A rejected alternative from a
    past project is the most valuable thing you can surface here.
-9. *Optional* — **Constraints and approval gates.** What needs a human before it
+12. *Optional* — **Constraints and approval gates.** What needs a human before it
    changes, what may not be claimed in public, what is canonical and must not be
    copied. These become Working conventions.
-10. *Optional* — **Timing.** A target date if there is one, and how often the
+13. *Optional* — **Timing.** A target date if there is one, and how often the
     project should be checked in on ("every 2 weeks"). The date goes at the end
     of the Desired outcome sentence, as "by <date>"; the cadence becomes the
     Current state block's `Check-in:` line.
-11. *Optional* — **Planned.** The steps they can already see, in the order they
+14. *Optional* — **Planned.** The steps they can already see, in the order they
     expect to take them. It is a plan, not a queue: no one line is singled out,
     and it is left out when they would rather find the way as they go.
-12. *Optional* — **Open questions** — the things not yet decided, so that no
-    session decides them by accident.
-13. *Optional, or when they mention it* — **Resources.** Material the project
+15. *Optional* — **Open questions** — the things not yet decided, so that no
+    session decides them by accident. The questions about the plan have
+    usually started this list.
+16. *Optional, or when they mention it* — **Resources.** Material the project
     uses that is not in the repository: large media, generated output, a data
     extract, a shared drive folder, another repository. Each gets a short name
     and a line on what it is, never a path — the paths differ from machine to
@@ -122,6 +145,28 @@ That is the quick path; go straight to the close. The full path continues:
     offer `kit/setup.sh link <slug>`, which asks for each path on this machine
     and links it. A resource described as generated (renders, build output) can
     stay inside the project folder, kept out of git.
+
+## Questions about the plan
+
+Once the finish line is drafted, question the plan the way a sceptical,
+friendly colleague would, one branch at a time. Each done-when criterion is a
+branch, and so is each step they have named. For each, ask what the plan says
+and no more:
+
+- what happens if this part fails or slips, and what they would do then;
+- who decides it, when that is not the owner;
+- what done looks like for this part, if the criterion would not settle it.
+
+Ask one question at a time, starting with the branch that looks least settled,
+and go deeper only where an answer opens a new branch. An answer that sharpens
+the plan goes where it belongs: a sharper criterion into Done when, a step into
+Planned, a decider into People (with one of the five roles, usually
+consulted, and what they decide), a rule into Working conventions. A branch they
+cannot answer yet is written into Open questions, in their words, so no later
+session decides it by accident. Stop when every branch has an answer or an open
+question, or as soon as they say enough: this is a sharpening pass, never a
+gate, and an unquestioned plan is still a plan. Close it with one line naming
+what changed and what went to Open questions.
 
 ## How it is versioned, and whether it is sensitive
 
@@ -255,8 +300,9 @@ block.
   settled above. They sit outside the Current state block.
 - **Only sections with something true in them.** The quick path writes the title
   with its two lines, What this is (if they volunteered it), Desired outcome,
-  Done when, Current state, and a People section of one line naming the owner —
-  nothing else. The
+  Done when, Current state, a People section of one line naming the owner (with
+  their role in it, when they gave one), and Open questions when the questions
+  about the plan left any — nothing else. The
   full path adds each section that was answered and leaves out each that was skipped. A
   standard section with nothing to say yet — Read before acting, Where
   everything lives — is left out too; the template's order is where it goes
@@ -275,7 +321,7 @@ block.
 - **The three vocabulary files**, beside the README: `decisions.md` from
   `kit/templates/project-decisions.md`, `glossary.md` from `kit/templates/glossary.md`
   and `terms.md` from `kit/templates/terms.md` (or the repository's own templates
-  of those names where it keeps them). Fill in what the interview settled: a
+  of those names where it keeps them). Fill in what the interview settled, shown with the README draft: a
   decision the kickoff made, a term of the project's own the person used. Each
   is otherwise left as its template has it, ready for the first entry. For a
   sensitive project they stay with it, untracked or in its own repository.
@@ -286,7 +332,12 @@ where projects live, ask rather than inventing a layout; offer `projects/` as th
 default, and offer to record the answer in `.claude/projects.md` so the next
 command does not have to ask.
 
-Show the README before writing it, and write it only once the user is content.
+Show the README before writing it, and write it only on the person's yes to it.
+Ending the questions, answering the last one or saying "that's all" is not that
+yes: show the draft and ask. The yes covers what was shown and nothing more: an
+entry for `decisions.md`, `terms.md` or `glossary.md`, a line added to the
+README after the draft, is shown with the draft or offered after it, never
+written on that yes unseen. Quote only what the person said.
 End in one line: the state the project starts in, who owns it and how it is
 versioned, which is where the next session starts. Leave the commit to them —
 they write the message — and suggest a pull request if this repository reviews

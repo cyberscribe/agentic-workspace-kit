@@ -54,6 +54,27 @@ empty "12 every command has docs/commands/<name>.md, with the four sections in o
     "$(printf '%s' "$s12_bad" | sed '/^$/d')"
 empty "12 every command has a row in the README that links its page" "$s12_rows"
 
+# --- Command frontmatter -----------------------------------------------------------------------------
+# Every command opens with description (what Claude Code lists) and offer-unprompted (what install.sh turns
+# into each skill's offer), and carries no key outside the ones Claude Code or the kit reads, so a misspelt
+# key, which would be dropped without a word, fails here instead.
+s12_bad=""
+for s12_f in "$KIT"/plugins/*/commands/*.md; do
+    s12_rel="${s12_f#"$KIT"/}"
+    s12_keys="$(awk 'NR == 1 && $0 == "---" { on = 1; next } on && $0 == "---" { exit }
+        on && /^[A-Za-z_-]+:/ { k = $0; sub(/:.*/, "", k); print k }' "$s12_f")"
+    for s12_k in description offer-unprompted; do
+        grep -qx -- "$s12_k" <<<"$s12_keys" || s12_bad+="$s12_rel: no $s12_k"$'\n'
+    done
+    while IFS= read -r s12_k; do
+        case "$s12_k" in
+            description|offer-unprompted|argument-hint|allowed-tools|model|disable-model-invocation|'') ;;
+            *) s12_bad+="$s12_rel: unknown frontmatter key $s12_k"$'\n' ;;
+        esac
+    done <<<"$s12_keys"
+done
+empty "12 every command's frontmatter has description and offer-unprompted, and no key Claude Code and the kit do not read" "$s12_bad"
+
 # --- Hooks -----------------------------------------------------------------------------------------
 s12_bad="" s12_count=0
 for s12_f in "$KIT"/plugins/*/hooks/*.sh "$KIT"/plugins/*/hooks/*.tsx; do
@@ -76,6 +97,44 @@ done
 [[ $s12_count -gt 0 ]] && ok "12 the kit has hooks to document ($s12_count)" || ko "12 the kit has hooks to document" "no hook scripts found"
 empty "12 every hook script has docs/hooks/<name>.md, with the four sections in order, 25 to 70 lines, naming its source" \
     "$(printf '%s' "$s12_bad" | sed '/^$/d')"
+
+# --- Dependencies ----------------------------------------------------------------------------------
+# Every tool a kit script looks for with `command -v` (outside comments) has a row in docs/dependencies.md, named in backticks,
+# except the everyday ones that page lists as not counted. A new tool lands with its row and licence.
+s12_bad=""
+s12_tools="$(find "$KIT" -path "$KIT/.git" -prune -o -type f \( -name '*.sh' -o -path "$KIT/githooks/*" \) -print 2>/dev/null \
+    | while IFS= read -r s12_f; do grep -vE '^[[:space:]]*#' "$s12_f" | grep -oE 'command -v [a-z][a-z0-9_-]+([[:space:]]*[>);&|]|$)'; done \
+    | sed -E 's/^command -v ([a-z0-9_-]+).*/\1/' | sort -u)"
+s12_base=" awk sed grep date mv ps perl open setsid "
+for s12_t in $s12_tools; do
+    [[ "$s12_base" == *" $s12_t "* ]] && continue
+    grep -qF -- "\`$s12_t\`" "$KIT/docs/dependencies.md" 2>/dev/null || s12_bad+="$s12_t has no row in docs/dependencies.md"$'\n'
+done
+[[ -n "$s12_tools" ]] || s12_bad+="no command -v found in the kit's scripts: the scan itself is broken"$'\n'
+grep -qF 'docs/dependencies.md' "$KIT/README.md" || s12_bad+="the README's Licence section does not point at docs/dependencies.md"$'\n'
+empty "12 every tool a kit script looks for has a row in docs/dependencies.md, and the README points at it" "$s12_bad"
+
+# --- Licence ---------------------------------------------------------------------------------------
+# Every file in the kit falls under one of LICENSE's two paragraphs: prose (CC BY 4.0) or code (MIT), each
+# named by place and kind. A file in neither is a gap in the licence. The lists below are LICENSE's own,
+# and LICENSE is checked to name each code place, so the two move together.
+s12_bad=""
+s12_files="$(git -C "$KIT" ls-files 2>/dev/null || (cd "$KIT" && find . -path ./.git -prune -o -type f -print | sed 's|^\./||'))"
+while IFS= read -r s12_f; do
+    [[ -n "$s12_f" ]] || continue
+    case "$s12_f" in
+        LICENSE) ;;
+        README.md|CHANGELOG.md|CONTRIBUTING.md|CLAUDE.kit.md|docs/*|rituals/*|templates/*.md|pilot/*.md) ;;
+        setup.sh|install.sh|lib/*|scripts/*|githooks/*|plugins/*|.claude-plugin/*|pilot/*|tests/*|.github/*|.gitignore|templates/*) ;;
+        *) s12_bad+="$s12_f is in neither paragraph of LICENSE"$'\n' ;;
+    esac
+done <<<"$s12_files"
+[[ -n "$s12_files" ]] || s12_bad+="no files listed: the scan itself is broken"$'\n'
+for s12_t in 'setup.sh' 'install.sh' 'lib/' 'scripts/' 'githooks/' 'plugins/' '.claude-plugin/' 'pilot/' 'tests/' \
+    '.github/' '.gitignore' 'configuration files in templates/' 'the Markdown in templates/' 'the Markdown' 'CLAUDE.kit.md'; do
+    grep -qF -- "$s12_t" "$KIT/LICENSE" || s12_bad+="LICENSE does not name $s12_t"$'\n'
+done
+empty "12 every file in the kit falls under LICENSE's code or prose paragraph, and LICENSE names each place" "$s12_bad"
 
 # --- setup.sh --------------------------------------------------------------------------------------
 empty "12 docs/setup.md has the four sections in order, 25 to 70 lines, and names setup.sh" \

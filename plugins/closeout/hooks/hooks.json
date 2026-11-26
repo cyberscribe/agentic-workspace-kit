@@ -1,6 +1,17 @@
 {
-  "description": "Closeout plugin — SessionEnd capture of unrecorded learnings, SessionStart review of pending drafts.",
+  "description": "Closeout plugin — SessionEnd capture of unrecorded learnings, SessionStart review of pending drafts, and the #private marker that keeps a session out of both.",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/closeout-private.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

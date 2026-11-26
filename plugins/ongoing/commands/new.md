@@ -37,8 +37,8 @@ Area · Folder · One-liner), and the template `kit/templates/area-readme.md`, e
 
 ## How to run the interview
 
-- Offer two depths. **Quick** — name, desired state, standards, cadence, how it is
-  versioned and who owns it; about two minutes. **Full** — everything below. They can
+- Offer two depths. **Quick** — name, desired state, their role in it, standards,
+  cadence, how it is versioned and who owns it; about two minutes. **Full** — everything below. They can
   stop at any point and switch depth whenever they like.
 - Ask one thing at a time, or a small batch when the answers are quick. Offer a
   suggested answer where the repository gives grounds for one — reminders or scheduled
@@ -63,17 +63,22 @@ Area · Folder · One-liner), and the template `kit/templates/area-readme.md`, e
    the area is kept up ("the collection in optimal health and looking its best"). It
    is a direction, not a finish line, so it may be broad; the standards make it
    checkable.
-4. **Standards to keep** — two to five, the owner's own, each concrete enough that
+4. **Their role in it** — who they are in this area, offered from the **Roles** list
+   in their profile, with "another" always open, as `/projects:new` asks it (its
+   item 4): a parent keeping the household's paperwork, a woodworker keeping the
+   workshop. It goes on their People line as `as <role>`, apart from what they
+   answer for; skipped, the line has none.
+5. **Standards to keep** — two to five, the owner's own, each concrete enough that
    a review can say whether it was kept, together covering the desired state. "Look
    after the trees" becomes "no tree dries out in the growing season" and "each tree
    is photographed from the same front each season". Offer candidates drawn from what they have said.
    When they cannot name standards yet, write `- not yet named` rather than inventing
    them; `/ongoing:review` comes back to it.
-5. **Check-in cadence** — how often the area should be looked at against its
+6. **Check-in cadence** — how often the area should be looked at against its
    standards ("every 2 weeks", "monthly", "each season"). It becomes the `Check-in:`
    line, and the board measures the area against it rather than against the
    workspace's staleness setting.
-6. **How it is versioned, and whether anything in it is sensitive** — asked on the
+7. **How it is versioned, and whether anything in it is sensitive** — asked on the
    quick path too, settled as `/projects:new` settles them: `workspace` (the
    conventions' **Versioned default** first), `own-repo` or `untracked`, and `normal`
    or `sensitive`, with the same rule that a sensitive area is never tracked by the
@@ -81,25 +86,25 @@ Area · Folder · One-liner), and the template `kit/templates/area-readme.md`, e
 
 That is the quick path; go to the close. The full path continues:
 
-7. *Optional* — **People and roles.** Who is involved, in the five roles projects use:
+8. *Optional* — **People and roles.** Who is involved, in the five roles projects use:
    **accountable** (answers for the area; one person), **responsible**, **supporting**,
    **consulted**, **informed**. Check the people directory (the conventions file's, else
    `memory/people/`, `docs/people/` or `people/`) and link existing profiles; offer to
    start a profile for anyone new, and with a team roster (`team/people.md`) offer to
    seed this from it. Two or more people switches on the closeout's "who needs to know"
    step for this area too.
-8. *Optional* — **Recurring.** What keeps the standards met without anyone
+9. *Optional* — **Recurring.** What keeps the standards met without anyone
    remembering: scheduled tasks, calendar reminders, routines. Look before asking —
    the scheduler's task files, the conventions' sources — and offer what you find.
-9. *Optional* — **Projects.** Any piece of the area that has a finish line now (a
+10. *Optional* — **Projects.** Any piece of the area that has a finish line now (a
    season's repot, an exam). Each becomes a project through `/projects:new`, whose
    What this is names the area; a small one may sit inline under Projects with its
    outcome and a short Done when list.
-10. *Optional* — **Precedents.** What has been tried before and what it taught, from
+11. *Optional* — **Precedents.** What has been tried before and what it taught, from
     finished projects, decisions logs and general reference, offered as candidates.
-11. *Optional* — **Constraints.** What needs a human before it changes, what is
+12. *Optional* — **Constraints.** What needs a human before it changes, what is
     canonical and must not be copied. These become Working conventions.
-12. *Optional* — **Open questions**, and **Resources** (material outside the
+13. *Optional* — **Open questions**, and **Resources** (material outside the
     repository, named, never a path; `kit/setup.sh link <slug>` maps them per machine).
 
 ## Close with the desired state and the standards
@@ -117,7 +122,8 @@ do not count against the in-flight limit.
   template, keeping its section order and removing its instructions: the title with its
   `Versioned:` and `Sensitivity:` lines, then only the sections with something true in
   them. The quick path writes What this is (if volunteered), Desired state, Standards to
-  keep, Current state and a one-line People section naming the owner.
+  keep, Current state and a one-line People section naming the owner, with their role
+  in it when they gave one.
 - **The Current state block**, after Standards to keep, labels exactly as the template
   has them:
 
@@ -140,13 +146,18 @@ do not count against the in-flight limit.
 - **The three vocabulary files**, beside the README: `decisions.md` from
   `kit/templates/project-decisions.md`, `glossary.md` from `kit/templates/glossary.md`
   and `terms.md` from `kit/templates/terms.md` (or the repository's own templates
-  of those names where it keeps them). Fill in what the interview settled: a
+  of those names where it keeps them). Fill in what the interview settled, shown with the README draft: a
   decision the kickoff made, a term of the area's own the person used. Each
   is otherwise left as its template has it, ready for the first entry. For a
   sensitive area they stay with it, untracked or in its own repository.
 - **Nothing else by default.** New person profiles only with the user's yes.
 
-Show the README before writing it, and write it only once the user is content. End in
+Show the README before writing it, and write it only on the person's yes to it.
+Ending the questions, answering the last one or saying "that's all" is not that
+yes: show the draft and ask. The yes covers what was shown and nothing more: an
+entry for `decisions.md`, `terms.md` or `glossary.md`, a line added to the
+README after the draft, is shown with the draft or offered after it, never
+written on that yes unseen. Quote only what the person said. End in
 one line: the state, the check-in cadence, who owns it and how it is versioned. Leave
 the commit to them — they write the message.
 

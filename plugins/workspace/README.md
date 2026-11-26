@@ -8,6 +8,7 @@ commands, two hooks and a state check:
 | **`/workspace:quick-start`** | The one door into the kit: set it up for the team and for each person, and check it is reachable on every surface they use. |
 | **`/workspace:hygiene`** | The weekly tidy of where context lives, with the always-loaded byte count every time. |
 | **`/workspace:register-audit`** | The monthly check of the register guidance files are written in. |
+| **`/workspace:diagnose`** | A scrubbed fault report for the kit's maintainers: versions, where the plugins load from, install records and hook state, with no paths, names or secrets. |
 
 ## Quick-start
 
@@ -23,9 +24,10 @@ of their own — and offers only the parts that apply:
   preferences, working conventions, how the agent should show up, and the
   approval gates — written into the always-loaded file a line at a time, because
   every line there is paid for by every session.
-- **The personal part — each person.** Their profile in the people directory, and
-  a few lines for their own personal layer, which stays theirs and outside the
-  repository.
+- **The personal part — each person.** Their profile in the people directory,
+  with the roles they hold across their life (a marketing leader, a parent, a
+  woodworker) that each project and area later names, and a few lines for their
+  own personal layer, which stays theirs and outside the repository.
 
 And, if the team wants them, a few things that live in their own files so they
 cost the always-loaded budget nothing:
@@ -149,6 +151,18 @@ bash kit/plugins/workspace/scripts/state.sh --quick
 bash kit/plugins/workspace/scripts/state.sh ../other-repo --json
 bash kit/plugins/workspace/scripts/state.sh --explain submodule.kit
 ```
+
+A person's profile is `<people folder>/<full-name-slug>.md`, unless the conventions
+name it elsewhere with a line in `.claude/projects.md`, which the example
+conventions carry commented out; a shared workspace gives one `<git user.name>:
+<path>` per person:
+
+```
+- **Own profile:** `memory/me.md`
+```
+
+Then `person_profile` is `present` with `person_profile_path` set when that file is
+there, and `missing` with `person_profile_named` holding the path when it is not.
 
 `--quick` gives only the keys the session-start summary reads, at a cost that
 does not grow with the number of projects. `--json` gives the same facts as one

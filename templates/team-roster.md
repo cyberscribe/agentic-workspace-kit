@@ -8,7 +8,7 @@ it. One row per person. The closeout's "who needs to know" step reads it; a proj
 section overrides it for that project. It is optional: without it, the people directory and the
 project READMEs still work.*
 
-- **Role** is the job, at the level that stays true for months.
+- **Job** is what they do at work, at the level that stays true for months.
 - **Default relationship** is one of the five project roles — accountable, responsible, supporting,
   consulted, informed — and may be scoped to a kind of change: `informed: anything touching
   measurement`. The older words (owns, does, helps, ask first, keep told) still read the same.
@@ -19,6 +19,6 @@ project READMEs still work.*
 
 ---
 
-| Name | Role | Default relationship | Channel | Handle |
+| Name | Job | Default relationship | Channel | Handle |
 |---|---|---|---|---|
 | <full name> | <what they do> | <accountable · responsible · supporting · consulted · informed, optionally scoped> | <Slack · Teams · email · team meeting · in person> | <@handle or #channel> |

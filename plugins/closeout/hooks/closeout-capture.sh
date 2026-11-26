@@ -55,6 +55,15 @@ cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
 [[ "$reason" == "clear" ]] && exit 0
 [[ -z "$transcript_path" || ! -f "$transcript_path" ]] && exit 0
 
+# (3b) A private session keeps nothing (closeout-private.sh). The flag the prompt hook wrote is the
+# record; the person's own messages in the transcript are read too, so a flag that was never written
+# (the hook timed out, the word came in a resumed session) still counts. Either way the flag goes.
+private_flag="${CLOSEOUT_DRAFT_ROOT:-$HOME/.claude/closeout-drafts}/.private/${session_id:-none}"
+if [[ -f "$private_flag" ]]; then rm -f "$private_flag"; exit 0; fi
+said="$(jq -r 'select(.type == "user") | .message.content | if type == "string" then . else (map(select(.type == "text") | .text) | join(" ")) end' \
+    "$transcript_path" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+grep -qE '(^|[^[:alnum:]_#/-])#private([^[:alnum:]_/-]|$)' <<<"$said" && exit 0
+
 # (4) Skip trivial sessions — a handful of transcript lines is not worth a run.
 min_lines="${CLOSEOUT_MIN_LINES:-6}"
 lines="$(wc -l < "$transcript_path" 2>/dev/null || echo 0)"
@@ -309,6 +318,11 @@ Begin the file with this line, exactly, so the review can find the record:
 
   transcript: $transcript_path
 
+When no item proposes a template, the next line says so, with the reason (a
+one-off session, an existing template already covers it):
+
+  templates: none — <reason>
+
 Then one section per item, in this shape:
 
   ### <one-line claim>
@@ -331,6 +345,11 @@ Then one section per item, in this shape:
   - cost: <the description's length, in characters>     (a skill or command)
 
   <the note itself, one to three sentences>
+
+In a /projects:pair pairing, the project's shared files (its decisions log, its
+README's Current state) are the product manager's to write: an item from an
+engineer's session for one of them says so in destination:, as "<file> (the
+manager's to write)".
 
 L<n> is the line number the Read tool shows for the transcript. The span is
 copied exactly from that line and short enough to read at a glance, twenty words

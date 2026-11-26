@@ -428,6 +428,8 @@ status_file() { case "$1" in *to-cc.md) printf '%s/status-cc.md' "$mb" ;; *) pri
 # sentence with it, and the last one holds. A message the writer forgot to mark is still unanswered,
 # and treating it as settled would hide it from the engineer for good. A "received" line records a
 # pickup, not a settlement, so it is passed over.
+# A message starts only at a full header, "## <ID> · <YYYY-MM-DD HH:MM[ ±zzzz]> · <title>", as post writes
+# it: a subhead inside a message ("## PM-164, item by item") is part of that message, never an id.
 open_ids() {
     local f="${1:-$reads}" sf
     [ -f "$f" ] || return 0
@@ -435,7 +437,7 @@ open_ids() {
     awk '
         function emit() { if (id != "") { if (id in set) st = set[id]; if (st == "" || st ~ /^open/) print id } }
         FILENAME == sf { if ($0 !~ /^#/ && match($0, / · [^·]* · /)) { t = tolower(substr($0, RSTART + RLENGTH)); if (t !~ /^received/) set[$1] = t }; next }
-        /^## [A-Za-z]+-[0-9]+/ { emit(); id = $2; st = ""; next }
+        /^## [A-Za-z]+-[0-9]+ · [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]/ { emit(); id = $2; st = ""; next }
         /Status:/ { s = $0; while (match(s, /Status:\**[ \t]*/)) s = substr(s, RSTART + RLENGTH); st = tolower(s); if (st == "") st = "open" }
         END { emit() }
     ' sf="$sf" "$sf" "$f"
@@ -444,7 +446,7 @@ open_ids() {
 # by hand files a separate message under it; read as an amendment, it would be half lost.
 dup_ids() {
     [ -f "$1" ] || return 0
-    awk '/^## [A-Za-z]+-[0-9]+/ { n[$2]++; if (n[$2] == 2) o[++k] = $2 } END { for (i = 1; i <= k; i++) printf "%s%s (%d)", (i > 1 ? ", " : ""), o[i], n[o[i]] }' "$1"
+    awk '/^## [A-Za-z]+-[0-9]+ · [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]/ { n[$2]++; if (n[$2] == 2) o[++k] = $2 } END { for (i = 1; i <= k; i++) printf "%s%s (%d)", (i > 1 ? ", " : ""), o[i], n[o[i]] }' "$1"
 }
 dup_line() {
     local d; d="$(dup_ids "$1")"
@@ -566,7 +568,7 @@ clock_check() {
     [ -f "$f" ] || return 0
     m="$(mtime_of "$f")"
     case "$m" in ''|*[!0-9]*) return 0 ;; esac
-    awk -F' · ' '/^## [A-Za-z]+-[0-9]+ · / { sub(/^## /, "", $1); print $1 "|" $2 }' "$f" \
+    awk -F' · ' '/^## [A-Za-z]+-[0-9]+ · [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]/ { sub(/^## /, "", $1); print $1 "|" $2 }' "$f" \
     | while IFS='|' read -r id s; do
         e="$(epoch_of "$s")"
         case "$e" in ''|*[!0-9]*) continue ;; esac
@@ -837,7 +839,7 @@ case "$mode" in
             [ "$holder" = "$opt_pm" ] || printf 'pair: warning: another PM session holds this mailbox (since %s); two PMs writing one to-cc.md give the engineer two briefs. Posted anyway.\n' \
                 "$(field "$mb/.pm-session" since)" >&2
         fi
-        last="$(grep -oE "^## $prefix-[0-9]+" "$file" 2>/dev/null | sed "s/^## $prefix-//" | sed 's/^0*//' | sort -n | tail -n 1)"
+        last="$(grep -oE "^## $prefix-[0-9]+ · [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}" "$file" 2>/dev/null | sed -e "s/^## $prefix-//" -e 's/ .*//' -e 's/^0*//' | sort -n | tail -n 1)"
         id="$(printf '%s-%03d' "$prefix" $(( ${last:-0} + 1 )))"
         printf '\n## %s · %s · %s\n%s\nStatus: open\n' "$id" "$(stamp)" "$opt_title" "$body" >> "$file"
         aw_unlock "$mb/.$opt_from-lock"
@@ -856,7 +858,7 @@ case "$mode" in
         case "$opt_from" in cc) file="$cc_file" ;; pm) file="$mb/to-pm.md" ;;
             *) say "status needs --from pm or --from cc"; exit 2 ;; esac
         if [ -z "$opt_id" ] || [ -z "$rest" ]; then say "status needs --id <message id> and the status (done, declined or waiting <on what>)"; exit 2; fi
-        grep -q "^## $opt_id " "$file" 2>/dev/null || { say "no $opt_id in $file"; exit 2; }
+        grep -q "^## $opt_id · " "$file" 2>/dev/null || { say "no $opt_id in $file"; exit 2; }
         can_write_or_stop
         sf="$(status_file "$file")"
         aw_lock "$mb/.$opt_from-lock" || { say "nothing was changed: the lock $mb/.$opt_from-lock was not taken (the line above says why)"; exit 2; }

@@ -834,7 +834,7 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
 - **The kit is read in place, not copied.** The plugins, rituals, docs and project templates stay in
   `kit/`; `kit/setup.sh update` advances the kit and offers any change to a file the team owns as a
   diff to apply or skip. Files the team owns are created once and never overwritten.
-- **The kit's plugins, and their nineteen commands, are wired in** from the directory marketplace at `kit`:
+- **The kit's plugins, and their twenty commands, are wired in** from the directory marketplace at `kit`:
   - **closeout** — `/closeout` and the end-of-session backstop. `.claude/closeout.md` points it at
     `kit/docs/memory-layers.md`, so there is one taxonomy.
   - **projects** — `/projects:new`, `adopt`, `board`, `hold`, `close`, `pickup` and `pair`, the life of a
@@ -845,7 +845,8 @@ commits nothing: it ends by printing the commit to make. `docs/setup.md` describ
     finished: a desired state and standards to keep in place of a finish line, in `ongoing/<slug>/`.
   - **workspace** — `/workspace:quick-start`, the first-time interview and the door into the kit;
     `/workspace:hygiene`, the weekly tidy; `/workspace:register-audit`, the monthly register check;
-    and a session-start summary of what is out of step.
+    `/workspace:diagnose`, a scrubbed fault report to file as an issue; and a session-start summary of
+    what is out of step.
   - **scheduler** — `/scheduler:tasks`, Claude Code tasks on a schedule that run on the person's own
     machine from its own scheduler (launchd, systemd user timers or cron) and outlast the session.
     Installed, it schedules nothing until someone creates a task.
@@ -904,7 +905,7 @@ The **projects** plugin keeps the §1.3 tracking axis, one command per moment:
 
 | When | Command | What it does |
 |---|---|---|
-| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, Done when, Current state and People; or, for a project that already exists, only the sections it is missing, with an older status block offered for conversion |
+| Starting | `/projects:new`, `/projects:adopt` | A short interview for the Desired outcome, the person's role in it, Done when, questions that sharpen the plan, Current state and People; or, for a project that already exists, only the sections it is missing, with an older status block offered for conversion |
 | Opening a session | *(session-start line)* | Inside a project folder: outcome, Done-when progress, and the state with its owner and anything blocking it |
 | Any time | `/projects:board` | Every project in flight, grouped by state, with one-line flags: no owner, no Done when, a stale `Updated:`, blocked for more than 14 days, someone over their in-flight limit, the register out of step, adopt proposals unconfirmed, a project ready to close |
 | End of a session | `/closeout` | Learnings promoted; Done when and the Current state block brought up to date, reported apart |
@@ -1012,13 +1013,14 @@ it, common questions, and how to tell it is working.
 | `/workspace:quick-start` | workspace | The first-time interview, and the check that the kit is reachable | [docs/commands/workspace-quick-start.md](docs/commands/workspace-quick-start.md) |
 | `/workspace:hygiene` | workspace | The weekly pass over where context lives | [docs/commands/workspace-hygiene.md](docs/commands/workspace-hygiene.md) |
 | `/workspace:register-audit` | workspace | The monthly pass over how guidance reads | [docs/commands/workspace-register-audit.md](docs/commands/workspace-register-audit.md) |
+| `/workspace:diagnose` | workspace | A scrubbed fault report for the kit's maintainers, saved on a yes and never sent | [docs/commands/workspace-diagnose.md](docs/commands/workspace-diagnose.md) |
 | `/scheduler:tasks` | scheduler | Claude Code tasks on a schedule, on this machine, that outlast the session | [docs/commands/scheduler-tasks.md](docs/commands/scheduler-tasks.md) |
 
 The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.md) and
 [closeout-review](docs/hooks/closeout-review.md); the projects plugin's
 [session-start line](docs/hooks/projects-session-start.md) and [pairing hooks](docs/hooks/projects-pair.md); the workspace plugin's
-[session-start summary](docs/hooks/workspace-session-start.md) and
-[git guard](docs/hooks/workspace-guard-git.md); the scheduler plugin's
+[session-start summary](docs/hooks/workspace-session-start.md),
+[git guard](docs/hooks/workspace-guard-git.md) and [context reading](docs/hooks/workspace-context-reading.md); the scheduler plugin's
 [session-start line](docs/hooks/scheduler-session-start.md); and the git hooks in `githooks/`,
 [pre-commit](docs/hooks/pre-commit.md), [pre-merge-commit](docs/hooks/pre-merge-commit.md),
 [commit-msg](docs/hooks/commit-msg.md) and [pre-push](docs/hooks/pre-push.md).
@@ -1046,7 +1048,7 @@ The hooks: the closeout plugin's [closeout-capture](docs/hooks/closeout-capture.
 | `templates/team-roster.md` | The team roster, copied to `team/people.md`: each person's default relationship to the work and how they like to hear, by handle only; seeds the closeout's "who needs to know" step |
 | `plugins/closeout/` | The closeout ritual as a Claude Code plugin — `/closeout` plus the end-of-session backstop |
 | `plugins/projects/` | Projects from start to done — nine commands, a session-start line and the pairing hooks |
-| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `scripts/state.sh` (the read-only state check), the session-start summary and the git guard |
+| `plugins/workspace/` | `/workspace:quick-start`, `/workspace:hygiene`, `/workspace:register-audit`, `/workspace:diagnose`, `scripts/state.sh` (the read-only state check), the session-start summary and the git guard |
 | `plugins/scheduler/` | `/scheduler:tasks` and `scripts/schedule.sh`, scheduled Claude Code tasks rendered into launchd, systemd user timers or cron |
 | `setup.sh` | The guided setup: ten stages, and `new`, `update`, `--developer`, `link`, `hooks`, `skills` and `migrate` |
 | `install.sh` | The engine setup runs: creates the files a workspace owns, once, and records them in `.claude/kit-templates.lock` |
@@ -1110,9 +1112,13 @@ repository has to be pulled back with `git subtree pull` before the next push.
 
 ## Licence
 
-Code (the installer, the `pilot/` scripts, the plugins, `tests/`) is MIT. The writing — this README, `docs/`,
-`rituals/`, `templates/` and the rest of the prose — is CC BY 4.0: use and adapt it freely, including
-commercially, with credit. See `LICENSE`.
+Code — every script, hook, plugin file, test and configuration file, whatever folder it is in:
+`setup.sh`, `install.sh`, `lib/`, `scripts/`, `githooks/`, everything under `plugins/` and `.claude-plugin/`,
+the scripts in `pilot/`, `tests/`, `.github/`, `.gitignore` and the configuration files in `templates/` —
+is MIT. Prose — this README, the CHANGELOG, CONTRIBUTING, `docs/`, `rituals/`, the Markdown in
+`templates/`, the Markdown in `pilot/` and `CLAUDE.kit.md` — is CC BY 4.0: use and adapt it freely,
+including commercially, with credit. See `LICENSE`. The kit vendors no third-party code; the programs it calls, and
+their licences, are in [`docs/dependencies.md`](docs/dependencies.md).
 
 Maintained as used: this kit runs the author's own workspace daily, and changes land when that
 workspace teaches something. Issues are read; there is no support commitment.

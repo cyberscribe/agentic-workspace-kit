@@ -22,6 +22,17 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/projects:adopt` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+Draft mode is the one exception, by design: it asks nothing and writes each proposal marked
+`proposed by /projects:adopt`, for the person to confirm or edit later.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,
@@ -113,6 +124,14 @@ Look for each section by what it does, not only by its heading.
   metrics see People only under a `People` heading or a **Section names** alias,
   so under any other heading say so in the summary, and in interactive mode
   offer to record the name in `.claude/projects.md`.
+- **The person's role in it**, in interactive mode only, and offered once even
+  when nothing else is missing: which of the roles in their profile's **Roles**
+  list the person running the command is in here, with "another" always open (a
+  parent, a marketing leader, a woodworker). On a yes it becomes its own part of
+  their People line, after what they answer for and before the profile, as
+  `- <name> — accountable — as <role> — <profile>`: the one change this command
+  makes inside a line already there. A project without one is not missing
+  anything, so the no-argument list does not name it, and draft mode leaves it.
 - **Desired outcome** is present if the README, or a file it names as holding
   the goals, says what finishing looks like — a section such as "Goals", "Aims"
   or "Objective" counts. A statement of scope or purpose, or a plan with no end
@@ -245,7 +264,8 @@ once, ahead of the person who will confirm them.
 - Inserted headings take the level of the README's existing section headings, so
   the outline stays whole: `###` in a README whose sections are `###`.
 - Everything already in the file stays byte for byte as it was: no rewording,
-  no reflowing, no reordering, no fixing of other things noticed on the way.
+  no reflowing, no reordering, no fixing of other things noticed on the way. The
+  one exception is the person's role, added to their own People line on a yes.
 - A folder whose only entry point is its own `CLAUDE.md` takes the sections
   there. Only a folder with neither gets a README written: the title, the
   sections proposed here, and a first line saying what the folder already

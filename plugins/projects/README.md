@@ -212,12 +212,13 @@ link or a commit. When the team has a verification standard in
 met, you choose: keep working, change the criterion (with a dated line saying
 why), or waive it. The people marked *consulted* are named before a waiver, and
 the waiver is recorded in the README next to the item. Then comes a
-three-question retrospective: what worked, what you would change, and what the
-next similar project should know first. It offers to promote that last answer to
-the cross-project decisions log or general reference, and to add a catalogue line
-for anything reusable, but writes neither without your yes. Finally it marks the
-project `State: done`, moves the folder to `projects/_done/<slug>/` (or wherever
-`.claude/projects.md` says finished projects go) with `git mv`, so its history
+three-question retrospective: what worked, what didn't and what you would change
+because of it, and what the next similar project should know first. It offers to
+promote that last answer to the cross-project decisions log or general reference,
+and to add a catalogue line for anything reusable, but writes neither without
+your yes. Finally it marks the project `State: done`, moves the folder to
+`projects/_done/<slug>/` (or wherever `.claude/projects.md` says finished
+projects go) with `git mv`, so its history
 follows — a plain move and a rewritten `.gitignore` line for an untracked
 project — moves the register row to Done, and suggests who should hear, based
 on People roles. It lists the other files that still name the old path rather

@@ -12,15 +12,18 @@ decides its mode from `mode=` rather than asking:
 |---|---|---|
 | `fresh` | `CLAUDE.md` still has angle-bracketed stand-ins | The team part, then the personal part |
 | `joining` | The team part is done; this person has no profile | The personal part only |
-| `existing-system` | Signs of a system that was here first | A mapping of that system onto the kit, changing nothing without a yes |
+| `existing-system` | Signs of a system that was here first, the team part not yet filled in under the kit | A mapping of that system onto the kit, changing nothing without a yes |
 | `nothing-left` | Everything is filled in | The last section on its own |
 
 - **The team part** fills `CLAUDE.md` §1–§3 below its import line (what the team does, the standards
   owner, output preferences, working conventions, how the agent should show up, approval gates), and
   optionally the glossary, `.claude/projects.md` settings, the first projects, the team roster, a
   verification standard, the catalogue and the pilot build list.
-- **The personal part** writes the person's profile into the people directory, with their own
-  in-flight limit if they want one, and drafts lines for their personal agent settings for them to add.
+- **The personal part** writes the person's profile into the people directory (or where the conventions'
+  **Own profile** line names it), with the roles they
+  hold across their life in their own words (a handful at most, one is plenty, no questions about the
+  business), their own in-flight limit if they want one, and drafts lines for their personal agent
+  settings for them to add. Each project and area later names the role the person is in there.
 - **Fitting an existing system** shows a table of what exists against the kit's terms, records the
   team's names in `.claude/projects.md` and `.claude/closeout.md`, offers the `@kit/CLAUDE.kit.md`
   import line for their own `CLAUDE.md`, walks `/projects:adopt` proposals, and proposes folding

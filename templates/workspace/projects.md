@@ -64,6 +64,9 @@ person and easy to find for a script.
 - **Project template:** `kit/templates/project-readme.md`
 - **People:** `memory/people/<name>.md`, from `kit/templates/person-profile.md`; the name is the
   person's full name, lowercase, joined by hyphens — `memory/people/priya-shah.md`
+<!-- Where a person's own profile lives somewhere else, name it, and the state check and quick-start
+read it there; in a shared workspace, one `<git user.name>: <path>` per person:
+- **Own profile:** `memory/me.md` -->
 - **Catalogue of reusable work:** `docs/catalogue.md`, if the team keeps one, started from
   `kit/templates/catalogue.md`
 - **What counts as checked:** `docs/verification.md`, if the team has adopted one, started from

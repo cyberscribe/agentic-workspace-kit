@@ -27,6 +27,7 @@ folding into something that does, and waits for a decision.*
 | `/closeout` | 2 | Promotes only what is not otherwise discoverable, in the person's words |
 | closeout-capture hook (SessionEnd) | 2 | Drafts the candidates while the session is still in reach |
 | closeout-review hook (SessionStart) | 2 | Brings an unpromoted draft back before it is lost |
+| closeout-private hook (UserPromptSubmit) | Rail | Keeps a session the person marks `#private` out of the capture, so what is kept is what they agreed to (added 3.10.0) |
 | `scripts/check-evidence.sh` | 2 | Refuses a candidate the session's record does not bear out, so only true context is kept |
 | **projects** plugin | Both | The project page is common ground on what is being done and why; its decisions are context nobody can derive |
 | `/projects:new` | Both | The outcome and Done when, agreed in the person's words, and the three vocabulary files |
@@ -51,6 +52,7 @@ folding into something that does, and waits for a decision.*
 | `/workspace:quick-start` | Both | Writes the team's standards, people and preferences down the first time |
 | `/workspace:hygiene` | 1 | Checks that each thing is where both expect it, and the budget of what loads every time |
 | `/workspace:register-audit` | 1 | Keeps guidance calm and the person's words plain |
+| `/workspace:diagnose` | Rail | A fault report for the kit's maintainers; it keeps the kit working without carrying anything private out (added 3.10.0) |
 | workspace session-start hook | Rail | Names what is out of step (hooks, the kit import, a submodule) with the command that fixes it |
 | guard-git hook (PreToolUse) | Rail | Keeps an agent from stepping round the git hooks that keep the workspace private |
 | `scripts/state.sh` | Rail | The read-only state the hook and hygiene report from |

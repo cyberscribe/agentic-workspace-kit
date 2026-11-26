@@ -24,6 +24,24 @@ awaiting a reply.
 so it does not need a kit workspace. The tasks belong to this machine and this
 person's login, and they keep running after this session ends.
 
+## With nothing asked
+
+`/scheduler:tasks` on its own means "what's scheduled?". Run `list`, show its table as it is, and
+stop there, with one line on what can come next: show, pause, run or change a task by its name, or
+describe a new one. `doctor` is for when the person asks whether things are working, or when the list
+itself shows a problem (a failed run, a task that paused itself), and then for that task alone:
+`doctor <name>`.
+
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+A new or changed task is shown as its dry run, and created or changed on that yes.
+
 ## The script
 
 Every action goes through one script, which renders the machine's scheduler from the

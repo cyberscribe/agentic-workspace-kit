@@ -20,6 +20,17 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/ongoing:adopt` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+Each drafted block is written marked `proposed by /ongoing:adopt`, a proposal until the owner
+confirms it; the move and the register changes wait for the yes as above.
+
 ## Conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else, and
@@ -66,6 +77,11 @@ edit -->`, so it reads as a proposal until the owner says otherwise.
 - **Projects** — the former Done when list, unchanged, under a heading naming its
   outcome, marked inline; or links to projects that already serve it.
 - **Recurring** — scheduled tasks, reminders or routines the files name.
+- **People, with the person's role in it** — the owner's line as `/projects:adopt`
+  proposes it, and the person running the command asked, once, which of the roles in
+  their profile's **Roles** list they are in here ("another" always open). Their
+  answer becomes its own part of their People line, `— as <role> —`, after what they answer for; skipped, the line has none,
+  and nothing is missing.
 
 ## The move and the registers
 

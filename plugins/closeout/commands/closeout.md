@@ -42,7 +42,9 @@ show an earlier round. A one-off is not proposed. Look first at what the workspa
 already has (`skills/`, `.claude/agents/`, `.claude/commands/`, `rituals/` and the
 kit's own): where one already covers the work, propose an update to it, not a new
 file. A skill's or command's description is loaded into every session, so the
-proposal says how many characters it is.
+proposal says how many characters it is. When none is proposed, the report says
+so in one line, `Templates: none — <reason>` (a one-off session, an existing
+template already covers it), so the person can see the question was asked.
 
 Look for what passes, in this order, and give the first the most care:
 
@@ -79,6 +81,38 @@ above it, holds `kit/CLAUDE.kit.md` or `.claude/kit-templates.lock`. The kit's p
 are installed for the person, so the command is offered in every folder. Outside a
 workspace, say in one line that `/closeout` works inside a kit workspace, and do nothing
 else.
+
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
+This holds for every proposal and every tracking change closeout brings back. Mechanical,
+uncontested promotions are the exception, by design: they are made directly, as Promote says, and
+listed in the report.
+
+## In a pairing
+
+When this session is the product manager of an open `/projects:pair` pairing (its token in the
+mailbox's `.pm-session`, no `.closed`), the engineers close out first and this session last: follow
+"Closing out a session in the pairing" in `kit/plugins/projects/commands/pair.md` before writing
+anything durable. When this session is a pairing's engineer (the session-start line or `PAIR_ROLE=cc`
+says so), close out this session only and say so in one line: write your own files, leave the
+project's shared files (its decisions log, its README's Current state, the workspace's memory) to the
+manager with your entries proposed in a `Closed out` reply, as the mailbox README's *Closing out*
+section says. Closing out the manager is the person's call.
+
+## A private session
+
+A person can mark a session private by writing `#private` in any message; the
+closeout plugin then says so in one line, and the capture at the end of the
+session keeps no draft of it. In a session marked that way, `/closeout` runs only
+because the person asked for it here, and it asks before writing anything: show
+each proposed change and write it on their yes. Nothing from the session goes
+anywhere else unasked, the decisions log included.
 
 ## Conventions come first
 
@@ -329,6 +363,7 @@ there, on an explicit yes.
 - What was promoted, and at which tier, each by its plain sentence first.
 - What was already written, and where, and anything observed and not explained.
 - What is proposed and still needs a decision.
+- `Templates: none — <reason>`, when no template is proposed.
 - What each candidate was checked against (the transcript, the draft's quotes,
   or the conversation), and which were corrected, dropped or left unverified.
 - Any leave-out test offered: drafted, declined, or the tier reconsidered.
@@ -337,7 +372,8 @@ there, on an explicit yes.
 - Who needs to know what, if that step applied.
 - What was verified, and against which standard, if the repository has one.
 - Which files were touched, new against modified, and anything left unfinished.
-- The commands that commit them, in the order below.
+- The commands that commit them, in the order below, every value in them filled in: no `<placeholder>`
+  is handed to the person.
 - Any line the personal conventions ask for.
 
 Leave the commit to the person. List what you touched, by name (a broad staging
@@ -391,6 +427,11 @@ if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
   mkdir -p "$d" && touch "$d/.closeout-ran.$CLAUDE_CODE_SESSION_ID"
 fi
 ```
+
+If that is refused (a permission check, a sandbox), say so in one line: the capture may then write a
+draft as well, which the next session offers like any other. Hand the person no command for it. A
+command for the person always has its values filled in, never a `<placeholder>` or a variable only
+this session holds; where they cannot be filled in, it is left out.
 
 ## Practices
 

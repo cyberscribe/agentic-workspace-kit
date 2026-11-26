@@ -29,6 +29,14 @@ are installed for the person, so the command is offered in every folder. Outside
 workspace, say in one line that `/projects:close` works inside a kit workspace, and do nothing
 else.
 
+## Written on a yes
+
+Every change this command makes to a file is shown first, as it will be written, and written only on
+the person's yes to it. An answer to a question, the end of the questions, or "that's all" is not
+that yes: show the change and ask. The yes covers what was shown and nothing more; anything else
+(an entry in a decisions or terms file, a line added afterwards) is shown with it or offered after.
+Quote only what the person said.
+
 ## Project conventions come first
 
 If `.claude/projects.md` exists in this repository, read it before anything else,
@@ -123,7 +131,9 @@ that saved time, a rejected alternative, a criterion that had to change — offe
 it for them to confirm or correct rather than asking cold.
 
 1. **What worked that we would do again?**
-2. **What would we change?**
+2. **What didn't work, and what would we change because of it?** Often the
+   most useful answer of the three: the thing that went wrong, said plainly, and
+   the change it led to or should lead to.
 3. **What should the next similar project know first?**
 
 A sentence each is enough. Write the answers into the README as its last
@@ -135,7 +145,7 @@ the README's other section headings:
 ## Retrospective — <today, YYYY-MM-DD>
 
 - **Would do again:** <answer>
-- **Would change:** <answer>
+- **Didn't work, and would change:** <answer>
 - **The next similar project should know first:** <answer>
 ```
 

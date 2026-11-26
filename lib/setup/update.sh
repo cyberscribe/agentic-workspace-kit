@@ -496,6 +496,24 @@ if [[ ${#APPLIED[@]} -gt 0 || ${#THERE[@]} -gt 0 || ${#OWN[@]} -gt 0 || ${#HAND[
     for p in ${HAND[@]+"${HAND[@]}"}; do step "left for hand merging  $p"; done
 fi
 
+# --- Roles (3.10.0): said once, on the update that brings them ---------------------------------------
+# A person's profile can list the roles they hold (a parent, a marketing leader), and each project and
+# area names the one they are in there. Nothing breaks without them, so this is one line, on the update
+# that crosses into 3.10.0, and only when the person's profile has no Roles list yet.
+older() { awk -v a="$1" -v b="$2" 'BEGIN { split(a, x, "."); split(b, y, ".")
+    for (i = 1; i <= 3; i++) { if (x[i] + 0 < y[i] + 0) exit 0; if (x[i] + 0 > y[i] + 0) exit 1 }; exit 1 }'; }
+if [[ -n "${old_version:-}" ]] && older "$old_version" 3.10.0 && ! older "${new_version:-0.0.0}" 3.10.0; then
+    state_check "$WS"
+    prof="$(state_key person_profile_path)"
+    if [[ -n "$prof" && -f "$WS/$prof" ]] && ! grep -qiE '^#+[[:space:]]+Roles[[:space:]]*$' "$WS/$prof"; then
+        echo
+        say "New in 3.10.0: the roles you hold (at work, at home, in a craft) can go in a Roles list in"
+        say "$prof, and each project can name the one you are in there. In a Claude Code session,"
+        say "/workspace:quick-start fills the list, and /projects:adopt <project> offers the role for a"
+        say "project. Nothing needs it; without it, everything reads as before."
+    fi
+fi
+
 # --- The commit -------------------------------------------------------------------------------------
 add=(kit .claude/kit-templates.lock)
 for p in ${ACCEPTED[@]+"${ACCEPTED[@]}"} ${ENGINE_PATHS[@]+"${ENGINE_PATHS[@]}"}; do

@@ -275,13 +275,13 @@ empty "17 hook: a folder with no Current state block that is not listed stays si
 empty "17 hook: every run exits quietly (nothing on stderr)" \
     "$(jq -nc --arg c "$s17_ws/projects/field-study" '{cwd: $c}' | PROJECTS_HOOK_STATE_DIR="$s17_stamps" "$st_bash" "$s17_hook" 2>&1 >/dev/null)"
 
-# ---- The nineteen commands --------------------------------------------------------------------------
+# ---- The twenty commands --------------------------------------------------------------------------
 
-s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename scheduler/tasks workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename scheduler/tasks workspace/diagnose workspace/hygiene workspace/quick-start workspace/register-audit"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the nineteen commands, /projects:hold and /projects:rename among them" \
-    || ko "17 the kit has exactly the nineteen commands, /projects:hold and /projects:rename among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the twenty commands, /projects:hold and /projects:rename among them" \
+    || ko "17 the kit has exactly the twenty commands, /projects:hold and /projects:rename among them" "has: $s17_got"
 
 # ---- What each projects command says -------------------------------------------------------------
 
@@ -313,6 +313,12 @@ s17_bad="$(s17_has "$s17_c" 'projects/_done/<slug>/' 'mkdir -p projects/_done' '
     'grep -rl' '--exclude-dir=kit' 'not rewritten' '`_done/<slug>/`' 'Folder moves' 'print the same commands' \
     'the commit is left to the person')"
 empty "17 close: archives to projects/_done with git mv, rewrites the untracked .gitignore line and lists the others, runs hooks, follows Folder moves" "$s17_bad"
+# The retrospective stays three questions; the second asks what did not work and what changed because of it,
+# and the command's page says the same.
+s17_bad="$(s17_has "$s17_c" "2. **What didn't work, and what would we change because of it?**" "- **Didn't work, and would change:** <answer>")"
+s17_bad+="$(s17_has "$KIT/docs/commands/projects-close.md" "Three questions: what worked, what didn't and what to change because of it")"
+grep -q '^4\. \*\*' <(sed -n '/^## 2\. A short retrospective/,/^## 3\./p' "$s17_c") && s17_bad+="close.md: the retrospective has a fourth question"$'\n'
+empty "17 close: the retrospective asks what did not work and what changed because of it, in three questions, and the page agrees" "$s17_bad"
 
 s17_n="$s17_cmd/new.md"
 s17_bad="$(s17_has "$s17_n" '- **Versioned:** workspace' '- **Sensitivity:** normal' 'Versioned default' \
@@ -350,11 +356,11 @@ s17_bad+="$(s17_before "$s17_b" '12. **Resource not reachable here**' '13. **Loo
 empty "17 board: flags 9-13 in order, from the state check where it is present" "$s17_bad"
 
 s17_p="$s17_cmd/pickup.md"
-s17_bad="$(s17_has "$s17_p" 'read-only while briefing; after the brief, one offered write: resuming a paused project, on a yes' \
-    'Read-only while briefing; after the brief, one offered write: resuming a paused project, on a yes' \
+s17_bad="$(s17_has "$s17_p" 'read-only while briefing; after it, offers to resume a paused project or to question a plan with open branches, each on a yes' \
+    'Read-only while briefing; after the brief, two offers, each written on a yes: resuming a paused project, and questioning a plan with open branches.' \
     '`State: ready`' 'look again on YYYY-MM-DD' '`<today> — Resumed.`' 'Active section' 'in flight')"
 grep -qF 'Read-only, always' "$s17_p" && s17_bad+="pickup.md: still says Read-only, always"$'\n'
-empty "17 pickup: read-only while briefing, then one offered write that resumes a paused project" "$s17_bad"
+empty "17 pickup: read-only while briefing, then two offers on a yes: resume a paused project, question a plan with open branches" "$s17_bad"
 
 # Every command that moves a register row takes the section's name from the conventions, so a register
 # whose paused section is "On hold" keeps that name.
@@ -393,11 +399,12 @@ grep -qF 'belongs in general reference instead' "$KIT/templates/project-readme.m
 empty "17 areas: the project template routes work with no finish line to an area" "$s17_bad"
 
 check "17 areas: the ongoing plugin has a plugin.json with a version" jq -e '.name == "ongoing" and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' "$KIT/plugins/ongoing/.claude-plugin/plugin.json"
-s17_bad="$(s17_has "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**' '5. **Check-in cadence**' \
+s17_bad="$(s17_has "$s17_o/new.md" '3. **Desired state**' '4. **Their role in it**' '5. **Standards to keep**' '6. **Check-in cadence**' \
     '**How it is versioned, and whether anything in it is sensitive**' '**People and roles.**' '**accountable**' \
     '**Recurring.**' '**Projects.**' '**Precedents.**' '- not yet named' 'Areas do not count against the in-flight limit' \
     'ongoing/INDEX.md' '/projects:new')"
-s17_bad+="$(s17_before "$s17_o/new.md" '3. **Desired state**' '4. **Standards to keep**')"
+s17_bad+="$(s17_before "$s17_o/new.md" '3. **Desired state**' '4. **Their role in it**')"
+s17_bad+="$(s17_before "$s17_o/new.md" '4. **Their role in it**' '5. **Standards to keep**')"
 s17_bad+="$(s17_has "$s17_o/review.md" 'Met, slipped or not known' '/projects:new' '`Check-in:` gets `last <today>`')"
 s17_bad+="$(s17_has "$s17_o/adopt.md" 'proposed by /ongoing:adopt' '## The move and the registers' 'live files')"
 s17_bad+="$(s17_has "$s17_o/pause.md" '`State: dormant`' 'look again on YYYY-MM-DD' 'Dormant')"

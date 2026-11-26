@@ -27,7 +27,7 @@ names it.
 ## A message
 
 Append only, newest last. Each side writes only its own files, and takes the next id with
-`kit/plugins/projects/hooks/pair.sh post`, which reads the last id and appends under a lock, so two
+`bash kit/plugins/projects/hooks/pair.sh post`, which reads the last id and appends under a lock, so two
 writers never share one. Anyone else who writes to a file (a second session, the person) takes the
 next free id the same way. Two messages under one id are two messages: `pair.sh check` and the
 engineer's start hook name the id, and the later is read in full, not as an amendment.
@@ -50,7 +50,7 @@ for such a message that is expected.
 ## Time
 
 Every time written here comes from the system clock, never from an estimate: read it with `date`
-each time. A header is written by `kit/plugins/projects/hooks/pair.sh post`, which stamps it itself, or
+each time. A header is written by `bash kit/plugins/projects/hooks/pair.sh post`, which stamps it itself, or
 headed with the output of `date`; a header typed by hand, or dated later than the file it sits in, is named
 by `pair.sh check`. Keep the clock synced with network time where the machine allows it. Write the UTC offset
 with every time (`2026-10-06 17:40 +0100`, from `date '+%Y-%m-%d %H:%M %z'`), so times written on
@@ -65,7 +65,7 @@ editing the message:
 PM-007 · 2026-10-06 18:05 +0100 · done 4f2a91c
 ```
 
-`kit/plugins/projects/hooks/pair.sh status --mailbox <this folder> --from cc --id PM-007 done 4f2a91c`
+`bash kit/plugins/projects/hooks/pair.sh status --mailbox <this folder> --from cc --id PM-007 done 4f2a91c`
 writes that line (`--from pm` for the PM). Without a shell, append it by hand. The last line for an
 id holds. A status:
 
@@ -117,6 +117,26 @@ seals it again with `pair.sh gates --mailbox <this folder> --from pm --seal`. `b
   follow-up) has its id in `.pm-checkin` and a line in the PM's next message saying what it is and when
   it fires. The engineer's write-ups take what is scheduled from there, so the two accounts agree.
 - A message that cannot wait for a check goes to the person directly.
+
+## Closing out
+
+A closeout keeps what a session learned; it does not end the pairing (that is the PM's last message
+and `.closed`). When the person runs closeout in the PM's session, the engineer closes out first and
+the PM last, so no file is written by both:
+
+- The PM posts a message titled `Close out` before it writes anything durable.
+- The engineer closes out its own session straight away. It writes what is its own: the code
+  repository it works in and its notes in the project's handoff folder. The shared files are the PM's:
+  the project's decisions log, its README's Current state, the workspace's memory and logs. An entry
+  the engineer has for one of those goes in its reply, for the PM to write.
+- It replies with a `CC-NNN` titled `Closed out`, listing every file it wrote and every entry it
+  proposes, and sets the `Close out` message done.
+- The PM then writes the shared files, and leaves alone every file the engineer listed. An engineer
+  whose session has stopped does not hold the PM up: the PM closes out and tells the person which
+  engineer still needs it, with the command that resumes it.
+
+A closeout run in the engineer's own session closes out that session only, and says so in one line.
+Closing out the PM is the person's call.
 
 ## Commands handed to the person
 
