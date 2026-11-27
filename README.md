@@ -1,6 +1,6 @@
 # A Workspace That Keeps Its Context
 
-[![How AI work keeps its judgment: a ten-minute introduction to the kit](https://img.youtube.com/vi/jfIWrQi8lx4/maxresdefault.jpg)](https://youtu.be/jfIWrQi8lx4)
+[![How AI work keeps its judgment: a ten-minute introduction to the kit](https://img.youtube.com/vi/jfIWrQi8Ix4/maxresdefault.jpg)](https://youtu.be/jfIWrQi8Ix4)
 
 **Start with the ten-minute film above.** It follows one small business through the kit, chapter by
 chapter: setup, a project, an area that is only ever kept up, an AI engineer working overnight while an AI
