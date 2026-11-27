@@ -1,11 +1,11 @@
 # A Workspace That Keeps Its Context
 
-[![How AI work keeps its judgment: a six-minute introduction to the kit](https://img.youtube.com/vi/6A7e3tZ7N-A/maxresdefault.jpg)](https://youtu.be/6A7e3tZ7N-A)
+[![How AI work keeps its judgment: a ten-minute introduction to the kit](https://img.youtube.com/vi/jfIWrQi8lx4/maxresdefault.jpg)](https://youtu.be/jfIWrQi8lx4)
 
-**Start with the six-minute film above.** It follows one small business through the kit: a project with a
-finish line, an area that is only ever kept up, an AI engineer working overnight while an AI manager checks
-its work, and the closeout that keeps what each session learned. Then it shows where to look in the files
-and how to start.
+**Start with the ten-minute film above.** It follows one small business through the kit, chapter by
+chapter: setup, a project, an area that is only ever kept up, an AI engineer working overnight while an AI
+manager checks its work, the morning after, and the closeout that keeps what each session learned. Then
+scheduled tasks that run on your own computer, the weekly tidy, and where to look in the files.
 
 **Welcome.** This kit gives you and your AI assistant a shared language and a shared set of places: what
 a project is and where it stands, which standards an ongoing area keeps, where a decision or a lesson
