@@ -275,13 +275,34 @@ empty "17 hook: a folder with no Current state block that is not listed stays si
 empty "17 hook: every run exits quietly (nothing on stderr)" \
     "$(jq -nc --arg c "$s17_ws/projects/field-study" '{cwd: $c}' | PROJECTS_HOOK_STATE_DIR="$s17_stamps" "$st_bash" "$s17_hook" 2>&1 >/dev/null)"
 
-# ---- The twenty commands --------------------------------------------------------------------------
+# ---- The twenty-two commands --------------------------------------------------------------------------
 
-s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename scheduler/tasks workspace/diagnose workspace/hygiene workspace/quick-start workspace/register-audit"
+s17_want="closeout/closeout ongoing/adopt ongoing/drop ongoing/new ongoing/pause ongoing/review projects/adopt projects/board projects/close projects/hold projects/new projects/overnight projects/pair projects/pickup projects/rename scheduler/tasks workspace/commit-plan workspace/diagnose workspace/hygiene workspace/quick-start workspace/register-audit workspace/unblock"
 s17_got="$(cd "$KIT/plugins" && for s17_f in ./*/commands/*.md; do s17_f="${s17_f#./}"; printf '%s\n' "${s17_f%.md}"; done \
     | sed 's#/commands/#/#' | sort | paste -sd' ' -)"
-[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the twenty commands, /projects:hold and /projects:rename among them" \
-    || ko "17 the kit has exactly the twenty commands, /projects:hold and /projects:rename among them" "has: $s17_got"
+[[ "$s17_got" == "$s17_want" ]] && ok "17 the kit has exactly the twenty-two commands, /projects:hold and /projects:rename among them" \
+    || ko "17 the kit has exactly the twenty-two commands, /projects:hold and /projects:rename among them" "has: $s17_got"
+
+# ---- The workspace's unblock and commit-plan (3.11.1) ---------------------------------------------
+# Both hand the person work to do and do none of it themselves: unblock writes nothing and orders its
+# card by what each item frees; commit-plan runs no git write, names exact paths, leaves kit/ upstream.
+
+s17_u="$KIT/plugins/workspace/commands/unblock.md"
+s17_bad="$(s17_has "$s17_u" \
+    'offer-unprompted:' 'This session first.' 'A decision' 'A review' 'An approval' \
+    'A command they must run themselves' 'Something only they have' 'Cleared while checking' \
+    'against the live state' 'how much each item frees' 'Unblocks:' 'Why you:' 'no placeholders' \
+    "can't be undone" 'the review question' 'lettered' 'works inside a kit workspace' \
+    '`/closeout` and `/workspace:hygiene`' 'say so in one line')"
+empty "17 unblock: this session first, the five kinds of blocker, cleared and re-checked, ordered by what it frees, each item's shape" "$s17_bad"
+s17_c="$KIT/plugins/workspace/commands/commit-plan.md"
+s17_bad="$(s17_has "$s17_c" \
+    'offer-unprompted:' 'works inside a kit workspace' 'runs no `git add`, `git commit`, `git push`, `git stash` or `git checkout`' \
+    '--no-optional-locks' 'Versioned: own-repo' 'Sensitivity: sensitive' 'Secrets and local config' \
+    'Generated artefacts' 'Leave for now' 'never uses `-A`, `.` or `-u`' 'git add -p' 'git commit -e -m' \
+    'No body and no attribution trailers' 'innermost submodule first' 'kit/setup.sh --developer' \
+    'a pull request to the kit' 'is not part of it')"
+empty "17 commit-plan: reads only, exact paths, secrets and artefacts set aside, kit/ left upstream, no hook bypass" "$s17_bad"
 
 # ---- What each projects command says -------------------------------------------------------------
 

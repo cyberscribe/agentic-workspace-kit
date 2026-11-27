@@ -9,6 +9,8 @@ commands, two hooks and a state check:
 | **`/workspace:hygiene`** | The weekly tidy of where context lives, with the always-loaded byte count every time. |
 | **`/workspace:register-audit`** | The monthly check of the register guidance files are written in. |
 | **`/workspace:diagnose`** | A scrubbed fault report for the kit's maintainers: versions, where the plugins load from, install records and hook state, with no paths, names or secrets. |
+| **`/workspace:unblock`** | One card of what only the person can do, right now, so the session's work can move: each blocker with its commands ready to paste and its documents surfaced. |
+| **`/workspace:commit-plan`** | The workspace's uncommitted work as paste-ready commits in logical chunks, each with a message to rewrite; it reads only. |
 
 ## Quick-start
 
