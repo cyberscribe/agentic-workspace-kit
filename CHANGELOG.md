@@ -5,6 +5,32 @@ rewriting — the record of what a version claimed is part of what the version i
 
 ---
 
+## v3.11.1 — 2026-11-26
+
+**To update:** run `kit/setup.sh update` in the workspace, then `kit/setup.sh skills` where the workspace uses
+Cowork. No template changes. The plugins take effect in the next session.
+
+**Plugins.** workspace 2.7.0: two commands. closeout 1.8.0, ongoing 0.2.0, projects 3.9.1 and scheduler 0.2.0
+are unchanged.
+
+**What the kit costs every session.** Two command descriptions, about 520 characters together (about 160
+tokens), inside the 6,200-character cap. No session-start line or reminder changed.
+
+- **`/workspace:unblock`.** One card of what only the person can do, right now, so the work in a session
+  can move: each decision, review, approval, command the session cannot run, or thing only they have, in
+  the order that frees the most, with its commands ready to paste and its documents surfaced. It clears
+  what it can first and re-checks the rest against the live state. With nothing blocked in the session,
+  it says so in a line and makes one quick pass over work stalled elsewhere in the workspace (a pairing's
+  unanswered question, unpushed commits, a scheduled run that needs a reply). It writes nothing beyond what it
+  clears itself, reversibly.
+- **`/workspace:commit-plan`.** The workspace's uncommitted work as paste-ready commits: it reads every
+  repository (the root, submodules, own-repo projects), groups the changes by what they do, sets aside
+  secrets, generated artefacts and work in progress, and hands over one block per chunk with exact paths and
+  a short `git commit -e` message to rewrite, then the pushes, innermost submodule first. Changes inside
+  `kit/` are listed for a pull request to the kit rather than committed. Each block is chained with `&&`,
+  so a failed step stops it before it commits, in short lines that paste whole from a terminal. It
+  runs no git write itself.
+
 ## v3.11.0 — 2026-11-26
 
 **To update:** run `kit/setup.sh update` in the workspace. One template change: the example conventions
