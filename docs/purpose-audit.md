@@ -53,6 +53,8 @@ folding into something that does, and waits for a decision.*
 | `/workspace:hygiene` | 1 | Checks that each thing is where both expect it, and the budget of what loads every time |
 | `/workspace:register-audit` | 1 | Keeps guidance calm and the person's words plain |
 | `/workspace:diagnose` | Rail | A fault report for the kit's maintainers; it keeps the kit working without carrying anything private out (added 3.10.0) |
+| `/workspace:unblock` | 1 | What only the person can do, said once with everything needed to do it, so the shared work does not sit waiting (added 3.11.1) |
+| `/workspace:commit-plan` | 1 | The work goes into history in chunks a person has read and named, so the record stays theirs (added 3.11.1) |
 | workspace session-start hook | Rail | Names what is out of step (hooks, the kit import, a submodule) with the command that fixes it |
 | guard-git hook (PreToolUse) | Rail | Keeps an agent from stepping round the git hooks that keep the workspace private |
 | `scripts/state.sh` | Rail | The read-only state the hook and hygiene report from |
