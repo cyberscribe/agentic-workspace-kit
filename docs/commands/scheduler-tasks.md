@@ -27,7 +27,10 @@ with the script `plugins/scheduler/scripts/schedule.sh` and its `port` step in `
 For work that should happen at a time rather than now, on your own machine and from your own files: a
 morning digest, a weekly tidy, a one-off reminder next Tuesday. Also to move a set of cloud scheduled
 tasks home. Claude Code's `/schedule` runs routines in the cloud and its session cron tools end with
-the session; this one is local and lasts.
+the session; this one is local and lasts. On Pro and Max plans, Cowork's scheduled tasks now run in
+Anthropic's cloud as well, where they cannot reach the files on your machine unless tied to a folder
+there, and then only while it is awake with the app open; this one runs from the machine's own
+scheduler, beside your files and under your own settings.
 
 ## Common questions
 
